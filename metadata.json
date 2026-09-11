@@ -1,0 +1,11 @@
+{
+  "name": "Oddkin Foundry",
+  "description": "Infinite matter crafting and life synthesis engine powered by Neal Agarwal's Infinite Craft pairing system and Gemini AI.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
