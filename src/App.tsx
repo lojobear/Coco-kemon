@@ -4,7 +4,7 @@
  * Mobile-First AI Crafting & Procedural Genome Sprite Collection Game
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { GameProvider, useGame } from './lib/gameStore';
 import { Header } from './components/Header';
 import { WorkBench } from './components/WorkBench';
@@ -16,11 +16,19 @@ import { SeedsModal } from './components/SeedsModal';
 import { VoiceLabModal } from './components/VoiceLabModal';
 import { BottomNav } from './components/BottomNav';
 import { InfiniteCraftView } from './components/InfiniteCraftView';
+import { SAVE_STATUS_EVENT, getSaveError } from './lib/saveData';
 import { Material } from './types';
 
 function GameContent() {
-  const { activeTab, inspectedItem, setInspectedItem } = useGame();
+  const { activeTab, inspectedItem, setInspectedItem, synthesisError, isSynthesizing, runSynthesis } = useGame();
 
+  const [saveError, setSaveError] = useState(getSaveError);
+  useEffect(() => {
+    const update = () => setSaveError(getSaveError());
+    update();
+    window.addEventListener(SAVE_STATUS_EVENT, update);
+    return () => window.removeEventListener(SAVE_STATUS_EVENT, update);
+  }, []);
   const [showSeedsModal, setShowSeedsModal] = useState<boolean>(false);
   const [showVoiceModal, setShowVoiceModal] = useState<boolean>(false);
 
@@ -36,6 +44,10 @@ function GameContent() {
         onOpenVoice={() => setShowVoiceModal(true)}
       />
 
+      {saveError && <div role="alert" className="bg-red-950 text-white p-3 text-sm">{saveError}</div>}
+      {synthesisError && activeTab === 'foundry' && <div role="alert" className="bg-red-950 text-white p-3 text-sm">
+        {synthesisError} <button disabled={isSynthesizing} className="underline ml-2 p-2" onClick={() => void runSynthesis()}>Retry synthesis</button>
+      </div>}
       {/* Main Viewport Content */}
       <main className={`flex-1 w-full min-h-0 flex flex-col ${activeTab === 'infinite-craft' ? 'overflow-hidden' : 'overflow-y-auto'}`}>
         {activeTab === 'infinite-craft' && (

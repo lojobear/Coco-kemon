@@ -8,6 +8,9 @@ import React, { createContext, useContext, useEffect, useState, useCallback, use
 import { Material, Oddkin, Process, ExperimentLog, Habitat, SynthesisResult, PhotoSeedResult, SketchSeedResult } from '../types';
 import { STARTER_MATERIALS, ALL_PROCESSES, INITIAL_HABITATS } from './starterData';
 import { generateMaterialSprite, generateOddkinSprite } from './pixelRenderer';
+import { requestJson } from './api';
+import { validMaterial, validOddkin } from './validation';
+import { readFoundrySave, saveFoundry, exportCompleteSave, importCompleteSave } from './saveData';
 import { sound } from './audio';
 
 const STORAGE_KEY = 'oddkin_foundry_save_v1';
@@ -32,6 +35,7 @@ interface GameState {
   slotB: Material | null;
   selectedProcess: Process | null;
   isSynthesizing: boolean;
+  synthesisError: string | null;
   synthesisStage: SynthesisStage;
   recentDiscovery: {
     material?: Material;
@@ -91,7 +95,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const [materials, setMaterials] = useState<Material[]>(() => {
     if (typeof window !== 'undefined') {
       try {
-        const saved = localStorage.getItem(STORAGE_KEY);
+        const saved = readFoundrySave();
         if (saved) {
           const parsed = JSON.parse(saved);
           if (parsed.materials && Array.isArray(parsed.materials) && parsed.materials.length > 0) {
@@ -111,7 +115,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const [oddkinCollection, setOddkinCollection] = useState<Oddkin[]>(() => {
     if (typeof window !== 'undefined') {
       try {
-        const saved = localStorage.getItem(STORAGE_KEY);
+        const saved = readFoundrySave();
         if (saved) {
           const parsed = JSON.parse(saved);
           if (parsed.oddkinCollection && Array.isArray(parsed.oddkinCollection)) {
@@ -128,7 +132,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const [processes, setProcesses] = useState<Process[]>(() => {
     if (typeof window !== 'undefined') {
       try {
-        const saved = localStorage.getItem(STORAGE_KEY);
+        const saved = readFoundrySave();
         if (saved) {
           const parsed = JSON.parse(saved);
           if (parsed.processes && Array.isArray(parsed.processes)) {
@@ -145,7 +149,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const [experiments, setExperiments] = useState<ExperimentLog[]>(() => {
     if (typeof window !== 'undefined') {
       try {
-        const saved = localStorage.getItem(STORAGE_KEY);
+        const saved = readFoundrySave();
         if (saved) {
           const parsed = JSON.parse(saved);
           if (parsed.experiments && Array.isArray(parsed.experiments)) {
@@ -162,7 +166,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const [habitats, setHabitats] = useState<Habitat[]>(() => {
     if (typeof window !== 'undefined') {
       try {
-        const saved = localStorage.getItem(STORAGE_KEY);
+        const saved = readFoundrySave();
         if (saved) {
           const parsed = JSON.parse(saved);
           if (parsed.habitats && Array.isArray(parsed.habitats)) {
@@ -181,6 +185,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const [slotB, setSlotB] = useState<Material | null>(null);
   const [selectedProcess, setSelectedProcess] = useState<Process | null>(null);
   const [isSynthesizing, setIsSynthesizing] = useState<boolean>(false);
+  const [synthesisError, setSynthesisError] = useState<string | null>(null);
   const [synthesisStage, setSynthesisStage] = useState<SynthesisStage>(null);
   const [recentDiscovery, setRecentDiscovery] = useState<GameState['recentDiscovery']>(null);
   const [activeTab, setActiveTab] = useState<'infinite-craft' | 'foundry' | 'archive' | 'habitat' | 'notebook' | 'seeds'>('infinite-craft');
@@ -199,7 +204,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         experiments,
         habitats,
       };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+      saveFoundry(payload);
     } catch (err) {
       console.warn('LocalStorage save error:', err);
     }
@@ -207,9 +212,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
   // Ensure starter materials have generated sprites
   useEffect(() => {
-    setMaterials(prev => prev.map(m => m.customSpriteUrl ? m : {
+    setMaterials(prev => prev.map(m => m.customSpriteUrl && m.spriteRendererVersion === 2 ? m : {
       ...m,
-      customSpriteUrl: generateMaterialSprite(m)
+      customSpriteUrl: generateMaterialSprite(m),
+      spriteRendererVersion: 2,
     }));
   }, []);
 
@@ -234,6 +240,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const runSynthesis = useCallback(async () => {
     if (!slotA || !selectedProcess || isSynthesizing) return;
 
+    setSynthesisError(null);
     setIsSynthesizing(true);
     sound.playClunk();
     sound.startMachineHum();
@@ -306,7 +313,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       // 4. RESOLVING RESULT via API
       setSynthesisStage('RESOLVING RESULT');
 
-      const response = await fetch('/api/synthesize', {
+      const data = await requestJson<SynthesisResult>('/api/synthesize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -318,7 +325,11 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         }),
       });
 
-      const data: SynthesisResult = await response.json();
+      if ((data.status === 'new_material' && !validMaterial(data.material)) ||
+          (data.status === 'life_emergence' && !validOddkin(data.oddkin)) ||
+          !['new_material', 'life_emergence', 'no_reaction', 'existing_material'].includes(data.status)) {
+        throw new Error('The server returned an invalid discovery. Please retry.');
+      }
 
       // 5. CATALOGUING & RENDERING SPRITE
       setSynthesisStage('CATALOGUING DISCOVERY');
@@ -382,7 +393,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         };
 
         sound.playDiscoveryChime(newMat.rarity);
-        setMaterials(prev => [newMat, ...prev]);
+        setMaterials(prev => deduplicateMaterials([newMat, ...prev]));
 
         // Unlock processes based on discoveries (e.g. Glass unlocks POLISH, Spark unlocks CHARGE, etc.)
         if (newMat.canonicalName.includes('GLASS') || newMat.canonicalName.includes('CERAMIC')) {
@@ -434,7 +445,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       }
 
     } catch (error) {
-      console.error('Synthesis error in client store:', error);
+      setSynthesisError(error instanceof Error ? error.message : 'Synthesis failed. Please retry.');
       sound.stopMachineHum();
       sound.playSpark();
     } finally {
@@ -543,7 +554,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     };
     newMat.customSpriteUrl = generateMaterialSprite(newMat);
 
-    setMaterials(prev => [newMat, ...prev]);
+    setMaterials(prev => deduplicateMaterials([newMat, ...prev]));
     setRecentDiscovery({
       material: newMat,
       isNew: true,
@@ -664,23 +675,26 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       experiments,
       habitats,
     };
-    return JSON.stringify(payload, null, 2);
+    return exportCompleteSave(payload);
   }, [materials, oddkinCollection, processes, experiments, habitats]);
 
   const importSaveData = useCallback((jsonStr: string): boolean => {
     try {
-      const parsed = JSON.parse(jsonStr);
-      if (!parsed.materials || !Array.isArray(parsed.materials)) return false;
+      if (isSynthesizing) return false;
+      const parsed = importCompleteSave(jsonStr);
       setMaterials(parsed.materials);
       setOddkinCollection(parsed.oddkinCollection || []);
       setProcesses(parsed.processes || ALL_PROCESSES);
       setExperiments(parsed.experiments || []);
       setHabitats(parsed.habitats || INITIAL_HABITATS);
+      clearSlots();
+      setRecentDiscovery(null);
+      setInspectedItem(null);
       return true;
     } catch {
       return false;
     }
-  }, []);
+  }, [isSynthesizing, clearSlots]);
 
   const value = useMemo<GameState>(() => ({
     materials,
@@ -694,6 +708,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     selectedProcess,
     isSynthesizing,
     synthesisStage,
+    synthesisError,
     recentDiscovery,
     activeTab,
     inspectedItem,
@@ -727,6 +742,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     selectedProcess,
     isSynthesizing,
     synthesisStage,
+    synthesisError,
     recentDiscovery,
     activeTab,
     inspectedItem,

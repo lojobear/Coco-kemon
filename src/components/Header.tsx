@@ -27,7 +27,7 @@ export function Header({
   } = useGame();
 
   const [showSettings, setShowSettings] = useState(false);
-  const [hasGeminiKey, setHasGeminiKey] = useState<boolean>(true);
+  const [hasGeminiKey, setHasGeminiKey] = useState<boolean>(false);
 
   useEffect(() => {
     fetch('/api/health')
@@ -44,7 +44,7 @@ export function Header({
 
   return (
     <header className="sticky top-0 z-30 w-full bg-[#14171c]/95 backdrop-blur-md border-b border-[#282d37] px-3 py-2 shadow-md">
-      <div className="max-w-4xl mx-auto flex items-center justify-between">
+      <div className="max-w-4xl mx-auto flex flex-wrap items-center justify-between gap-y-2">
         {/* Left: Branding & Tagline */}
         <div className="flex items-center gap-2">
           <button
@@ -71,7 +71,7 @@ export function Header({
         </div>
 
         {/* Center: Game Engine Switcher */}
-        <div className="flex items-center gap-1 bg-[#1e2229] p-1 rounded-xl border border-[#2f3542]">
+        <div className="order-3 sm:order-none w-full sm:w-auto justify-center flex items-center gap-1 bg-[#1e2229] p-1 rounded-xl border border-[#2f3542]">
           <button
             onClick={() => {
               sound.playClick();
@@ -149,10 +149,10 @@ export function Header({
                 ? 'bg-emerald-950/40 border-emerald-500/30 text-emerald-400'
                 : 'bg-amber-950/40 border-amber-500/30 text-amber-400'
             }`}
-            title={hasGeminiKey ? 'Gemini API Key Active: Live AI synthesis ready' : 'Offline mode active'}
+            title={hasGeminiKey ? 'API key configured; successful requests depend on model access and quota' : 'AI key is not configured'}
           >
             <span className={`w-2 h-2 rounded-full ${hasGeminiKey ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
-            <span className="font-semibold">{hasGeminiKey ? 'Gemini AI Active' : 'Gemini Offline'}</span>
+            <span className="font-semibold">{hasGeminiKey ? 'AI key configured' : 'AI not configured'}</span>
           </div>
 
           {/* Seeds (Camera / Sketch) */}
@@ -227,17 +227,17 @@ export function Header({
                 </div>
                 <div className="space-y-1">
                   <div className="font-bold text-[12px] flex items-center gap-1.5">
-                    <span>{hasGeminiKey ? 'Gemini 3.1 Flash-Lite Engine Active' : 'Gemini Offline Mode'}</span>
+                    <span>{hasGeminiKey ? 'Gemini API key configured' : 'AI not configured'}</span>
                   </div>
                   <p className="text-[10px] leading-relaxed text-[#9ca3af]">
                     {hasGeminiKey
                       ? 'Powering infinite AI concept crafting, procedural 64x64 pixel-art genetics, and multimodal photo & sketch seeds.'
-                      : 'Running on local deterministic lookup tables and fallbacks.'}
+                      : 'Built-in recipes still work. New AI discoveries require a configured API key.'}
                   </p>
                 </div>
               </div>
 
-              <p>All discoveries, lineage trees, and Oddkin genomes persist locally in your browser storage.</p>
+              <p>Backups include both crafting elements and Foundry collections, creatures, habitats, and experiment history.</p>
 
               <div className="grid grid-cols-2 gap-2 pt-1">
                 <button
@@ -247,8 +247,9 @@ export function Header({
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
                     a.href = url;
-                    a.download = `oddkin-foundry-save-${new Date().toISOString().slice(0, 10)}.json`;
+                    a.download = `coco-kemon-save-${new Date().toISOString().slice(0, 10)}.json`;
                     a.click();
+                    setTimeout(() => URL.revokeObjectURL(url), 1000);
                     sound.playDiscoveryChime();
                   }}
                   className="flex items-center justify-center gap-1.5 px-3 py-2 rounded bg-[#232833] hover:bg-[#2c3340] border border-[#383f4e] text-[#f3f4f6] text-xs font-mono font-medium transition-colors"
@@ -272,7 +273,7 @@ export function Header({
                           sound.playDiscoveryChime('RARE');
                           setShowSettings(false);
                         } else {
-                          alert('Failed to parse valid Oddkin Foundry save file.');
+                          alert('Import failed. Check the backup format and available browser storage, and finish any active synthesis before retrying. Your existing save has not been replaced.');
                         }
                       };
                       reader.readAsText(file);

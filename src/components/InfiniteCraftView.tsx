@@ -11,6 +11,8 @@ import {
   InfiniteCraftPairResponse,
   makePairKey,
 } from '../lib/infiniteCraftData';
+import { requestJson } from '../lib/api';
+import { saveCraftElements, readCraftElements, SAVE_IMPORTED_EVENT } from '../lib/saveData';
 import { sound } from '../lib/audio';
 import { LidarSynthesisModal, ActiveSynthesisSession } from './LidarSynthesisModal';
 import {
@@ -103,7 +105,7 @@ export function InfiniteCraftView() {
   // Elements state
   const [elements, setElements] = useState<InfiniteElement[]>(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_ELEMENTS_KEY);
+      const saved = JSON.stringify(readCraftElements());
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
@@ -115,6 +117,19 @@ export function InfiniteCraftView() {
     }
     return sanitizeElements(STARTER_ELEMENTS);
   });
+
+  useEffect(() => {
+    const reload = () => {
+      requestRef.current?.abort();
+      setElements(sanitizeElements(readCraftElements()));
+      setCanvasItems([]);
+      setSelectedCanvasId(null);
+      setCombineError(null);
+      lastPairRef.current = null;
+    };
+    window.addEventListener(SAVE_IMPORTED_EVENT, reload);
+    return () => window.removeEventListener(SAVE_IMPORTED_EVENT, reload);
+  }, []);
 
   // Canvas board items
   const [canvasItems, setCanvasItems] = useState<CanvasItem[]>([
@@ -156,6 +171,9 @@ export function InfiniteCraftView() {
     instanceId: string;
     offsetX: number;
     offsetY: number;
+    startX: number;
+    startY: number;
+    moved: boolean;
   } | null>(null);
 
   // Hover target for fusion drop
@@ -165,7 +183,7 @@ export function InfiniteCraftView() {
   useEffect(() => {
     try {
       const sanitized = sanitizeElements(elements);
-      localStorage.setItem(STORAGE_ELEMENTS_KEY, JSON.stringify(sanitized));
+      saveCraftElements(sanitized);
     } catch (e) {
       console.error('Failed to save infinite craft elements', e);
     }
@@ -259,6 +277,15 @@ export function InfiniteCraftView() {
     return list;
   }, [elements, searchQuery, sortMode]);
 
+  const [combineError, setCombineError] = useState<string | null>(null);
+  const lastPairRef = useRef<Parameters<typeof handleCombine> | null>(null);
+  const requestRef = useRef<AbortController | null>(null);
+  const progressRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  useEffect(() => () => {
+    requestRef.current?.abort();
+    if (progressRef.current) clearInterval(progressRef.current);
+  }, []);
+
   // Skip active synthesis immediately
   const handleSkipSynthesis = () => {
     skipRequestedRef.current = true;
@@ -269,7 +296,11 @@ export function InfiniteCraftView() {
     itemA: { name: string; emoji?: string; x: number; y: number; idA?: string },
     itemB: { name: string; emoji?: string; x: number; y: number; idB?: string }
   ) => {
-    if (isSynthesizing) return;
+    if (requestRef.current) return;
+    const controller = new AbortController();
+    requestRef.current = controller;
+    lastPairRef.current = [itemA, itemB];
+    setCombineError(null);
     setIsSynthesizing(true);
     skipRequestedRef.current = false;
     sound.playLidarSweep();
@@ -284,105 +315,32 @@ export function InfiniteCraftView() {
       targetX,
       targetY,
       progress: 8,
-      stageText: 'Calibrating 905nm LiDAR pulsed laser...',
+      stageText: 'Finding a combination...',
     };
     setSynthesisSession(sessionObj);
 
-    // Launch API fetch concurrently
-    const pairFetchPromise = (async () => {
-      try {
-        const res = await fetch(
-          `/api/infinite-craft/pair?first=${encodeURIComponent(itemA.name)}&second=${encodeURIComponent(itemB.name)}`
-        );
-        if (!res.ok) {
-          throw new Error(`Pairing API failed with HTTP ${res.status}`);
-        }
-        const data: InfiniteCraftPairResponse = await res.json();
-        return data;
-      } catch (e) {
-        console.error('Pairing API error:', e);
-        return null;
-      }
-    })();
-
-    // High-tactile synthesis animation loop with LiDAR sweep progress
     const startTime = Date.now();
-    const TOTAL_DURATION = 1500; // 1.5 seconds for rich holographic materialization
-    let apiData: InfiniteCraftPairResponse | null = null;
-    let lockSoundPlayed = false;
-
-    await new Promise<void>(resolve => {
-      const interval = setInterval(async () => {
-        const elapsed = Date.now() - startTime;
-        let p = Math.min(100, Math.round((elapsed / TOTAL_DURATION) * 100));
-
-        // Poll API promise without blocking
-        if (!apiData) {
-          const quickCheck = Promise.race([
-            pairFetchPromise,
-            new Promise<null>(r => setTimeout(() => r(null), 10)),
-          ]);
-          const maybe = await quickCheck;
-          if (maybe) {
-            apiData = maybe;
-          }
-        }
-
-        // Fast-forward if user clicks skip
-        if (skipRequestedRef.current) {
-          p = 100;
-        }
-
-        // Hold at 90% if API is still generating (e.g. cold model call)
-        if (p > 90 && !apiData && !skipRequestedRef.current) {
-          p = 90;
-        }
-
-        let stage = 'Calibrating 905nm LiDAR pulsed laser...';
-        if (p >= 25 && p < 50) {
-          stage = 'Resolving point cloud coordinate matrix...';
-        } else if (p >= 50 && p < 75) {
-          stage = 'Harmonizing elemental molecular lattices...';
-        } else if (p >= 75 && p < 95) {
-          stage = 'Topological matter condensation...';
-          if (!lockSoundPlayed) {
-            lockSoundPlayed = true;
-            sound.playLidarLock();
-          }
-        } else if (p >= 95) {
-          stage = 'Materialization complete!';
-        }
-
-        setSynthesisSession(prev => {
-          if (!prev) return null;
-          return {
-            ...prev,
-            progress: p,
-            stageText: stage,
-            result: apiData
-              ? {
-                  name: apiData.result,
-                  emoji: apiData.emoji,
-                  isNew: Boolean(apiData.isNew),
-                }
-              : prev.result,
-          };
-        });
-
-        // When complete (or skipped)
-        if (p >= 100 && (apiData || skipRequestedRef.current)) {
-          clearInterval(interval);
-          setTimeout(() => resolve(), skipRequestedRef.current ? 30 : 220);
-        }
-      }, 35);
-    });
-
-    // Ensure API has resolved if not yet
-    if (!apiData) {
-      apiData = await pairFetchPromise;
-    }
+    progressRef.current = setInterval(() => {
+      const p = Math.min(90, 8 + (Date.now() - startTime) / 200);
+      setSynthesisSession(prev => prev ? { ...prev, progress: p,
+        stageText: skipRequestedRef.current ? 'Waiting for the result...' : 'Finding a combination...' } : null);
+    }, 100);
 
     try {
+      const apiData = await requestJson<InfiniteCraftPairResponse>(
+        `/api/infinite-craft/pair?first=${encodeURIComponent(itemA.name)}&second=${encodeURIComponent(itemB.name)}`,
+        { signal: controller.signal }
+      );
+      if (typeof apiData.result !== 'string' || !apiData.result.trim() ||
+          typeof apiData.emoji !== 'string' || typeof apiData.isNew !== 'boolean') {
+        throw new Error('The server returned an invalid combination. Please retry.');
+      }
+      if (controller.signal.aborted) return;
+      if (progressRef.current) clearInterval(progressRef.current);
+      setSynthesisSession(prev => prev ? { ...prev, progress: 100, stageText: 'Discovery ready!',
+        result: { name: apiData.result, emoji: apiData.emoji, isNew: apiData.isNew } } : null);
+      if (!skipRequestedRef.current) await new Promise(resolve => setTimeout(resolve, 220));
+      if (controller.signal.aborted) return;
       if (apiData && apiData.result) {
         const { result, emoji, isNew } = apiData;
 
@@ -440,8 +398,11 @@ export function InfiniteCraftView() {
         });
       }
     } catch (err) {
-      console.error('Combination finalize error:', err);
+      if (!controller.signal.aborted) setCombineError(err instanceof Error ? err.message : 'Combination failed. Please retry.');
     } finally {
+      if (progressRef.current) clearInterval(progressRef.current);
+      progressRef.current = null;
+      requestRef.current = null;
       setSynthesisSession(null);
       setIsSynthesizing(false);
       setSelectedCanvasId(null);
@@ -563,6 +524,9 @@ export function InfiniteCraftView() {
       instanceId: item.instanceId,
       offsetX: clientX - item.x,
       offsetY: clientY - item.y,
+      startX: clientX,
+      startY: clientY,
+      moved: false,
     };
   };
 
@@ -572,6 +536,8 @@ export function InfiniteCraftView() {
       const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
       const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
 
+      if (!draggingItemRef.current.moved && Math.hypot(clientX - draggingItemRef.current.startX, clientY - draggingItemRef.current.startY) < 6) return;
+      draggingItemRef.current.moved = true;
       const newX = clientX - draggingItemRef.current.offsetX;
       const newY = clientY - draggingItemRef.current.offsetY;
       const draggedId = draggingItemRef.current.instanceId;
@@ -601,8 +567,8 @@ export function InfiniteCraftView() {
       const draggedId = draggingItemRef.current.instanceId;
       const dragged = canvasItems.find(it => it.instanceId === draggedId);
 
-      // Check if dropped near another element
-      if (dragged) {
+      // A stationary tap selects an item; only an actual drag can trigger drop fusion.
+      if (dragged && draggingItemRef.current.moved) {
         for (const other of canvasItems) {
           if (other.instanceId === draggedId) continue;
           const dist = Math.hypot(other.x - dragged.x, other.y - dragged.y);
@@ -740,6 +706,15 @@ export function InfiniteCraftView() {
         )}
 
         {/* Floating Canvas Toast Feedback */}
+        {combineError && (
+          <div role="alert" className="absolute top-4 left-4 right-4 z-30 rounded-xl bg-red-950 p-4 text-white border border-red-400">
+            <p>{combineError}</p>
+            <button className="mt-2 rounded bg-white px-4 py-2 text-black" onClick={() => {
+              if (lastPairRef.current) void handleCombine(lastPairRef.current[0], lastPairRef.current[1]);
+            }}>Retry combination</button>
+            <button className="ml-3 p-2" onClick={() => setCombineError(null)}>Dismiss</button>
+          </div>
+        )}
         {spawnToast && (
           <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
             <div className="px-3.5 py-1.5 rounded-full text-xs font-mono font-semibold bg-zinc-900/90 border border-zinc-700 text-white shadow-xl backdrop-blur-md animate-fadeIn flex items-center gap-1.5">
