@@ -6,6 +6,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useGame } from '../lib/gameStore';
+import { requestJson } from '../lib/api';
 import { sound } from '../lib/audio';
 import { Mic, MicOff, X, Sparkles, Volume2, ArrowRight } from 'lucide-react';
 
@@ -108,7 +109,7 @@ export function VoiceLabModal({ onClose }: { onClose: () => void }) {
     setStatusMessage(`Interpreting: "${text}"...`);
 
     try {
-      const res = await fetch('/api/voice-intent', {
+      const data = await requestJson<any>('/api/voice-intent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -117,7 +118,6 @@ export function VoiceLabModal({ onClose }: { onClose: () => void }) {
           availableProcesses: processes,
         }),
       });
-      const data = await res.json();
 
       if (data.recognized && data.processId && data.materialAId) {
         const matA = materials.find(m => m.id === data.materialAId);
@@ -138,8 +138,8 @@ export function VoiceLabModal({ onClose }: { onClose: () => void }) {
       }
 
       setStatusMessage(`Interpreted command. Matched ingredients: ${data.recognized ? 'Configured!' : 'Could not fully match.'}`);
-    } catch {
-      setStatusMessage('Failed to parse voice command. Try standard phrasing.');
+    } catch (error) {
+      setStatusMessage(error instanceof Error ? error.message : 'Failed to parse voice command. Please retry.');
     } finally {
       setIsAnalyzing(false);
     }

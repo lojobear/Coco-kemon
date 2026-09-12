@@ -63,176 +63,166 @@ function hashString(str: string): number {
 export function generateMaterialSprite(mat: Material | { id: string; canonicalName: string; spriteDescriptor: SpriteDescriptor }): string {
   if (typeof document === 'undefined') return '';
   const canvas = document.createElement('canvas');
-  canvas.width = 64;
-  canvas.height = 64;
+  canvas.width = canvas.height = 64;
   const ctx = canvas.getContext('2d');
   if (!ctx) return '';
-
   ctx.imageSmoothingEnabled = false;
-
-  const desc = mat.spriteDescriptor;
-  const shades = getPaletteShades(desc.primaryColor, desc.secondaryColor, desc.accentColor);
-  const seed = hashString(mat.id || mat.canonicalName);
-
-  // Buffer for 32x32 logical pixels, which we scale 2x to 64x64 for chunky retro aesthetic
-  const grid: (string | null)[][] = Array(32).fill(null).map(() => Array(32).fill(null));
-
-  const setPixel = (x: number, y: number, color: string) => {
-    if (x >= 0 && x < 32 && y >= 0 && y < 32) {
-      grid[y][x] = color;
+  const d = mat.spriteDescriptor;
+  const shades = getPaletteShades(d.primaryColor, d.secondaryColor, d.accentColor);
+  // Stable identity: rediscovering an item does not randomly change its appearance.
+  const seed = hashString(mat.canonicalName);
+  const tags = 'semanticTags' in mat ? mat.semanticTags : [];
+  const name = mat.canonicalName.toLowerCase().replace(/_/g, ' ');
+  const semantics = `${name} ${tags.join(' ')}`;
+  const grid: (string | null)[][] = Array.from({ length: 64 }, () => Array(64).fill(null));
+  const pixel = (x: number, y: number, c: string) => {
+    x = Math.round(x); y = Math.round(y);
+    if (x > 1 && y > 1 && x < 62 && y < 62) grid[y][x] = c;
+  };
+  const ellipse = (cx: number, cy: number, rx: number, ry: number, c: string) => {
+    for (let y = Math.floor(cy - ry); y <= cy + ry; y++) for (let x = Math.floor(cx - rx); x <= cx + rx; x++) {
+      if (((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 <= 1) pixel(x, y, c);
     }
   };
-
-  const drawFilledCircle = (cx: number, cy: number, r: number, color: string) => {
-    for (let y = -r; y <= r; y++) {
-      for (let x = -r; x <= r; x++) {
-        if (x * x + y * y <= r * r) {
-          setPixel(cx + x, cy + y, color);
-        }
+  const polygon = (points: number[][], c: string) => {
+    for (let y = 2; y < 62; y++) for (let x = 2; x < 62; x++) {
+      let inside = false;
+      for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
+        const [xi, yi] = points[i], [xj, yj] = points[j];
+        if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) inside = !inside;
       }
+      if (inside) pixel(x, y, c);
     }
   };
+  const line = (x1: number, y1: number, x2: number, y2: number, c: string, width = 1) => {
+    const steps = Math.max(Math.abs(x2 - x1), Math.abs(y2 - y1));
+    for (let i = 0; i <= steps; i++) {
+      const t = steps ? i / steps : 0;
+      for (let w = 0; w < width; w++) pixel(x1 + (x2 - x1) * t + w, y1 + (y2 - y1) * t, c);
+    }
+  };
+  const P = shades.primary, H = shades.highlight, S = shades.shade, D = shades.deepShade, A = shades.accent, B = shades.secondary;
+  let form = d.baseShape as string;
+  // Specific object names take precedence over broad ingredient tags.
+  if (/\b(coffee|tea|cocoa|latte|cup|mug)\b/.test(name)) form = 'cup';
+  else if (/book|paper|scroll/.test(name)) form = 'book';
+  else if (/wire|coil|cable/.test(name)) form = 'coil';
+  else if (/sword|knife|blade/.test(name)) form = 'blade';
+  else if (/gear|cog|washer/.test(name)) form = 'gear';
+  else if (/wood|bark|log|timber/.test(name)) form = 'wood';
+  else if (/flower|bloom|rose/.test(name)) form = 'flower';
+  else if (/leaf|herb|fern|plant|sprout/.test(name)) form = 'leaf';
+  else if (/seed|bean|grain/.test(name)) form = 'seed';
+  else if (/crystal|quartz|gem|ice/.test(name)) form = 'crystal';
+  else if (/fire|flame|lava|ember/.test(name)) form = 'flame';
+  else if (/steam|smoke|cloud|mist|vapor/.test(name)) form = 'vapor';
+  else if (/powder|dust|sand|flour|soil|ash/.test(name)) form = 'powder';
+  else if (/bread|dough|bun/.test(name)) form = 'bread';
+  else if (/glass|bottle|potion/.test(name)) form = 'bottle';
+  else if (form === 'flora') form = /flower|petal/.test(semantics) ? 'flower' : 'leaf';
 
-  const shape = desc.baseShape || 'rock';
-
-  if (shape === 'droplet' || shape === 'fluid') {
-    // Teardrop / liquid flask
-    for (let y = 6; y <= 26; y++) {
-      const progress = (y - 6) / 20;
-      const width = progress < 0.4 ? Math.round(progress * 16) : Math.round(Math.sin((progress) * Math.PI) * 11);
-      for (let x = 16 - width; x <= 16 + width; x++) {
-        // Top-left lighting
-        if (x <= 16 && y <= 16) {
-          setPixel(x, y, shades.highlight);
-        } else if (y > 20 || x > 20) {
-          setPixel(x, y, shades.shade);
-        } else {
-          setPixel(x, y, shades.primary);
-        }
-      }
+  if (form === 'cup') {
+    ellipse(46, 32, 12, 13, B); ellipse(46, 32, 7, 8, shades.outline);
+    polygon([[13,21],[44,21],[41,49],[18,49]], P); ellipse(28, 48, 13, 5, S);
+    ellipse(28, 21, 16, 6, H); ellipse(28, 22, 12, 3, D);
+    line(19,29,21,43,H,2); line(25,14,23,9,A); line(32,13,35,7,A);
+  } else if (form === 'leaf' || form === 'flower') {
+    line(30,54,33,22,B,2);
+    polygon([[31,39],[15,24],[11,32],[17,42],[30,44]], P);
+    polygon([[33,29],[42,14],[52,12],[49,26],[35,35]], P);
+    line(15,29,29,41,H); line(35,29,49,16,H);
+    if (form === 'flower') {
+      for (let i=0;i<6;i++) { const a=i*Math.PI/3; ellipse(31+Math.cos(a)*10,19+Math.sin(a)*9,7,7,A); }
+      ellipse(31,19,6,6,B); ellipse(29,17,2,2,H);
+    } else {
+      polygon([[31,30],[23,18],[26,7],[36,15],[37,25]], B);
+      line(28,12,32,27,shades.secondaryHighlight);
+      for (let y=29;y<40;y+=4) line(21,y,27,y+5,S);
     }
-    // Glint highlight
-    setPixel(13, 11, '#ffffff');
-    setPixel(14, 11, '#ffffff');
-    setPixel(13, 12, shades.accentHighlight);
-  } else if (shape === 'crystal' || shape === 'ingot') {
-    // Faceted geometric prism
-    const points: [number, number][] = [
-      [16, 4], [25, 12], [23, 27], [16, 29], [9, 27], [7, 12]
-    ];
-    // Fill polygon approximation
-    for (let y = 5; y <= 28; y++) {
-      const left = y < 12 ? 16 - (y - 4) * 0.8 : 7 + (y - 12) * 0.15;
-      const right = y < 12 ? 16 + (y - 4) * 0.8 : 25 - (y - 12) * 0.15;
-      for (let x = Math.round(left); x <= Math.round(right); x++) {
-        if (x < 16 && y < 18) {
-          setPixel(x, y, shades.highlight);
-        } else if (x >= 16 && y < 18) {
-          setPixel(x, y, shades.primary);
-        } else if (x < 16) {
-          setPixel(x, y, shades.secondary);
-        } else {
-          setPixel(x, y, shades.shade);
-        }
-      }
+  } else if (form === 'wood') {
+    polygon([[13,24],[37,11],[53,31],[29,52]], B);
+    for (let i=0;i<5;i++) line(15+i*4,25+i*4,39+i*3,14+i*4,i%2 ? D:P,2);
+    ellipse(23,39,13,15,P); ellipse(23,39,9,11,B); ellipse(23,39,6,8,P); ellipse(23,39,3,4,S);
+    line(19,30,26,43,H);
+  } else if (form === 'crystal') {
+    polygon([[10,32],[18,19],[30,28],[28,52],[17,49]], B);
+    polygon([[26,17],[37,6],[46,24],[40,53],[25,51]], P);
+    polygon([[26,17],[37,6],[34,43],[25,51]], H);
+    polygon([[46,24],[40,53],[34,43]], S);
+    polygon([[43,37],[53,26],[56,42],[45,54],[38,52]], A);
+    line(28,20,27,36,'#ffffff'); line(48,32,46,39,shades.accentHighlight);
+  } else if (form === 'coil' || form === 'gear') {
+    if (form === 'gear') {
+      for (let i=0;i<8;i++) {const a=i*Math.PI/4; ellipse(32+Math.cos(a)*20,32+Math.sin(a)*20,5,5,B);}
+      ellipse(32,32,21,21,P); ellipse(32,32,12,12,D); ellipse(32,32,7,7,shades.outline);
+      line(18,22,23,17,H,2); line(40,45,46,39,S,2);
+    } else {
+      for (let i=0;i<4;i++) { ellipse(20+i*7,32,9,18,B); ellipse(20+i*7,32,5,13,D); line(17+i*7,20,17+i*7,27,H,2); }
+      line(9,39,15,39,A,3); line(47,26,55,26,A,3);
     }
-    // Crystal facet ridges
-    for (let y = 5; y <= 28; y++) {
-      setPixel(16, y, shades.accentHighlight);
+  } else if (form === 'book') {
+    polygon([[12,14],[41,9],[51,16],[51,49],[21,56],[12,48]], B);
+    polygon([[20,21],[48,16],[48,47],[20,53]], H);
+    for(let y=26;y<49;y+=3) line(23,y,45,y-4,S);
+    polygon([[12,14],[40,9],[48,15],[20,22],[20,53],[12,48]], P);
+    line(15,17,15,46,H); line(33,18,33,36,A,2);
+  } else if (form === 'blade') {
+    polygon([[23,40],[42,9],[52,5],[49,18],[29,44]], P);
+    polygon([[23,40],[52,5],[29,44]], H);
+    line(20,36,35,46,B,4); line(24,44,16,55,B,5); line(19,47,22,49,A,2);
+  } else if (form === 'flame' || form === 'sparks') {
+    polygon([[16,48],[11,35],[23,41],[22,24],[32,7],[34,27],[43,17],[43,35],[52,29],[49,46],[37,55],[23,54]], B);
+    polygon([[20,46],[24,34],[29,39],[34,21],[37,42],[45,35],[42,48],[33,53]], P);
+    polygon([[27,47],[33,36],[37,49],[32,52]], A);
+    pixel(16,20,H); pixel(48,13,A); line(11,27,13,24,H);
+  } else if (form === 'vapor') {
+    for(let i=0;i<6;i++) {const x=18+(i%3)*12,y=23+Math.floor(i/3)*15;ellipse(x,y,11,10,i<3?H:P);}
+    line(20,47,44,47,S); ellipse(27,16,7,7,H); line(14,30,20,27,'#ffffff');
+  } else if (form === 'powder' || form === 'seed') {
+    for(let i=0;i<48;i++) {
+      const n=((seed+i*7919)>>>0), x=12+n%41, y=29+(n*7)%23;
+      if (Math.abs(x-32)<(y-19)*0.8) ellipse(x,y,form==='seed'?3:2,form==='seed'?5:1,i%3===0?H:i%3===1?P:S);
     }
-    setPixel(13, 8, '#ffffff');
-    setPixel(14, 9, '#ffffff');
-  } else if (shape === 'flora') {
-    // Leaf sprout / botanical cluster
-    drawFilledCircle(16, 18, 7, shades.primary);
-    drawFilledCircle(12, 13, 5, shades.highlight);
-    drawFilledCircle(20, 13, 5, shades.secondary);
-    // Stem
-    for (let y = 18; y <= 27; y++) {
-      setPixel(16, y, shades.deepShade);
-      setPixel(17, y, shades.shade);
+    for(let i=0;i<8;i++) pixel(8+(seed+i*7)%48,51+(i%4),B);
+  } else if (form === 'bottle' || form === 'droplet' || form === 'fluid') {
+    if (form === 'bottle') {
+      polygon([[25,9],[38,9],[38,24],[49,36],[49,49],[42,55],[20,55],[14,49],[14,36],[25,24]], P);
+      polygon([[17,38],[46,38],[46,49],[40,52],[23,52],[17,48]], B);
+      polygon([[24,8],[39,8],[39,15],[24,15]], A); line(22,29,18,38,H,2);
+    } else {
+      polygon([[32,7],[47,29],[49,43],[41,53],[24,55],[14,46],[14,34]], P);
+      ellipse(31,42,16,12,P); polygon([[32,11],[21,34],[19,44],[16,37],[20,28]],H);
+      line(34,51,42,46,S,2); ellipse(23,32,2,4,'#ffffff');
     }
-    // Veins
-    setPixel(14, 14, shades.accentHighlight);
-    setPixel(18, 14, shades.accentHighlight);
-    setPixel(12, 11, '#ffffff');
-  } else if (shape === 'sparks' || desc.glow) {
-    // Plasma / Spark core with corona
-    drawFilledCircle(16, 16, 6, shades.highlight);
-    drawFilledCircle(16, 16, 3, '#ffffff');
-    // Plasma discharge spikes
-    const spikes: [number, number][] = [
-      [16, 5], [16, 6], [16, 26], [16, 25],
-      [5, 16], [6, 16], [26, 16], [25, 16],
-      [8, 8], [9, 9], [23, 23], [24, 24],
-      [8, 24], [9, 23], [24, 8], [23, 9]
-    ];
-    spikes.forEach(([sx, sy]) => setPixel(sx, sy, shades.accent));
-    setPixel(16, 4, shades.accentHighlight);
-    setPixel(27, 16, shades.accentHighlight);
-    setPixel(16, 27, shades.accentHighlight);
-    setPixel(4, 16, shades.accentHighlight);
-  } else if (shape === 'powder') {
-    // Granular pile / loose earth
-    for (let y = 12; y <= 26; y++) {
-      const spread = Math.round((y - 11) * 0.95);
-      for (let x = 16 - spread; x <= 16 + spread; x++) {
-        // Speckled noise
-        const rand = ((x * 17 + y * 29 + seed) % 10) / 10;
-        if (rand > 0.75) {
-          setPixel(x, y, shades.highlight);
-        } else if (rand > 0.4) {
-          setPixel(x, y, shades.primary);
-        } else if (rand > 0.15) {
-          setPixel(x, y, shades.secondary);
-        } else {
-          setPixel(x, y, shades.shade);
-        }
-      }
-    }
+  } else if (form === 'ingot') {
+    polygon([[16,22],[42,16],[54,34],[45,47],[14,52],[8,40]], S);
+    polygon([[16,22],[42,16],[48,32],[19,39]], H);
+    polygon([[19,39],[48,32],[45,47],[14,52]], P); line(20,24,37,20,'#ffffff');
+  } else if (form === 'bread') {
+    ellipse(32,34,23,18,P); polygon([[10,35],[54,35],[50,49],[16,50]],S);
+    for(let i=0;i<3;i++) line(20+i*10,22,16+i*10,33,H,3);
   } else {
-    // Default Rock / Nugget
-    drawFilledCircle(16, 17, 9, shades.primary);
-    drawFilledCircle(14, 14, 6, shades.highlight);
-    drawFilledCircle(19, 19, 5, shades.shade);
-    // Craggy crevices
-    setPixel(13, 17, shades.deepShade);
-    setPixel(14, 18, shades.deepShade);
-    setPixel(18, 14, shades.deepShade);
-    setPixel(11, 12, '#ffffff');
+    // Irregular mineral or specimen silhouette, with material-specific inclusions.
+    polygon([[10,35],[16,19],[30,12],[46,19],[55,37],[44,52],[21,53]],P);
+    polygon([[16,19],[30,12],[35,30],[10,35]],H);
+    polygon([[35,30],[46,19],[55,37],[44,52],[29,47]],S);
+    line(30,14,34,27,B); line(35,30,45,34,B);
+    if (form === 'orb') { ellipse(32,32,21,21,P);ellipse(26,24,10,8,H);ellipse(23,21,3,3,'#ffffff'); }
   }
-
-  // Draw 1-pixel dark outline around all non-null pixels
-  const outlinedGrid: (string | null)[][] = Array(32).fill(null).map(() => Array(32).fill(null));
-  for (let y = 0; y < 32; y++) {
-    for (let x = 0; x < 32; x++) {
-      if (grid[y][x] !== null) {
-        outlinedGrid[y][x] = grid[y][x];
-      } else {
-        // Check 4-neighbors
-        let hasNeighbor = false;
-        if (y > 0 && grid[y - 1][x] !== null) hasNeighbor = true;
-        if (y < 31 && grid[y + 1][x] !== null) hasNeighbor = true;
-        if (x > 0 && grid[y][x - 1] !== null) hasNeighbor = true;
-        if (x < 31 && grid[y][x + 1] !== null) hasNeighbor = true;
-        if (hasNeighbor) {
-          outlinedGrid[y][x] = shades.outline;
-        }
-      }
+  // Fine 1px grain follows inherited material properties; it is not a scaled 32px image.
+  for(let y=4;y<59;y++) for(let x=4;x<59;x++) {
+    if (!grid[y][x] || grid[y][x] === shades.outline) continue;
+    const noise=(Math.imul(x+seed,374761393)^Math.imul(y+seed,668265263))>>>0;
+    if (/metal|conduct|crystal/.test(semantics) && noise%113===0) pixel(x,y,shades.accentHighlight);
+    else if (/organic|wood|bark|soil|porous|mineral/.test(semantics) && noise%31===0) pixel(x,y,noise%2?B:S);
+  }
+  // Single native-pixel outline; transparent corners remain untouched.
+  for(let y=1;y<63;y++) for(let x=1;x<63;x++) {
+    const c=grid[y][x];
+    if(c || grid[y-1][x] || grid[y+1][x] || grid[y][x-1] || grid[y][x+1]) {
+      ctx.fillStyle=c || shades.outline; ctx.fillRect(x,y,1,1);
     }
   }
-
-  // Render to 64x64 canvas (2x2 per logical pixel)
-  for (let y = 0; y < 32; y++) {
-    for (let x = 0; x < 32; x++) {
-      const col = outlinedGrid[y][x];
-      if (col) {
-        ctx.fillStyle = col;
-        ctx.fillRect(x * 2, y * 2, 2, 2);
-      }
-    }
-  }
-
   return canvas.toDataURL('image/png');
 }
 

@@ -65,6 +65,7 @@ export interface Material {
   spriteDescriptor: SpriteDescriptor;
   discoveryExplanation: string;
   customSpriteUrl?: string;
+  spriteRendererVersion?: number;
 }
 
 export type ProcessCategory = 'Thermal' | 'Mechanical' | 'Biological' | 'Electromagnetic' | 'Alchemical' | 'Temporal';

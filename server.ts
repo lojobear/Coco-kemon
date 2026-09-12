@@ -7,122 +7,24 @@ import express from 'express';
 import path from 'path';
 import dotenv from 'dotenv';
 import { createServer as createViteServer } from 'vite';
-import { GoogleGenAI, Type } from '@google/genai';
+import { callGeminiStructured, ApiFailure, publicFailure } from './server/gemini';
+import { validMaterial, validOddkin, validSprite, record, text, strings, color, finite } from './src/lib/validation';
 import { CANONICAL_INFINITE_CRAFT_RECIPES, makePairKey } from './src/lib/infiniteCraftData';
 
 dotenv.config();
 
-const app = express();
-const PORT = 3000;
+export const app = express();
+const PORT = Number(process.env.PORT) || 3000;
 
 app.use(express.json({ limit: '25mb' }));
-
-// Shared Gemini client
-let aiClient: GoogleGenAI | null = null;
-function getGeminiClient(): GoogleGenAI | null {
-  if (!aiClient && process.env.GEMINI_API_KEY) {
-    aiClient = new GoogleGenAI({
-      apiKey: process.env.GEMINI_API_KEY,
-      httpOptions: {
-        headers: {
-          'User-Agent': 'aistudio-build',
-        },
-      },
-    });
-  }
-  return aiClient;
-}
-
-/**
- * Resilient Gemini caller with free/trial friendly high-availability priority
- * Primary: gemini-3.1-flash-lite (fastest, high-throughput, generous free tier quotas)
- * Secondary: retry on transient demand spikes with backoff, fallback to gemini-3.8-flash
- */
-async function callGeminiStructured(
-  prompt: string | { parts: any[] },
-  systemInstruction?: string,
-  temperature = 0.4
-): Promise<string | null> {
-  const gemini = getGeminiClient();
-  if (!gemini) return null;
-
-  // Primary model with 1 retry on transient spikes
-  for (let attempt = 0; attempt < 2; attempt++) {
-    try {
-      const config: any = {
-        responseMimeType: 'application/json',
-        temperature,
-      };
-      if (systemInstruction) {
-        config.systemInstruction = systemInstruction;
-      }
-
-      const contents = typeof prompt === 'string' ? prompt : prompt;
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('TIMEOUT_EXCEEDED')), 9000)
-      );
-      const apiPromise = gemini.models.generateContent({
-        model: 'gemini-3.1-flash-lite',
-        contents,
-        config,
-      });
-
-      const response = await Promise.race([apiPromise, timeoutPromise]);
-
-      if (response.text && response.text.trim()) {
-        return response.text.trim();
-      }
-    } catch (err: any) {
-      const errMsg = String(err?.message || err);
-      const isTransient =
-        err?.status === 'UNAVAILABLE' ||
-        err?.code === 503 ||
-        errMsg.includes('503') ||
-        errMsg.includes('demand') ||
-        errMsg.includes('UNAVAILABLE') ||
-        errMsg.includes('TIMEOUT');
-
-      if (isTransient && attempt === 0) {
-        await new Promise(r => setTimeout(r, 400));
-        continue;
-      }
-      break;
-    }
-  }
-
-  // Fallback to gemini-3.8-flash if primary was not available
-  try {
-    const config: any = {
-      responseMimeType: 'application/json',
-      temperature,
-    };
-    if (systemInstruction) {
-      config.systemInstruction = systemInstruction;
-    }
-    const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('TIMEOUT_EXCEEDED')), 6000)
-    );
-    const apiPromise = gemini.models.generateContent({
-      model: 'gemini-3.8-flash',
-      contents: typeof prompt === 'string' ? prompt : prompt,
-      config,
-    });
-    const response = await Promise.race([apiPromise, timeoutPromise]);
-    if (response.text && response.text.trim()) {
-      return response.text.trim();
-    }
-  } catch {}
-
-  return null;
-}
 
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
     hasGeminiKey: Boolean(process.env.GEMINI_API_KEY),
-    primaryModel: 'gemini-3.1-flash-lite',
-    tier: 'free_trial_ready',
+    primaryModel: process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite',
+    fallbackModel: process.env.GEMINI_FALLBACK_MODEL || null,
     engine: 'infinite-craft-compatible',
     mode: 'logical-real-brand-character-synthesis',
     time: new Date().toISOString(),
@@ -136,137 +38,18 @@ const discoveredResultsSet = new Set<string>([
   ...Object.values(CANONICAL_INFINITE_CRAFT_RECIPES).map(r => r.result.toLowerCase())
 ]);
 
-// Primordial base elements that have instant 0ms canonical pairings
-const PRIMORDIAL_ELEMENTS = new Set(['water', 'fire', 'wind', 'earth']);
-
-/**
- * Intelligent deterministic fallback if AI is offline or rate-limited.
- * Avoids raw unthinking concatenation.
- */
-function getSmartFallback(first: string, second: string): { result: string; emoji: string } {
-  const key = makePairKey(first, second);
-  if (CANONICAL_INFINITE_CRAFT_RECIPES[key]) {
-    return CANONICAL_INFINITE_CRAFT_RECIPES[key];
-  }
-  const normA = first.toLowerCase();
-  const normB = second.toLowerCase();
-
-  if (normA === normB) {
-    if (normA === 'city') return { result: 'Metropolis', emoji: '🏙️' };
-    if (normA === 'tree') return { result: 'Forest', emoji: '🌲' };
-    if (normA === 'computer') return { result: 'Internet', emoji: '🌐' };
-    if (normA === 'human') return { result: 'Family', emoji: '👨‍👩‍👧' };
-    if (normA === 'book') return { result: 'Library', emoji: '📚' };
-    return { result: `Mega ${first}`, emoji: '✨' };
-  }
-
-  // Brands & Companies
-  if ((normA.includes('apple') && normB.includes('phone')) || (normB.includes('apple') && normA.includes('phone'))) {
-    return { result: 'iPhone', emoji: '📱' };
-  }
-  if ((normA.includes('car') && normB.includes('electr')) || (normB.includes('car') && normA.includes('electr'))) {
-    return { result: 'Tesla', emoji: '🚗' };
-  }
-  if ((normA.includes('brick') && normB.includes('toy')) || (normB.includes('brick') && normA.includes('toy')) ||
-      (normA.includes('lego') || normB.includes('lego'))) {
-    return { result: 'Lego', emoji: '🧱' };
-  }
-  if ((normA.includes('clown') && normB.includes('food')) || (normB.includes('clown') && normA.includes('food')) ||
-      (normA.includes('fast food') && normB.includes('clown')) || (normB.includes('fast food') && normA.includes('clown'))) {
-    return { result: "McDonald's", emoji: '🍟' };
-  }
-  if ((normA.includes('coffee') && (normB.includes('mermaid') || normB.includes('siren'))) ||
-      (normB.includes('coffee') && (normA.includes('mermaid') || normA.includes('siren')))) {
-    return { result: 'Starbucks', emoji: '🧜‍♀️' };
-  }
-  if ((normA.includes('space') && normB.includes('rocket')) || (normB.includes('space') && normA.includes('rocket'))) {
-    return { result: 'SpaceX', emoji: '🚀' };
-  }
-  if ((normA.includes('video') && normB.includes('internet')) || (normB.includes('video') && normA.includes('internet'))) {
-    return { result: 'YouTube', emoji: '📺' };
-  }
-  if ((normA.includes('search') && normB.includes('internet')) || (normB.includes('search') && normA.includes('internet'))) {
-    return { result: 'Google', emoji: '🔍' };
-  }
-
-  // Characters & Pop-Culture
-  if ((normA.includes('bat') && (normB.includes('hero') || normB.includes('man'))) ||
-      (normB.includes('bat') && (normA.includes('hero') || normA.includes('man')))) {
-    return { result: 'Batman', emoji: '🦇' };
-  }
-  if ((normA.includes('spider') && (normB.includes('hero') || normB.includes('man') || normB.includes('radioact'))) ||
-      (normB.includes('spider') && (normA.includes('hero') || normA.includes('man') || normA.includes('radioact')))) {
-    return { result: 'Spider-Man', emoji: '🕷️' };
-  }
-  if ((normA.includes('wizard') && (normB.includes('school') || normB.includes('lightning') || normB.includes('magic'))) ||
-      (normB.includes('wizard') && (normA.includes('school') || normA.includes('lightning') || normA.includes('magic')))) {
-    return { result: 'Harry Potter', emoji: '🧙‍♂️' };
-  }
-  if ((normA.includes('monster') && normB.includes('ball')) || (normB.includes('monster') && normA.includes('ball')) ||
-      (normA.includes('pocket') && normB.includes('monster')) || (normB.includes('pocket') && normA.includes('monster'))) {
-    return { result: 'Pokémon', emoji: '⚡' };
-  }
-  if ((normA.includes('plumber') && normB.includes('mushroom')) || (normB.includes('plumber') && normA.includes('mushroom'))) {
-    return { result: 'Mario', emoji: '🍄' };
-  }
-  if ((normA.includes('hedgehog') && normB.includes('speed')) || (normB.includes('hedgehog') && normA.includes('speed'))) {
-    return { result: 'Sonic', emoji: '🦔' };
-  }
-  if ((normA.includes('ring') && (normB.includes('volcano') || normB.includes('dark'))) ||
-      (normB.includes('ring') && (normA.includes('volcano') || normA.includes('dark')))) {
-    return { result: 'Sauron', emoji: '🌋' };
-  }
-  if ((normA.includes('thunder') && (normB.includes('god') || normB.includes('hammer'))) ||
-      (normB.includes('thunder') && (normA.includes('god') || normA.includes('hammer')))) {
-    return { result: 'Thor', emoji: '⚡' };
-  }
-  if ((normA.includes('sea') && (normB.includes('god') || normB.includes('trident'))) ||
-      (normB.includes('sea') && (normA.includes('god') || normA.includes('trident')))) {
-    return { result: 'Poseidon', emoji: '🔱' };
-  }
-  if ((normA.includes('dragon') && normB.includes('computer')) || (normB.includes('dragon') && normA.includes('computer'))) {
-    return { result: 'Cyber Dragon', emoji: '🐉' };
-  }
-  if ((normA.includes('dinosaur') && normB.includes('park')) || (normB.includes('dinosaur') && normA.includes('park'))) {
-    return { result: 'Jurassic Park', emoji: '🦖' };
-  }
-
-  // Real Objects & Inventions
-  if ((normA.includes('coffee') && normB.includes('ice')) || (normB.includes('coffee') && normA.includes('ice'))) {
-    return { result: 'Iced Coffee', emoji: '☕' };
-  }
-  if ((normA.includes('bread') && normB.includes('meat')) || (normB.includes('bread') && normA.includes('meat'))) {
-    return { result: 'Burger', emoji: '🍔' };
-  }
-  if ((normA.includes('fruit') && normB.includes('blender')) || (normB.includes('fruit') && normA.includes('blender'))) {
-    return { result: 'Smoothie', emoji: '🥤' };
-  }
-  if ((normA.includes('sand') && normB.includes('fire')) || (normB.includes('sand') && normA.includes('fire'))) {
-    return { result: 'Glass', emoji: '🥃' };
-  }
-  if ((normA.includes('glass') && normB.includes('sand')) || (normB.includes('glass') && normA.includes('sand'))) {
-    return { result: 'Hourglass', emoji: '⏳' };
-  }
-
-  // Synthesize a logical hybrid name instead of raw concatenation
-  const cleanA = first.replace(/^(the|a|an)\s+/i, '');
-  const cleanB = second.replace(/^(the|a|an)\s+/i, '');
-  return { result: `${cleanA} Fusion`, emoji: '✨' };
-}
-
 async function resolveInfiniteCraftPair(
   rawFirst: string,
   rawSecond: string
 ): Promise<{ result: string; emoji: string; isNew: boolean }> {
+  if (typeof rawFirst !== 'string' || typeof rawSecond !== 'string' || rawFirst.length > 160 || rawSecond.length > 160) throw new ApiFailure(400, 'Provide two names, each under 160 characters.');
   const first = (rawFirst || '').trim();
   const second = (rawSecond || '').trim();
   if (!first || !second) {
-    return { result: 'Nothing', emoji: '💨', isNew: false };
+    throw new ApiFailure(400, 'Choose two elements first.');
   }
 
   const key = makePairKey(first, second);
-  const normA = first.toLowerCase();
-  const normB = second.toLowerCase();
 
   // 1. Instant match in runtime dynamic cache (already generated or discovered)
   if (dynamicInfiniteCraftCache.has(key)) {
@@ -274,8 +57,8 @@ async function resolveInfiniteCraftPair(
     return { result: cached.result, emoji: cached.emoji, isNew: false };
   }
 
-  // 2. Instant match for primordial 4 elements combined with each other (Water, Fire, Earth, Wind)
-  if (PRIMORDIAL_ELEMENTS.has(normA) && PRIMORDIAL_ELEMENTS.has(normB) && CANONICAL_INFINITE_CRAFT_RECIPES[key]) {
+  // Built-in recipes remain available without an AI call.
+  if (CANONICAL_INFINITE_CRAFT_RECIPES[key]) {
     const match = CANONICAL_INFINITE_CRAFT_RECIPES[key];
     dynamicInfiniteCraftCache.set(key, match);
     return { result: match.result, emoji: match.emoji, isNew: false };
@@ -369,7 +152,7 @@ Return strictly JSON:
 
     if (rawJson) {
       const parsed = JSON.parse(rawJson);
-      if (parsed && typeof parsed.result === 'string' && parsed.result.trim()) {
+      if (parsed && typeof parsed.result === 'string' && parsed.result.trim() && parsed.result.length <= 160 && typeof parsed.emoji === 'string' && parsed.emoji.trim() && parsed.emoji.length <= 32) {
         const cleanedResult = parsed.result.trim();
         const cleanedEmoji = (parsed.emoji || '✨').trim();
         const lowerRes = cleanedResult.toLowerCase();
@@ -386,19 +169,9 @@ Return strictly JSON:
       }
     }
   } catch (err) {
-    console.error('Gemini pairing synthesis error:', err);
+    throw err;
   }
-
-  // 4. Fallback if API offline or temporarily unavailable (DO NOT cache error fallbacks)
-  const smartFallback = getSmartFallback(first, second);
-  const lowerFallback = smartFallback.result.toLowerCase();
-  const isFallbackNew = !discoveredResultsSet.has(lowerFallback);
-
-  return {
-    result: smartFallback.result,
-    emoji: smartFallback.emoji,
-    isNew: isFallbackNew,
-  };
+  throw new ApiFailure(502, 'AI returned an invalid combination. Please retry.');
 }
 
 // Neal.fun's exact endpoint: /api/infinite-craft/pair?first=Water&second=Fire
@@ -412,7 +185,8 @@ app.get('/api/infinite-craft/pair', async (req, res) => {
     const outcome = await resolveInfiniteCraftPair(first, second);
     return res.json(outcome);
   } catch (err: any) {
-    res.status(500).json({ error: 'Pairing failure', details: err?.message || String(err) });
+    const failure = publicFailure(err);
+    res.status(failure.status).json({ error: failure.error });
   }
 });
 
@@ -426,7 +200,8 @@ app.post('/api/infinite-craft/pair', async (req, res) => {
     const outcome = await resolveInfiniteCraftPair(first, second);
     return res.json(outcome);
   } catch (err: any) {
-    res.status(500).json({ error: 'Pairing failure', details: err?.message || String(err) });
+    const failure = publicFailure(err);
+    res.status(failure.status).json({ error: failure.error });
   }
 });
 
@@ -437,7 +212,8 @@ app.post('/api/pair', async (req, res) => {
     const outcome = await resolveInfiniteCraftPair(first || '', second || '');
     return res.json(outcome);
   } catch (err: any) {
-    res.status(500).json({ error: 'Pairing failure', details: err?.message || String(err) });
+    const failure = publicFailure(err);
+    res.status(failure.status).json({ error: failure.error });
   }
 });
 
@@ -757,7 +533,7 @@ app.post('/api/synthesize', async (req, res) => {
   try {
     const { inputMaterialA, inputMaterialB, process, existingMaterialNames, knownOddkinNames, recentLineageContext } = req.body;
 
-    if (!inputMaterialA || !process) {
+    if (!validMaterial(inputMaterialA) || (inputMaterialB && !validMaterial(inputMaterialB)) || !process || !text(process.id) || !text(process.name)) {
       return res.status(400).json({ error: 'Missing inputMaterialA or process' });
     }
 
@@ -959,6 +735,9 @@ Format your response as a strict JSON object with this structure:
     if (rawResponse) {
       try {
         const parsed = JSON.parse(rawResponse);
+        if (parsed.status === 'no_reaction' && text(parsed.explanation)) {
+          return res.json({ status: 'no_reaction', explanation: parsed.explanation, observationIfFailed: parsed.explanation });
+        }
         if (parsed.status === 'life_emergence' && parsed.oddkin) {
           const oddkinObj = {
             ...parsed.oddkin,
@@ -985,6 +764,7 @@ Format your response as a strict JSON object with this structure:
             encounterCount: 1,
             variantFormsDiscovered: ['standard'],
           };
+          if (!validOddkin(oddkinObj)) throw new ApiFailure(502, 'AI returned an incomplete creature. Please retry.');
           return res.json({
             status: 'life_emergence',
             oddkin: oddkinObj,
@@ -1004,6 +784,7 @@ Format your response as a strict JSON object with this structure:
             discoveredAt: Date.now(),
             possibleProcessAffinities: ['HEAT', 'MIX', 'SOAK', 'CRUSH', 'INCUBATE'],
           };
+          if (!validMaterial(matObj)) throw new ApiFailure(502, 'AI returned an incomplete material. Please retry.');
           return res.json({
             status: 'new_material',
             material: matObj,
@@ -1011,139 +792,16 @@ Format your response as a strict JSON object with this structure:
           });
         }
       } catch {
-        // Fall through to procedural engine
+        // Reject malformed generation below.
       }
     }
 
-    // 3. Deterministic Procedural Synthesis Engine
-    const safeSpriteA = inputMaterialA.spriteDescriptor || {
-      palette: ['#3b82f6', '#1d4ed8', '#93c5fd', '#ffffff'],
-      baseShape: 'rock',
-      primaryColor: '#3b82f6',
-      secondaryColor: '#1d4ed8',
-      accentColor: '#93c5fd',
-    };
-
-    if (shouldEmergeOddkin || normProc === 'INCUBATE') {
-      const speciesName = `${inputMaterialA.displayName.slice(0, 4)}${inputMaterialB ? inputMaterialB.displayName.slice(-3) : 'kin'}`;
-      const oddkin = {
-        speciesId: `odd_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-        speciesName: speciesName.charAt(0).toUpperCase() + speciesName.slice(1),
-        titleOrClassification: `${inputMaterialA.category} Symbiont`,
-        description: `An emergent creature born from incubated ${inputMaterialA.displayName.toLowerCase()} compounds with an animate organic lattice.`,
-        rarity: currentDepth > 4 ? 'RARE' : 'UNCOMMON',
-        ancestryTags: [...inputMaterialA.semanticTags, process.name.toLowerCase()],
-        lineage: {
-          parentMaterialIds: [inputMaterialA.id, ...(inputMaterialB ? [inputMaterialB.id] : [])],
-          catalystProcessId: process.id,
-          depth: currentDepth,
-          fullAncestryChain: [
-            {
-              step: currentDepth,
-              inputs: [inputMaterialA.displayName, ...(inputMaterialB ? [inputMaterialB.displayName] : [])],
-              process: process.name,
-              result: speciesName,
-            }
-          ]
-        },
-        morphology: {
-          bodyPlan: inputMaterialA.stateOfMatter === 'liquid' ? 'blob' : 'quadruped',
-          symmetry: 'bilateral',
-          limbs: 4,
-          appendages: ['horns', 'tail'],
-          surface: inputMaterialA.properties?.organic ? 'bark' : 'stone',
-          material: `${inputMaterialA.displayName} skin`,
-          locomotion: 'walk',
-        },
-        physiology: {
-          metabolism: 'Chemosynthetic',
-          diet: 'Moisture and minerals',
-          environment: 'Humid incubators',
-          energySource: 'Thermal bio-resonance',
-        },
-        temperament: 'curious',
-        affinities: [inputMaterialA.category.toLowerCase()],
-        inheritedMaterialTraits: [`Inherited ${inputMaterialA.displayName} composition`],
-        mutations: [],
-        transformationPotential: {
-          possible: true,
-          hint: 'Responds strongly to exposure with Spark or crystal charges.',
-        },
-        habitatPreferences: ['woodland', 'workshop'],
-        spriteSpecification: {
-          palette: [
-            safeSpriteA.secondaryColor || '#1d4ed8',
-            safeSpriteA.primaryColor || '#3b82f6',
-            safeSpriteA.accentColor || '#93c5fd',
-            '#ffffff'
-          ],
-          outlineColor: '#101216',
-          silhouetteType: 'compact',
-          eyeStyle: 'beady',
-          featureDetails: ['horns', 'flecked coat'],
-          primaryColor: safeSpriteA.primaryColor || '#3b82f6',
-          secondaryColor: safeSpriteA.secondaryColor || '#1d4ed8',
-          accentColor: safeSpriteA.accentColor || '#93c5fd',
-        },
-        discoveredAt: Date.now(),
-        encounterCount: 1,
-        variantFormsDiscovered: ['standard'],
-        chirpToneHz: 480,
-      };
-
-      return res.json({
-        status: 'life_emergence',
-        oddkin,
-        explanation: `Incubating ${inputMaterialA.displayName} under steady bio-thermal conditions awakened a persistent animated creature!`,
-      });
-    }
-
-    // Default: Logical composite or state change
-    const derivedName = `${process.name === 'HEAT' ? 'Heated' : process.name === 'CRUSH' ? 'Powdered' : 'Treated'} ${inputMaterialA.displayName}`;
-    const newMaterial = {
-      id: `mat_${derivedName.toLowerCase().replace(/[^a-z0-9]/g, '_')}_${Date.now()}`,
-      canonicalName: derivedName.toUpperCase(),
-      displayName: derivedName,
-      description: `${process.name} processing transformed the structural lattice of ${inputMaterialA.displayName}.`,
-      category: inputMaterialA.category,
-      subcategory: 'Processed Variant',
-      stateOfMatter: process.id === 'CRUSH' ? 'solid' : inputMaterialA.stateOfMatter,
-      properties: { ...inputMaterialA.properties },
-      temperatureClass: process.id === 'HEAT' ? 'hot' : process.id === 'FREEZE' ? 'frigid' : inputMaterialA.temperatureClass,
-      semanticTags: [...inputMaterialA.semanticTags, process.name.toLowerCase()],
-      lineage: {
-        parentIds: [inputMaterialA.id, ...(inputMaterialB ? [inputMaterialB.id] : [])],
-        processId: process.id,
-        depth: currentDepth,
-        generation: (inputMaterialA.lineage?.generation || 0) + 1,
-        recipeDesc: `${inputMaterialA.displayName} (${process.name})`
-      },
-      rarity: currentDepth > 3 ? 'UNCOMMON' : 'COMMON',
-      discoveredAt: Date.now(),
-      possibleProcessAffinities: ['MIX', 'HEAT', 'INCUBATE'],
-      lifePotential: Math.min(100, combinedLifePotential + 5),
-      spriteDescriptor: {
-        palette: safeSpriteA.palette || [safeSpriteA.primaryColor, safeSpriteA.secondaryColor, safeSpriteA.accentColor],
-        baseShape: process.id === 'CRUSH' ? 'powder' : safeSpriteA.baseShape,
-        primaryColor: safeSpriteA.primaryColor,
-        secondaryColor: safeSpriteA.secondaryColor,
-        accentColor: safeSpriteA.accentColor,
-      },
-      discoveryExplanation: `Applying ${process.name.toLowerCase()} changed the material structure.`,
-    };
-
-    return res.json({
-      status: 'new_material',
-      material: newMaterial,
-      explanation: `Applying ${process.name.toLowerCase()} transformed ${inputMaterialA.displayName}.`,
-    });
+    throw new ApiFailure(502, 'AI returned an incomplete discovery. Please retry.');
 
   } catch (err: unknown) {
     console.error('Synthesis error:', err);
-    res.status(500).json({
-      error: 'Synthesis failure',
-      details: err instanceof Error ? err.message : String(err)
-    });
+    const failure = publicFailure(err);
+    res.status(failure.status).json({ error: failure.error });
   }
 });
 
@@ -1201,36 +859,18 @@ Return a strict JSON object:
     if (rawVisionJson) {
       try {
         const parsed = JSON.parse(rawVisionJson);
+        if (!record(parsed) || !['canonicalName','displayName','description','category','stateOfMatter','discoveryExplanation'].every(k => text(parsed[k])) || !record(parsed.properties) || !strings(parsed.semanticTags) || !validSprite(parsed.spriteDescriptor)) throw new Error('Invalid photo result');
         return res.json(parsed);
       } catch {
-        // Fall through to fallback
+        // Reject malformed generation below.
       }
     }
 
-    // High quality fallback specimen
-    return res.json({
-      canonicalName: 'ANOMALOUS_FIELD_SPECIMEN',
-      displayName: 'Field Specimen',
-      description: 'A physical sample digitized directly from camera exposure.',
-      category: 'Mineral',
-      stateOfMatter: 'solid',
-      properties: { mineral: true, organic: false },
-      temperatureClass: 'ambient',
-      semanticTags: ['photo_seed', 'field_sample', 'scanned'],
-      rarity: 'UNCOMMON',
-      lifePotential: 45,
-      discoveryExplanation: 'Captured via camera sensor and catalogued into the foundry.',
-      spriteDescriptor: {
-        palette: ['#475569', '#334155', '#94a3b8', '#e2e8f0'],
-        baseShape: 'rock',
-        primaryColor: '#64748b',
-        secondaryColor: '#334155',
-        accentColor: '#94a3b8',
-      }
-    });
+    throw new ApiFailure(502, 'The photo could not be identified. Please retry.');
   } catch (err: unknown) {
     console.error('Photo seed error:', err);
-    res.status(500).json({ error: 'Failed to analyze photo seed' });
+    const failure = publicFailure(err);
+    res.status(failure.status).json({ error: failure.error });
   }
 });
 
@@ -1270,26 +910,18 @@ Return a strict JSON object:
     if (rawSketchJson) {
       try {
         const parsed = JSON.parse(rawSketchJson);
+        if (!record(parsed) || !text(parsed.conceptName) || !strings(parsed.traits) || !record(parsed.morphologyHints) || !['bodyPlan','surface','feature'].every(k => text(parsed.morphologyHints[k])) || !color(parsed.morphologyHints.primaryColor) || !finite(parsed.lifePotentialBonus)) throw new Error('Invalid sketch result');
         return res.json(parsed);
       } catch {
-        // Fall through to fallback
+        // Reject malformed generation below.
       }
     }
 
-    return res.json({
-      conceptName: 'Spiral Glyph',
-      traits: ['spiral', 'curved', 'resonant'],
-      morphologyHints: {
-        bodyPlan: 'serpentine',
-        surface: 'chitin',
-        feature: 'dual antennae',
-        primaryColor: '#6366f1',
-      },
-      lifePotentialBonus: 25,
-    });
+    throw new ApiFailure(502, 'The sketch could not be interpreted. Please retry.');
   } catch (err: unknown) {
     console.error('Sketch seed error:', err);
-    res.status(500).json({ error: 'Failed to process sketch seed' });
+    const failure = publicFailure(err);
+    res.status(failure.status).json({ error: failure.error });
   }
 });
 
@@ -1343,7 +975,8 @@ Return a strict JSON object:
     });
   } catch (err: unknown) {
     console.error('Voice intent error:', err);
-    res.status(500).json({ error: 'Voice interpretation error' });
+    const failure = publicFailure(err);
+    res.status(failure.status).json({ error: failure.error });
   }
 });
 
@@ -1368,4 +1001,4 @@ async function startServer() {
   });
 }
 
-startServer();
+if (process.env.NODE_ENV !== 'test') startServer();

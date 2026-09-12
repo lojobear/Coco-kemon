@@ -6,6 +6,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { useGame } from '../lib/gameStore';
+import { requestJson } from '../lib/api';
 import { sound } from '../lib/audio';
 import { Camera, Edit3, X, Sparkles, Upload, RotateCcw } from 'lucide-react';
 
@@ -13,6 +14,7 @@ export function SeedsModal({ onClose }: { onClose: () => void }) {
   const { addPhotoSeedMaterial, applySketchSeedBonus } = useGame();
 
   const [activeMode, setActiveMode] = useState<'photo' | 'sketch'>('photo');
+  const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
 
@@ -100,20 +102,20 @@ export function SeedsModal({ onClose }: { onClose: () => void }) {
 
   const processPhotoSeed = async () => {
     if (!photoPreview) return;
+    setError(null);
     setIsProcessing(true);
     sound.playSpark();
 
     try {
-      const res = await fetch('/api/photo-seed', {
+      const data = await requestJson<any>('/api/photo-seed', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ imageBase64: photoPreview }),
       });
-      const data = await res.json();
       addPhotoSeedMaterial(data);
       onClose();
     } catch (err) {
-      console.error(err);
+      setError(err instanceof Error ? err.message : 'Unable to process this seed. Please retry.');
       sound.playSpark();
     } finally {
       setIsProcessing(false);
@@ -123,21 +125,21 @@ export function SeedsModal({ onClose }: { onClose: () => void }) {
   // Submit Sketch Seed
   const processSketchSeed = async () => {
     if (!canvasRef.current) return;
+    setError(null);
     setIsProcessing(true);
     sound.playSpark();
 
     try {
       const drawingBase64 = canvasRef.current.toDataURL('image/png');
-      const res = await fetch('/api/sketch-seed', {
+      const data = await requestJson<any>('/api/sketch-seed', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ drawingBase64 }),
       });
-      const data = await res.json();
       applySketchSeedBonus(data);
       onClose();
     } catch (err) {
-      console.error(err);
+      setError(err instanceof Error ? err.message : 'Unable to process this seed. Please retry.');
       sound.playSpark();
     } finally {
       setIsProcessing(false);
@@ -156,6 +158,8 @@ export function SeedsModal({ onClose }: { onClose: () => void }) {
   }, [onClose]);
 
   return (
+    <>
+    {error && <div role="alert" className="fixed bottom-6 left-4 right-4 z-[100] bg-red-950 text-white p-4 rounded-xl">{error}</div>}
     <div
       onClick={onClose}
       className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 font-mono select-none animate-fadeIn"
@@ -312,5 +316,6 @@ export function SeedsModal({ onClose }: { onClose: () => void }) {
         )}
       </div>
     </div>
+    </>
   );
 }
