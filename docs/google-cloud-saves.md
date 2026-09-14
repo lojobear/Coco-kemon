@@ -2,12 +2,16 @@
 
 This adds a Supabase backend: Google OAuth sessions, a PostgreSQL backup table, and account-scoped access rules. Vercel continues hosting the game and Gemini API.
 
+## Connected project
+
+The app defaults to the owner's Supabase project `lrjszbguvqgdsqvvcoqe` using its public publishable key. Vercel environment variables are optional overrides. The public key was verified against the Auth settings endpoint. At connection time, Google was disabled and `game_saves` was absent; complete steps 1–3 below before testing login or saves. No admin access is granted by this public key.
+
 ## Connect the backend
 
 1. Create a Supabase project at https://supabase.com/dashboard. Review the selected plan before provisioning. In its SQL Editor, run `supabase/migrations/20260914030000_cloud_saves.sql` once. It creates the table, access policies, and atomic save function.
 2. In Google Cloud / Google Auth Platform, configure the consent screen for Oddkin Foundry. Create a **Web application** OAuth client. Add `https://oddkin-foundry.vercel.app` to Authorized JavaScript origins. Add the Supabase callback URL shown under **Authentication → Sign In / Providers → Google** to Google's Authorized redirect URIs (normally `https://<project-ref>.supabase.co/auth/v1/callback`). Enable Google in Supabase using that client ID and client secret. If Google is in Testing mode, add your Google account as a test user.
 3. In Supabase **Authentication → URL Configuration**, set the Site URL to `https://oddkin-foundry.vercel.app` and allow `https://oddkin-foundry.vercel.app/` as a redirect. Add the exact Vercel preview origin with a trailing slash when testing a preview. Local development uses `http://localhost:3000/`. Use exact allowed URLs rather than a wildcard for every Vercel site.
-4. From Supabase's project connection/API settings, get the project URL and **publishable** key. In Vercel, add `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` for the environments you will use, then redeploy. Vite embeds these public values at build time. Never use a service-role key, secret key, Google client secret, or Gemini key in a `VITE_` variable. The Google client secret stays in Supabase's Google provider settings.
+4. Optional, when changing projects: from Supabase's project connection/API settings, get the project URL and **publishable** key. In Vercel, add `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` for the environments you will use, then redeploy. Vite embeds these public values at build time. Never use a service-role key, secret key, Google client secret, or Gemini key in a `VITE_` variable. The Google client secret stays in Supabase's Google provider settings.
 
 There is no service-role key in this app. Authentication and row-level security protect the publishable client. The database function derives ownership from the verified session and never accepts a user ID from the caller. Do not disable RLS or grant direct table writes.
 

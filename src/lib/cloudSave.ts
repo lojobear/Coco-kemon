@@ -2,8 +2,9 @@ import { createClient } from '@supabase/supabase-js';
 import { parseSave } from './saveData';
 
 const env = (import.meta as ImportMeta & { env?: Record<string, string> }).env;
-const url = env?.VITE_SUPABASE_URL;
-const key = env?.VITE_SUPABASE_PUBLISHABLE_KEY;
+// Public project identifiers; database access is enforced by Supabase Auth and RLS.
+const url = env?.VITE_SUPABASE_URL || 'https://lrjszbguvqgdsqvvcoqe.supabase.co';
+const key = env?.VITE_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_y7dGWisvgKzLvRVpbzd0zw_BISm05fI';
 export const cloud = url && key ? createClient(url, key, {
   auth: { flowType: 'pkce', detectSessionInUrl: true, persistSession: true, autoRefreshToken: true },
 }) : null;
