@@ -14,7 +14,11 @@ import {
 import { requestJson } from '../lib/api';
 import { saveCraftElements, readCraftElements, SAVE_IMPORTED_EVENT } from '../lib/saveData';
 import { sound } from '../lib/audio';
-import { LidarSynthesisModal, ActiveSynthesisSession } from './LidarSynthesisModal';
+import { haptics } from '../lib/haptics';
+import { CombineAnimationOverlay, ActiveCombination } from './CombineAnimationOverlay';
+import { CraftingCrucible, CrucibleSlotItem } from './CraftingCrucible';
+import { ElementDossierModal } from './ElementDossierModal';
+import { rollIsShiny, generatePhysicalData } from '../lib/physicalDataEngine';
 import {
   Search,
   Trash2,
@@ -42,6 +46,7 @@ interface CanvasItem {
   x: number;
   y: number;
   isNew?: boolean;
+  isShiny?: boolean;
 }
 
 interface Particle {
@@ -141,14 +146,21 @@ export function InfiniteCraftView() {
 
   // UI state
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortMode, setSortMode] = useState<'time' | 'alpha' | 'discoveries'>('time');
+  const [sortMode, setSortMode] = useState<'time' | 'alpha' | 'discoveries' | 'shinies'>('time');
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     return localStorage.getItem(STORAGE_THEME_KEY) !== 'light';
   });
   const [selectedCanvasId, setSelectedCanvasId] = useState<string | null>(null);
   const [isSynthesizing, setIsSynthesizing] = useState(false);
-  const [synthesisSession, setSynthesisSession] = useState<ActiveSynthesisSession | null>(null);
-  const skipRequestedRef = useRef<boolean>(false);
+  const [activeCombination, setActiveCombination] = useState<ActiveCombination | null>(null);
+
+  // Crafting Crucible (High-Visibility Designated Combine Zone)
+  const [crucibleSlotA, setCrucibleSlotA] = useState<CrucibleSlotItem | null>(null);
+  const [crucibleSlotB, setCrucibleSlotB] = useState<CrucibleSlotItem | null>(null);
+  const [isCrucibleCollapsed, setIsCrucibleCollapsed] = useState(false);
+  const [isCrucibleHovered, setIsCrucibleHovered] = useState(false);
+  const crucibleRef = useRef<HTMLDivElement | null>(null);
+
   const [firstDiscoveryModal, setFirstDiscoveryModal] = useState<InfiniteElement | null>(null);
   const [inspectedElement, setInspectedElement] = useState<InfiniteElement | null>(null);
   const [particles, setParticles] = useState<Particle[]>([]);
@@ -164,15 +176,23 @@ export function InfiniteCraftView() {
   // Temporary toast feedback when spawning on mobile
   const [spawnToast, setSpawnToast] = useState<string | null>(null);
 
-  // Dragging state
+  // Dragging state optimized for 120Hz touch (Android / Google Pixel 9)
   const canvasRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const canvasItemsRef = useRef(canvasItems);
+  canvasItemsRef.current = canvasItems;
+  const rafPendingRef = useRef(false);
+
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const draggingItemRef = useRef<{
     instanceId: string;
     offsetX: number;
     offsetY: number;
     startX: number;
     startY: number;
+    currentX: number;
+    currentY: number;
+    isTouch: boolean;
     moved: boolean;
   } | null>(null);
 
@@ -260,12 +280,30 @@ export function InfiniteCraftView() {
     setParticles(prev => [...prev.slice(-40), ...newBatch]);
   };
 
-  // Sort & filter sidebar elements (with strict uniqueness guarantee)
+  // Count unlocked shiny variants
+  const shiniesCount = useMemo(() => {
+    return elements.filter(el => Boolean(el.unlockedShiny || el.isShiny)).length;
+  }, [elements]);
+
+  // Sort & filter sidebar elements (with strict uniqueness guarantee and deep physical property search)
   const filteredElements = useMemo(() => {
     let list = sanitizeElements(elements);
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
-      list = list.filter(el => el.name.toLowerCase().includes(q));
+      list = list.filter(el => {
+        if (el.name.toLowerCase().includes(q)) return true;
+        const hasShiny = Boolean(el.unlockedShiny || el.isShiny);
+        if (q === 'shiny' && hasShiny) return true;
+        const phys = el.physicalData || generatePhysicalData(el.name, el.emoji, Boolean(el.isShiny));
+        return (
+          phys.stateOfMatter.toLowerCase().includes(q) ||
+          phys.temperatureClass.toLowerCase().includes(q) ||
+          phys.conductivity.toLowerCase().includes(q) ||
+          phys.elementalAspect.toLowerCase().includes(q) ||
+          phys.cosmicTier.toLowerCase().includes(q) ||
+          phys.massClass.toLowerCase().includes(q)
+        );
+      });
     }
     if (sortMode === 'time') {
       list.sort((a, b) => (b.discoveredAt || 0) - (a.discoveredAt || 0));
@@ -273,6 +311,8 @@ export function InfiniteCraftView() {
       list.sort((a, b) => a.name.localeCompare(b.name));
     } else if (sortMode === 'discoveries') {
       list = list.filter(el => el.isNew);
+    } else if (sortMode === 'shinies') {
+      list = list.filter(el => Boolean(el.unlockedShiny || el.isShiny));
     }
     return list;
   }, [elements, searchQuery, sortMode]);
@@ -286,11 +326,6 @@ export function InfiniteCraftView() {
     if (progressRef.current) clearInterval(progressRef.current);
   }, []);
 
-  // Skip active synthesis immediately
-  const handleSkipSynthesis = () => {
-    skipRequestedRef.current = true;
-  };
-
   // Pair two elements via Neal's endpoint: /api/infinite-craft/pair?first=A&second=B
   const handleCombine = async (
     itemA: { name: string; emoji?: string; x: number; y: number; idA?: string },
@@ -302,117 +337,212 @@ export function InfiniteCraftView() {
     lastPairRef.current = [itemA, itemB];
     setCombineError(null);
     setIsSynthesizing(true);
-    skipRequestedRef.current = false;
-    sound.playLidarSweep();
+    sound.playCombineChime();
+    haptics.fusionPulse();
 
     const targetX = (itemA.x + itemB.x) / 2;
     const targetY = (itemA.y + itemB.y) / 2;
 
-    const sessionObj: ActiveSynthesisSession = {
-      id: `synth-${Date.now()}`,
-      itemA: { name: itemA.name, emoji: itemA.emoji || '✨' },
-      itemB: { name: itemB.name, emoji: itemB.emoji || '✨' },
-      targetX,
-      targetY,
-      progress: 8,
-      stageText: 'Finding a combination...',
-    };
-    setSynthesisSession(sessionObj);
-
-    const startTime = Date.now();
-    progressRef.current = setInterval(() => {
-      const p = Math.min(90, 8 + (Date.now() - startTime) / 200);
-      setSynthesisSession(prev => prev ? { ...prev, progress: p,
-        stageText: skipRequestedRef.current ? 'Waiting for the result...' : 'Finding a combination...' } : null);
-    }, 100);
+    // Trigger slight in-place animation directly around the combining boxes
+    setActiveCombination({
+      idA: itemA.idA || 'a',
+      idB: itemB.idB || 'b',
+      nameA: itemA.name,
+      emojiA: itemA.emoji || '✨',
+      x1: itemA.x,
+      y1: itemA.y,
+      nameB: itemB.name,
+      emojiB: itemB.emoji || '✨',
+      x2: itemB.x,
+      y2: itemB.y,
+      midX: targetX,
+      midY: targetY,
+    });
 
     try {
-      const apiData = await requestJson<InfiniteCraftPairResponse>(
+      const apiPromise = requestJson<InfiniteCraftPairResponse>(
         `/api/infinite-craft/pair?first=${encodeURIComponent(itemA.name)}&second=${encodeURIComponent(itemB.name)}`,
         { signal: controller.signal }
       );
-      if (typeof apiData.result !== 'string' || !apiData.result.trim() ||
-          typeof apiData.emoji !== 'string' || typeof apiData.isNew !== 'boolean') {
+
+      // Smooth visual grace period (260ms) so the converging aura is perceived gracefully
+      const [apiData] = await Promise.all([
+        apiPromise,
+        new Promise(r => setTimeout(r, 260)),
+      ]);
+
+      if (
+        typeof apiData.result !== 'string' ||
+        !apiData.result.trim() ||
+        typeof apiData.emoji !== 'string' ||
+        typeof apiData.isNew !== 'boolean'
+      ) {
         throw new Error('The server returned an invalid combination. Please retry.');
       }
       if (controller.signal.aborted) return;
-      if (progressRef.current) clearInterval(progressRef.current);
-      setSynthesisSession(prev => prev ? { ...prev, progress: 100, stageText: 'Discovery ready!',
-        result: { name: apiData.result, emoji: apiData.emoji, isNew: apiData.isNew } } : null);
-      if (!skipRequestedRef.current) await new Promise(resolve => setTimeout(resolve, 220));
-      if (controller.signal.aborted) return;
-      if (apiData && apiData.result) {
-        const { result, emoji, isNew } = apiData;
 
-        // Spawn puff particles
-        spawnParticles(targetX + 50, targetY + 20, isNew);
+      const isShinyEncounter = rollIsShiny(apiData.result, itemA.name, itemB.name);
 
-        const cleanName = result.trim();
-        const normName = cleanName.toLowerCase();
-        const cleanId = normName.replace(/[^a-z0-9]/g, '_');
-
-        const newElemObj: InfiniteElement = {
-          id: cleanId,
-          name: cleanName,
-          emoji: emoji || '✨',
-          discoveredAt: Date.now(),
-          isNew: Boolean(isNew),
-          recipe: { first: itemA.name, second: itemB.name },
-        };
-
-        // Atomic, functional deduplication check
-        setElements(prev => {
-          const alreadyDiscovered = prev.some(
-            el => el.id.toLowerCase() === cleanId || el.name.trim().toLowerCase() === normName
-          );
-          if (alreadyDiscovered) {
-            return prev;
-          }
-          return [newElemObj, ...prev];
-        });
-
-        // If it's a first discovery ever
-        if (isNew) {
-          sound.playFirstDiscoveryChime();
-          setFirstDiscoveryModal(newElemObj);
-        } else {
-          sound.playCraftPop();
-        }
-
-        // Remove the two fused items from canvas and replace with result
-        setCanvasItems(prev => {
-          const filtered = prev.filter(
-            it => it.instanceId !== itemA.idA && it.instanceId !== itemB.idB
-          );
-          return [
-            ...filtered,
-            {
-              instanceId: `inst-${Date.now()}-${Math.random()}`,
-              name: cleanName,
-              emoji: emoji || '✨',
-              x: Math.max(20, Math.min(window.innerWidth - 300, targetX)),
-              y: Math.max(20, Math.min(window.innerHeight - 150, targetY)),
-              isNew,
-            },
-          ];
-        });
+      if (isShinyEncounter) {
+        setActiveCombination(prev => (prev ? { ...prev, isShiny: true } : null));
       }
+
+      // Quick 80ms celebration pause
+      await new Promise(r => setTimeout(r, 80));
+      if (controller.signal.aborted) return;
+
+      const { result, emoji, isNew } = apiData;
+      const cleanName = result.trim();
+      const normName = cleanName.toLowerCase();
+      const cleanId = normName.replace(/[^a-z0-9]/g, '_');
+
+      // Spawn puff particles
+      spawnParticles(targetX, targetY, isShinyEncounter || isNew);
+
+      const newElemObj: InfiniteElement = {
+        id: cleanId,
+        name: cleanName,
+        emoji: emoji || '✨',
+        discoveredAt: Date.now(),
+        isNew: Boolean(isNew),
+        recipe: { first: itemA.name, second: itemB.name },
+        isShiny: isShinyEncounter,
+        unlockedShiny: isShinyEncounter,
+        shinyDiscoveredAt: isShinyEncounter ? Date.now() : undefined,
+        physicalData: generatePhysicalData(cleanName, emoji || '✨', isShinyEncounter),
+      };
+
+      // Atomic deduplication check
+      setElements(prev => {
+        const existingIdx = prev.findIndex(
+          el => el.id.toLowerCase() === cleanId || el.name.trim().toLowerCase() === normName
+        );
+        if (existingIdx >= 0) {
+          const existing = prev[existingIdx];
+          const updated = [...prev];
+          updated[existingIdx] = {
+            ...existing,
+            unlockedShiny: isShinyEncounter || existing.unlockedShiny,
+            isShiny: isShinyEncounter ? true : existing.isShiny,
+            shinyDiscoveredAt: existing.shinyDiscoveredAt || (isShinyEncounter ? Date.now() : undefined),
+            physicalData: isShinyEncounter
+              ? generatePhysicalData(cleanName, emoji || '✨', true)
+              : (existing.physicalData || generatePhysicalData(cleanName, emoji || '✨', false)),
+          };
+          return updated;
+        }
+        return [newElemObj, ...prev];
+      });
+
+      // Audio & Haptics Feedback
+      if (isShinyEncounter) {
+        sound.playShiny();
+        haptics.shinySparkle();
+        setSpawnToast(`✨ SHINY ${cleanName.toUpperCase()} DISCOVERED!`);
+        setTimeout(() => setSpawnToast(null), 2500);
+      } else if (isNew) {
+        sound.playFirstDiscoveryChime();
+        haptics.firstDiscovery();
+        setFirstDiscoveryModal(newElemObj);
+      } else {
+        sound.playCraftPop();
+        haptics.discovery();
+      }
+
+      // Remove the two fused items from canvas and replace with result
+      setCanvasItems(prev => {
+        const filtered = prev.filter(
+          it => it.instanceId !== itemA.idA && it.instanceId !== itemB.idB
+        );
+        return [
+          ...filtered,
+          {
+            instanceId: `inst-${Date.now()}-${Math.random()}`,
+            name: cleanName,
+            emoji: emoji || '✨',
+            x: Math.max(20, Math.min(window.innerWidth - 300, targetX)),
+            y: Math.max(20, Math.min(window.innerHeight - 150, targetY)),
+            isNew,
+            isShiny: isShinyEncounter,
+          },
+        ];
+      });
+
+      // If Crucible items were involved, clear crucible slots
+      setCrucibleSlotA(null);
+      setCrucibleSlotB(null);
     } catch (err) {
-      if (!controller.signal.aborted) setCombineError(err instanceof Error ? err.message : 'Combination failed. Please retry.');
+      haptics.warning();
+      if (!controller.signal.aborted) {
+        setCombineError(err instanceof Error ? err.message : 'Combination failed. Please retry.');
+      }
     } finally {
-      if (progressRef.current) clearInterval(progressRef.current);
-      progressRef.current = null;
       requestRef.current = null;
-      setSynthesisSession(null);
+      setActiveCombination(null);
       setIsSynthesizing(false);
       setSelectedCanvasId(null);
       setHoverTargetId(null);
+      setIsCrucibleHovered(false);
+    }
+  };
+
+  // Crucible Dock Handlers
+  const handleCrucibleCombine = () => {
+    if (!crucibleSlotA || !crucibleSlotB) return;
+    const canvasBounds = canvasRef.current?.getBoundingClientRect();
+    const midX = canvasBounds ? canvasBounds.width / 2 : 250;
+    const midY = canvasBounds ? canvasBounds.height / 2 - 40 : 200;
+
+    handleCombine(
+      { name: crucibleSlotA.name, emoji: crucibleSlotA.emoji, x: midX - 60, y: midY, idA: crucibleSlotA.id },
+      { name: crucibleSlotB.name, emoji: crucibleSlotB.emoji, x: midX + 60, y: midY, idB: crucibleSlotB.id }
+    );
+  };
+
+  const handleClearSlotA = () => {
+    if (crucibleSlotA) {
+      spawnOnCanvas(crucibleSlotA.name, crucibleSlotA.emoji, crucibleSlotA.isShiny);
+      setCrucibleSlotA(null);
+    }
+  };
+
+  const handleClearSlotB = () => {
+    if (crucibleSlotB) {
+      spawnOnCanvas(crucibleSlotB.name, crucibleSlotB.emoji, crucibleSlotB.isShiny);
+      setCrucibleSlotB(null);
+    }
+  };
+
+  const handleClearCrucibleAll = () => {
+    if (crucibleSlotA) spawnOnCanvas(crucibleSlotA.name, crucibleSlotA.emoji, crucibleSlotA.isShiny);
+    if (crucibleSlotB) spawnOnCanvas(crucibleSlotB.name, crucibleSlotB.emoji, crucibleSlotB.isShiny);
+    setCrucibleSlotA(null);
+    setCrucibleSlotB(null);
+  };
+
+  const handleSwapCrucible = () => {
+    const temp = crucibleSlotA;
+    setCrucibleSlotA(crucibleSlotB);
+    setCrucibleSlotB(temp);
+  };
+
+  const dropIntoCrucible = (item: { name: string; emoji: string; instanceId?: string; isShiny?: boolean }) => {
+    if (!crucibleSlotA) {
+      setCrucibleSlotA({ id: item.instanceId, name: item.name, emoji: item.emoji, isShiny: item.isShiny });
+      if (item.instanceId) setCanvasItems(prev => prev.filter(it => it.instanceId !== item.instanceId));
+    } else if (!crucibleSlotB) {
+      setCrucibleSlotB({ id: item.instanceId, name: item.name, emoji: item.emoji, isShiny: item.isShiny });
+      if (item.instanceId) setCanvasItems(prev => prev.filter(it => it.instanceId !== item.instanceId));
+    } else {
+      setCrucibleSlotB({ id: item.instanceId, name: item.name, emoji: item.emoji, isShiny: item.isShiny });
+      if (item.instanceId) setCanvasItems(prev => prev.filter(it => it.instanceId !== item.instanceId));
     }
   };
 
   // Click on canvas item to select or combine
   const handleCanvasItemClick = (item: CanvasItem) => {
     sound.playClick();
+    haptics.lightTap();
     if (!selectedCanvasId) {
       setSelectedCanvasId(item.instanceId);
     } else if (selectedCanvasId === item.instanceId) {
@@ -421,6 +551,7 @@ export function InfiniteCraftView() {
       // Clicked second item: trigger combination!
       const firstItem = canvasItems.find(it => it.instanceId === selectedCanvasId);
       if (firstItem) {
+        haptics.fusionPulse();
         handleCombine(
           { name: firstItem.name, x: firstItem.x, y: firstItem.y, idA: firstItem.instanceId },
           { name: item.name, x: item.x, y: item.y, idB: item.instanceId }
@@ -433,6 +564,7 @@ export function InfiniteCraftView() {
   const handleDuplicate = (item: CanvasItem, e: React.MouseEvent) => {
     e.stopPropagation();
     sound.playClick();
+    haptics.mediumTap();
     const newItem: CanvasItem = {
       instanceId: `dup-${Date.now()}-${Math.random()}`,
       name: item.name,
@@ -440,6 +572,7 @@ export function InfiniteCraftView() {
       x: item.x + 25,
       y: item.y + 25,
       isNew: item.isNew,
+      isShiny: item.isShiny,
     };
     setCanvasItems(prev => [...prev, newItem]);
   };
@@ -452,9 +585,10 @@ export function InfiniteCraftView() {
     if (selectedCanvasId === instanceId) setSelectedCanvasId(null);
   };
 
-  // Spawn element from sidebar onto canvas
-  const spawnFromSidebar = (el: InfiniteElement) => {
+  // Spawn element onto canvas with optional shiny form
+  const spawnOnCanvas = (name: string, emoji: string, isShiny = false) => {
     sound.playClick();
+    haptics.lightTap();
     const canvasBounds = canvasRef.current?.getBoundingClientRect();
     const width = canvasBounds ? canvasBounds.width : 500;
     const height = canvasBounds ? canvasBounds.height : 400;
@@ -465,17 +599,15 @@ export function InfiniteCraftView() {
 
     const newItem: CanvasItem = {
       instanceId: `spawn-${Date.now()}-${Math.random()}`,
-      name: el.name,
-      emoji: el.emoji,
+      name,
+      emoji,
       x,
       y,
-      isNew: el.isNew,
+      isShiny,
     };
 
     setCanvasItems(prev => [...prev, newItem]);
-
-    // Show temporary toast feedback
-    setSpawnToast(`${el.emoji} ${el.name} added`);
+    setSpawnToast(`${emoji} ${isShiny ? '✨ ' : ''}${name} added`);
     setTimeout(() => setSpawnToast(null), 1800);
 
     // If an item is already selected on canvas, combine directly
@@ -484,10 +616,17 @@ export function InfiniteCraftView() {
       if (selected) {
         handleCombine(
           { name: selected.name, x: selected.x, y: selected.y, idA: selected.instanceId },
-          { name: el.name, x: x, y: y, idB: newItem.instanceId }
+          { name, x: x, y: y, idB: newItem.instanceId }
         );
       }
     }
+  };
+
+  // Spawn element from sidebar onto canvas
+  const spawnFromSidebar = (el: InfiniteElement) => {
+    const isShinyUnlocked = Boolean(el.unlockedShiny || el.isShiny);
+    const isShiny = Boolean(el.isShiny || (sortMode === 'shinies' && isShinyUnlocked));
+    spawnOnCanvas(el.name, el.emoji, isShiny);
   };
 
   // Tidy / Align all canvas items into a neat responsive grid
@@ -515,93 +654,182 @@ export function InfiniteCraftView() {
     );
   };
 
-  // Mouse & Touch Dragging Handlers
-  const handleMouseDown = (item: CanvasItem, e: React.MouseEvent | React.TouchEvent) => {
-    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+  // Pointer Dragging Engine (Optimized for Android / Google Pixel 9 120Hz touch)
+  const handlePointerDown = (item: CanvasItem, e: React.PointerEvent) => {
+    // Only primary pointer button
+    if (e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const isTouch = e.pointerType === 'touch';
+    const clientX = e.clientX;
+    const clientY = e.clientY;
+
+    // Lift element slightly above thumb on touch so user can see it
+    const touchLift = isTouch ? 36 : 0;
 
     draggingItemRef.current = {
       instanceId: item.instanceId,
       offsetX: clientX - item.x,
-      offsetY: clientY - item.y,
+      offsetY: clientY - item.y + touchLift,
       startX: clientX,
       startY: clientY,
+      currentX: clientX,
+      currentY: clientY,
+      isTouch,
       moved: false,
     };
+    setActiveDragId(item.instanceId);
   };
 
   useEffect(() => {
-    const handleMove = (e: MouseEvent | TouchEvent) => {
-      if (!draggingItemRef.current) return;
-      const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-      const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    const processDragFrame = () => {
+      rafPendingRef.current = false;
+      const drag = draggingItemRef.current;
+      if (!drag) return;
 
-      if (!draggingItemRef.current.moved && Math.hypot(clientX - draggingItemRef.current.startX, clientY - draggingItemRef.current.startY) < 6) return;
-      draggingItemRef.current.moved = true;
-      const newX = clientX - draggingItemRef.current.offsetX;
-      const newY = clientY - draggingItemRef.current.offsetY;
-      const draggedId = draggingItemRef.current.instanceId;
+      const newX = drag.currentX - drag.offsetX;
+      const newY = drag.currentY - drag.offsetY;
+      const draggedId = drag.instanceId;
 
+      // Update dragged item coordinates
       setCanvasItems(prev =>
         prev.map(it => (it.instanceId === draggedId ? { ...it, x: newX, y: newY } : it))
       );
 
-      // Check proximity with other items for drop fusion
-      const dragged = canvasItems.find(it => it.instanceId === draggedId);
-      if (dragged) {
+      // Check Crucible collision
+      let overCrucible = false;
+      if (crucibleRef.current) {
+        const rect = crucibleRef.current.getBoundingClientRect();
+        if (
+          drag.currentX >= rect.left - 15 &&
+          drag.currentX <= rect.right + 15 &&
+          drag.currentY >= rect.top - 15 &&
+          drag.currentY <= rect.bottom + 15
+        ) {
+          overCrucible = true;
+        }
+      }
+      setIsCrucibleHovered(overCrucible);
+
+      // Check proximity with other canvas items for direct fusion
+      if (overCrucible) {
+        setHoverTargetId(null);
+      } else {
+        const items = canvasItemsRef.current;
         let nearestId: string | null = null;
-        for (const other of canvasItems) {
+        const proximityThreshold = drag.isTouch ? 85 : 70;
+
+        for (const other of items) {
           if (other.instanceId === draggedId) continue;
           const dist = Math.hypot(other.x - newX, other.y - newY);
-          if (dist < 65) {
+          if (dist < proximityThreshold) {
             nearestId = other.instanceId;
             break;
           }
         }
-        setHoverTargetId(nearestId);
+
+        setHoverTargetId(prev => {
+          if (nearestId && nearestId !== prev) {
+            haptics.proximityTick();
+          }
+          return nearestId;
+        });
       }
     };
 
-    const handleUp = () => {
-      if (!draggingItemRef.current) return;
-      const draggedId = draggingItemRef.current.instanceId;
-      const dragged = canvasItems.find(it => it.instanceId === draggedId);
+    const handlePointerMove = (e: PointerEvent) => {
+      const drag = draggingItemRef.current;
+      if (!drag) return;
 
-      // A stationary tap selects an item; only an actual drag can trigger drop fusion.
-      if (dragged && draggingItemRef.current.moved) {
-        for (const other of canvasItems) {
+      drag.currentX = e.clientX;
+      drag.currentY = e.clientY;
+
+      if (!drag.moved) {
+        const dist = Math.hypot(drag.currentX - drag.startX, drag.currentY - drag.startY);
+        if (dist >= 4) {
+          drag.moved = true;
+          haptics.lightTap();
+        } else {
+          return;
+        }
+      }
+
+      if (!rafPendingRef.current) {
+        rafPendingRef.current = true;
+        requestAnimationFrame(processDragFrame);
+      }
+    };
+
+    const handlePointerUp = (e: PointerEvent) => {
+      const drag = draggingItemRef.current;
+      if (!drag) return;
+
+      const draggedId = drag.instanceId;
+      const items = canvasItemsRef.current;
+      const dragged = items.find(it => it.instanceId === draggedId);
+
+      if (dragged && drag.moved) {
+        // 1. Check if dropped onto Crafting Crucible
+        if (crucibleRef.current) {
+          const rect = crucibleRef.current.getBoundingClientRect();
+          if (
+            e.clientX >= rect.left - 20 &&
+            e.clientX <= rect.right + 20 &&
+            e.clientY >= rect.top - 20 &&
+            e.clientY <= rect.bottom + 20
+          ) {
+            haptics.mediumTap();
+            dropIntoCrucible(dragged);
+            draggingItemRef.current = null;
+            setActiveDragId(null);
+            setHoverTargetId(null);
+            setIsCrucibleHovered(false);
+            return;
+          }
+        }
+
+        // 2. Check if dropped within proximity of another element
+        const proximityThreshold = drag.isTouch ? 85 : 70;
+        let targetItem: CanvasItem | null = null;
+        for (const other of items) {
           if (other.instanceId === draggedId) continue;
           const dist = Math.hypot(other.x - dragged.x, other.y - dragged.y);
-          if (dist < 75) {
-            // Fused!
-            handleCombine(
-              { name: dragged.name, x: dragged.x, y: dragged.y, idA: dragged.instanceId },
-              { name: other.name, x: other.x, y: other.y, idB: other.instanceId }
-            );
+          if (dist < proximityThreshold) {
+            targetItem = other;
             break;
           }
+        }
+
+        if (targetItem) {
+          haptics.fusionPulse();
+          handleCombine(
+            { name: dragged.name, emoji: dragged.emoji, x: dragged.x, y: dragged.y, idA: dragged.instanceId },
+            { name: targetItem.name, emoji: targetItem.emoji, x: targetItem.x, y: targetItem.y, idB: targetItem.instanceId }
+          );
         }
       }
 
       draggingItemRef.current = null;
+      setActiveDragId(null);
       setHoverTargetId(null);
+      setIsCrucibleHovered(false);
     };
 
-    window.addEventListener('mousemove', handleMove);
-    window.addEventListener('mouseup', handleUp);
-    window.addEventListener('touchmove', handleMove);
-    window.addEventListener('touchend', handleUp);
+    window.addEventListener('pointermove', handlePointerMove, { passive: true });
+    window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('pointercancel', handlePointerUp);
 
     return () => {
-      window.removeEventListener('mousemove', handleMove);
-      window.removeEventListener('mouseup', handleUp);
-      window.removeEventListener('touchmove', handleMove);
-      window.removeEventListener('touchend', handleUp);
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', handlePointerUp);
     };
-  }, [canvasItems]);
+  }, []);
 
   const clearCanvas = () => {
     sound.playClick();
+    haptics.heavyTap();
     setCanvasItems([]);
     setSelectedCanvasId(null);
   };
@@ -614,6 +842,9 @@ export function InfiniteCraftView() {
   // Hover target object (if any)
   const hoverTargetObj = canvasItems.find(it => it.instanceId === hoverTargetId);
 
+  // Active dragged item (if any)
+  const activeDragItem = canvasItems.find(it => it.instanceId === activeDragId);
+
   return (
     <div
       className={`w-full h-full flex-1 flex overflow-hidden select-none font-sans relative transition-colors duration-200 ${
@@ -623,7 +854,7 @@ export function InfiniteCraftView() {
       {/* LEFT: Freeform Crafting Canvas */}
       <div
         ref={canvasRef}
-        className={`relative flex-1 h-full overflow-hidden cursor-crosshair ${
+        className={`relative flex-1 h-full overflow-hidden cursor-crosshair touch-none select-none ${
           isDarkMode
             ? 'bg-[radial-gradient(#27272a_1px,transparent_1px)] [background-size:24px_24px]'
             : 'bg-[radial-gradient(#e4e4e7_1px,transparent_1px)] [background-size:24px_24px]'
@@ -643,7 +874,7 @@ export function InfiniteCraftView() {
           >
             <span className="font-bold text-amber-500">Infinite Craft</span>
             <span className="opacity-30">•</span>
-            <span>Drag or tap elements to combine</span>
+            <span>Drag or drop onto Combine Pad</span>
           </div>
 
           {isSynthesizing && (
@@ -676,17 +907,27 @@ export function InfiniteCraftView() {
 
         {/* Selected Item Notification Banner */}
         {selectedItemObj && (
-          <div className="absolute top-12 left-4 z-10 flex items-center gap-2">
+          <div className="absolute top-12 left-4 z-20 flex items-center gap-2">
             <div className="px-3 py-1.5 rounded-xl text-xs font-mono font-semibold bg-amber-500 text-black shadow-md flex items-center gap-2 animate-fadeIn">
               <span>Selected: {selectedItemObj.emoji} {selectedItemObj.name}</span>
-              <span className="opacity-60">•</span>
-              <span className="font-normal text-[11px]">Click another item or sidebar element to combine!</span>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  dropIntoCrucible(selectedItemObj);
+                  setSelectedCanvasId(null);
+                }}
+                className="px-2 py-0.5 rounded bg-black/20 hover:bg-black/30 text-[11px] font-bold text-black flex items-center gap-1 transition-colors"
+                title="Send to Combine Pad"
+              >
+                <Zap className="w-3 h-3" />
+                <span>To Pad</span>
+              </button>
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   setSelectedCanvasId(null);
                 }}
-                className="ml-1 p-0.5 rounded hover:bg-black/20 text-black"
+                className="p-0.5 rounded hover:bg-black/20 text-black"
                 title="Cancel selection"
               >
                 <X className="w-3.5 h-3.5" />
@@ -695,14 +936,36 @@ export function InfiniteCraftView() {
           </div>
         )}
 
-        {/* Fusion Proximity Indicator */}
-        {hoverTargetObj && (
-          <div className="absolute top-12 right-4 z-10">
-            <div className="px-3 py-1.5 rounded-xl text-xs font-mono font-bold bg-emerald-500 text-black shadow-md flex items-center gap-1.5 animate-bounce">
-              <Zap className="w-3.5 h-3.5" />
-              <span>Release to Fuse with {hoverTargetObj.emoji} {hoverTargetObj.name}!</span>
+        {/* Magnetic Tether Line between Dragged Item and Hover Target */}
+        {hoverTargetObj && activeDragItem && (
+          <>
+            <svg className="absolute inset-0 pointer-events-none z-20 w-full h-full">
+              <line
+                x1={activeDragItem.x + 50}
+                y1={activeDragItem.y + 18}
+                x2={hoverTargetObj.x + 50}
+                y2={hoverTargetObj.y + 18}
+                stroke="#f59e0b"
+                strokeWidth="3"
+                strokeDasharray="6 4"
+                className="animate-pulse"
+              />
+            </svg>
+
+            {/* High-visibility badge floating right above contact point */}
+            <div
+              className="absolute pointer-events-none z-40 -translate-x-1/2 -translate-y-full transition-transform"
+              style={{
+                left: (activeDragItem.x + hoverTargetObj.x) / 2 + 50,
+                top: Math.min(activeDragItem.y, hoverTargetObj.y) - 14,
+              }}
+            >
+              <div className="px-3 py-1 rounded-full text-xs font-mono font-bold bg-amber-500 text-black shadow-[0_4px_16px_rgba(245,158,11,0.5)] border border-amber-300 flex items-center gap-1.5 whitespace-nowrap animate-bounce">
+                <Zap className="w-3.5 h-3.5 fill-black" />
+                <span>Drop to Fuse: {activeDragItem.emoji} + {hoverTargetObj.emoji}</span>
+              </div>
             </div>
-          </div>
+          </>
         )}
 
         {/* Floating Canvas Toast Feedback */}
@@ -817,44 +1080,69 @@ export function InfiniteCraftView() {
           />
         ))}
 
-        {/* Render Floating Canvas Items */}
+        {/* In-Place Subtle Combination Animation Overlay */}
+        <CombineAnimationOverlay
+          combination={activeCombination}
+          isDarkMode={isDarkMode}
+        />
+
+        {/* Render Floating Canvas Items with Hardware Accelerated Transforms */}
         {canvasItems.map(item => {
           const isSelected = selectedCanvasId === item.instanceId;
           const isHoveredTarget = hoverTargetId === item.instanceId;
+          const isDragging = activeDragId === item.instanceId;
 
           return (
             <div
               key={item.instanceId}
-              onMouseDown={e => handleMouseDown(item, e)}
-              onTouchStart={e => handleMouseDown(item, e)}
+              onPointerDown={e => handlePointerDown(item, e)}
               onClick={e => {
                 e.stopPropagation();
                 handleCanvasItemClick(item);
               }}
               onDoubleClick={e => handleDuplicate(item, e)}
               style={{
-                left: item.x,
-                top: item.y,
+                transform: `translate3d(${item.x}px, ${item.y}px, 0)`,
+                transition: isDragging ? 'none' : 'transform 0.12s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.15s ease',
+                willChange: 'transform',
+                touchAction: 'none',
               }}
-              className={`absolute cursor-grab active:cursor-grabbing select-none px-3 py-1.5 rounded-lg border flex items-center gap-2 transition-all duration-75 shadow-sm group ${
-                isDarkMode
+              className={`absolute top-0 left-0 cursor-grab active:cursor-grabbing select-none px-3.5 py-2 rounded-xl border flex items-center gap-2 font-medium text-xs shadow-sm group ${
+                item.isShiny
+                  ? 'shiny-holographic-pill text-amber-100 font-bold shadow-[0_0_16px_rgba(251,191,36,0.4)]'
+                  : isDarkMode
                   ? 'bg-[#18181b] hover:bg-[#202024] border-[#2e2e33] text-[#f4f4f5]'
                   : 'bg-white hover:bg-zinc-50 border-[#d4d4d8] text-[#18181b]'
               } ${
-                isSelected
-                  ? 'ring-2 ring-amber-500 scale-105 shadow-[0_0_15px_rgba(245,158,11,0.4)] z-20'
-                  : ''
-              } ${
-                isHoveredTarget
-                  ? 'ring-2 ring-emerald-500 scale-110 shadow-[0_0_20px_rgba(16,185,129,0.5)] z-20'
-                  : 'z-10'
+                isDragging
+                  ? 'ring-2 ring-amber-400 scale-110 shadow-[0_12px_28px_rgba(0,0,0,0.35)] z-40 opacity-95 pointer-events-none'
+                  : isSelected
+                  ? 'ring-2 ring-amber-500 scale-105 shadow-[0_0_18px_rgba(245,158,11,0.45)] z-30'
+                  : isHoveredTarget
+                  ? 'ring-2 ring-emerald-500 scale-110 shadow-[0_0_22px_rgba(16,185,129,0.55)] z-30 animate-pulse'
+                  : 'z-10 hover:shadow-md'
               }`}
             >
-              <span className="text-lg leading-none select-none">{item.emoji}</span>
-              <span className="text-xs font-semibold tracking-wide whitespace-nowrap">{item.name}</span>
+              <span className="text-xl leading-none select-none pointer-events-none">{item.emoji}</span>
+              <span className="text-xs font-semibold tracking-wide whitespace-nowrap pointer-events-none">{item.name}</span>
+              {item.isShiny && (
+                <span className="text-[10px] text-amber-400 font-bold shiny-star-twinkle pointer-events-none" title="Shiny Variant">
+                  ✨
+                </span>
+              )}
 
-              {/* Quick Actions (Duplicate & Delete) */}
-              <div className="hidden group-hover:flex items-center gap-0.5 ml-1">
+              {/* Quick Actions (To Pad, Duplicate & Delete) */}
+              <div className="hidden sm:group-hover:flex items-center gap-0.5 ml-1">
+                <button
+                  onClick={e => {
+                    e.stopPropagation();
+                    dropIntoCrucible(item);
+                  }}
+                  title="Send to Combine Pad"
+                  className="p-1 rounded hover:bg-amber-500/20 text-zinc-400 hover:text-amber-400 transition-colors"
+                >
+                  <Zap className="w-3 h-3" />
+                </button>
                 <button
                   onClick={e => handleDuplicate(item, e)}
                   title="Duplicate (+)"
@@ -873,6 +1161,23 @@ export function InfiniteCraftView() {
             </div>
           );
         })}
+
+        {/* High-Visibility Crafting Crucible Combine Zone */}
+        <CraftingCrucible
+          slotA={crucibleSlotA}
+          slotB={crucibleSlotB}
+          onClearSlotA={handleClearSlotA}
+          onClearSlotB={handleClearSlotB}
+          onClearAll={handleClearCrucibleAll}
+          onSwapSlots={handleSwapCrucible}
+          onCombine={handleCrucibleCombine}
+          isSynthesizing={isSynthesizing}
+          isDarkMode={isDarkMode}
+          isDropTargetActive={isCrucibleHovered}
+          crucibleRef={crucibleRef}
+          isCollapsed={isCrucibleCollapsed}
+          onToggleCollapse={() => setIsCrucibleCollapsed(prev => !prev)}
+        />
       </div>
 
       {/* MOBILE BACKDROP OVERLAY: Tapping anywhere outside the elements tray immediately closes it! */}
@@ -1030,6 +1335,23 @@ export function InfiniteCraftView() {
                   <span>Starred</span>
                 </button>
               )}
+
+              {shiniesCount > 0 && (
+                <button
+                  onClick={() => setSortMode(sortMode === 'shinies' ? 'time' : 'shinies')}
+                  className={`px-2 py-1 rounded-lg border text-[11px] font-medium flex items-center gap-1 transition-all ${
+                    sortMode === 'shinies'
+                      ? 'bg-gradient-to-r from-amber-400 to-pink-500 text-slate-950 font-bold border-amber-300 shadow-sm'
+                      : isDarkMode
+                      ? 'bg-[#18181b] border-[#27272a] text-amber-300 hover:text-amber-200'
+                      : 'bg-zinc-100 border-zinc-200 text-amber-700 hover:text-amber-900'
+                  }`}
+                  title="Filter rare Pokémon-style shiny mutations"
+                >
+                  <span className="shiny-star-twinkle">✨</span>
+                  <span>Shinies ({shiniesCount})</span>
+                </button>
+              )}
             </div>
 
             <span className="text-[11px] text-zinc-400 font-mono">
@@ -1040,41 +1362,52 @@ export function InfiniteCraftView() {
 
         {/* Elements Grid List */}
         <div className="flex-1 overflow-y-auto p-3 flex flex-wrap content-start gap-1.5 select-none">
-          {filteredElements.map(el => (
-            <div
-              key={el.id}
-              onClick={() => spawnFromSidebar(el)}
-              className={`group flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border cursor-pointer select-none transition-all duration-100 shadow-sm hover:scale-[1.02] active:scale-95 ${
-                isDarkMode
-                  ? 'bg-[#1c1f26] hover:bg-[#252a34] border-[#2e333d] text-[#f4f4f5]'
-                  : 'bg-zinc-50 hover:bg-white border-[#d4d4d8] text-[#18181b]'
-              }`}
-            >
-              <span className="text-base leading-none select-none">{el.emoji}</span>
-              <span className="text-xs font-semibold tracking-wide">{el.name}</span>
+          {filteredElements.map(el => {
+            const isShinyUnlocked = Boolean(el.unlockedShiny || el.isShiny);
+            const isDisplayShiny = Boolean(el.isShiny || (sortMode === 'shinies' && isShinyUnlocked));
 
-              {el.isNew && (
-                <span className="text-[10px] text-amber-500" title="First Discovery">
-                  ★
-                </span>
-              )}
+            return (
+              <div
+                key={el.id}
+                onClick={() => spawnFromSidebar(el)}
+                className={`group flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border cursor-pointer select-none transition-all duration-100 shadow-sm hover:scale-[1.02] active:scale-95 ${
+                  isDisplayShiny
+                    ? 'shiny-holographic-pill text-amber-100 font-semibold'
+                    : isDarkMode
+                    ? 'bg-[#1c1f26] hover:bg-[#252a34] border-[#2e333d] text-[#f4f4f5]'
+                    : 'bg-zinc-50 hover:bg-white border-[#d4d4d8] text-[#18181b]'
+                }`}
+              >
+                <span className="text-base leading-none select-none">{el.emoji}</span>
+                <span className="text-xs font-semibold tracking-wide">{el.name}</span>
 
-              {/* Recipe Info Button */}
-              {el.recipe && (
+                {el.isNew && (
+                  <span className="text-[10px] text-amber-500 font-bold" title="First Discovery">
+                    ★
+                  </span>
+                )}
+
+                {isShinyUnlocked && (
+                  <span className="text-[10px] text-amber-400 shiny-star-twinkle" title="Shiny form unlocked!">
+                    ✨
+                  </span>
+                )}
+
+                {/* Inspect Physical Properties & Dossier Button */}
                 <button
                   onClick={e => {
                     e.stopPropagation();
                     sound.playClick();
                     setInspectedElement(el);
                   }}
-                  className="opacity-0 group-hover:opacity-100 text-zinc-400 hover:text-zinc-200 transition-opacity ml-0.5 p-0.5"
-                  title="Inspect Recipe"
+                  className="opacity-0 group-hover:opacity-100 text-zinc-400 hover:text-cyan-400 transition-opacity ml-0.5 p-0.5"
+                  title="Inspect Physical Properties & Shiny Codex"
                 >
-                  <Info className="w-3 h-3" />
+                  <Info className="w-3.5 h-3.5" />
                 </button>
-              )}
-            </div>
-          ))}
+              </div>
+            );
+          })}
 
           {filteredElements.length === 0 && (
             <div className="w-full text-center py-12 text-zinc-400 text-xs font-mono">
@@ -1153,58 +1486,14 @@ export function InfiniteCraftView() {
         </div>
       )}
 
-      {/* MODAL: Recipe Lineage Inspector */}
+      {/* MODAL: Full Physical Properties, Shiny Codex & Recipe Dossier */}
       {inspectedElement && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn"
-          onClick={() => setInspectedElement(null)}
-        >
-          <div
-            onClick={e => e.stopPropagation()}
-            className={`w-full max-w-sm rounded-2xl p-5 border shadow-2xl relative ${
-              isDarkMode ? 'bg-[#18181b] border-[#27272a] text-white' : 'bg-white border-[#e4e4e7] text-black'
-            }`}
-          >
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <span className="text-2xl">{inspectedElement.emoji}</span>
-                <div>
-                  <h4 className="font-bold text-base">{inspectedElement.name}</h4>
-                  <span className="text-[10px] text-zinc-400 font-mono">RECIPE LINEAGE</span>
-                </div>
-              </div>
-              <button
-                onClick={() => setInspectedElement(null)}
-                className="p-1 rounded-lg hover:bg-zinc-700/20 text-zinc-400 hover:text-zinc-200"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {inspectedElement.recipe ? (
-              <div className="space-y-2.5">
-                <div
-                  className={`p-3 rounded-xl border text-sm font-mono flex items-center justify-center gap-2 ${
-                    isDarkMode ? 'bg-black/30 border-zinc-800' : 'bg-zinc-50 border-zinc-200'
-                  }`}
-                >
-                  <span className="font-semibold text-amber-400">{inspectedElement.recipe.first}</span>
-                  <span className="text-zinc-400">+</span>
-                  <span className="font-semibold text-amber-400">{inspectedElement.recipe.second}</span>
-                  <span className="text-zinc-400">=</span>
-                  <span className="font-bold text-emerald-400">{inspectedElement.name}</span>
-                </div>
-                <p className="text-[11px] text-zinc-400 text-center">
-                  Discovered on {new Date(inspectedElement.discoveredAt || Date.now()).toLocaleTimeString()}
-                </p>
-              </div>
-            ) : (
-              <div className="text-xs text-zinc-400 py-3 text-center">
-                This is a primordial starter element.
-              </div>
-            )}
-          </div>
-        </div>
+        <ElementDossierModal
+          element={inspectedElement}
+          onClose={() => setInspectedElement(null)}
+          onSpawnOnCanvas={(name, emoji, isShiny) => spawnOnCanvas(name, emoji, isShiny)}
+          isDarkMode={isDarkMode}
+        />
       )}
     </div>
   );

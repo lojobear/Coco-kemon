@@ -19,6 +19,25 @@ body {
   background-color: #121417;
   color: #e3e5e8;
   -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: contain;
+  overscroll-behavior-x: none;
+  touch-action: manipulation;
+}
+
+/* Safe area padding utilities for Google Pixel punch-hole and gesture pill */
+.safe-top-padding {
+  padding-top: max(0.5rem, env(safe-area-inset-top, 0px));
+}
+
+.safe-bottom-padding {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
+}
+
+/* Minimum accessible touch target utility for mobile */
+.touch-target-48 {
+  min-height: 48px;
+  min-width: 48px;
 }
 
 /* Custom scrollbars for lab feel */
@@ -67,3 +86,48 @@ body {
   border: 1px solid #282d37;
   box-shadow: 0 4px 12px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05);
 }
+
+/* Pokémon-Style Holographic Shiny Foil Effects */
+@keyframes shiny-foil-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes shiny-sparkle-pulse {
+  0%, 100% {
+    opacity: 0.25;
+    transform: scale(0.85) rotate(0deg);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2) rotate(180deg);
+  }
+}
+
+.shiny-holographic-pill {
+  position: relative;
+  background-size: 200% 200%;
+  border: 1.5px solid transparent;
+  background-image: linear-gradient(rgba(18, 22, 31, 0.95), rgba(18, 22, 31, 0.95)), 
+                    linear-gradient(135deg, #fbbf24 0%, #ec4899 25%, #06b6d4 50%, #a855f7 75%, #fbbf24 100%);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  animation: shiny-foil-shift 4s ease infinite;
+  box-shadow: 0 0 14px rgba(251, 191, 36, 0.25), 0 0 4px rgba(6, 182, 212, 0.3);
+}
+
+.shiny-holographic-pill:hover {
+  box-shadow: 0 0 20px rgba(251, 191, 36, 0.45), 0 0 8px rgba(236, 72, 153, 0.4);
+}
+
+.shiny-star-twinkle {
+  animation: shiny-sparkle-pulse 2.2s ease-in-out infinite;
+}
+

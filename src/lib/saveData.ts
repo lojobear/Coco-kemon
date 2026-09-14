@@ -19,6 +19,8 @@ const unique = (items: any[], key: string) => new Set(items.map(x => x[key])).si
 export function validateCraft(v: unknown): v is InfiniteElement[] {
   return Array.isArray(v) && v.every(x => record(x) && text(x.id) && text(x.name) && text(x.emoji) &&
     (x.discoveredAt === undefined || finite(x.discoveredAt)) && (x.isNew === undefined || typeof x.isNew === 'boolean') &&
+    (x.isShiny === undefined || typeof x.isShiny === 'boolean') &&
+    (x.unlockedShiny === undefined || typeof x.unlockedShiny === 'boolean') &&
     (x.recipe === undefined || (record(x.recipe) && text(x.recipe.first) && text(x.recipe.second)))) && unique(v, 'id');
 }
 export function validateFoundry(v: unknown): boolean {

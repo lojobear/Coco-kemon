@@ -14,8 +14,12 @@ export async function callGeminiStructured(
 ): Promise<string> {
   if (!injectedClient && !process.env.GEMINI_API_KEY) throw new ApiFailure(503, 'AI is not configured. Add a Gemini API key on the server.');
   const ai = injectedClient ?? (client ??= new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! }));
-  const models = [process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite'];
-  if (process.env.GEMINI_FALLBACK_MODEL && !models.includes(process.env.GEMINI_FALLBACK_MODEL)) models.push(process.env.GEMINI_FALLBACK_MODEL);
+  const models = [process.env.GEMINI_MODEL || 'gemini-3.8-flash'];
+  if (process.env.GEMINI_FALLBACK_MODEL && !models.includes(process.env.GEMINI_FALLBACK_MODEL)) {
+    models.push(process.env.GEMINI_FALLBACK_MODEL);
+  } else if (!models.includes('gemini-3.1-flash-lite')) {
+    models.push('gemini-3.1-flash-lite');
+  }
   let last: unknown;
   for (let attempt = 0; attempt < 2; attempt++) {
     const controller = new AbortController();

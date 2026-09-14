@@ -3,6 +3,11 @@
  * Express + Vite with Gemini AI Structured Synthesis Pipeline
  */
 
+// Clean up Node 22 container global __dirname artifact to prevent ESM createRequire('.') failures
+if ((globalThis as unknown as { __dirname?: string }).__dirname === '.') {
+  delete (globalThis as unknown as { __dirname?: string }).__dirname;
+}
+
 import express from 'express';
 import path from 'path';
 import dotenv from 'dotenv';
@@ -22,8 +27,8 @@ app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
     hasGeminiKey: Boolean(process.env.GEMINI_API_KEY),
-    primaryModel: process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite',
-    fallbackModel: process.env.GEMINI_FALLBACK_MODEL || null,
+    primaryModel: process.env.GEMINI_MODEL || 'gemini-3.8-flash',
+    fallbackModel: process.env.GEMINI_FALLBACK_MODEL || 'gemini-3.1-flash-lite',
     engine: 'infinite-craft-compatible',
     mode: 'logical-real-brand-character-synthesis',
     time: new Date().toISOString(),
@@ -984,7 +989,10 @@ async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        hmr: false,
+      },
       appType: 'spa',
     });
     app.use(vite.middlewares);

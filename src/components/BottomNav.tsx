@@ -6,6 +6,7 @@
 import React from 'react';
 import { useGame } from '../lib/gameStore';
 import { sound } from '../lib/audio';
+import { haptics } from '../lib/haptics';
 import { Sparkles, BookOpen, Trees, FileText, Infinity as InfinityIcon, FlaskConical } from 'lucide-react';
 
 export function BottomNav() {
@@ -20,8 +21,8 @@ export function BottomNav() {
   ] as const;
 
   return (
-    <nav className="sticky bottom-0 z-30 w-full bg-[#14161c]/95 backdrop-blur-md border-t border-[#262b35] py-1 px-3 shadow-lg select-none font-mono">
-      <div className="max-w-md mx-auto flex items-center justify-around">
+    <nav className="sticky bottom-0 z-30 w-full bg-[#14161c]/98 backdrop-blur-md border-t border-[#262b35] pt-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] px-2 sm:px-4 shadow-lg select-none font-mono">
+      <div className="max-w-md mx-auto flex items-center justify-around gap-1">
         {tabs.map(t => {
           const Icon = t.icon;
           const isActive = activeTab === t.id;
@@ -30,12 +31,13 @@ export function BottomNav() {
               key={t.id}
               onClick={() => {
                 sound.playClick();
+                haptics.lightTap();
                 setActiveTab(t.id);
               }}
-              className={`flex-1 py-1.5 px-2 flex flex-col items-center justify-center rounded-xl transition-all relative ${
+              className={`flex-1 min-h-[48px] py-1 px-1.5 flex flex-col items-center justify-center rounded-xl transition-all relative active:scale-95 touch-manipulation ${
                 isActive
-                  ? 'text-[#f59e0b]'
-                  : 'text-[#9ca3af] hover:text-[#e5e7eb]'
+                  ? 'text-[#f59e0b] bg-amber-500/10'
+                  : 'text-[#9ca3af] hover:text-[#e5e7eb] hover:bg-slate-800/40'
               }`}
             >
               <div className="relative">
@@ -46,7 +48,7 @@ export function BottomNav() {
                   </span>
                 )}
               </div>
-              <span className={`text-[10px] font-bold mt-1 tracking-wider ${isActive ? 'text-[#f59e0b]' : 'text-[#6b7280]'}`}>
+              <span className={`text-[10px] font-bold mt-1 tracking-wider whitespace-nowrap ${isActive ? 'text-[#f59e0b]' : 'text-[#6b7280]'}`}>
                 {t.label}
               </span>
             </button>

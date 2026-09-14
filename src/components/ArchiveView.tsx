@@ -8,6 +8,7 @@ import React, { useState } from 'react';
 import { useGame } from '../lib/gameStore';
 import { Material, Oddkin, Rarity } from '../types';
 import { sound } from '../lib/audio';
+import { generatePhysicalData } from '../lib/physicalDataEngine';
 import { BookOpen, Sparkles, GitBranch, ArrowRight, X, Info, Flame, Shield, Heart } from 'lucide-react';
 
 export function ArchiveView({
@@ -372,12 +373,45 @@ export function ArchiveView({
             {/* MATERIAL-SPECIFIC DETAILS */}
             {activeInspected.type === 'material' && (() => {
               const mat = activeInspected.item as Material;
+              const phys = generatePhysicalData(mat.displayName, '⚗️', false);
+
               return (
                 <div className="space-y-3">
-                  {/* Physical Properties Matrix */}
+                  {/* Empirical Telemetry Matrix */}
+                  <div className="p-3 rounded-xl bg-[#121419] border border-[#252b37] space-y-2 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-[#38bdf8] uppercase tracking-wider">
+                        EMPIRICAL DATA MATRIX
+                      </span>
+                      <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">
+                        {phys.cosmicTier}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-[10px] font-mono">
+                      <div className="p-1.5 rounded bg-[#161a22] border border-[#262c3a] flex flex-col">
+                        <span className="text-[9px] text-zinc-400">STATE / MASS</span>
+                        <span className="text-zinc-200 font-bold">{phys.stateOfMatter} ({phys.massClass})</span>
+                      </div>
+                      <div className="p-1.5 rounded bg-[#161a22] border border-[#262c3a] flex flex-col">
+                        <span className="text-[9px] text-zinc-400">THERMAL / DENSITY</span>
+                        <span className="text-amber-300 font-bold">{phys.thermalReading} ({phys.density})</span>
+                      </div>
+                      <div className="p-1.5 rounded bg-[#161a22] border border-[#262c3a] flex flex-col">
+                        <span className="text-[9px] text-zinc-400">MOHS / CONDUCTIVITY</span>
+                        <span className="text-emerald-300 font-bold">{phys.mohsHardness} / 10 ({phys.conductivity})</span>
+                      </div>
+                      <div className="p-1.5 rounded bg-[#161a22] border border-[#262c3a] flex flex-col">
+                        <span className="text-[9px] text-zinc-400">QUANTUM RESONANCE</span>
+                        <span className="text-purple-300 font-bold">{phys.resonanceHz} Hz</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Physical Properties Flags */}
                   <div className="p-3 rounded-xl bg-[#121419] border border-[#252b37] space-y-2 text-xs">
                     <span className="text-[10px] font-bold text-[#38bdf8] uppercase">
-                      PHYSICAL PROPERTIES
+                      TACTILE PHENOTYPE
                     </span>
 
                     <div className="grid grid-cols-3 gap-1 text-[10px]">

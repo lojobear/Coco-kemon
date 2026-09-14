@@ -17,6 +17,7 @@ import { VoiceLabModal } from './components/VoiceLabModal';
 import { BottomNav } from './components/BottomNav';
 import { InfiniteCraftView } from './components/InfiniteCraftView';
 import { SAVE_STATUS_EVENT, getSaveError } from './lib/saveData';
+import { sound } from './lib/audio';
 import { Material } from './types';
 
 function GameContent() {
@@ -29,6 +30,22 @@ function GameContent() {
     window.addEventListener(SAVE_STATUS_EVENT, update);
     return () => window.removeEventListener(SAVE_STATUS_EVENT, update);
   }, []);
+
+  // Pre-warm Web Audio context on first user touch / pointer event for Android Chrome
+  useEffect(() => {
+    const handleFirstTouch = () => {
+      sound.unlock();
+      window.removeEventListener('touchstart', handleFirstTouch);
+      window.removeEventListener('pointerdown', handleFirstTouch);
+    };
+    window.addEventListener('touchstart', handleFirstTouch, { once: true, passive: true });
+    window.addEventListener('pointerdown', handleFirstTouch, { once: true, passive: true });
+    return () => {
+      window.removeEventListener('touchstart', handleFirstTouch);
+      window.removeEventListener('pointerdown', handleFirstTouch);
+    };
+  }, []);
+
   const [showSeedsModal, setShowSeedsModal] = useState<boolean>(false);
   const [showVoiceModal, setShowVoiceModal] = useState<boolean>(false);
 
@@ -37,7 +54,7 @@ function GameContent() {
   };
 
   return (
-    <div className="h-screen w-full bg-[#0d0f12] text-[#f3f4f6] flex flex-col justify-between overflow-hidden selection:bg-amber-500 selection:text-black">
+    <div className="h-[100dvh] max-h-[100dvh] w-full bg-[#0d0f12] text-[#f3f4f6] flex flex-col justify-between overflow-hidden selection:bg-amber-500 selection:text-black">
       {/* Top Header */}
       <Header
         onOpenSeeds={() => setShowSeedsModal(true)}

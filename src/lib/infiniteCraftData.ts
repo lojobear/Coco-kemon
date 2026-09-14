@@ -2,6 +2,10 @@
  * Canonical recipe combinations and starter items for Infinite Craft (by Neal Agarwal)
  */
 
+/**
+ * Canonical recipe combinations and starter items for Infinite Craft (by Neal Agarwal)
+ */
+
 export interface InfiniteElement {
   id: string;
   name: string;
@@ -9,12 +13,20 @@ export interface InfiniteElement {
   discoveredAt?: number;
   isNew?: boolean;
   recipe?: { first: string; second: string };
+  // Pokémon-style Shiny expansion:
+  isShiny?: boolean;
+  unlockedShiny?: boolean;
+  shinyDiscoveredAt?: number;
+  shinyTitle?: string;
+  // Physical properties telemetry
+  physicalData?: any;
 }
 
 export interface InfiniteCraftPairResponse {
   result: string;
   emoji: string;
   isNew: boolean;
+  isShiny?: boolean;
 }
 
 export const STARTER_ELEMENTS: InfiniteElement[] = [

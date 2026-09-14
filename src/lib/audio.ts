@@ -30,6 +30,10 @@ class SoundSystem {
     }
   }
 
+  public unlock() {
+    this.init();
+  }
+
   public isMuted(): boolean {
     return this.muted;
   }
@@ -365,8 +369,8 @@ class SoundSystem {
     osc.stop(t + 0.07);
   }
 
-  // LiDAR scanner pulse / frequency ping
-  public playLidarSweep() {
+  // Subtle harmonic combination chime when elements start converging
+  public playCombineChime() {
     if (this.muted) return;
     this.init();
     if (!this.ctx) return;
@@ -376,10 +380,10 @@ class SoundSystem {
     const gain = this.ctx.createGain();
 
     osc.type = 'sine';
-    osc.frequency.setValueAtTime(650, t);
-    osc.frequency.exponentialRampToValueAtTime(1450, t + 0.1);
+    osc.frequency.setValueAtTime(587.33, t); // D5
+    osc.frequency.exponentialRampToValueAtTime(880, t + 0.08); // A5
 
-    gain.gain.setValueAtTime(0.09, t);
+    gain.gain.setValueAtTime(0.08, t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
 
     osc.connect(gain);
@@ -388,7 +392,12 @@ class SoundSystem {
     osc.stop(t + 0.13);
   }
 
-  // LiDAR crystallization / matter lock chime
+  // Synthesis convergence ping (replaces old lidar sweep)
+  public playLidarSweep() {
+    this.playCombineChime();
+  }
+
+  // Synthesis crystallization / matter lock chime
   public playLidarLock() {
     if (this.muted) return;
     this.init();
@@ -402,13 +411,13 @@ class SoundSystem {
     osc.frequency.setValueAtTime(880, t);
     osc.frequency.setValueAtTime(1760, t + 0.06);
 
-    gain.gain.setValueAtTime(0.14, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.16);
+    gain.gain.setValueAtTime(0.12, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
 
     osc.connect(gain);
     gain.connect(this.ctx.destination);
     osc.start(t);
-    osc.stop(t + 0.18);
+    osc.stop(t + 0.16);
   }
 
   // Neal Infinite Craft First Discovery celebratory chime
@@ -434,6 +443,48 @@ class SoundSystem {
       osc.start(t);
       osc.stop(t + 0.4);
     });
+  }
+
+  // Pokémon-style Shiny Sparkle Fanfare (crystal bell chime arpeggio + harmonic shimmer)
+  public playShiny() {
+    if (this.muted) return;
+    this.init();
+    if (!this.ctx) return;
+
+    const t = this.ctx.currentTime;
+    // Rapid ascending crystal bell notes: C6, E6, G6, B6, D7, G7
+    const sparkleNotes = [1046.5, 1318.51, 1567.98, 1975.53, 2349.32, 3135.96];
+    sparkleNotes.forEach((freq, idx) => {
+      if (!this.ctx) return;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      const noteTime = t + idx * 0.05;
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, noteTime);
+      osc.frequency.exponentialRampToValueAtTime(freq * 1.025, noteTime + 0.18);
+
+      gain.gain.setValueAtTime(0.2, noteTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, noteTime + 0.35);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(noteTime);
+      osc.stop(noteTime + 0.38);
+    });
+
+    // Warm resonant harmonic shimmer swell
+    const shimmerOsc = this.ctx.createOscillator();
+    const shimmerGain = this.ctx.createGain();
+    shimmerOsc.type = 'triangle';
+    shimmerOsc.frequency.setValueAtTime(1567.98, t + 0.12);
+    shimmerGain.gain.setValueAtTime(0.1, t + 0.12);
+    shimmerGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.85);
+
+    shimmerOsc.connect(shimmerGain);
+    shimmerGain.connect(this.ctx.destination);
+    shimmerOsc.start(t + 0.12);
+    shimmerOsc.stop(t + 0.9);
   }
 }
 
