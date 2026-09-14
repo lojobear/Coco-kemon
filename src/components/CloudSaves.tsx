@@ -45,8 +45,18 @@ export function CloudSaves({ open, onClose }: { open: boolean; onClose: () => vo
       if (error) { setMessage('Sign-in could not finish. Please try Google sign-in again.'); setReady(true); }
       else accept(data.session?.user ?? null);
     }).catch(() => { if (alive) { setMessage('Could not check your account. Reload to retry.'); setReady(true); } });
-    const params = new URLSearchParams(window.location.search);
-    if (params.has('error')) setMessage('Google sign-in was cancelled or could not finish. Please try again.');
+    const searchParams = new URLSearchParams(window.location.search);
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+    const errorType = searchParams.get('error') || hashParams.get('error');
+    const errorDesc = searchParams.get('error_description') || hashParams.get('error_description');
+    if (errorType) {
+      const decoded = errorDesc ? decodeURIComponent(errorDesc).replace(/\+/g, ' ') : '';
+      if (errorType === 'access_denied' || decoded.toLowerCase().includes('access')) {
+        setMessage('Access was denied by Google. If your OAuth screen is in "Testing" mode, add your email under Google Cloud Console → OAuth consent screen → Test users.');
+      } else {
+        setMessage(decoded ? `Sign-in error: ${decoded}` : 'Google sign-in was cancelled or could not finish. Please try again.');
+      }
+    }
     return () => { alive = false; generation.current++; subscription.unsubscribe(); };
   }, []);
 

@@ -4,22 +4,37 @@
     <meta charset="UTF-8" />
     <script>
       (function() {
+        function isViteNoise(arg) {
+          if (!arg) return false;
+          var str = typeof arg === 'string' ? arg : (arg.message || arg.stack || String(arg));
+          return typeof str === 'string' && (str.indexOf('[vite]') !== -1 || str.indexOf('WebSocket') !== -1 || str.indexOf('websocket') !== -1);
+        }
         var origErr = console.error;
         var origWarn = console.warn;
         console.error = function() {
-          var msg = arguments[0];
-          if (typeof msg === 'string' && (msg.indexOf('[vite]') !== -1 || msg.indexOf('WebSocket') !== -1 || msg.indexOf('websocket') !== -1)) {
-            return;
+          for (var i = 0; i < arguments.length; i++) {
+            if (isViteNoise(arguments[i])) return;
           }
           origErr.apply(console, arguments);
         };
         console.warn = function() {
-          var msg = arguments[0];
-          if (typeof msg === 'string' && (msg.indexOf('[vite]') !== -1 || msg.indexOf('WebSocket') !== -1 || msg.indexOf('websocket') !== -1)) {
-            return;
+          for (var i = 0; i < arguments.length; i++) {
+            if (isViteNoise(arguments[i])) return;
           }
           origWarn.apply(console, arguments);
         };
+        window.addEventListener('error', function(e) {
+          if (isViteNoise(e.message) || isViteNoise(e.error)) {
+            e.stopImmediatePropagation();
+            e.preventDefault();
+          }
+        }, true);
+        window.addEventListener('unhandledrejection', function(e) {
+          if (isViteNoise(e.reason)) {
+            e.stopImmediatePropagation();
+            e.preventDefault();
+          }
+        }, true);
       })();
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />

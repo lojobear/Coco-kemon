@@ -24,6 +24,60 @@ There is no service-role key in this app. Authentication and row-level security 
 - Sign-out leaves device progress on that browser. Accounts have separate cloud backups; local progress is shared by people using the same browser profile.
 - Saves are capped at 8 MiB. Large custom images may reach the limit; JSON exports remain available. Database JSON text accounting may be slightly larger than the browser's compact JSON.
 
+## Troubleshooting Google OAuth Errors
+
+### 1. "localhost refused to connect" after signing in
+This happens because Google authenticated successfully, but **Supabase** redirected you to `http://localhost:3000` instead of your live app URL.
+
+When the live app URL is not listed in Supabase's **Redirect URLs**, Supabase rejects the redirect request and falls back to your configured **Site URL** (`http://localhost:3000`).
+
+**How to fix:**
+1. Go to your [Supabase Project Dashboard](https://supabase.com/dashboard/project/lrjszbguvqgdsqvvcoqe).
+2. In the left navigation, click **Authentication** (shield icon) → **URL Configuration**.
+3. Under **Site URL**, change it from `http://localhost:3000` to your actual app URL:
+   ```text
+   https://ais-dev-4hy3eczv46qkyckv6n6ic2-52292461097.us-east1.run.app
+   ```
+4. Under **Redirect URLs**, click **Add URL** and add each of the following:
+   ```text
+   https://ais-dev-4hy3eczv46qkyckv6n6ic2-52292461097.us-east1.run.app/**
+   https://ais-dev-4hy3eczv46qkyckv6n6ic2-52292461097.us-east1.run.app/
+   https://ais-pre-4hy3eczv46qkyckv6n6ic2-52292461097.us-east1.run.app/**
+   https://oddkin-foundry.vercel.app/**
+   http://localhost:3000/**
+   ```
+5. Click **Save**.
+6. Now return to the app and click **Sign in with Google** again. Supabase will redirect directly back into the live app, complete the session, and show you signed in!
+
+*(Tip: If you are currently stuck on the "localhost refused to connect" tab right now, look at the address bar: copy everything starting after `localhost:3000`, paste it onto `https://ais-dev-4hy3eczv46qkyckv6n6ic2-52292461097.us-east1.run.app`, and press Enter to instantly complete your login!)*
+
+### 2. "Error 400: redirect_uri_mismatch"
+This happens when the redirect URI that Supabase sends to Google is not listed in your Google Cloud OAuth Client credentials.
+- In [Google Cloud Console](https://console.cloud.google.com/) → **APIs & Services** → **Credentials**.
+- Click on your OAuth 2.0 Client (Web application) with Client ID starting with `188587423044...`.
+- Under **Authorized redirect URIs**, click **+ ADD URI** and add the exact Supabase callback URI:
+  ```text
+  https://lrjszbguvqgdsqvvcoqe.supabase.co/auth/v1/callback
+  ```
+  *(Important: Do not put your app URL here; Google must redirect back to Supabase's auth handler first).*
+- Under **Authorized JavaScript origins**, add your app origins:
+  - `https://lrjszbguvqgdsqvvcoqe.supabase.co`
+  - `https://ais-dev-4hy3eczv46qkyckv6n6ic2-52292461097.us-east1.run.app`
+  - `https://oddkin-foundry.vercel.app`
+  - `http://localhost:3000`
+- Click **Save**. Note: Google OAuth changes usually apply within 1–2 minutes.
+
+### 2. "We're sorry but you don't have access" / "Error 403"
+If Google shows **"We're sorry, but you don't have access"** or **"Access blocked: [App] has not completed the Google verification process"**:
+1. **Consent Screen in Testing Mode (Most Common)**:
+   - Go to [Google Cloud Console](https://console.cloud.google.com/) → **APIs & Services** → **OAuth consent screen**.
+   - Under **Test users**, click **+ ADD USERS** and enter your Google account email (`logaandavid@gmail.com`), then save.
+   - Alternatively, under **Publishing status**, click **PUBLISH APP** to make it available to any user. Because the app only uses basic scopes (`email`, `profile`), Google app verification is not required.
+2. **User Type set to "Internal"**:
+   - In **OAuth consent screen**, ensure the User Type is **External**. Internal apps only allow users within an organization domain and block `@gmail.com` addresses.
+3. **Allowed Redirect URLs in Supabase**:
+   - In Supabase Dashboard → **Authentication** → **URL Configuration**, ensure your site origins are added under **Redirect URLs** (e.g. `https://ais-dev-4hy3eczv46qkyckv6n6ic2-52292461097.us-east1.run.app/**`, `http://localhost:3000/**`, `https://oddkin-foundry.vercel.app/**`).
+
 ## Verification before production
 
 Run `npm run lint`, `npm test`, and `npm run build`. Tests execute the actual migration in embedded PostgreSQL to check anonymous denial, account isolation, direct-write denial, and stale revision rejection.

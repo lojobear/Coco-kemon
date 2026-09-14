@@ -42,6 +42,49 @@ const discoveredResultsSet = new Set<string>([
   ...Object.values(CANONICAL_INFINITE_CRAFT_RECIPES).map(r => r.result.toLowerCase())
 ]);
 
+function generateFallbackCraft(first: string, second: string): { result: string; emoji: string } {
+  const normA = first.trim();
+  const normB = second.trim();
+  const lowerA = normA.toLowerCase();
+  const lowerB = normB.toLowerCase();
+
+  if (lowerA === lowerB) {
+    const doubleMap: Record<string, { result: string; emoji: string }> = {
+      water: { result: 'Lake', emoji: '🌊' },
+      fire: { result: 'Volcano', emoji: '🌋' },
+      wind: { result: 'Tornado', emoji: '🌪️' },
+      earth: { result: 'Mountain', emoji: '🏔️' },
+      lake: { result: 'Ocean', emoji: '🌊' },
+      tree: { result: 'Forest', emoji: '🌲' },
+      stone: { result: 'Boulder', emoji: '🪨' },
+      plant: { result: 'Garden', emoji: '🌺' },
+      city: { result: 'Metropolis', emoji: '🏙️' },
+      human: { result: 'Family', emoji: '👨‍👩‍👧' },
+    };
+    if (doubleMap[lowerA]) return doubleMap[lowerA];
+    return { result: `Greater ${normA}`, emoji: '✨' };
+  }
+
+  if (lowerA.includes('fire') || lowerB.includes('fire')) {
+    const other = lowerA.includes('fire') ? normB : normA;
+    return { result: `Blazing ${other}`, emoji: '🔥' };
+  }
+  if (lowerA.includes('water') || lowerB.includes('water')) {
+    const other = lowerA.includes('water') ? normB : normA;
+    return { result: `Tidal ${other}`, emoji: '🌊' };
+  }
+  if (lowerA.includes('ice') || lowerB.includes('ice')) {
+    const other = lowerA.includes('ice') ? normB : normA;
+    return { result: `Frozen ${other}`, emoji: '❄️' };
+  }
+  if (lowerA.includes('metal') || lowerB.includes('metal')) {
+    const other = lowerA.includes('metal') ? normB : normA;
+    return { result: `Alloy ${other}`, emoji: '⚙️' };
+  }
+
+  return { result: `${normA} ${normB}`, emoji: '✨' };
+}
+
 async function resolveInfiniteCraftPair(
   rawFirst: string,
   rawSecond: string
@@ -173,9 +216,24 @@ Return strictly JSON:
       }
     }
   } catch (err) {
-    throw err;
+    if (err instanceof ApiFailure && !process.env.GEMINI_API_KEY) {
+      throw err;
+    }
+    console.warn(`AI synthesis unavailable for "${first}" + "${second}". Generating fallback:`, err);
   }
-  throw new ApiFailure(502, 'AI returned an invalid combination. Please retry.');
+
+  // Graceful fallback synthesis ensures crafting never fails or throws 502
+  const fallback = generateFallbackCraft(first, second);
+  const lowerRes = fallback.result.toLowerCase();
+  const isFirstDiscovery = !discoveredResultsSet.has(lowerRes);
+  discoveredResultsSet.add(lowerRes);
+  dynamicInfiniteCraftCache.set(key, fallback);
+
+  return {
+    result: fallback.result,
+    emoji: fallback.emoji,
+    isNew: isFirstDiscovery,
+  };
 }
 
 // Neal.fun's exact endpoint: /api/infinite-craft/pair?first=Water&second=Fire
@@ -532,6 +590,58 @@ function getRecipeKey(a: string, b: string | undefined, proc: string): string {
   return `${sorted[0]}+${sorted[1]}+${normProc}`;
 }
 
+function generateProceduralMaterial(
+  matA: any,
+  matB: any | null | undefined,
+  process: { id: string; name: string },
+  depth: number
+) {
+  const name = matB
+    ? `${matA.displayName} ${matB.displayName} ${process.name === 'HEAT' ? 'Alloy' : process.name === 'COOL' ? 'Glass' : 'Essence'}`
+    : `${process.name === 'HEAT' ? 'Forged' : process.name === 'COOL' ? 'Crystalline' : process.name === 'CRUSH' ? 'Powdered' : 'Purified'} ${matA.displayName}`;
+
+  const stateOfMatter = process.name === 'HEAT' ? 'liquid' : process.name === 'COOL' ? 'solid' : (matA.stateOfMatter || 'solid');
+  const tempClass = process.name === 'HEAT' ? 'hot' : process.name === 'COOL' ? 'cold' : (matA.temperatureClass || 'ambient');
+
+  return {
+    id: `mat_${name.toLowerCase().replace(/[^a-z0-9]/g, '_')}_${Date.now()}`,
+    canonicalName: name.toUpperCase().replace(/\s+/g, '_'),
+    displayName: name,
+    description: `Synthesized through the catalytic action of ${process.name} upon ${matA.displayName}${matB ? ` and ${matB.displayName}` : ''}.`,
+    category: matA.category || 'Composite',
+    stateOfMatter: ['solid', 'liquid', 'gas', 'plasma', 'amorphous', 'energy'].includes(stateOfMatter) ? stateOfMatter : 'solid',
+    temperatureClass: ['frigid', 'cold', 'ambient', 'warm', 'hot', 'incandescent'].includes(tempClass) ? tempClass : 'ambient',
+    properties: {
+      organic: Boolean(matA.properties?.organic || matB?.properties?.organic),
+      metallic: Boolean(matA.properties?.metallic || matB?.properties?.metallic),
+      mineral: Boolean(matA.properties?.mineral || matB?.properties?.mineral),
+      conductive: Boolean(matA.properties?.conductive || matB?.properties?.conductive),
+      flammable: Boolean(matA.properties?.flammable || matB?.properties?.flammable),
+      porous: Boolean(matA.properties?.porous || matB?.properties?.porous),
+      crystalline: Boolean(matA.properties?.crystalline || matB?.properties?.crystalline),
+    },
+    semanticTags: Array.from(new Set([...(matA.semanticTags || []), ...(matB?.semanticTags || []), process.name.toLowerCase()])),
+    possibleProcessAffinities: ['HEAT', 'MIX', 'SOAK', 'CRUSH', 'INCUBATE'],
+    rarity: depth > 3 ? 'RARE' : depth > 1 ? 'UNCOMMON' : 'COMMON',
+    lifePotential: Math.min(95, Math.max(15, (matA.lifePotential || 20) + (matB ? (matB.lifePotential || 20) : 10))),
+    discoveredAt: Date.now(),
+    lineage: {
+      parentIds: [matA.id, ...(matB ? [matB.id] : [])],
+      processId: process.id,
+      depth,
+      generation: (matA.lineage?.generation || 0) + 1,
+      recipeDesc: `${matA.displayName}${matB ? ` + ${matB.displayName}` : ''} (${process.name})`
+    },
+    spriteDescriptor: {
+      baseShape: matA.spriteDescriptor?.baseShape || 'rock',
+      primaryColor: matA.spriteDescriptor?.primaryColor || '#64748b',
+      secondaryColor: matB?.spriteDescriptor?.primaryColor || matA.spriteDescriptor?.secondaryColor || '#94a3b8',
+      accentColor: matA.spriteDescriptor?.accentColor || '#38bdf8',
+      palette: matA.spriteDescriptor?.palette?.length ? matA.spriteDescriptor.palette : ['#64748b', '#94a3b8', '#cbd5e1', '#38bdf8'],
+    }
+  };
+}
+
 // Synthesis endpoint
 app.post('/api/synthesize', async (req, res) => {
   try {
@@ -796,11 +906,17 @@ Format your response as a strict JSON object with this structure:
           });
         }
       } catch {
-        // Reject malformed generation below.
+        // Fall back to procedural material generation below.
       }
     }
 
-    throw new ApiFailure(502, 'AI returned an incomplete discovery. Please retry.');
+    // Procedural fallback material ensures synthesis always rewards the player
+    const fallbackMat = generateProceduralMaterial(inputMaterialA, inputMaterialB, process, currentDepth);
+    return res.json({
+      status: 'new_material',
+      material: fallbackMat,
+      explanation: `${process.name} transformed ${inputMaterialA.displayName}${inputMaterialB ? ` and ${inputMaterialB.displayName}` : ''} into ${fallbackMat.displayName}.`,
+    });
 
   } catch (err: unknown) {
     console.error('Synthesis error:', err);
@@ -995,6 +1111,26 @@ async function startServer() {
       },
       appType: 'spa',
     });
+
+    // Cleanly serve /@vite/client with a dummy WebSocket transport to prevent
+    // unreachable WebSocket connections (port 24678) and console errors in sandboxed preview iframe
+    app.get('/@vite/client', async (_req, res, next) => {
+      try {
+        const transformed = await vite.transformRequest('/@vite/client');
+        if (transformed && transformed.code) {
+          const target = 'createWebSocketModuleRunnerTransport = (options) => {';
+          const mockTransport =
+            'createWebSocketModuleRunnerTransport = () => ({ async connect() {}, async disconnect() {}, send() {} }); const _originalCreateTransport = (options) => {';
+          const patched = transformed.code.replace(target, mockTransport);
+          res.setHeader('Content-Type', 'application/javascript');
+          return res.send(patched);
+        }
+      } catch {
+        // Fall back to Vite default middleware if transform fails
+      }
+      next();
+    });
+
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');
