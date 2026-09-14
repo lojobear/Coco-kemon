@@ -6,9 +6,9 @@
 import express from 'express';
 import path from 'path';
 import dotenv from 'dotenv';
-import { callGeminiStructured, ApiFailure, publicFailure } from './server/gemini';
-import { validMaterial, validOddkin, validSprite, record, text, strings, color, finite } from './src/lib/validation';
-import { CANONICAL_INFINITE_CRAFT_RECIPES, makePairKey } from './src/lib/infiniteCraftData';
+import { callGeminiStructured, ApiFailure, publicFailure } from './server/gemini.js';
+import { validMaterial, validOddkin, validSprite, record, text, strings, color, finite } from './src/lib/validation.js';
+import { CANONICAL_INFINITE_CRAFT_RECIPES, makePairKey } from './src/lib/infiniteCraftData.js';
 
 dotenv.config();
 
