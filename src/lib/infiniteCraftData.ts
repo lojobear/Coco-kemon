@@ -13,6 +13,9 @@ export interface InfiniteElement {
   discoveredAt?: number;
   isNew?: boolean;
   recipe?: { first: string; second: string };
+  explanation?: string;
+  connection?: string;
+  variantOf?: string;
   // Pokémon-style Shiny expansion:
   isShiny?: boolean;
   unlockedShiny?: boolean;
@@ -27,6 +30,9 @@ export interface InfiniteCraftPairResponse {
   emoji: string;
   isNew: boolean;
   isShiny?: boolean;
+  explanation?: string;
+  connection?: string;
+  bonus?: { result: string; emoji: string; variantOf: string; explanation: string };
 }
 
 export const STARTER_ELEMENTS: InfiniteElement[] = [

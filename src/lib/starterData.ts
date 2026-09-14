@@ -292,6 +292,11 @@ export const STARTER_MATERIALS: Material[] = [
 ];
 
 export const ALL_PROCESSES: Process[] = [
+  { id: 'FOSSILIZE', name: 'Fossilize', verb: 'preserves structure while replacing tissue with minerals', description: 'Compress ages into a moment: preserve patterns, bones and botanical forms in stone.', category: 'Temporal', symbol: '🦴', unlocked: true },
+  { id: 'ENCHANT', name: 'Enchant', verb: 'binds a magical function to the material’s existing traits', description: 'Give ordinary matter a specific magical purpose rooted in what it already does.', category: 'Alchemical', symbol: '🪄', unlocked: true },
+  { id: 'MINIATURIZE', name: 'Miniaturize', verb: 'shrinks while preserving characteristic structure', description: 'Discover pocket worlds, tiny mechanisms and miniature habitats.', category: 'Alchemical', symbol: '🔬', unlocked: true },
+  { id: 'MOONLIGHT', name: 'Moonlight', verb: 'bathes in fictional lunar energy', description: 'Explore nocturnal forms, luminous pigments and moonlit materials.', category: 'Alchemical', symbol: '🌙', unlocked: true },
+
   {
     id: 'MIX',
     name: 'Mix',
@@ -551,3 +556,9 @@ export const INITIAL_HABITATS: Habitat[] = [
     lastHarvestTimestamp: Date.now(),
   }
 ];
+
+/** Merge new process definitions into old saves without losing earned unlocks. */
+export function mergeProcesses(saved: Process[] = []): Process[] {
+  const known = new Map(saved.map(p => [p.id, p]));
+  return ALL_PROCESSES.map(p => ({ ...p, unlocked: p.unlocked || Boolean(known.get(p.id)?.unlocked) }));
+}

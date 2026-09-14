@@ -460,6 +460,38 @@ export function generateOddkinSprite(
     setPixel(cx + 1, cy + 3, shades.highlight);
   }
 
+  // Visible details are grounded in inherited material traits, not a random species seed.
+  const inherited = (oddkin.inheritedMaterialTraits || []).join(' ').toLowerCase();
+  if (inherited.includes('faceted translucent')) {
+    for (const x of [cx, cx + 4]) {
+      setPixel(x, cy - 3, shades.accentHighlight);
+      setPixel(x - 1, cy - 2, shades.secondary);
+      setPixel(x + 1, cy - 2, '#ffffff');
+      setPixel(x, cy - 1, shades.accent);
+    }
+  }
+  if (inherited.includes('leaflike frills')) {
+    for (let i = 0; i < 4; i++) {
+      setPixel(cx + 7 + i, cy - 3 - i, shades.secondaryHighlight);
+      setPixel(cx + 7 + i, cy - 2 - i, shades.secondary);
+    }
+  }
+  if (inherited.includes('metal armor') || inherited.includes('mineral ridges')) {
+    for (let x = cx - 1; x <= cx + 5; x++) {
+      setPixel(x, cy + 2, shades.secondary);
+      setPixel(x, cy + 4, shades.highlight);
+    }
+  }
+  if (inherited.includes('luminous veins')) {
+    for (let i = 0; i < 5; i++) {
+      setPixel(cx + i % 2, cy + i - 2, shades.accentHighlight);
+      if (i % 2 === 0) setPixel(cx + 2, cy + i - 3, shades.accent);
+    }
+  }
+  if (inherited.includes('crescent markings')) {
+    for (const [dx, dy] of [[4, -5], [3, -4], [3, -3], [4, -2], [5, -2]]) setPixel(cx + dx, cy + dy, '#ede9fe');
+  }
+
   // 5. Special Anomalous / Chroma Aura Sparks
   if (isChroma || isAnomalous) {
     const auraSparks = [

@@ -1,3 +1,4 @@
+import { DiscoveryTrails } from './DiscoveryTrails';
 /**
  * INFINITE CRAFT (by Neal Agarwal) - High-Tactile Interactive Web View
  * Freeform canvas, draggable element pills, search sidebar, instant 0ms canonical pairings,
@@ -219,6 +220,7 @@ export function InfiniteCraftView() {
   // Keyboard shortcut: Press / to focus search, Esc to close modals or sidebar
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (document.querySelector('dialog[open]')) return;
       if (e.key === 'Escape') {
         if (firstDiscoveryModal) {
           setFirstDiscoveryModal(null);
@@ -405,6 +407,8 @@ export function InfiniteCraftView() {
         emoji: emoji || '✨',
         discoveredAt: Date.now(),
         isNew: Boolean(isNew),
+        explanation: apiData.explanation,
+        connection: apiData.connection,
         recipe: { first: itemA.name, second: itemB.name },
         isShiny: isShinyEncounter,
         unlockedShiny: isShinyEncounter,
@@ -422,6 +426,8 @@ export function InfiniteCraftView() {
           const updated = [...prev];
           updated[existingIdx] = {
             ...existing,
+            explanation: existing.explanation || apiData.explanation,
+            connection: existing.connection || apiData.connection,
             unlockedShiny: isShinyEncounter || existing.unlockedShiny,
             isShiny: isShinyEncounter ? true : existing.isShiny,
             shinyDiscoveredAt: existing.shinyDiscoveredAt || (isShinyEncounter ? Date.now() : undefined),
@@ -434,11 +440,25 @@ export function InfiniteCraftView() {
         return [newElemObj, ...prev];
       });
 
+      const bonus = apiData.bonus;
+      if (bonus && typeof bonus.result === 'string' && bonus.result.trim() && bonus.result.length <= 160 &&
+          typeof bonus.emoji === 'string' && bonus.emoji.trim() && bonus.emoji.length <= 32 &&
+          bonus.variantOf === cleanName && typeof bonus.explanation === 'string' && bonus.explanation.length <= 280) {
+        const bonusElement: InfiniteElement = {
+          id: bonus.result.toLowerCase().replace(/[^a-z0-9]/g, '_'), name: bonus.result, emoji: bonus.emoji,
+          variantOf: bonus.variantOf, explanation: bonus.explanation, connection: 'rare variant',
+          recipe: { first: itemA.name, second: itemB.name }, discoveredAt: Date.now(),
+        };
+        setElements(prev => prev.some(e => e.name.toLowerCase() === bonus.result.toLowerCase()) ? prev : [bonusElement, ...prev]);
+        setSpawnToast(`✦ Rare bonus: ${bonus.result}! ${cleanName} was also saved.`);
+        setTimeout(() => setSpawnToast(null), 4500);
+      }
+
       // Audio & Haptics Feedback
       if (isShinyEncounter) {
         sound.playShiny();
         haptics.shinySparkle();
-        setSpawnToast(`✨ SHINY ${cleanName.toUpperCase()} DISCOVERED!`);
+        if (!bonus) setSpawnToast(`✨ SHINY ${cleanName.toUpperCase()} DISCOVERED!`);
         setTimeout(() => setSpawnToast(null), 2500);
       } else if (isNew) {
         sound.playFirstDiscoveryChime();
@@ -1242,6 +1262,11 @@ export function InfiniteCraftView() {
             </button>
           </div>
 
+          <DiscoveryTrails elements={elements} busy={isSynthesizing} onPrepare={(a, b) => {
+            setCrucibleSlotA(a); setCrucibleSlotB(b); setIsCrucibleCollapsed(false); setIsSidebarOpen(false);
+            setSpawnToast('Ingredients ready. Tap Combine to continue your trail.');
+            setTimeout(() => setSpawnToast(null), 3000);
+          }} />
           {/* Search Input */}
           <div className="relative">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
@@ -1381,6 +1406,7 @@ export function InfiniteCraftView() {
                 <span className="text-base leading-none select-none">{el.emoji}</span>
                 <span className="text-xs font-semibold tracking-wide">{el.name}</span>
 
+                {el.variantOf && <span title={`Rare variant of ${el.variantOf}`} className="text-[10px] font-bold text-violet-400">✦ Rare</span>}
                 {el.isNew && (
                   <span className="text-[10px] text-amber-500 font-bold" title="First Discovery">
                     ★

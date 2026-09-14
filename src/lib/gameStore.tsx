@@ -6,7 +6,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
 import { Material, Oddkin, Process, ExperimentLog, Habitat, SynthesisResult, PhotoSeedResult, SketchSeedResult } from '../types';
-import { STARTER_MATERIALS, ALL_PROCESSES, INITIAL_HABITATS } from './starterData';
+import { STARTER_MATERIALS, ALL_PROCESSES, INITIAL_HABITATS, mergeProcesses } from './starterData';
 import { generateMaterialSprite, generateOddkinSprite } from './pixelRenderer';
 import { requestJson } from './api';
 import { validMaterial, validOddkin } from './validation';
@@ -136,7 +136,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         if (saved) {
           const parsed = JSON.parse(saved);
           if (parsed.processes && Array.isArray(parsed.processes)) {
-            return parsed.processes;
+            return mergeProcesses(parsed.processes);
           }
         }
       } catch (e) {
@@ -684,7 +684,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       const parsed = importCompleteSave(jsonStr);
       setMaterials(parsed.materials);
       setOddkinCollection(parsed.oddkinCollection || []);
-      setProcesses(parsed.processes || ALL_PROCESSES);
+      setProcesses(mergeProcesses(parsed.processes));
       setExperiments(parsed.experiments || []);
       setHabitats(parsed.habitats || INITIAL_HABITATS);
       clearSlots();

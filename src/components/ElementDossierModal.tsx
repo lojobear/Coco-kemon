@@ -38,10 +38,9 @@ export function ElementDossierModal({
   onToggleShinyForm,
   isDarkMode = true,
 }: ElementDossierModalProps) {
+  const [viewingShiny, setViewingShiny] = useState<boolean>(Boolean(element?.isShiny || element?.unlockedShiny));
   if (!element) return null;
-
   const isShinyUnlocked = Boolean(element.unlockedShiny || element.isShiny);
-  const [viewingShiny, setViewingShiny] = useState<boolean>(Boolean(element.isShiny || isShinyUnlocked));
 
   const currentData: ElementPhysicalData =
     element.physicalData && element.physicalData.shinyAnomalies === (viewingShiny ? undefined : undefined)
@@ -338,6 +337,8 @@ export function ElementDossierModal({
             </div>
           </div>
 
+          {element.variantOf && <p className="rounded-xl border border-violet-400/30 bg-violet-500/10 p-3 text-sm text-violet-200">✦ Rare variant of {element.variantOf}. Awarded alongside the normal result.</p>}
+          {element.explanation && <div className="rounded-xl border border-slate-700 p-3 text-sm text-slate-200"><p className="mb-1 text-xs uppercase text-cyan-400">{element.connection || 'Discovery connection'}</p>{element.explanation}</div>}
           {/* Lineage & Discovery Details */}
           {element.recipe && (
             <div className="p-3.5 rounded-2xl bg-slate-900/60 border border-slate-800 text-xs space-y-1.5">
