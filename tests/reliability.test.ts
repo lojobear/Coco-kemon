@@ -111,3 +111,71 @@ test('API retains canonical crafting and foundry recipes without an AI key, reje
     assert.equal(response.status, 200); assert.equal(data.material.displayName, 'Mud'); assert.ok(validMaterial(data.material));
   } finally { server.close(); await once(server, 'close'); }
 });
+
+test('Gemini uses at most two attempts and honors the configured fallback', async () => {
+  const previousModel = process.env.GEMINI_MODEL;
+  const previousFallback = process.env.GEMINI_FALLBACK_MODEL;
+  process.env.GEMINI_MODEL = 'gemini-primary-test';
+  process.env.GEMINI_FALLBACK_MODEL = 'gemini-fallback-test';
+  const seen: string[] = [];
+  try {
+    await assert.rejects(callGeminiStructured('test', undefined, 0.4, {
+      models: { generateContent: async (args: any) => {
+        seen.push(args.model);
+        assert.equal(args.config.httpOptions.timeout, 12000);
+        throw { status: 503 };
+      } },
+    } as any), /valid result/);
+    assert.deepEqual(seen, ['gemini-primary-test', 'gemini-fallback-test']);
+  } finally {
+    if (previousModel === undefined) delete process.env.GEMINI_MODEL;
+    else process.env.GEMINI_MODEL = previousModel;
+    if (previousFallback === undefined) delete process.env.GEMINI_FALLBACK_MODEL;
+    else process.env.GEMINI_FALLBACK_MODEL = previousFallback;
+  }
+});
+
+test('configured AI failures never become cached crafting or foundry discoveries', async () => {
+  const originalFetch = globalThis.fetch;
+  const previousKey = process.env.GEMINI_API_KEY;
+  process.env.GEMINI_API_KEY = 'test-key';
+  process.env.NODE_ENV = 'test';
+  let calls = 0;
+  let quota = true;
+  globalThis.fetch = async () => {
+    calls++;
+    return quota
+      ? new Response(JSON.stringify({ error: { code: 429, message: 'Quota reached', status: 'RESOURCE_EXHAUSTED' } }), { status: 429 })
+      : new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: '{}' }] } }] }), { status: 200 });
+  };
+  const { app } = await import('../server');
+  const server = app.listen(0);
+  await once(server, 'listening');
+  const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
+  const post = (path: string, body: unknown) => originalFetch(base + path, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+  });
+  try {
+    for (let i = 0; i < 2; i++) {
+      const response = await post('/api/pair', { first: 'Uncatalogued quota A', second: 'Uncatalogued quota B' });
+      assert.equal(response.status, 429);
+      assert.equal((await response.json()).result, undefined);
+    }
+    assert.equal(calls, 2, 'retry must call AI again instead of returning cached fallback');
+    quota = false;
+    const pair = await post('/api/pair', { first: 'Uncatalogued empty A', second: 'Uncatalogued empty B' });
+    assert.equal(pair.status, 502);
+    assert.equal((await pair.json()).result, undefined);
+    const response = await post('/api/synthesize', {
+      inputMaterialA: { ...STARTER_MATERIALS[0], canonicalName: 'UNCATALOGUED_MATERIAL' },
+      process: ALL_PROCESSES.find(p => p.id === 'MIX'),
+    });
+    assert.equal(response.status, 502);
+    assert.equal((await response.json()).material, undefined);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (previousKey === undefined) delete process.env.GEMINI_API_KEY;
+    else process.env.GEMINI_API_KEY = previousKey;
+    server.close(); await once(server, 'close');
+  }
+});
