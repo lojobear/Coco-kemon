@@ -6,7 +6,6 @@
 import express from 'express';
 import path from 'path';
 import dotenv from 'dotenv';
-import { createServer as createViteServer } from 'vite';
 import { callGeminiStructured, ApiFailure, publicFailure } from './server/gemini';
 import { validMaterial, validOddkin, validSprite, record, text, strings, color, finite } from './src/lib/validation';
 import { CANONICAL_INFINITE_CRAFT_RECIPES, makePairKey } from './src/lib/infiniteCraftData';
@@ -983,6 +982,7 @@ Return a strict JSON object:
 // Production static serving & Vite development middleware
 async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
@@ -1001,4 +1001,5 @@ async function startServer() {
   });
 }
 
-if (process.env.NODE_ENV !== 'test') startServer();
+// Vercel invokes the exported app through api/index.ts; it owns the listener.
+if (process.env.NODE_ENV !== 'test' && process.env.VERCEL !== '1') startServer();
