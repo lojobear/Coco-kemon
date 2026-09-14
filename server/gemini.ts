@@ -30,16 +30,16 @@ export async function callGeminiStructured(
   const configured = sanitizeModel(process.env.GEMINI_MODEL);
   const fallback = sanitizeModel(process.env.GEMINI_FALLBACK_MODEL);
   
-  // Prefer responsive models: gemini-3.1-flash-lite executes under 2s and avoids 504 timeouts
+  // Prefer the configured model, then a distinct fallback.
   const candidates = [
     configured,
-    'gemini-3.1-flash-lite',
     fallback,
+    'gemini-3.1-flash-lite',
     'gemini-3.8-flash',
   ].filter((m): m is string => Boolean(m));
   
-  // Deduplicate candidate models
-  const models = Array.from(new Set(candidates));
+  // Two 12-second attempts plus a 200ms delay fit the browser's 30s deadline.
+  const models = Array.from(new Set(candidates)).slice(0, 2);
 
   let last: unknown;
   for (let attempt = 0; attempt < models.length; attempt++) {
