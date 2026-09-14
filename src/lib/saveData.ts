@@ -18,6 +18,7 @@ function status(message: string | null) {
 const unique = (items: any[], key: string) => new Set(items.map(x => x[key])).size === items.length;
 export function validateCraft(v: unknown): v is InfiniteElement[] {
   return Array.isArray(v) && v.every(x => record(x) && text(x.id) && text(x.name) && text(x.emoji) &&
+    (['explanation', 'connection', 'variantOf'].every(k => x[k] === undefined || (text(x[k]) && x[k].length <= 280))) &&
     (x.discoveredAt === undefined || finite(x.discoveredAt)) && (x.isNew === undefined || typeof x.isNew === 'boolean') &&
     (x.isShiny === undefined || typeof x.isShiny === 'boolean') &&
     (x.unlockedShiny === undefined || typeof x.unlockedShiny === 'boolean') &&
