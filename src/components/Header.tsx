@@ -8,6 +8,7 @@ import { Volume2, VolumeX, Mic, Camera, BookOpen, RotateCcw, Download, Upload, S
 import { sound } from '../lib/audio';
 import { haptics } from '../lib/haptics';
 import { PWAInstallButton } from './PWAInstallButton';
+import { CloudSaves } from './CloudSaves';
 
 export function Header({
   onOpenVoice,
@@ -29,6 +30,7 @@ export function Header({
   } = useGame();
 
   const [showSettings, setShowSettings] = useState(false);
+  const [showCloud, setShowCloud] = useState(false);
   const [hasGeminiKey, setHasGeminiKey] = useState<boolean>(false);
   const [hapticsOn, setHapticsOn] = useState<boolean>(() => haptics.isEnabled());
 
@@ -159,6 +161,7 @@ export function Header({
 
         {/* Right: Tactile Quick Tools & Audio */}
         <div className="flex items-center gap-1">
+          <button onClick={() => { haptics.lightTap(); setShowCloud(true); }} className="rounded-lg border border-slate-600 px-2 min-h-[40px] text-xs text-slate-100 hover:bg-slate-700">Cloud save</button>
           {/* In-App PWA Install on Android / Google Pixel */}
           <PWAInstallButton variant="header" />
 
@@ -229,6 +232,7 @@ export function Header({
         </div>
       </div>
 
+      <CloudSaves open={showCloud} onClose={() => setShowCloud(false)} />
       {/* Settings / Save Modal dropdown */}
       {showSettings && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
