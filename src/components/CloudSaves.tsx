@@ -53,8 +53,17 @@ export function CloudSaves({ open, onClose }: { open: boolean; onClose: () => vo
       const decoded = errorDesc ? decodeURIComponent(errorDesc).replace(/\+/g, ' ') : '';
       if (errorType === 'access_denied' || decoded.toLowerCase().includes('access')) {
         setMessage('Access was denied by Google. If your OAuth screen is in "Testing" mode, add your email under Google Cloud Console → OAuth consent screen → Test users.');
+      } else if (decoded.toLowerCase().includes('unable to exchange external code')) {
+        setMessage('Supabase could not exchange the code with Google. Check that your Google Client Secret in Supabase Dashboard (Authentication → Providers → Google) matches your Google Cloud Console credentials and has no extra spaces.');
+      } else if (decoded.toLowerCase().includes('missing secret') || decoded.toLowerCase().includes('secret')) {
+        setMessage('Google Client Secret is missing in Supabase. In Supabase Dashboard → Authentication → Providers → Google, enter your Client Secret (GOCSPX-...) and save.');
       } else {
         setMessage(decoded ? `Sign-in error: ${decoded}` : 'Google sign-in was cancelled or could not finish. Please try again.');
+      }
+      try {
+        window.history.replaceState({}, '', window.location.pathname);
+      } catch {
+        // Ignore if sandbox prevents history mutation
       }
     }
     return () => { alive = false; generation.current++; subscription.unsubscribe(); };

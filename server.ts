@@ -26,6 +26,21 @@ const PORT = Number(process.env.PORT) || 3000;
 
 app.use(express.json({ limit: '25mb' }));
 
+// Bridge Cloudflare Worker / platform secrets to process.env so existing code works
+app.use((req, res, next) => {
+  const workerEnv = (globalThis as unknown as { env?: Record<string, string> }).env;
+  if (workerEnv) {
+    if (workerEnv.GEMINI_API_KEY && !process.env.GEMINI_API_KEY) process.env.GEMINI_API_KEY = workerEnv.GEMINI_API_KEY;
+    if (workerEnv.GEMINI_MODEL && !process.env.GEMINI_MODEL) process.env.GEMINI_MODEL = workerEnv.GEMINI_MODEL;
+    if (workerEnv.GEMINI_FALLBACK_MODEL && !process.env.GEMINI_FALLBACK_MODEL) process.env.GEMINI_FALLBACK_MODEL = workerEnv.GEMINI_FALLBACK_MODEL;
+    if (workerEnv.SUPABASE_URL && !process.env.SUPABASE_URL) process.env.SUPABASE_URL = workerEnv.SUPABASE_URL;
+    if (workerEnv.SUPABASE_ANON_KEY && !process.env.SUPABASE_ANON_KEY) process.env.SUPABASE_ANON_KEY = workerEnv.SUPABASE_ANON_KEY;
+    if (workerEnv.VITE_SUPABASE_URL && !process.env.VITE_SUPABASE_URL) process.env.VITE_SUPABASE_URL = workerEnv.VITE_SUPABASE_URL;
+    if (workerEnv.VITE_SUPABASE_ANON_KEY && !process.env.VITE_SUPABASE_ANON_KEY) process.env.VITE_SUPABASE_ANON_KEY = workerEnv.VITE_SUPABASE_ANON_KEY;
+  }
+  next();
+});
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({
@@ -981,5 +996,7 @@ async function startServer() {
   });
 }
 
-// Vercel invokes the exported app through api/index.ts; it owns the listener.
-if (process.env.NODE_ENV !== 'test' && process.env.VERCEL !== '1') startServer();
+// Serverless runtimes (Vercel, Cloudflare Workers) own their own handlers/listeners
+if (process.env.NODE_ENV !== 'test' && process.env.VERCEL !== '1' && process.env.CLOUDFLARE !== '1') startServer();
+
+export default app;

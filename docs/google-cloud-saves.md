@@ -67,7 +67,20 @@ This happens when the redirect URI that Supabase sends to Google is not listed i
   - `http://localhost:3000`
 - Click **Save**. Note: Google OAuth changes usually apply within 1–2 minutes.
 
-### 2. "We're sorry but you don't have access" / "Error 403"
+### 3. "missing secret" or "Unable to exchange external code: 4/0A..."
+This occurs when Google's code exchange cannot be completed because Supabase does not have the **Client Secret** (or the secret was left blank or deleted).
+
+**How to get and save the Client Secret:**
+1. Go to [Google Cloud Console](https://console.cloud.google.com/) → **APIs & Services** → **Credentials**.
+2. Click on your Web application OAuth client (Client ID: `188587423044...`).
+3. Under **Client secret** (on the right side), click the copy icon 📋 (`GOCSPX-...`).
+   - If the secret is not displayed or unknown, click the **Reset secret** button at the top, then copy the newly generated secret.
+4. Go to [Supabase Dashboard](https://supabase.com/dashboard/project/lrjszbguvqgdsqvvcoqe) → **Authentication** → **Providers** → **Google**.
+5. Make sure the toggle **Enable Sign in with Google** is ON.
+6. In the **Client Secret (for OAuth)** field, paste the `GOCSPX-...` secret. Ensure there are no spaces at the start or end.
+7. Scroll down and click **Save**.
+
+### 4. "We're sorry but you don't have access" / "Error 403"
 If Google shows **"We're sorry, but you don't have access"** or **"Access blocked: [App] has not completed the Google verification process"**:
 1. **Consent Screen in Testing Mode (Most Common)**:
    - Go to [Google Cloud Console](https://console.cloud.google.com/) → **APIs & Services** → **OAuth consent screen**.
