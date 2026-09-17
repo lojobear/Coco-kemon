@@ -1,16 +1,15 @@
 import { DiscoveryTrails } from './DiscoveryTrails';
 /**
  * INFINITE CRAFT (by Neal Agarwal) - High-Tactile Interactive Web View
- * Freeform canvas, draggable element pills, search sidebar, instant 0ms canonical pairings,
- * Gemini 3.1 Flash-Lite AI LLM generation, First Discovery celebrations, and recipe history.
+ * Freeform canvas, draggable element pills, search sidebar, instant canonical pairings,
+ * AI generation, persistent collection statistics, shiny variants, and recipe history.
  */
 
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   STARTER_ELEMENTS,
   InfiniteElement,
   InfiniteCraftPairResponse,
-  makePairKey,
 } from '../lib/infiniteCraftData';
 import { requestJson } from '../lib/api';
 import { saveCraftElements, readCraftElements, SAVE_IMPORTED_EVENT } from '../lib/saveData';
@@ -19,7 +18,14 @@ import { haptics } from '../lib/haptics';
 import { CombineAnimationOverlay, ActiveCombination } from './CombineAnimationOverlay';
 import { CraftingCrucible, CrucibleSlotItem } from './CraftingCrucible';
 import { ElementDossierModal } from './ElementDossierModal';
-import { rollIsShiny, generatePhysicalData } from '../lib/physicalDataEngine';
+import { rollIsShiny, generatePhysicalData, getShinyFoilStyle } from '../lib/physicalDataEngine';
+import {
+  normalizeElementStats,
+  initialCraftStats,
+  recordElementCraft,
+  getElementMastery,
+  getCollectionStats,
+} from '../lib/elementStats';
 import {
   Search,
   Trash2,
@@ -34,11 +40,11 @@ import {
   VolumeX,
   Info,
   LayoutGrid,
-  ChevronRight,
   ChevronLeft,
   Check,
   Zap,
   Shuffle,
+  Trophy,
 } from 'lucide-react';
 
 interface CanvasItem {
@@ -62,12 +68,9 @@ interface Particle {
   alpha: number;
 }
 
-const STORAGE_ELEMENTS_KEY = 'neal_infinite_craft_elements_v1';
 const STORAGE_THEME_KEY = 'neal_infinite_craft_theme';
 
-/**
- * Deduplicate and normalize an element list, ensuring unique IDs and names.
- */
+/** Deduplicate, normalize and backfill collection statistics for old saves. */
 export function sanitizeElements(list: InfiniteElement[]): InfiniteElement[] {
   const seenNames = new Set<string>();
   const seenIds = new Set<string>();
@@ -82,26 +85,22 @@ export function sanitizeElements(list: InfiniteElement[]): InfiniteElement[] {
     if (!seenNames.has(normName) && !seenIds.has(cleanId)) {
       seenNames.add(normName);
       seenIds.add(cleanId);
-      result.push({
+      result.push(normalizeElementStats({
         ...item,
         id: cleanId,
         name: cleanName,
         emoji: item.emoji || '✨',
-      });
+      }));
     }
   }
 
-  // Ensure 4 primordial starter elements always exist
   for (const starter of STARTER_ELEMENTS) {
     const starterNorm = starter.name.trim().toLowerCase();
     const starterCleanId = starter.id.toLowerCase();
     if (!seenNames.has(starterNorm) && !seenIds.has(starterCleanId)) {
       seenNames.add(starterNorm);
       seenIds.add(starterCleanId);
-      result.push({
-        ...starter,
-        id: starterCleanId,
-      });
+      result.push(normalizeElementStats({ ...starter, id: starterCleanId }));
     }
   }
 
@@ -114,12 +113,10 @@ export function InfiniteCraftView() {
       const saved = JSON.stringify(readCraftElements());
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return sanitizeElements(parsed);
-        }
+        if (Array.isArray(parsed) && parsed.length > 0) return sanitizeElements(parsed);
       }
     } catch {
-      // Fallback
+      // Fall back to starters.
     }
     return sanitizeElements(STARTER_ELEMENTS);
   });
@@ -145,7 +142,7 @@ export function InfiniteCraftView() {
   ]);
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortMode, setSortMode] = useState<'time' | 'alpha' | 'discoveries' | 'shinies'>('time');
+  const [sortMode, setSortMode] = useState<'time' | 'alpha' | 'discoveries' | 'shinies' | 'crafted'>('time');
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => localStorage.getItem(STORAGE_THEME_KEY) !== 'light');
   const [selectedCanvasId, setSelectedCanvasId] = useState<string | null>(null);
   const [isSynthesizing, setIsSynthesizing] = useState(false);
@@ -231,6 +228,7 @@ export function InfiniteCraftView() {
   };
 
   const shiniesCount = useMemo(() => elements.filter(el => Boolean(el.unlockedShiny || el.isShiny)).length, [elements]);
+  const collectionStats = useMemo(() => getCollectionStats(elements), [elements]);
 
   const filteredElements = useMemo(() => {
     let list = sanitizeElements(elements);
@@ -240,14 +238,17 @@ export function InfiniteCraftView() {
         if (el.name.toLowerCase().includes(q)) return true;
         const hasShiny = Boolean(el.unlockedShiny || el.isShiny);
         if (q === 'shiny' && hasShiny) return true;
+        const mastery = getElementMastery(el.craftCount || 0);
+        if (mastery.label.toLowerCase().includes(q)) return true;
         const phys = el.physicalData || generatePhysicalData(el.name, el.emoji, Boolean(el.isShiny));
         return phys.stateOfMatter.toLowerCase().includes(q) || phys.temperatureClass.toLowerCase().includes(q) || phys.conductivity.toLowerCase().includes(q) || phys.elementalAspect.toLowerCase().includes(q) || phys.cosmicTier.toLowerCase().includes(q) || phys.massClass.toLowerCase().includes(q);
       });
     }
-    if (sortMode === 'time') list.sort((a, b) => (b.discoveredAt || 0) - (a.discoveredAt || 0));
+    if (sortMode === 'time') list.sort((a, b) => (b.lastCraftedAt || b.discoveredAt || 0) - (a.lastCraftedAt || a.discoveredAt || 0));
     else if (sortMode === 'alpha') list.sort((a, b) => a.name.localeCompare(b.name));
     else if (sortMode === 'discoveries') list = list.filter(el => el.isNew);
-    else if (sortMode === 'shinies') list = list.filter(el => Boolean(el.unlockedShiny || el.isShiny));
+    else if (sortMode === 'shinies') list = list.filter(el => Boolean(el.unlockedShiny || el.isShiny)).sort((a, b) => (b.shinyCraftCount || 0) - (a.shinyCraftCount || 0));
+    else if (sortMode === 'crafted') list.sort((a, b) => (b.craftCount || 0) - (a.craftCount || 0));
     return list;
   }, [elements, searchQuery, sortMode]);
 
@@ -292,24 +293,45 @@ export function InfiniteCraftView() {
       const cleanName = result.trim();
       const normName = cleanName.toLowerCase();
       const cleanId = normName.replace(/[^a-z0-9]/g, '_');
+      const craftedAt = Date.now();
+      const currentRecipe = { first: itemA.name, second: itemB.name };
+      const standardPhysicalData = generatePhysicalData(cleanName, emoji || '✨', false);
+      const shinyPhysicalData = isShinyEncounter ? generatePhysicalData(cleanName, emoji || '✨', true) : undefined;
       spawnParticles(targetX, targetY, isShinyEncounter || isNew);
 
       const newElemObj: InfiniteElement = {
-        id: cleanId, name: cleanName, emoji: emoji || '✨', discoveredAt: Date.now(), isNew: Boolean(isNew), explanation: apiData.explanation, connection: apiData.connection,
-        recipe: { first: itemA.name, second: itemB.name }, isShiny: isShinyEncounter, unlockedShiny: isShinyEncounter, shinyDiscoveredAt: isShinyEncounter ? Date.now() : undefined,
-        physicalData: generatePhysicalData(cleanName, emoji || '✨', isShinyEncounter),
+        id: cleanId,
+        name: cleanName,
+        emoji: emoji || '✨',
+        discoveredAt: craftedAt,
+        isNew: Boolean(isNew),
+        explanation: apiData.explanation,
+        connection: apiData.connection,
+        recipe: currentRecipe,
+        isShiny: isShinyEncounter,
+        unlockedShiny: isShinyEncounter,
+        shinyDiscoveredAt: isShinyEncounter ? craftedAt : undefined,
+        shinyTitle: shinyPhysicalData?.shinyTitle,
+        physicalData: standardPhysicalData,
+        ...initialCraftStats(currentRecipe, isShinyEncounter, craftedAt),
       };
 
       setElements(prev => {
         const existingIdx = prev.findIndex(el => el.id.toLowerCase() === cleanId || el.name.trim().toLowerCase() === normName);
         if (existingIdx >= 0) {
           const existing = prev[existingIdx];
+          const tracked = recordElementCraft(existing, currentRecipe, isShinyEncounter, craftedAt);
           const updated = [...prev];
           updated[existingIdx] = {
-            ...existing, explanation: existing.explanation || apiData.explanation, connection: existing.connection || apiData.connection,
-            unlockedShiny: isShinyEncounter || existing.unlockedShiny, isShiny: isShinyEncounter ? true : existing.isShiny,
-            shinyDiscoveredAt: existing.shinyDiscoveredAt || (isShinyEncounter ? Date.now() : undefined),
-            physicalData: isShinyEncounter ? generatePhysicalData(cleanName, emoji || '✨', true) : (existing.physicalData || generatePhysicalData(cleanName, emoji || '✨', false)),
+            ...tracked,
+            explanation: existing.explanation || apiData.explanation,
+            connection: existing.connection || apiData.connection,
+            recipe: existing.recipe || currentRecipe,
+            unlockedShiny: isShinyEncounter || existing.unlockedShiny,
+            isShiny: isShinyEncounter ? true : existing.isShiny,
+            shinyDiscoveredAt: existing.shinyDiscoveredAt || (isShinyEncounter ? craftedAt : undefined),
+            shinyTitle: existing.shinyTitle || shinyPhysicalData?.shinyTitle,
+            physicalData: existing.physicalData || standardPhysicalData,
           };
           return updated;
         }
@@ -318,18 +340,38 @@ export function InfiniteCraftView() {
 
       const bonus = apiData.bonus;
       if (bonus && typeof bonus.result === 'string' && bonus.result.trim() && bonus.result.length <= 160 && typeof bonus.emoji === 'string' && bonus.emoji.trim() && bonus.emoji.length <= 32 && bonus.variantOf === cleanName && typeof bonus.explanation === 'string' && bonus.explanation.length <= 280) {
-        const bonusElement: InfiniteElement = { id: bonus.result.toLowerCase().replace(/[^a-z0-9]/g, '_'), name: bonus.result, emoji: bonus.emoji, variantOf: bonus.variantOf, explanation: bonus.explanation, connection: 'rare variant', recipe: { first: itemA.name, second: itemB.name }, discoveredAt: Date.now() };
+        const bonusAt = Date.now();
+        const bonusRecipe = { first: itemA.name, second: itemB.name };
+        const bonusElement: InfiniteElement = {
+          id: bonus.result.toLowerCase().replace(/[^a-z0-9]/g, '_'),
+          name: bonus.result,
+          emoji: bonus.emoji,
+          variantOf: bonus.variantOf,
+          explanation: bonus.explanation,
+          connection: 'rare variant',
+          recipe: bonusRecipe,
+          discoveredAt: bonusAt,
+          physicalData: generatePhysicalData(bonus.result, bonus.emoji, false),
+          ...initialCraftStats(bonusRecipe, false, bonusAt),
+        };
         setElements(prev => prev.some(e => e.name.toLowerCase() === bonus.result.toLowerCase()) ? prev : [bonusElement, ...prev]);
         setSpawnToast(`✦ Rare bonus: ${bonus.result}! ${cleanName} was also saved.`);
         setTimeout(() => setSpawnToast(null), 4500);
       }
 
       if (isShinyEncounter) {
-        sound.playShiny(); haptics.shinySparkle(); if (!bonus) setSpawnToast(`✨ SHINY ${cleanName.toUpperCase()} DISCOVERED!`); setTimeout(() => setSpawnToast(null), 2500);
+        const foil = getShinyFoilStyle(cleanName);
+        sound.playShiny();
+        haptics.shinySparkle();
+        if (!bonus) setSpawnToast(`✨ ${foil.name.toUpperCase()} SHINY ${cleanName.toUpperCase()}!`);
+        setTimeout(() => setSpawnToast(null), 3000);
       } else if (isNew) {
-        sound.playFirstDiscoveryChime(); haptics.firstDiscovery(); setFirstDiscoveryModal(newElemObj);
+        sound.playFirstDiscoveryChime();
+        haptics.firstDiscovery();
+        setFirstDiscoveryModal(newElemObj);
       } else {
-        sound.playCraftPop(); haptics.discovery();
+        sound.playCraftPop();
+        haptics.discovery();
       }
 
       setCanvasItems(prev => {
@@ -406,7 +448,8 @@ export function InfiniteCraftView() {
     }
   };
 
-  const spawnFromSidebar = (el: InfiniteElement) => {
+  const spawnFromSidebar = (raw: InfiniteElement) => {
+    const el = normalizeElementStats(raw);
     const isShinyUnlocked = Boolean(el.unlockedShiny || el.isShiny);
     const isShiny = Boolean(el.isShiny || (sortMode === 'shinies' && isShinyUnlocked));
     spawnOnCanvas(el.name, el.emoji, isShiny);
@@ -559,37 +602,58 @@ export function InfiniteCraftView() {
             <button onClick={() => { sound.playClick(); setIsSidebarOpen(false); }} className={`p-1.5 rounded-lg border transition-all flex items-center gap-1 text-xs font-medium ${isDarkMode ? 'border-[#27272a] bg-[#1c1f26] text-zinc-400 hover:text-white hover:border-zinc-600' : 'border-[#e4e4e7] bg-zinc-100 text-zinc-600 hover:text-black hover:border-zinc-300'}`} title="Close Elements (Esc)"><X className="w-4 h-4" /><span className="text-[11px] font-mono pr-0.5">Close</span></button>
           </div>
 
+          <div className="grid grid-cols-4 gap-1.5">
+            <div className={`rounded-lg border px-2 py-1.5 text-center ${isDarkMode ? 'bg-[#1a1d24] border-[#2a303a]' : 'bg-zinc-50 border-zinc-200'}`}><div className="text-[9px] uppercase text-zinc-500">Crafts</div><div className="text-xs font-black text-cyan-400">{collectionStats.totalCrafts}</div></div>
+            <div className={`rounded-lg border px-2 py-1.5 text-center ${isDarkMode ? 'bg-[#1a1d24] border-[#2a303a]' : 'bg-zinc-50 border-zinc-200'}`}><div className="text-[9px] uppercase text-zinc-500">Shiny</div><div className="text-xs font-black text-amber-400">{collectionStats.totalShinies}</div></div>
+            <div className={`rounded-lg border px-2 py-1.5 text-center ${isDarkMode ? 'bg-[#1a1d24] border-[#2a303a]' : 'bg-zinc-50 border-zinc-200'}`}><div className="text-[9px] uppercase text-zinc-500">Recipes</div><div className="text-xs font-black text-violet-400">{collectionStats.uniqueRecipes}</div></div>
+            <div className={`rounded-lg border px-2 py-1.5 text-center ${isDarkMode ? 'bg-[#1a1d24] border-[#2a303a]' : 'bg-zinc-50 border-zinc-200'}`}><div className="text-[9px] uppercase text-zinc-500">Masters</div><div className="text-xs font-black text-emerald-400">{collectionStats.masteredElements}</div></div>
+          </div>
+
           <DiscoveryTrails elements={elements} busy={isSynthesizing} onPrepare={(a, b) => { setCrucibleSlotA(a); setCrucibleSlotB(b); setIsCrucibleCollapsed(false); setIsSidebarOpen(false); setSpawnToast('Ingredients ready. Tap Combine to continue your trail.'); setTimeout(() => setSpawnToast(null), 3000); }} />
-          <div className="relative"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" /><input ref={searchInputRef} type="text" placeholder="Search elements... (Press /)" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className={`w-full pl-9 pr-8 py-2 rounded-xl text-xs border transition-all focus:outline-none focus:ring-2 focus:ring-amber-500 ${isDarkMode ? 'bg-[#1c1f26] border-[#2e333d] text-white placeholder-zinc-500' : 'bg-zinc-50 border-[#d4d4d8] text-black placeholder-zinc-400'}`} />{searchQuery && <button onClick={() => setSearchQuery('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-200"><X className="w-3.5 h-3.5" /></button>}</div>
+          <div className="relative"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" /><input ref={searchInputRef} type="text" placeholder="Search elements, mastery, properties..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className={`w-full pl-9 pr-8 py-2 rounded-xl text-xs border transition-all focus:outline-none focus:ring-2 focus:ring-amber-500 ${isDarkMode ? 'bg-[#1c1f26] border-[#2e333d] text-white placeholder-zinc-500' : 'bg-zinc-50 border-[#d4d4d8] text-black placeholder-zinc-400'}`} />{searchQuery && <button onClick={() => setSearchQuery('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-200"><X className="w-3.5 h-3.5" /></button>}</div>
 
           <div className="flex items-center gap-1.5 pt-0.5">{STARTER_ELEMENTS.map(pe => <button key={pe.id} onClick={() => spawnFromSidebar(pe)} className={`flex-1 py-1 px-1.5 rounded-lg border text-xs font-semibold flex items-center justify-center gap-1 transition-all active:scale-95 shadow-xs ${isDarkMode ? 'bg-[#1a1c22] hover:bg-[#232732] border-[#282e3c] text-white hover:border-amber-500/40' : 'bg-zinc-50 hover:bg-white border-zinc-200 text-zinc-800 hover:border-amber-400'}`} title={`Spawn ${pe.name}`}><span className="text-sm leading-none">{pe.emoji}</span><span className="text-[10px] font-medium hidden xs:inline">{pe.name}</span></button>)}</div>
 
-          <div className="flex items-center justify-between text-xs pt-1">
-            <div className="flex items-center gap-1">
-              <button onClick={() => setSortMode('time')} className={`px-2.5 py-1 rounded-lg border text-[11px] font-medium flex items-center gap-1 transition-colors ${sortMode === 'time' ? 'bg-amber-500/20 text-amber-500 border-amber-500/40 font-bold' : isDarkMode ? 'bg-[#18181b] border-[#27272a] text-zinc-400 hover:text-white' : 'bg-zinc-100 border-zinc-200 text-zinc-600 hover:text-black'}`} title="Sort by recently discovered"><Clock className="w-3 h-3" /><span>Recent</span></button>
-              <button onClick={() => setSortMode('alpha')} className={`px-2.5 py-1 rounded-lg border text-[11px] font-medium flex items-center gap-1 transition-colors ${sortMode === 'alpha' ? 'bg-amber-500/20 text-amber-500 border-amber-500/40 font-bold' : isDarkMode ? 'bg-[#18181b] border-[#27272a] text-zinc-400 hover:text-white' : 'bg-zinc-100 border-zinc-200 text-zinc-600 hover:text-black'}`} title="Sort alphabetically"><ArrowDownAZ className="w-3 h-3" /><span>A-Z</span></button>
-              {firstDiscoveriesCount > 0 && <button onClick={() => setSortMode('discoveries')} className={`px-2.5 py-1 rounded-lg border text-[11px] font-medium flex items-center gap-1 transition-colors ${sortMode === 'discoveries' ? 'bg-amber-500/20 text-amber-500 border-amber-500/40 font-bold' : isDarkMode ? 'bg-[#18181b] border-[#27272a] text-zinc-400 hover:text-white' : 'bg-zinc-100 border-zinc-200 text-zinc-600 hover:text-black'}`} title="First discoveries only"><Sparkles className="w-3 h-3 text-amber-500" /><span>Starred</span></button>}
-              {shiniesCount > 0 && <button onClick={() => setSortMode(sortMode === 'shinies' ? 'time' : 'shinies')} className={`px-2 py-1 rounded-lg border text-[11px] font-medium flex items-center gap-1 transition-all ${sortMode === 'shinies' ? 'bg-gradient-to-r from-amber-400 to-pink-500 text-slate-950 font-bold border-amber-300 shadow-sm' : isDarkMode ? 'bg-[#18181b] border-[#27272a] text-amber-300 hover:text-amber-200' : 'bg-zinc-100 border-zinc-200 text-amber-700 hover:text-amber-900'}`} title="Filter rare Pokémon-style shiny mutations"><span className="shiny-star-twinkle">✨</span><span>Shinies ({shiniesCount})</span></button>}
+          <div className="flex items-center justify-between text-xs pt-1 gap-2">
+            <div className="flex items-center gap-1 overflow-x-auto pb-1">
+              <button onClick={() => setSortMode('time')} className={`px-2.5 py-1 rounded-lg border text-[11px] font-medium flex items-center gap-1 transition-colors whitespace-nowrap ${sortMode === 'time' ? 'bg-amber-500/20 text-amber-500 border-amber-500/40 font-bold' : isDarkMode ? 'bg-[#18181b] border-[#27272a] text-zinc-400 hover:text-white' : 'bg-zinc-100 border-zinc-200 text-zinc-600 hover:text-black'}`} title="Sort by most recently crafted"><Clock className="w-3 h-3" /><span>Recent</span></button>
+              <button onClick={() => setSortMode('crafted')} className={`px-2.5 py-1 rounded-lg border text-[11px] font-medium flex items-center gap-1 transition-colors whitespace-nowrap ${sortMode === 'crafted' ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40 font-bold' : isDarkMode ? 'bg-[#18181b] border-[#27272a] text-zinc-400 hover:text-white' : 'bg-zinc-100 border-zinc-200 text-zinc-600 hover:text-black'}`} title="Sort by times made"><Zap className="w-3 h-3" /><span>Made</span></button>
+              <button onClick={() => setSortMode('alpha')} className={`px-2.5 py-1 rounded-lg border text-[11px] font-medium flex items-center gap-1 transition-colors whitespace-nowrap ${sortMode === 'alpha' ? 'bg-amber-500/20 text-amber-500 border-amber-500/40 font-bold' : isDarkMode ? 'bg-[#18181b] border-[#27272a] text-zinc-400 hover:text-white' : 'bg-zinc-100 border-zinc-200 text-zinc-600 hover:text-black'}`} title="Sort alphabetically"><ArrowDownAZ className="w-3 h-3" /><span>A-Z</span></button>
+              {firstDiscoveriesCount > 0 && <button onClick={() => setSortMode('discoveries')} className={`px-2.5 py-1 rounded-lg border text-[11px] font-medium flex items-center gap-1 transition-colors whitespace-nowrap ${sortMode === 'discoveries' ? 'bg-amber-500/20 text-amber-500 border-amber-500/40 font-bold' : isDarkMode ? 'bg-[#18181b] border-[#27272a] text-zinc-400 hover:text-white' : 'bg-zinc-100 border-zinc-200 text-zinc-600 hover:text-black'}`} title="First discoveries only"><Sparkles className="w-3 h-3 text-amber-500" /><span>Starred</span></button>}
+              {shiniesCount > 0 && <button onClick={() => setSortMode(sortMode === 'shinies' ? 'time' : 'shinies')} className={`px-2 py-1 rounded-lg border text-[11px] font-medium flex items-center gap-1 transition-all whitespace-nowrap ${sortMode === 'shinies' ? 'bg-gradient-to-r from-amber-400 to-pink-500 text-slate-950 font-bold border-amber-300 shadow-sm' : isDarkMode ? 'bg-[#18181b] border-[#27272a] text-amber-300 hover:text-amber-200' : 'bg-zinc-100 border-zinc-200 text-amber-700 hover:text-amber-900'}`} title="Filter shiny variants"><span className="shiny-star-twinkle">✨</span><span>Shinies ({shiniesCount})</span></button>}
             </div>
-            <span className="text-[11px] text-zinc-400 font-mono">{filteredElements.length} items</span>
+            <span className="text-[11px] text-zinc-400 font-mono shrink-0">{filteredElements.length}</span>
           </div>
         </div>
 
         <div className="flex-1 overflow-y-auto p-3 flex flex-wrap content-start gap-1.5 select-none">
-          {filteredElements.map(el => {
+          {filteredElements.map(raw => {
+            const el = normalizeElementStats(raw);
+            const mastery = getElementMastery(el.craftCount || 0);
             const isShinyUnlocked = Boolean(el.unlockedShiny || el.isShiny);
             const isDisplayShiny = Boolean(el.isShiny || (sortMode === 'shinies' && isShinyUnlocked));
-            return <div key={el.id} onClick={() => spawnFromSidebar(el)} className={`group flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border cursor-pointer select-none transition-all duration-100 shadow-sm hover:scale-[1.02] active:scale-95 ${isDisplayShiny ? 'shiny-holographic-pill text-amber-100 font-semibold' : isDarkMode ? 'bg-[#1c1f26] hover:bg-[#252a34] border-[#2e333d] text-[#f4f4f5]' : 'bg-zinc-50 hover:bg-white border-[#d4d4d8] text-[#18181b]'}`}><span className="text-base leading-none select-none">{el.emoji}</span><span className="text-xs font-semibold tracking-wide">{el.name}</span>{el.variantOf && <span title={`Rare variant of ${el.variantOf}`} className="text-[10px] font-bold text-violet-400">✦ Rare</span>}{el.isNew && <span className="text-[10px] text-amber-500 font-bold" title="First Discovery">★</span>}{isShinyUnlocked && <span className="text-[10px] text-amber-400 shiny-star-twinkle" title="Shiny form unlocked!">✨</span>}<button onClick={e => { e.stopPropagation(); sound.playClick(); setInspectedElement(el); }} className="opacity-0 group-hover:opacity-100 text-zinc-400 hover:text-cyan-400 transition-opacity ml-0.5 p-0.5" title="Inspect Physical Properties & Shiny Codex"><Info className="w-3.5 h-3.5" /></button></div>;
+            const foilName = isShinyUnlocked ? getShinyFoilStyle(el.name).name : '';
+            return <div key={el.id} onClick={() => spawnFromSidebar(el)} title={`${el.name} • ${el.craftCount || 0} made • ${mastery.label}${isShinyUnlocked ? ` • ${foilName} shiny unlocked` : ''}`} className={`group flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border cursor-pointer select-none transition-all duration-100 shadow-sm hover:scale-[1.02] active:scale-95 ${isDisplayShiny ? 'shiny-holographic-pill text-amber-100 font-semibold' : isDarkMode ? 'bg-[#1c1f26] hover:bg-[#252a34] border-[#2e333d] text-[#f4f4f5]' : 'bg-zinc-50 hover:bg-white border-[#d4d4d8] text-[#18181b]'}`}>
+              <span className="text-base leading-none select-none">{el.emoji}</span>
+              <span className="text-xs font-semibold tracking-wide">{el.name}</span>
+              {(el.craftCount || 0) > 0 && <span className="text-[9px] font-mono font-bold text-cyan-400" title="Times made">×{el.craftCount}</span>}
+              {(el.shinyCraftCount || 0) > 0 && <span className="text-[9px] font-mono font-bold text-amber-300 shiny-star-twinkle" title={`${foilName} shiny encounters`}>✨{el.shinyCraftCount}</span>}
+              {mastery.level >= 4 && <Trophy className="w-3 h-3 text-emerald-400" aria-label={`${mastery.label} mastery`} />}
+              {el.variantOf && <span title={`Rare variant of ${el.variantOf}`} className="text-[10px] font-bold text-violet-400">✦ Rare</span>}
+              {el.isNew && <span className="text-[10px] text-amber-500 font-bold" title="First Discovery">★</span>}
+              {isShinyUnlocked && !(el.shinyCraftCount || 0) && <span className="text-[10px] text-amber-400 shiny-star-twinkle" title={`${foilName} shiny form unlocked!`}>✨</span>}
+              <button onClick={e => { e.stopPropagation(); sound.playClick(); setInspectedElement(el); }} className="opacity-70 sm:opacity-0 sm:group-hover:opacity-100 text-zinc-400 hover:text-cyan-400 transition-opacity ml-0.5 p-0.5" title="Inspect Physical Properties & Shiny Codex"><Info className="w-3.5 h-3.5" /></button>
+            </div>;
           })}
           {filteredElements.length === 0 && <div className="w-full text-center py-12 text-zinc-400 text-xs font-mono">No matching elements discovered.</div>}
         </div>
 
-        <div className={`p-3 border-t flex items-center justify-between lg:hidden ${isDarkMode ? 'bg-[#101216] border-[#27272a]' : 'bg-zinc-50 border-[#e4e4e7]'}`}><span className="text-[11px] text-zinc-400 font-mono">Tap any element to spawn</span><button onClick={() => { sound.playClick(); setIsSidebarOpen(false); }} className="px-4 py-1.5 rounded-xl bg-amber-500 text-black font-bold text-xs shadow-md active:scale-95 transition-transform">Return to Canvas</button></div>
+        <div className={`p-3 border-t flex items-center justify-between lg:hidden ${isDarkMode ? 'bg-[#101216] border-[#27272a]' : 'bg-zinc-50 border-[#e4e4e7]'}`}><span className="text-[11px] text-zinc-400 font-mono">Tap an element to spawn • ℹ for dossier</span><button onClick={() => { sound.playClick(); setIsSidebarOpen(false); }} className="px-4 py-1.5 rounded-xl bg-amber-500 text-black font-bold text-xs shadow-md active:scale-95 transition-transform">Return to Canvas</button></div>
       </aside>
 
       {firstDiscoveryModal && <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn" onClick={() => setFirstDiscoveryModal(null)}><div onClick={e => e.stopPropagation()} className={`w-full max-w-sm rounded-2xl p-6 border shadow-2xl text-center relative overflow-hidden ${isDarkMode ? 'bg-[#18181b] border-amber-500/40 text-white' : 'bg-white border-amber-400 text-black'}`}><div className="absolute -top-12 -left-12 w-32 h-32 bg-amber-500/20 rounded-full blur-2xl pointer-events-none" /><div className="absolute -bottom-12 -right-12 w-32 h-32 bg-amber-500/20 rounded-full blur-2xl pointer-events-none" /><div className="text-5xl mb-3 animate-bounce">{firstDiscoveryModal.emoji}</div><div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40 text-xs font-mono font-bold tracking-widest uppercase mb-2"><Sparkles className="w-3.5 h-3.5" />FIRST DISCOVERY!</div><h3 className="text-2xl font-black tracking-tight mb-1">{firstDiscoveryModal.name}</h3><p className="text-xs text-zinc-400 mb-5 leading-relaxed">You are the very first crafter to unlock this combination in the global matrix!</p>{firstDiscoveryModal.recipe && <div className={`p-3 rounded-xl border text-xs font-mono mb-5 ${isDarkMode ? 'bg-black/30 border-zinc-800 text-zinc-300' : 'bg-zinc-100 border-zinc-200 text-zinc-700'}`}>{firstDiscoveryModal.recipe.first} + {firstDiscoveryModal.recipe.second} = {firstDiscoveryModal.name}</div>}<button onClick={() => { sound.playClick(); setFirstDiscoveryModal(null); }} className="w-full py-2.5 rounded-xl font-bold text-sm bg-gradient-to-r from-amber-500 to-amber-600 text-black hover:brightness-110 shadow-lg transition-all active:scale-95">Continue Crafting</button></div></div>}
 
-      {inspectedElement && <ElementDossierModal element={inspectedElement} onClose={() => setInspectedElement(null)} onSpawnOnCanvas={(name, emoji, isShiny) => spawnOnCanvas(name, emoji, isShiny)} isDarkMode={isDarkMode} />}
+      {inspectedElement && <ElementDossierModal element={normalizeElementStats(inspectedElement)} onClose={() => setInspectedElement(null)} onSpawnOnCanvas={(name, emoji, isShiny) => spawnOnCanvas(name, emoji, isShiny)} isDarkMode={isDarkMode} />}
     </div>
   );
 }
