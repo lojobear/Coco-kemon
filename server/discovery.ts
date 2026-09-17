@@ -236,8 +236,8 @@ function inferDNA(candidate: Candidate, first: string, second: string): ConceptD
 function candidateIsValid(c: unknown, first: string, second: string): c is Candidate {
   if (!record(c) || !text(c.result) || c.result.length > 160 || !text(c.emoji) || c.emoji.length > 32) return false;
   if (!text(c.explanation) || c.explanation.length > 280 || !text(c.connection) || !CONNECTIONS.has(c.connection as ConceptConnection)) return false;
-  if (c.coherence !== undefined && (!Number.isInteger(c.coherence) || c.coherence < 1 || c.coherence > 5)) return false;
-  if (c.surprise !== undefined && (!Number.isInteger(c.surprise) || c.surprise < 1 || c.surprise > 5)) return false;
+  if (c.coherence !== undefined && (typeof c.coherence !== 'number' || !Number.isInteger(c.coherence) || c.coherence < 1 || c.coherence > 5)) return false;
+  if (c.surprise !== undefined && (typeof c.surprise !== 'number' || !Number.isInteger(c.surprise) || c.surprise < 1 || c.surprise > 5)) return false;
   // Keep the model's score only as a rejection hint; it does not determine ranking.
   if (typeof c.coherence === 'number' && c.coherence < 3) return false;
 
@@ -260,7 +260,6 @@ function scoreCandidate(candidate: Candidate, first: string, second: string, rou
   const overlapsFirst = lexicalOverlap(candidate.result, first);
   const overlapsSecond = lexicalOverlap(candidate.result, second);
   const resultWords = words(candidate.result);
-  const lowerResult = candidate.result.toLowerCase();
   const normalizedResult = normalize(candidate.result);
 
   let score = 0;
