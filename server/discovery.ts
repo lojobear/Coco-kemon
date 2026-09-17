@@ -53,6 +53,10 @@ type Candidate = {
   connection: ConceptConnection;
   coherence?: number;
   surprise?: number;
+  inputFit?: number;
+  recognizability?: number;
+  chainPotential?: number;
+  novelty?: number;
 };
 
 const CONNECTIONS = new Set<ConceptConnection>([
@@ -72,6 +76,11 @@ const GENERIC_TERMS = new Set([
   'thing', 'object', 'stuff', 'mixture', 'fusion', 'hybrid', 'combo', 'entity', 'concept',
   'creation', 'compound', 'material', 'item', 'creature', 'being', 'product',
 ]);
+
+const OVERUSED_ROOTS = [
+  'quantum', 'cosmic', 'matrix', 'core', 'shard', 'crystal', 'neo', 'proto', 'mega', 'ultra',
+  'fusion', 'hybrid', 'aether', 'void', 'stellar', 'energy', 'element', 'essence', 'orb',
+];
 
 const DOMAIN_KEYWORDS: Record<string, string[]> = {
   chemistry: ['chemical', 'molecule', 'atom', 'acid', 'base', 'reaction', 'compound', 'element', 'salt', 'gas'],
@@ -102,6 +111,7 @@ const PROPERTY_KEYWORDS = [
 
 const resultUsage = new Map<string, number>();
 const conceptRegistry = new Map<string, ConceptDNA>();
+const recentResults: string[] = [];
 
 function normalize(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -130,6 +140,25 @@ function hasIngredientReference(explanation: string, ingredient: string): boolea
 function lexicalOverlap(result: string, ingredient: string): boolean {
   const resultTokens = new Set(meaningfulTokens(result));
   return meaningfulTokens(ingredient).some(token => resultTokens.has(token));
+}
+
+function lexicalSimilarity(a: string, b: string): number {
+  const aa = new Set(meaningfulTokens(a));
+  const bb = new Set(meaningfulTokens(b));
+  if (!aa.size || !bb.size) return 0;
+  let overlap = 0;
+  for (const token of aa) if (bb.has(token)) overlap += 1;
+  return overlap / Math.max(aa.size, bb.size);
+}
+
+function repeatedRoots(): Set<string> {
+  const lowered = recentResults.slice(-40).map(result => result.toLowerCase());
+  return new Set(OVERUSED_ROOTS.filter(root => lowered.filter(name => name.includes(root)).length >= 2));
+}
+
+function rememberResult(result: string) {
+  recentResults.push(result);
+  if (recentResults.length > 80) recentResults.splice(0, recentResults.length - 80);
 }
 
 function inferDomains(textBlob: string, connection: string, parentDomains: string[]): string[] {
@@ -233,13 +262,17 @@ function inferDNA(candidate: Candidate, first: string, second: string): ConceptD
   };
 }
 
+function validOptionalScore(value: unknown): boolean {
+  return value === undefined || (typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 5);
+}
+
 function candidateIsValid(c: unknown, first: string, second: string): c is Candidate {
   if (!record(c) || !text(c.result) || c.result.length > 160 || !text(c.emoji) || c.emoji.length > 32) return false;
   if (!text(c.explanation) || c.explanation.length > 280 || !text(c.connection) || !CONNECTIONS.has(c.connection as ConceptConnection)) return false;
-  if (c.coherence !== undefined && (typeof c.coherence !== 'number' || !Number.isInteger(c.coherence) || c.coherence < 1 || c.coherence > 5)) return false;
-  if (c.surprise !== undefined && (typeof c.surprise !== 'number' || !Number.isInteger(c.surprise) || c.surprise < 1 || c.surprise > 5)) return false;
-  // Keep the model's score only as a rejection hint; it does not determine ranking.
+  if (![c.coherence, c.surprise, c.inputFit, c.recognizability, c.chainPotential, c.novelty].every(validOptionalScore)) return false;
+  // Model scores are advisory, but very low fit is enough to reject a candidate early.
   if (typeof c.coherence === 'number' && c.coherence < 3) return false;
+  if (typeof c.inputFit === 'number' && c.inputFit < 3) return false;
 
   const normalizedResult = normalize(c.result);
   const normalizedFirst = normalize(first);
@@ -265,21 +298,29 @@ function scoreCandidate(candidate: Candidate, first: string, second: string, rou
   let score = 0;
 
   // Ingredient contribution is the highest-value signal.
-  if (mentionsFirst) score += 16;
-  if (mentionsSecond) score += 16;
-  if (overlapsFirst) score += 5;
-  if (overlapsSecond) score += 5;
-  if (!mentionsFirst && !mentionsSecond && !overlapsFirst && !overlapsSecond) score -= 28;
+  if (mentionsFirst) score += 18;
+  if (mentionsSecond) score += 18;
+  if (overlapsFirst) score += 4;
+  if (overlapsSecond) score += 4;
+  if (!mentionsFirst && !mentionsSecond && !overlapsFirst && !overlapsSecond) score -= 32;
+  if ((mentionsFirst || overlapsFirst) !== (mentionsSecond || overlapsSecond)) score -= 8;
+
+  // Model self-scores are hints only; server-derived evidence remains dominant.
+  if (candidate.inputFit) score += candidate.inputFit * 2;
+  if (candidate.recognizability) score += candidate.recognizability * 1.5;
+  if (candidate.chainPotential) score += candidate.chainPotential * 2;
+  if (candidate.novelty) score += candidate.novelty;
+  if (candidate.coherence) score += candidate.coherence;
 
   // Reward results that are easy to recognize and useful in later recipes.
   if (resultWords.length >= 1 && resultWords.length <= 3) score += 10;
   else if (resultWords.length === 4) score += 4;
   else if (resultWords.length > 6) score -= 10;
-  score += dna.chainPotential * 5;
+  score += dna.chainPotential * 6;
   score += Math.min(10, dna.domains.length * 2 + dna.functions.length + dna.properties.length);
 
   // Prefer candidates that explore a distinct relationship route.
-  if ((routeFrequency.get(candidate.connection) || 0) === 1) score += 5;
+  if ((routeFrequency.get(candidate.connection) || 0) === 1) score += 4;
 
   // Explanation quality matters, but verbosity does not.
   if (candidate.explanation.length >= 35 && candidate.explanation.length <= 220) score += 5;
@@ -288,11 +329,16 @@ function scoreCandidate(candidate: Candidate, first: string, second: string, rou
   // Penalize dead-end generic mashups and odd formatting.
   if (resultWords.some(word => GENERIC_TERMS.has(word))) score -= 18;
   if (/[^\p{L}\p{N}\s'’&+.-]/u.test(candidate.result)) score -= 6;
-  if (/^(super|mega|ultra|magic|mystic|cosmic)\s+/i.test(candidate.result) && !mentionsFirst && !mentionsSecond) score -= 7;
+  if (/^(super|mega|ultra|magic|mystic|cosmic|quantum|neo|proto)\s+/i.test(candidate.result)) score -= 8;
+  if (/(matrix|core|shard|essence|orb)$/i.test(candidate.result) && !(mentionsFirst && mentionsSecond)) score -= 8;
 
-  // Different recipes should not collapse into the same answer over and over.
+  // Different recipes should not collapse into the same answer or naming family over and over.
   const usage = resultUsage.get(normalizedResult) || 0;
-  score -= Math.min(15, usage * 3);
+  score -= Math.min(18, usage * 4);
+  const closestRecent = recentResults.reduce((max, result) => Math.max(max, lexicalSimilarity(candidate.result, result)), 0);
+  score -= closestRecent * 18;
+  const overused = repeatedRoots();
+  if ([...overused].some(root => candidate.result.toLowerCase().includes(root))) score -= 16;
 
   return { score, dna };
 }
@@ -316,9 +362,10 @@ export function chooseConcept(parsed: unknown, first: string, second: string): C
     };
     if (!candidateIsValid(fallback, first, second)) return;
     const { score, dna } = scoreCandidate(fallback, first, second, new Map([[fallback.connection, 1]]));
-    if (score < 15) return;
+    if (score < 18) return;
     conceptRegistry.set(normalize(fallback.result), dna);
     resultUsage.set(normalize(fallback.result), (resultUsage.get(normalize(fallback.result)) || 0) + 1);
+    rememberResult(fallback.result);
     return {
       result: fallback.result,
       emoji: fallback.emoji,
@@ -330,8 +377,8 @@ export function chooseConcept(parsed: unknown, first: string, second: string): C
     };
   }
 
-  // Accept more candidates when the model provides them; ranking is fully server-side.
-  const candidates = parsed.candidates.slice(0, 8).filter((c: unknown) => candidateIsValid(c, first, second)) as Candidate[];
+  // Accept a broad candidate set; ranking is fully server-side.
+  const candidates = parsed.candidates.slice(0, 10).filter((c: unknown) => candidateIsValid(c, first, second)) as Candidate[];
   if (!candidates.length) return;
 
   const routeFrequency = new Map<string, number>();
@@ -342,12 +389,13 @@ export function chooseConcept(parsed: unknown, first: string, second: string): C
     .sort((a, b) => b.score - a.score || b.dna.chainPotential - a.dna.chainPotential || a.candidate.result.localeCompare(b.candidate.result));
 
   const winner = ranked[0];
-  if (!winner || winner.score < 15) return;
+  if (!winner || winner.score < 18) return;
 
   const result = winner.candidate.result.trim();
   const key = normalize(result);
   conceptRegistry.set(key, winner.dna);
   resultUsage.set(key, (resultUsage.get(key) || 0) + 1);
+  rememberResult(result);
 
   return {
     result,
