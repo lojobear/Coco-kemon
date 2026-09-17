@@ -1,0 +1,273 @@
+import React, { useMemo, useRef, useState } from 'react';
+import { ImagePlus, RefreshCw, RotateCcw, Search, Sparkles, Upload, X } from 'lucide-react';
+import { useGame } from '../lib/gameStore';
+import { generateMaterialSprite, generateOddkinSprite } from '../lib/pixelRenderer';
+import { Material, Oddkin, SpriteDescriptor } from '../types';
+import { sound } from '../lib/audio';
+
+type LabItem =
+  | { type: 'material'; id: string; name: string; sprite?: string; item: Material }
+  | { type: 'oddkin'; id: string; name: string; sprite?: string; item: Oddkin };
+
+const MATERIAL_SHAPES: SpriteDescriptor['baseShape'][] = [
+  'droplet', 'crystal', 'powder', 'rock', 'ingot', 'flora', 'fluid', 'sparks', 'orb', 'vapor', 'curio',
+];
+
+const ODDKIN_PLANS: Oddkin['morphology']['bodyPlan'][] = [
+  'quadruped', 'biped', 'blob', 'serpentine', 'insectoid', 'avian', 'floating_orb', 'fungoid',
+];
+
+const EYE_STYLES: Oddkin['spriteSpecification']['eyeStyle'][] = [
+  'beady', 'slits', 'luminescent', 'compound', 'single', 'gentle',
+];
+
+function numericSeed(value: string) {
+  let hash = 2166136261;
+  for (let i = 0; i < value.length; i++) {
+    hash ^= value.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+function materialShapePool(mat: Material): SpriteDescriptor['baseShape'][] {
+  if (mat.properties.liquid) return ['droplet', 'fluid', 'orb', 'vapor', 'curio'];
+  if (mat.properties.gaseous) return ['vapor', 'sparks', 'orb', 'curio'];
+  if (mat.properties.crystalline) return ['crystal', 'rock', 'orb', 'curio', 'ingot'];
+  if (mat.properties.metallic) return ['ingot', 'rock', 'orb', 'curio', 'crystal'];
+  if (mat.properties.organic) return ['flora', 'curio', 'rock', 'powder', 'orb'];
+  if (mat.stateOfMatter === 'energy' || mat.properties.conductive) return ['sparks', 'orb', 'vapor', 'crystal', 'curio'];
+  return MATERIAL_SHAPES;
+}
+
+function nextDifferent<T>(values: T[], current: T | undefined, seed: number): T {
+  const alternatives = values.filter(value => value !== current);
+  const pool = alternatives.length ? alternatives : values;
+  return pool[seed % pool.length];
+}
+
+async function fileTo64pxSprite(file: File): Promise<string> {
+  if (!file.type.startsWith('image/')) throw new Error('Choose a PNG, WebP, or JPG image.');
+  if (file.size > 8 * 1024 * 1024) throw new Error('Please keep sprite images under 8 MB.');
+
+  const dataUrl = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(new Error('Could not read that image.'));
+    reader.readAsDataURL(file);
+  });
+
+  const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('Could not decode that image.'));
+    img.src = dataUrl;
+  });
+
+  const canvas = document.createElement('canvas');
+  canvas.width = 64;
+  canvas.height = 64;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas is unavailable on this device.');
+  ctx.imageSmoothingEnabled = false;
+  ctx.clearRect(0, 0, 64, 64);
+
+  const scale = Math.min(64 / image.width, 64 / image.height);
+  const width = Math.max(1, Math.round(image.width * scale));
+  const height = Math.max(1, Math.round(image.height * scale));
+  const x = Math.floor((64 - width) / 2);
+  const y = Math.floor((64 - height) / 2);
+  ctx.drawImage(image, x, y, width, height);
+  return canvas.toDataURL('image/png');
+}
+
+export function SpriteLabModal({ onClose }: { onClose: () => void }) {
+  const { materials, oddkinCollection, exportSaveData, importSaveData } = useGame();
+  const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState<'all' | 'material' | 'oddkin'>('all');
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
+  const rerollNonce = useRef(0);
+  const uploadRef = useRef<HTMLInputElement>(null);
+
+  const items = useMemo<LabItem[]>(() => {
+    const all: LabItem[] = [
+      ...materials.map(item => ({ type: 'material' as const, id: item.id, name: item.displayName, sprite: item.customSpriteUrl, item })),
+      ...oddkinCollection.map(item => ({ type: 'oddkin' as const, id: item.speciesId, name: item.speciesName, sprite: item.customSpriteUrl, item })),
+    ];
+    const normalizedQuery = query.trim().toLowerCase();
+    return all.filter(item =>
+      (filter === 'all' || item.type === filter) &&
+      (!normalizedQuery || item.name.toLowerCase().includes(normalizedQuery))
+    );
+  }, [materials, oddkinCollection, query, filter]);
+
+  const selected = useMemo(
+    () => items.find(item => `${item.type}:${item.id}` === selectedKey) || null,
+    [items, selectedKey]
+  );
+
+  const persistSprite = (target: LabItem, sprite: string) => {
+    const payload = JSON.parse(exportSaveData());
+    const foundry = payload?.foundry;
+    if (!foundry) throw new Error('Foundry save data is unavailable.');
+
+    if (target.type === 'material') {
+      const saved = foundry.materials?.find((item: Material) => item.id === target.id);
+      if (!saved) throw new Error('Material could not be found in the save.');
+      saved.customSpriteUrl = sprite;
+      // Keep the custom sprite from being replaced by the renderer migration on reload.
+      saved.spriteRendererVersion = 2;
+    } else {
+      const saved = foundry.oddkinCollection?.find((item: Oddkin) => item.speciesId === target.id);
+      if (!saved) throw new Error('Oddkin could not be found in the save.');
+      saved.customSpriteUrl = sprite;
+    }
+
+    if (!importSaveData(JSON.stringify(payload))) throw new Error('The updated sprite could not be saved.');
+    sound.playDiscoveryChime('UNCOMMON');
+    setStatus(`${target.name} sprite updated.`);
+  };
+
+  const reroll = (target: LabItem) => {
+    try {
+      rerollNonce.current += 1;
+      const seed = numericSeed(`${target.type}:${target.id}:${Date.now()}:${rerollNonce.current}`);
+
+      if (target.type === 'material') {
+        const mat = target.item;
+        const baseShape = nextDifferent(materialShapePool(mat), mat.spriteDescriptor.baseShape, seed);
+        const paletteShift = seed % 3;
+        const colors = [mat.spriteDescriptor.primaryColor, mat.spriteDescriptor.secondaryColor, mat.spriteDescriptor.accentColor];
+        const rotated = [...colors.slice(paletteShift), ...colors.slice(0, paletteShift)];
+        const visualOnly: Material = {
+          ...mat,
+          // A neutral visual key prevents the renderer's name heuristics from forcing the same silhouette again.
+          canonicalName: `VISUAL_VARIANT_${seed}`,
+          semanticTags: [...mat.semanticTags, `visual-variant-${seed % 997}`],
+          spriteDescriptor: {
+            ...mat.spriteDescriptor,
+            baseShape,
+            primaryColor: rotated[0],
+            secondaryColor: rotated[1],
+            accentColor: rotated[2],
+          },
+        };
+        persistSprite(target, generateMaterialSprite(visualOnly));
+      } else {
+        const odd = target.item;
+        const bodyPlan = nextDifferent(ODDKIN_PLANS, odd.morphology.bodyPlan, seed);
+        const eyeStyle = nextDifferent(EYE_STYLES, odd.spriteSpecification.eyeStyle, Math.floor(seed / 7));
+        const visualOnly: Oddkin = {
+          ...odd,
+          speciesId: `${odd.speciesId}__visual_${seed}`,
+          morphology: { ...odd.morphology, bodyPlan },
+          spriteSpecification: { ...odd.spriteSpecification, eyeStyle },
+        };
+        persistSprite(target, generateOddkinSprite(visualOnly, { isChroma: odd.isChromaActive }));
+      }
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'Sprite reroll failed.');
+    }
+  };
+
+  const restoreDefault = (target: LabItem) => {
+    try {
+      const sprite = target.type === 'material'
+        ? generateMaterialSprite(target.item)
+        : generateOddkinSprite(target.item, { isChroma: target.item.isChromaActive });
+      persistSprite(target, sprite);
+      setStatus(`${target.name} restored to its canonical sprite.`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'Could not restore the sprite.');
+    }
+  };
+
+  const uploadCustom = async (file: File | undefined) => {
+    if (!file || !selected) return;
+    try {
+      const sprite = await fileTo64pxSprite(file);
+      persistSprite(selected, sprite);
+      setStatus(`${selected.name} now uses your custom sprite.`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'Custom sprite upload failed.');
+    } finally {
+      if (uploadRef.current) uploadRef.current.value = '';
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[80] bg-black/85 backdrop-blur-md p-3 sm:p-5 flex items-center justify-center" onClick={onClose}>
+      <div className="w-full max-w-4xl max-h-[92dvh] overflow-hidden rounded-2xl border border-[#343b49] bg-[#11141a] shadow-2xl flex flex-col" onClick={event => event.stopPropagation()}>
+        <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-[#292f3b]">
+          <div>
+            <div className="flex items-center gap-2 text-white font-black"><Sparkles className="w-4 h-4 text-amber-400" /> SPRITE LAB</div>
+            <div className="text-[10px] text-[#8b95a7]">Reroll the visual only. Discovery names, stats, recipes, and traits stay unchanged.</div>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-lg bg-[#1b2029] text-[#9ca3af] hover:text-white" aria-label="Close Sprite Lab"><X className="w-4 h-4" /></button>
+        </div>
+
+        <div className="p-3 border-b border-[#252b36] flex flex-col sm:flex-row gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-2.5 top-2.5 w-4 h-4 text-[#697386]" />
+            <input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search discoveries..." className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#0b0d11] border border-[#2b313d] text-sm text-white outline-none focus:border-amber-500" />
+          </div>
+          <div className="flex gap-1 bg-[#0b0d11] border border-[#2b313d] rounded-xl p-1">
+            {(['all', 'material', 'oddkin'] as const).map(value => (
+              <button key={value} onClick={() => setFilter(value)} className={`px-3 py-1.5 rounded-lg text-xs font-bold capitalize ${filter === value ? 'bg-amber-400 text-black' : 'text-[#9ca3af]'}`}>{value}</button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex-1 min-h-0 grid md:grid-cols-[1fr_300px]">
+          <div className="overflow-y-auto p-3 grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2 content-start">
+            {items.map(item => {
+              const key = `${item.type}:${item.id}`;
+              const active = key === selectedKey;
+              return (
+                <button key={key} onClick={() => { sound.playClick(); setSelectedKey(key); setStatus(null); }} className={`rounded-xl border p-2 text-center min-w-0 transition ${active ? 'border-amber-400 bg-amber-400/10' : 'border-[#272e39] bg-[#161a21] hover:border-[#4a5568]'}`}>
+                  <div className="aspect-square rounded-lg bg-[#0b0d11] flex items-center justify-center mb-1.5 overflow-hidden">
+                    {item.sprite ? <img src={item.sprite} alt="" className="w-[80%] h-[80%] object-contain pixelated" /> : <ImagePlus className="w-7 h-7 text-[#4b5563]" />}
+                  </div>
+                  <div className="text-[10px] font-bold text-white truncate">{item.name}</div>
+                  <div className="text-[9px] text-[#6b7280] capitalize">{item.type}</div>
+                </button>
+              );
+            })}
+          </div>
+
+          <aside className="border-t md:border-t-0 md:border-l border-[#292f3b] bg-[#0e1116] p-4 overflow-y-auto">
+            {selected ? (
+              <div className="space-y-4">
+                <div className="text-center">
+                  <div className="w-40 h-40 mx-auto rounded-2xl bg-[#07090c] border border-[#303744] flex items-center justify-center overflow-hidden">
+                    {selected.sprite ? <img src={selected.sprite} alt={selected.name} className="w-32 h-32 object-contain pixelated" /> : <ImagePlus className="w-12 h-12 text-[#4b5563]" />}
+                  </div>
+                  <div className="mt-2 font-black text-white">{selected.name}</div>
+                  <div className="text-[10px] uppercase tracking-wider text-[#788397]">{selected.type}</div>
+                </div>
+
+                <button onClick={() => reroll(selected)} className="w-full py-3 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-black text-sm flex items-center justify-center gap-2">
+                  <RefreshCw className="w-4 h-4" /> REROLL SPRITE
+                </button>
+                <p className="text-[10px] text-[#80899a] leading-relaxed">Rerolls deliberately choose a different silhouette/body plan and detail seed so variants do not just look like recolors.</p>
+
+                <input ref={uploadRef} type="file" accept="image/png,image/webp,image/jpeg" className="hidden" onChange={event => void uploadCustom(event.target.files?.[0])} />
+                <button onClick={() => uploadRef.current?.click()} className="w-full py-2.5 rounded-xl bg-[#18202a] border border-[#344154] text-white text-xs font-bold flex items-center justify-center gap-2">
+                  <Upload className="w-4 h-4" /> USE MY IMAGE
+                </button>
+                <button onClick={() => restoreDefault(selected)} className="w-full py-2.5 rounded-xl bg-[#14181f] border border-[#2b323e] text-[#aab2bf] text-xs font-bold flex items-center justify-center gap-2">
+                  <RotateCcw className="w-4 h-4" /> RESTORE DEFAULT
+                </button>
+
+                {status && <div className="rounded-lg border border-[#303846] bg-[#171c24] p-2.5 text-[10px] text-[#cbd5e1]">{status}</div>}
+              </div>
+            ) : (
+              <div className="h-full min-h-48 flex items-center justify-center text-center text-xs text-[#697386] px-4">Choose a discovery to edit its sprite.</div>
+            )}
+          </aside>
+        </div>
+      </div>
+    </div>
+  );
+}
