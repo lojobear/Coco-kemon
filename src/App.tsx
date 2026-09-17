@@ -14,6 +14,7 @@ import { NotebookView } from './components/NotebookView';
 import { DiscoveryModal } from './components/DiscoveryModal';
 import { SeedsModal } from './components/SeedsModal';
 import { VoiceLabModal } from './components/VoiceLabModal';
+import { SpriteLabModal } from './components/SpriteLabModal';
 import { BottomNav } from './components/BottomNav';
 import { InfiniteCraftView } from './components/InfiniteCraftView';
 import { SAVE_STATUS_EVENT, getSaveError } from './lib/saveData';
@@ -48,6 +49,7 @@ function GameContent() {
 
   const [showSeedsModal, setShowSeedsModal] = useState<boolean>(false);
   const [showVoiceModal, setShowVoiceModal] = useState<boolean>(false);
+  const [showSpriteLab, setShowSpriteLab] = useState<boolean>(false);
 
   const handleInspectMaterial = (mat: Material) => {
     setInspectedItem({ type: 'material', item: mat });
@@ -91,6 +93,16 @@ function GameContent() {
         )}
       </main>
 
+      {/* Sprite Lab launcher */}
+      <button
+        onClick={() => { sound.playClick(); setShowSpriteLab(true); }}
+        className="fixed right-3 bottom-20 z-40 px-3 py-2 rounded-xl bg-amber-400 text-black border border-amber-200 shadow-xl font-black text-[11px] flex items-center gap-1.5 active:scale-95 transition-transform"
+        title="Reroll or replace discovered sprites"
+      >
+        <span aria-hidden="true">🎨</span>
+        SPRITE LAB
+      </button>
+
       {/* Bottom Navigation */}
       <BottomNav />
 
@@ -103,6 +115,10 @@ function GameContent() {
 
       {showVoiceModal && (
         <VoiceLabModal onClose={() => setShowVoiceModal(false)} />
+      )}
+
+      {showSpriteLab && (
+        <SpriteLabModal onClose={() => setShowSpriteLab(false)} />
       )}
     </div>
   );
