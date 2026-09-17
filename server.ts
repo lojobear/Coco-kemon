@@ -19,27 +19,12 @@ import { chooseConcept, applyInheritance, inheritanceFor, type ConceptResult } f
 import { TRAIL_RECIPES, rollRareVariant } from './src/lib/discoveryTrails.js';
 import { ALL_PROCESSES } from './src/lib/starterData.js';
 
-dotenv.config();
+if (process.env.CLOUDFLARE !== '1') dotenv.config();
 
 export const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 
 app.use(express.json({ limit: '25mb' }));
-
-// Bridge Cloudflare Worker / platform secrets to process.env so existing code works
-app.use((req, res, next) => {
-  const workerEnv = (globalThis as unknown as { env?: Record<string, string> }).env;
-  if (workerEnv) {
-    if (workerEnv.GEMINI_API_KEY && !process.env.GEMINI_API_KEY) process.env.GEMINI_API_KEY = workerEnv.GEMINI_API_KEY;
-    if (workerEnv.GEMINI_MODEL && !process.env.GEMINI_MODEL) process.env.GEMINI_MODEL = workerEnv.GEMINI_MODEL;
-    if (workerEnv.GEMINI_FALLBACK_MODEL && !process.env.GEMINI_FALLBACK_MODEL) process.env.GEMINI_FALLBACK_MODEL = workerEnv.GEMINI_FALLBACK_MODEL;
-    if (workerEnv.SUPABASE_URL && !process.env.SUPABASE_URL) process.env.SUPABASE_URL = workerEnv.SUPABASE_URL;
-    if (workerEnv.SUPABASE_ANON_KEY && !process.env.SUPABASE_ANON_KEY) process.env.SUPABASE_ANON_KEY = workerEnv.SUPABASE_ANON_KEY;
-    if (workerEnv.VITE_SUPABASE_URL && !process.env.VITE_SUPABASE_URL) process.env.VITE_SUPABASE_URL = workerEnv.VITE_SUPABASE_URL;
-    if (workerEnv.VITE_SUPABASE_ANON_KEY && !process.env.VITE_SUPABASE_ANON_KEY) process.env.VITE_SUPABASE_ANON_KEY = workerEnv.VITE_SUPABASE_ANON_KEY;
-  }
-  next();
-});
 
 // Health check
 app.get('/api/health', (req, res) => {

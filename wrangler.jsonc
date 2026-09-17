@@ -1,12 +1,30 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "coco-kemon",
-  "main": "worker.ts",
+  "main": ".worker-build/index.js",
   "compatibility_date": "2026-09-15",
-  "compatibility_flags": ["nodejs_compat"],
-  "observability": { "enabled": true },
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "observability": {
+    "enabled": true
+  },
   "assets": {
     "directory": "./dist",
-    "not_found_handling": "single-page-application"
+    "not_found_handling": "single-page-application",
+    "run_worker_first": [
+      "/api",
+      "/api/*"
+    ]
+  },
+  "no_bundle": true,
+  "build": {
+    "command": "node scripts/build-worker.mjs",
+    "watch_dir": [
+      "server.ts",
+      "server",
+      "src/lib",
+      "worker.ts"
+    ]
   }
 }
