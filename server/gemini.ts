@@ -20,6 +20,39 @@ function sanitizeModel(name?: string): string | null {
   return null;
 }
 
+const DISCOVERY_CONNECTIONS = [
+  'science', 'function', 'appearance', 'mythology', 'wordplay',
+  'chemistry', 'physics', 'biology', 'ecology', 'technology',
+  'history', 'geography', 'food', 'pop-culture', 'brand',
+  'character', 'comedy', 'language',
+];
+
+const DISCOVERY_RESPONSE_SCHEMA = {
+  type: 'object',
+  properties: {
+    candidates: {
+      type: 'array',
+      minItems: 4,
+      maxItems: 6,
+      items: {
+        type: 'object',
+        properties: {
+          result: { type: 'string', description: 'Concise discovery name, usually one to three words.' },
+          emoji: { type: 'string', description: 'One expressive emoji for the discovery.' },
+          connection: { type: 'string', enum: DISCOVERY_CONNECTIONS },
+          explanation: { type: 'string', description: 'One concise player-facing sentence explaining how both inputs contribute.' },
+          coherence: { type: 'integer', minimum: 1, maximum: 5 },
+          surprise: { type: 'integer', minimum: 1, maximum: 5 },
+        },
+        required: ['result', 'emoji', 'connection', 'explanation', 'coherence', 'surprise'],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ['candidates'],
+  additionalProperties: false,
+};
+
 function isDiscoveryInstruction(systemInstruction?: string): boolean {
   return Boolean(systemInstruction?.includes('playful conceptual crafting game'));
 }
@@ -30,9 +63,13 @@ function enhanceDiscoveryInstruction(systemInstruction: string): string {
       'Consider up to three DISTINCT possible results using different connections: science, function,\nappearance, mythology or wordplay.',
       'Consider SIX DISTINCT possible results using different connections. Explore science, chemistry, physics, biology, ecology, function, technology, appearance, mythology, language, wordplay, history, geography, food, pop culture, brands, characters, or comedy when relevant.'
     )
-    .replace('Return JSON with a candidates array (1–3 items)', 'Return JSON with a candidates array (6 items)');
+    .replace('Return JSON with a candidates array (1–3 items)', 'Return JSON with a candidates array (4–6 items)')
+    .replace(
+      'result, emoji, connection (science/function/appearance/mythology/wordplay),',
+      'result, emoji, connection (science/function/appearance/mythology/wordplay/chemistry/physics/biology/ecology/technology/history/geography/food/pop-culture/brand/character/comedy/language),'
+    );
 
-  enhanced += `\nGeneration strategy:\n- Produce six genuinely different candidates when possible; do not make six cosmetic variants of the same idea.\n- Use a different connection route for each strong candidate whenever the ingredients support it.\n- Prefer recognizable nouns, named concepts, real objects, species, places, foods, technologies, characters, brands, myths, or exceptionally coherent original creatures.\n- Favor results that can combine meaningfully with many future concepts; avoid dead-end generic mashups.\n- The server independently ranks candidates, so coherence and surprise scores are advisory rather than decisive.\n- If semantic parent metadata is supplied in the user prompt, use it as factual game context and preserve useful inherited traits.`;
+  enhanced += `\nGeneration strategy:\n- Produce six genuinely different candidates when possible; do not make cosmetic variants of the same idea.\n- Use a different connection route for each strong candidate whenever the ingredients support it.\n- Prefer recognizable nouns, named concepts, real objects, species, places, foods, technologies, characters, brands, myths, or exceptionally coherent original creatures.\n- Favor results that can combine meaningfully with many future concepts; avoid dead-end generic mashups.\n- The server independently ranks candidates, so coherence and surprise scores are advisory rather than decisive.\n- If semantic parent metadata is supplied in the user prompt, use it as factual game context and preserve useful inherited traits.`;
 
   return enhanced;
 }
@@ -88,16 +125,19 @@ export async function callGeminiStructured(
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 12000);
     try {
+      const config: any = {
+        responseMimeType: 'application/json',
+        temperature: effectiveTemperature,
+        systemInstruction: effectiveSystemInstruction,
+        abortSignal: controller.signal,
+        httpOptions: { timeout: 12000 },
+      };
+      if (discoveryRequest) config.responseJsonSchema = DISCOVERY_RESPONSE_SCHEMA;
+
       const response = await ai.models.generateContent({
         model: currentModel,
         contents: effectivePrompt,
-        config: {
-          responseMimeType: 'application/json',
-          temperature: effectiveTemperature,
-          systemInstruction: effectiveSystemInstruction,
-          abortSignal: controller.signal,
-          httpOptions: { timeout: 12000 },
-        },
+        config,
       });
       const raw = response.text?.trim();
       if (!raw) throw new Error('AI returned an empty response');
