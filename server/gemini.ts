@@ -35,19 +35,23 @@ const DISCOVERY_RESPONSE_SCHEMA = {
   properties: {
     candidates: {
       type: 'array',
-      minItems: 4,
-      maxItems: 6,
+      minItems: 6,
+      maxItems: 8,
       items: {
         type: 'object',
         properties: {
           result: { type: 'string', description: 'Concise discovery name, usually one to three words.' },
           emoji: { type: 'string', description: 'One expressive emoji for the discovery.' },
-          connection: { type: 'string', enum: DISCOVERY_CONNECTIONS },
-          explanation: { type: 'string', description: 'One concise player-facing sentence explaining how both inputs contribute.' },
+          connection: { type: 'string', enum: DISCOVERY_CONNECTIONS, description: 'Best descriptive route label only; this label must never limit what the actual result can be.' },
+          explanation: { type: 'string', description: 'One concise player-facing sentence explaining the causal bridge from both inputs to the result.' },
           coherence: { type: 'integer', minimum: 1, maximum: 5 },
           surprise: { type: 'integer', minimum: 1, maximum: 5 },
+          inputFit: { type: 'integer', minimum: 1, maximum: 5, description: 'How strongly BOTH inputs are necessary to the result.' },
+          recognizability: { type: 'integer', minimum: 1, maximum: 5, description: 'How immediately understandable or nameable the result is.' },
+          chainPotential: { type: 'integer', minimum: 1, maximum: 5, description: 'How useful this concept is for many future combinations.' },
+          novelty: { type: 'integer', minimum: 1, maximum: 5, description: 'How distinct this idea is from generic mashups without sacrificing coherence.' },
         },
-        required: ['result', 'emoji', 'connection', 'explanation', 'coherence', 'surprise'],
+        required: ['result', 'emoji', 'connection', 'explanation', 'coherence', 'surprise', 'inputFit', 'recognizability', 'chainPotential', 'novelty'],
         additionalProperties: false,
       },
     },
@@ -234,15 +238,15 @@ function enhanceDiscoveryInstruction(systemInstruction: string): string {
   let enhanced = systemInstruction
     .replace(
       'Consider up to three DISTINCT possible results using different connections: science, function,\nappearance, mythology or wordplay.',
-      'Consider SIX DISTINCT possible results using different connections. Explore science, chemistry, physics, biology, ecology, function, technology, appearance, mythology, language, wordplay, history, geography, food, pop culture, brands, characters, or comedy when relevant.'
+      'Consider EIGHT DISTINCT possible results when possible. Start from the meanings and affordances of BOTH inputs, then explore genuinely different causal bridges. The connection label is only metadata and must not constrain the result domain.'
     )
-    .replace('Return JSON with a candidates array (1–3 items)', 'Return JSON with a candidates array (4–6 items)')
+    .replace('Return JSON with a candidates array (1–3 items)', 'Return JSON with a candidates array (6–8 items)')
     .replace(
       'result, emoji, connection (science/function/appearance/mythology/wordplay),',
       'result, emoji, connection (science/function/appearance/mythology/wordplay/chemistry/physics/biology/ecology/technology/history/geography/food/pop-culture/brand/character/comedy/language),'
     );
 
-  enhanced += `\nGeneration strategy:\n- Produce six genuinely different candidates when possible; do not make cosmetic variants of the same idea.\n- Use a different connection route for each strong candidate whenever the ingredients support it.\n- Prefer recognizable nouns, named concepts, real objects, species, places, foods, technologies, characters, brands, myths, or exceptionally coherent original creatures.\n- Favor results that can combine meaningfully with many future concepts; avoid dead-end generic mashups.\n- The server independently ranks candidates, so coherence and surprise scores are advisory rather than decisive.\n- If semantic parent metadata is supplied in the user prompt, use it as factual game context and preserve useful inherited traits.`;
+  enhanced += `\n\nINFINITE DISCOVERY PRINCIPLES:\n- This is an effectively unbounded semantic graph, not a finite recipe catalog. Do not choose from a hidden taxonomy of allowed answers. Any recognizable or coherent concept can become a node if the pair truly earns it.\n- Meaning first, domain second. NEVER decide “this should be science/pop culture/food” and force the ingredients into that genre. First ask what relationship between BOTH inputs naturally produces or evokes something else.\n- Generate 6–8 genuinely different candidate bridges, not cosmetic synonyms. Examples of bridge types include physical transformation, shared function, cultural association, linguistic relation, category progression, scale change, composition, tool-use, mythology, history, geography, food, technology, character/reference, visual resemblance, and emergent behavior—but this list is illustrative, not exhaustive.\n- Both inputs should matter. Silently reject candidates that could have been generated just as well from only one parent. For wordplay or cultural references, the explanation must make the two-parent bridge immediately understandable.\n- Prefer specific names people actually recognize: “Snow Globe”, “Arcade”, “Sushi”, “Batman”, “Saturn”, “Wi‑Fi”, “Treasure Map”, or a crisp original concept when appropriate. Avoid pseudo-scientific filler such as Quantum-X, Cosmic-X, Neo-X, Matrix-X, Core-X, or vague adjective+noun sludge unless the pair genuinely demands it.\n- Pop culture, brands, characters, memes, games, films, TV, anime, comics, music, places, historical figures/objects, foods, everyday items, technologies, living things, abstract ideas, and jokes are all valid outcomes when the semantic bridge is strong. Do not force recognizable references merely for novelty.\n- Reward the “ohhh, of course” feeling over raw weirdness. Surprise is good only after coherence.\n- Favor concepts with strong future-chain potential: things that have functions, properties, cultural associations, parts, opposites, habitats, materials, categories, or transformations that can combine again. Avoid dead-end flavor phrases.\n- Identical input pairs are deterministic at the game layer once discovered; your job is therefore to make the first selected concept worth keeping.\n- Treat coherence, inputFit, recognizability, chainPotential, novelty, and surprise as honest self-assessments. Do not inflate them. The server independently ranks candidates.\n- Preserve useful semantic inheritance from parent metadata when available, but descendants are allowed to cross domains naturally.\n- Return only the required JSON candidates; never reveal hidden comparison or chain-of-thought.`;
 
   return enhanced;
 }
@@ -258,8 +262,10 @@ function enrichDiscoveryPrompt(prompt: string | { parts: any[] }): string | { pa
     const names = JSON.parse(raw);
     if (!Array.isArray(names) || names.length !== 2 || names.some(name => typeof name !== 'string')) return prompt;
     const known = names.map((name: string) => ({ name, dna: conceptDNAFor(name) || null }));
-    if (!known.some((entry: { dna: unknown }) => entry.dna)) return prompt;
-    return `${prompt}\nKnown semantic parent metadata from earlier discoveries: ${JSON.stringify(known)}\nUse this metadata to keep deeper crafting chains semantically consistent.`;
+    const inheritance = known.some((entry: { dna: unknown }) => entry.dna)
+      ? `\nKnown semantic parent metadata from earlier discoveries: ${JSON.stringify(known)}\nUse this only as grounded lineage context. Preserve meaningful inherited functions/properties while still allowing a natural cross-domain result.`
+      : '';
+    return `${prompt}${inheritance}\nBefore proposing candidates, infer several plausible relationships between the two inputs. Do not commit to a domain first. Produce diverse outcomes that each use a different meaningful bridge, and make each explanation explicit enough for the server to verify both-parent contribution.`;
   } catch {
     return prompt;
   }
@@ -307,7 +313,7 @@ export async function callGeminiStructured(
   const effectiveTemperature = foundryRequest
     ? (foundryIdea ? Math.max(0.48, temperature) : Math.max(0.65, temperature))
     : discoveryRequest
-      ? Math.max(0.55, temperature)
+      ? Math.max(0.72, temperature)
       : temperature;
 
   let last: unknown;
