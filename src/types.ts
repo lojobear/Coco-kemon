@@ -68,7 +68,7 @@ export interface Material {
   spriteRendererVersion?: number;
 }
 
-export type ProcessCategory = 'Thermal' | 'Mechanical' | 'Biological' | 'Electromagnetic' | 'Alchemical' | 'Temporal';
+export type ProcessCategory = 'Thermal' | 'Mechanical' | 'Biological' | 'Electromagnetic' | 'Alchemical' | 'Temporal' | 'Pressure';
 
 export interface Process {
   id: string;
