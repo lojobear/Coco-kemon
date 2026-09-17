@@ -10,7 +10,8 @@
     "start": "tsx server.ts",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "test": "node --import tsx --test tests/*.test.ts"
+    "test": "node --import tsx --test tests/*.test.ts",
+    "test:cloudflare": "npm run build && CLOUDFLARE_SMOKE=1 node --import tsx --test tests/cloudflare-runtime.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
@@ -35,6 +36,7 @@
     "esbuild": "^0.25.0",
     "tailwindcss": "^4.1.14",
     "typescript": "~5.8.2",
-    "vite-plugin-pwa": "^1.3.0"
+    "vite-plugin-pwa": "^1.3.0",
+    "wrangler": "4.132.0"
   }
 }
