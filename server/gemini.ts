@@ -8,10 +8,13 @@ export class ApiFailure extends Error {
     this.status = status;
   }
 }
+
 export function publicFailure(error: unknown): { status: number; error: string } {
-  return error instanceof ApiFailure ? { status: error.status, error: error.message } :
-    { status: 502, error: 'The AI returned an invalid result. Please retry.' };
+  return error instanceof ApiFailure
+    ? { status: error.status, error: error.message }
+    : { status: 502, error: 'The AI returned an invalid result. Please retry.' };
 }
+
 function sanitizeModel(name?: string): string | null {
   if (!name || typeof name !== 'string') return null;
   const trimmed = name.trim();
@@ -53,6 +56,45 @@ const DISCOVERY_RESPONSE_SCHEMA = {
   additionalProperties: false,
 };
 
+const FOUNDRY_IDEA_SCHEMA = {
+  type: 'object',
+  properties: {
+    candidates: {
+      type: 'array',
+      minItems: 4,
+      maxItems: 6,
+      items: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Specific collectible result name, usually one to four words.' },
+          domain: { type: 'string', description: 'Free-form semantic domain; do not choose from a fixed taxonomy.' },
+          explanation: { type: 'string', description: 'One concise sentence showing how both inputs and the process lead to this result.' },
+          inputFit: { type: 'integer', minimum: 1, maximum: 5 },
+          processFit: { type: 'integer', minimum: 1, maximum: 5 },
+          recognizability: { type: 'integer', minimum: 1, maximum: 5 },
+          novelty: { type: 'integer', minimum: 1, maximum: 5 },
+          chainPotential: { type: 'integer', minimum: 1, maximum: 5 },
+        },
+        required: ['name', 'domain', 'explanation', 'inputFit', 'processFit', 'recognizability', 'novelty', 'chainPotential'],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ['candidates'],
+  additionalProperties: false,
+};
+
+type FoundryIdea = {
+  name: string;
+  domain: string;
+  explanation: string;
+  inputFit: number;
+  processFit: number;
+  recognizability: number;
+  novelty: number;
+  chainPotential: number;
+};
+
 function isDiscoveryInstruction(systemInstruction?: string): boolean {
   return Boolean(systemInstruction?.includes('playful conceptual crafting game'));
 }
@@ -60,34 +102,6 @@ function isDiscoveryInstruction(systemInstruction?: string): boolean {
 function isFoundryPrompt(prompt: string | { parts: any[] }): prompt is string {
   return typeof prompt === 'string' && prompt.includes('synthesis engine for ODDKIN FOUNDRY');
 }
-
-function stableHash(value: string): number {
-  let hash = 2166136261;
-  for (let i = 0; i < value.length; i++) {
-    hash ^= value.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  return hash >>> 0;
-}
-
-const FOUNDRY_LENSES = [
-  'a recognizable everyday object or household item',
-  'food, drink, ingredient, snack, or kitchen creation',
-  'technology, gadget, appliance, machine, or tool',
-  'toy, collectible, game object, sporting item, or hobby object',
-  'clothing, accessory, wearable, or personal item',
-  'vehicle, transportation object, or mechanical device',
-  'plant, animal-adjacent form, biological product, or natural object',
-  'fantasy artifact, magical item, mythic object, or folklore reference',
-  'space, astronomy, sci-fi, or speculative technology concept',
-  'music, film, television, gaming, anime, comic, or broader pop-culture reference',
-  'internet culture, meme-adjacent idea, funny recognizable phrase, or modern digital object',
-  'place, landmark, building, room, shop, attraction, or geographic feature',
-  'art, craft, instrument, media object, bookish object, or creative tool',
-  'science object, lab instrument, useful compound, or real physical phenomenon',
-  'cute mascot-like curio or highly collectible object with a concrete silhouette',
-  'historical object, cultural artifact, invention, or recognizable era-specific item',
-];
 
 const OVERUSED_ROOTS = [
   'ferro', 'ferri', 'steel', 'alloy', 'crystal', 'quantum', 'nano', 'neo', 'proto',
@@ -98,7 +112,7 @@ const OVERUSED_ROOTS = [
 function extractExistingMaterialNames(prompt: string): string[] {
   const match = prompt.match(/EXISTING DISCOVERED MATERIALS:\s*([^\n]*)/i);
   if (!match?.[1]) return [];
-  return match[1].split(',').map(name => name.trim()).filter(Boolean).slice(-25);
+  return match[1].split(',').map(name => name.trim()).filter(Boolean).slice(-40);
 }
 
 function findOverusedRoots(names: string[]): string[] {
@@ -106,17 +120,114 @@ function findOverusedRoots(names: string[]): string[] {
   return OVERUSED_ROOTS.filter(root => lowered.filter(name => name.includes(root)).length >= 2);
 }
 
-function enhanceFoundryPrompt(prompt: string): string {
-  const recipeSection = prompt.match(/INPUT A:[\s\S]*?KNOWN ODDKIN:/)?.[0] || prompt.slice(0, 1800);
-  const seed = stableHash(recipeSection);
-  const primaryLens = FOUNDRY_LENSES[seed % FOUNDRY_LENSES.length];
-  const secondaryLens = FOUNDRY_LENSES[(Math.floor(seed / FOUNDRY_LENSES.length) + 7) % FOUNDRY_LENSES.length];
+function normalizeWords(value: string): string[] {
+  return value.toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').split(/\s+/).filter(Boolean);
+}
+
+function lexicalSimilarity(a: string, b: string): number {
+  const aa = new Set(normalizeWords(a));
+  const bb = new Set(normalizeWords(b));
+  if (!aa.size || !bb.size) return 0;
+  let overlap = 0;
+  for (const word of aa) if (bb.has(word)) overlap += 1;
+  return overlap / Math.max(aa.size, bb.size);
+}
+
+function isValidFoundryIdea(value: unknown): value is FoundryIdea {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const idea = value as Record<string, unknown>;
+  return ['name', 'domain', 'explanation'].every(k => typeof idea[k] === 'string' && String(idea[k]).trim()) &&
+    ['inputFit', 'processFit', 'recognizability', 'novelty', 'chainPotential'].every(k =>
+      typeof idea[k] === 'number' && Number.isFinite(idea[k]) && Number(idea[k]) >= 1 && Number(idea[k]) <= 5
+    );
+}
+
+function scoreFoundryIdea(idea: FoundryIdea, existingNames: string[], overusedRoots: string[]): number {
+  let score =
+    idea.inputFit * 5 +
+    idea.processFit * 5 +
+    idea.recognizability * 2 +
+    idea.novelty * 2 +
+    idea.chainPotential * 3;
+
+  const lowerName = idea.name.toLowerCase();
+  if (existingNames.some(name => name.toLowerCase() === lowerName)) score -= 35;
+
+  const closest = existingNames.reduce((max, name) => Math.max(max, lexicalSimilarity(idea.name, name)), 0);
+  score -= closest * 18;
+
+  if (overusedRoots.some(root => lowerName.includes(root))) score -= 22;
+  if (/^(ultra|hyper|mega|neo|proto|quantum|cosmic|aether|ferro)[ -]/i.test(idea.name)) score -= 10;
+  if (/(alloy|matrix|core|shard|crystal)$/i.test(idea.name)) score -= 8;
+
+  const nameWords = normalizeWords(idea.name).length;
+  if (nameWords >= 1 && nameWords <= 4) score += 3;
+  if (idea.inputFit >= 4 && idea.processFit >= 4) score += 8;
+
+  return score;
+}
+
+function compactFoundryContext(prompt: string): string {
+  const inputA = prompt.match(/INPUT A:[\s\S]*?(?=\n\nINPUT B:)/)?.[0] || '';
+  const inputB = prompt.match(/INPUT B:[\s\S]*?(?=\n\nAPPLIED PROCESS:)/)?.[0] || '';
+  const process = prompt.match(/APPLIED PROCESS:[^\n]*/)?.[0] || '';
+  const depth = prompt.match(/CURRENT RECIPE DEPTH:[^\n]*/)?.[0] || '';
+  const existing = prompt.match(/EXISTING DISCOVERED MATERIALS:[^\n]*/)?.[0] || '';
+  return [inputA, inputB, process, depth, existing].filter(Boolean).join('\n');
+}
+
+async function searchFoundryIdeas(
+  ai: Pick<GoogleGenAI, 'models'>,
+  model: string,
+  prompt: string
+): Promise<FoundryIdea | null> {
   const existingNames = extractExistingMaterialNames(prompt);
   const overusedRoots = findOverusedRoots(existingNames);
-  const recentNames = existingNames.slice(-12).join(', ') || 'none';
-  const suppressed = overusedRoots.length ? overusedRoots.join(', ') : 'none detected';
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 5000);
 
-  return `${prompt}\n\nFOUNDRY DIVERSITY DIRECTIVE — THIS OVERRIDES ANY EARLIER RULE THAT OVER-FAVORS RAW MATERIALS OR ALLOYS:\n- The output does NOT need to be a laboratory substance. A Foundry discovery may be a concrete object, artifact, food, gadget, toy, tool, vehicle, wearable, cultural object, fantasy item, recognizable reference, natural object, or other collectible noun whenever the inputs + process justify it.\n- Prefer a familiar, specific noun over pseudo-scientific naming. If \"Flashlight\" makes sense, do not call it \"Electro-Lumen Alloy\". If \"Popcorn\" makes sense, do not call it \"Thermally Expanded Maize Matrix\".\n- Pop culture is explicitly welcome when the connection is strong: films, TV, games, anime, comics, music, internet culture, famous fictional objects, characters, places, or references may be used. Never force a reference solely for novelty; both ingredients and the process must make the result understandable.\n- Real recognizable names are better than vague mashups. Original creations are still welcome when they have a clear silhouette, purpose, and lineage.\n- Avoid generic adjective+noun sludge and repeated material-science families such as Ferro-X, Quantum-X, Nano-X, Crystal-X, Alloy-X, Core-X, Shard-X, Matrix-X, Aether-X unless that exact concept is strongly demanded by the recipe.\n- Recent collection names: ${recentNames}. Do not produce a cosmetic cousin of these.\n- Currently overused roots to actively suppress: ${suppressed}. If any are listed, avoid them entirely unless an input itself contains that root or the real-world result genuinely requires it.\n- Creative routing for THIS recipe: first consider ${primaryLens}; also consider ${secondaryLens}. Use these as inspiration, not as permission to break semantic coherence.\n- Depth is a complexity guide, not a mandate to output substances. Even at shallow depth, recognizable objects and cultural references are allowed when causally sensible. At deep depth, do not default to cosmic/quantum vocabulary; weirdness should come from the recipe, not from filler words.\n- PROCESS SEMANTICS CAN BE FUNCTIONAL OR CULTURAL as well as chemical. Examples: Miniaturize + a vehicle can yield a toy vehicle; Enchant + a book can yield a spellbook; Freeze + coffee can yield iced coffee; Weave + fiber can yield clothing; Pulse + light can yield a strobe; Moonlight + a recognizable motif may yield a nocturnal or pop-cultural reference if both parents support it.\n- Before naming the result, silently reject any candidate that (a) could be produced from only one input, (b) repeats a recent naming family, (c) is merely a prefix glued to a material word, or (d) has no clear player-facing explanation. Return only the final JSON, never this filtering process.\n- For non-living discoveries, category may be specific and collectible: Artifact, Food, Technology, Tool, Toy, Vehicle, Wearable, Cultural, Natural, Fantasy, Composite, Mineral, Elemental, Organic, Metallic, Energy, or Biological. Keep stateOfMatter and boolean properties physically plausible for the represented object.\n- Aim for the feeling of an endless discovery game: the player should frequently think \"ohhh, that actually makes sense\" and occasionally laugh or recognize the reference.`;
+  const ideaPrompt = `You are the concept-search stage for an infinite crafting game.\n\n${compactFoundryContext(prompt)}\n\nGenerate six genuinely different plausible outcomes before any detailed object schema is written. Start from the causal meaning of BOTH inputs and the applied process. Do not choose a genre or domain first. The semantic connection determines the domain.\n\nThe result may be anything that forms a useful, recognizable node in an endless discovery graph: a real object, food, tool, gadget, vehicle, toy, wearable, cultural reference, fictional object or character, natural object, scientific phenomenon, place, creature-adjacent concept, fantasy artifact, joke, internet reference, or a coherent original collectible. This list is illustrative, never exhaustive.\n\nPop culture is welcome only when the recipe genuinely points there. Prefer specific recognizable nouns over pseudo-scientific filler. Avoid cosmetic cousins of recent discoveries and especially avoid repeated Ferro/Alloy/Crystal/Quantum/Core/Shard/Matrix naming families unless chemically or semantically unavoidable.\n\nA strong candidate must satisfy three tests: (1) both inputs visibly matter, (2) the process is the reason the transformation makes sense, and (3) the result creates useful possibilities for future combinations. Score each candidate honestly. Explanations must be short player-facing connections, not private reasoning. Return JSON only.`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model,
+      contents: ideaPrompt,
+      config: {
+        responseMimeType: 'application/json',
+        responseJsonSchema: FOUNDRY_IDEA_SCHEMA,
+        temperature: 0.9,
+        abortSignal: controller.signal,
+        httpOptions: { timeout: 5000 },
+      } as any,
+    });
+    const raw = response.text?.trim();
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    const ideas = Array.isArray(parsed?.candidates) ? parsed.candidates.filter(isValidFoundryIdea) : [];
+    if (!ideas.length) return null;
+    ideas.sort((a: FoundryIdea, b: FoundryIdea) =>
+      scoreFoundryIdea(b, existingNames, overusedRoots) - scoreFoundryIdea(a, existingNames, overusedRoots)
+    );
+    const winner = ideas[0];
+    if (!winner || winner.inputFit < 3 || winner.processFit < 3) return null;
+    return winner;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function enhanceFoundryPrompt(prompt: string, selectedIdea?: FoundryIdea | null): string {
+  const existingNames = extractExistingMaterialNames(prompt);
+  const overusedRoots = findOverusedRoots(existingNames);
+  const recentNames = existingNames.slice(-15).join(', ') || 'none';
+  const suppressed = overusedRoots.length ? overusedRoots.join(', ') : 'none detected';
+  const selected = selectedIdea
+    ? `\nTHOUGHTFUL CONCEPT SEARCH RESULT (binding unless it conflicts with a hard physical/property constraint):\n- Result concept: ${selectedIdea.name}\n- Natural domain: ${selectedIdea.domain}\n- Why it works: ${selectedIdea.explanation}\n- Candidate scores: input fit ${selectedIdea.inputFit}/5, process fit ${selectedIdea.processFit}/5, recognizability ${selectedIdea.recognizability}/5, novelty ${selectedIdea.novelty}/5, future-chain potential ${selectedIdea.chainPotential}/5.\nBuild the final material/object around this concept. Preserve the selected name unless a tiny grammatical normalization is needed.`
+    : `\nThe fast concept-search stage was unavailable. Before answering, compare several genuinely different candidate outcomes internally and choose the one with the best combination of input fit, process fit, recognizability, novelty, and future-chain potential. Return only the final JSON, not the candidate comparison.`;
+
+  return `${prompt}${selected}\n\nFOUNDRY GENERATION PRINCIPLES:\n- This is an effectively unbounded semantic crafting graph, not a finite recipe list. Do not force results into a fixed taxonomy. Any concrete or culturally recognizable noun can become a collectible if the recipe earns it.\n- NEVER choose a domain first and then force the ingredients into it. Start with what the two inputs mean and what the process actually does; the result's domain should emerge from that causal relationship.\n- Exact recipes should remain reproducible, but unexplored recipes and deeper descendants must be free to create genuinely new semantic branches.\n- The output does not need to be a raw substance. It can be an object, artifact, food, gadget, toy, tool, vehicle, wearable, place-like collectible, cultural reference, fantasy item, fictional object/character, natural object, scientific concept, joke, or something outside those examples.\n- Pop culture is explicitly welcome when both ingredients and the process make the reference understandable. Do not insert a celebrity, franchise, meme, character, brand, or title merely because it is recognizable.\n- Prefer the simplest specific name a player would naturally use. Choose “Flashlight” over “Electro-Lumen Alloy” when flashlight is what the recipe actually implies.\n- Reject pseudo-scientific filler, generic adjective+noun mashups, and repeated naming families. Recent names: ${recentNames}. Overused roots to suppress: ${suppressed}.\n- If a recent result already occupies the same semantic idea, either reuse that canonical idea only when truly identical or choose a meaningfully different branch—not a synonym with a new prefix.\n- Depth represents accumulated lineage, not automatic weirdness. Deep recipes can still produce ordinary recognizable things; strange results need a strange causal chain.\n- Keep the result highly recombinable. A good discovery should suggest many future pairings instead of being a dead-end flavor phrase.\n- For non-living discoveries, category may be any concise useful classification (for example Artifact, Food, Technology, Tool, Toy, Vehicle, Wearable, Cultural, Natural, Fantasy, Composite, Mineral, Elemental, Organic, Metallic, Energy, Biological, or something more fitting). State and boolean properties must still match what the result physically represents.\n- The player's reaction target is usually “oh, of course” and sometimes “that's clever,” not “the AI made up another sci-fi material.”`;
 }
 
 function enhanceDiscoveryInstruction(systemInstruction: string): string {
@@ -155,36 +266,49 @@ function enrichDiscoveryPrompt(prompt: string | { parts: any[] }): string | { pa
 }
 
 let client: GoogleGenAI | undefined;
+
 export async function callGeminiStructured(
-  prompt: string | { parts: any[] }, systemInstruction?: string, temperature = 0.4,
+  prompt: string | { parts: any[] },
+  systemInstruction?: string,
+  temperature = 0.4,
   injectedClient?: Pick<GoogleGenAI, 'models'>
 ): Promise<string> {
-  if (!injectedClient && !process.env.GEMINI_API_KEY) throw new ApiFailure(503, 'AI is not configured. Add a Gemini API key on the server.');
+  if (!injectedClient && !process.env.GEMINI_API_KEY) {
+    throw new ApiFailure(503, 'AI is not configured. Add a Gemini API key on the server.');
+  }
   const ai = injectedClient ?? (client ??= new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! }));
 
   const discoveryRequest = isDiscoveryInstruction(systemInstruction);
   const foundryRequest = isFoundryPrompt(prompt);
-  const effectiveSystemInstruction = discoveryRequest && systemInstruction ? enhanceDiscoveryInstruction(systemInstruction) : systemInstruction;
-  const effectivePrompt = foundryRequest
-    ? enhanceFoundryPrompt(prompt)
-    : discoveryRequest
-      ? enrichDiscoveryPrompt(prompt)
-      : prompt;
-  const effectiveTemperature = foundryRequest ? Math.max(0.72, temperature) : discoveryRequest ? Math.max(0.55, temperature) : temperature;
-  
+  const effectiveSystemInstruction = discoveryRequest && systemInstruction
+    ? enhanceDiscoveryInstruction(systemInstruction)
+    : systemInstruction;
+
   const configured = sanitizeModel(process.env.GEMINI_MODEL);
   const fallback = sanitizeModel(process.env.GEMINI_FALLBACK_MODEL);
-  
-  // Prefer the configured model, then a distinct fallback.
   const candidates = [
     configured,
     fallback,
     'gemini-3.1-flash-lite',
     'gemini-3.8-flash',
   ].filter((m): m is string => Boolean(m));
-  
-  // Two 12-second attempts plus a 200ms delay fit the browser's 30s deadline.
   const models = Array.from(new Set(candidates)).slice(0, 2);
+
+  let foundryIdea: FoundryIdea | null = null;
+  if (foundryRequest && typeof prompt === 'string' && models[0]) {
+    foundryIdea = await searchFoundryIdeas(ai, models[0], prompt);
+  }
+
+  const effectivePrompt = foundryRequest && typeof prompt === 'string'
+    ? enhanceFoundryPrompt(prompt, foundryIdea)
+    : discoveryRequest
+      ? enrichDiscoveryPrompt(prompt)
+      : prompt;
+  const effectiveTemperature = foundryRequest
+    ? (foundryIdea ? Math.max(0.48, temperature) : Math.max(0.65, temperature))
+    : discoveryRequest
+      ? Math.max(0.55, temperature)
+      : temperature;
 
   let last: unknown;
   for (let attempt = 0; attempt < models.length; attempt++) {
@@ -215,14 +339,12 @@ export async function callGeminiStructured(
       last = error;
       const code = Number(error?.status || error?.code);
       if (code === 429) {
-        // Quota exhaustion affects all models for this key
         throw new ApiFailure(429, 'Gemini quota reached. Please wait a moment before retrying.');
       }
       if (code === 401 || code === 403) {
         throw new ApiFailure(503, 'Gemini API key is invalid or unauthorized. Please verify your key.');
       }
-      
-      // If there are more model candidates to try, failover to the next candidate
+
       if (attempt < models.length - 1) {
         console.warn(`Model ${currentModel} failed (${code || error?.message || 'unknown'}). Failing over to ${models[attempt + 1]}...`);
         await new Promise(resolve => setTimeout(resolve, 200));
