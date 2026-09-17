@@ -1,4 +1,5 @@
 import { GoogleGenAI } from '@google/genai';
+import { conceptDNAFor } from './discovery.js';
 
 export class ApiFailure extends Error {
   status: number;
@@ -19,6 +20,41 @@ function sanitizeModel(name?: string): string | null {
   return null;
 }
 
+function isDiscoveryInstruction(systemInstruction?: string): boolean {
+  return Boolean(systemInstruction?.includes('playful conceptual crafting game'));
+}
+
+function enhanceDiscoveryInstruction(systemInstruction: string): string {
+  let enhanced = systemInstruction
+    .replace(
+      'Consider up to three DISTINCT possible results using different connections: science, function,\nappearance, mythology or wordplay.',
+      'Consider SIX DISTINCT possible results using different connections. Explore science, chemistry, physics, biology, ecology, function, technology, appearance, mythology, language, wordplay, history, geography, food, pop culture, brands, characters, or comedy when relevant.'
+    )
+    .replace('Return JSON with a candidates array (1–3 items)', 'Return JSON with a candidates array (6 items)');
+
+  enhanced += `\nGeneration strategy:\n- Produce six genuinely different candidates when possible; do not make six cosmetic variants of the same idea.\n- Use a different connection route for each strong candidate whenever the ingredients support it.\n- Prefer recognizable nouns, named concepts, real objects, species, places, foods, technologies, characters, brands, myths, or exceptionally coherent original creatures.\n- Favor results that can combine meaningfully with many future concepts; avoid dead-end generic mashups.\n- The server independently ranks candidates, so coherence and surprise scores are advisory rather than decisive.\n- If semantic parent metadata is supplied in the user prompt, use it as factual game context and preserve useful inherited traits.`;
+
+  return enhanced;
+}
+
+function enrichDiscoveryPrompt(prompt: string | { parts: any[] }): string | { parts: any[] } {
+  if (typeof prompt !== 'string') return prompt;
+  const prefix = 'Find satisfying discoveries for these input names:';
+  const index = prompt.indexOf(prefix);
+  if (index < 0) return prompt;
+
+  const raw = prompt.slice(index + prefix.length).trim();
+  try {
+    const names = JSON.parse(raw);
+    if (!Array.isArray(names) || names.length !== 2 || names.some(name => typeof name !== 'string')) return prompt;
+    const known = names.map((name: string) => ({ name, dna: conceptDNAFor(name) || null }));
+    if (!known.some((entry: { dna: unknown }) => entry.dna)) return prompt;
+    return `${prompt}\nKnown semantic parent metadata from earlier discoveries: ${JSON.stringify(known)}\nUse this metadata to keep deeper crafting chains semantically consistent.`;
+  } catch {
+    return prompt;
+  }
+}
+
 let client: GoogleGenAI | undefined;
 export async function callGeminiStructured(
   prompt: string | { parts: any[] }, systemInstruction?: string, temperature = 0.4,
@@ -26,6 +62,11 @@ export async function callGeminiStructured(
 ): Promise<string> {
   if (!injectedClient && !process.env.GEMINI_API_KEY) throw new ApiFailure(503, 'AI is not configured. Add a Gemini API key on the server.');
   const ai = injectedClient ?? (client ??= new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! }));
+
+  const discoveryRequest = isDiscoveryInstruction(systemInstruction);
+  const effectiveSystemInstruction = discoveryRequest && systemInstruction ? enhanceDiscoveryInstruction(systemInstruction) : systemInstruction;
+  const effectivePrompt = discoveryRequest ? enrichDiscoveryPrompt(prompt) : prompt;
+  const effectiveTemperature = discoveryRequest ? Math.max(0.55, temperature) : temperature;
   
   const configured = sanitizeModel(process.env.GEMINI_MODEL);
   const fallback = sanitizeModel(process.env.GEMINI_FALLBACK_MODEL);
@@ -49,11 +90,11 @@ export async function callGeminiStructured(
     try {
       const response = await ai.models.generateContent({
         model: currentModel,
-        contents: prompt,
+        contents: effectivePrompt,
         config: {
           responseMimeType: 'application/json',
-          temperature,
-          systemInstruction,
+          temperature: effectiveTemperature,
+          systemInstruction: effectiveSystemInstruction,
           abortSignal: controller.signal,
           httpOptions: { timeout: 12000 },
         },
