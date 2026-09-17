@@ -1,4 +1,4 @@
-import type { ElementRecipeRecord, InfiniteElement } from './infiniteCraftData';
+import type { InfiniteElement } from './infiniteCraftData';
 
 export interface ElementMastery {
   level: number;
