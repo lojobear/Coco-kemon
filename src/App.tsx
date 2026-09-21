@@ -9,7 +9,6 @@ import { GameProvider, useGame } from './lib/gameStore';
 import { Header } from './components/Header';
 import { WorkBench } from './components/WorkBench';
 import { ArchiveView } from './components/ArchiveView';
-import { HabitatTerrarium } from './components/HabitatTerrarium';
 import { NotebookView } from './components/NotebookView';
 import { DiscoveryModal } from './components/DiscoveryModal';
 import { SeedsModal } from './components/SeedsModal';
@@ -49,7 +48,6 @@ function GameContent() {
 
   const [showSeedsModal, setShowSeedsModal] = useState<boolean>(false);
   const [showVoiceModal, setShowVoiceModal] = useState<boolean>(false);
-  const [showSpriteLab, setShowSpriteLab] = useState<boolean>(false);
 
   const handleInspectMaterial = (mat: Material) => {
     setInspectedItem({ type: 'material', item: mat });
@@ -68,7 +66,7 @@ function GameContent() {
         {synthesisError} <button disabled={isSynthesizing} className="underline ml-2 p-2" onClick={() => void runSynthesis()}>Retry synthesis</button>
       </div>}
       {/* Main Viewport Content */}
-      <main className={`flex-1 w-full min-h-0 flex flex-col ${activeTab === 'infinite-craft' ? 'overflow-hidden' : 'overflow-y-auto'}`}>
+      <main className={`flex-1 w-full min-h-0 flex flex-col ${(activeTab === 'infinite-craft' || activeTab === 'sprite-lab') ? 'overflow-hidden' : 'overflow-y-auto'}`}>
         {activeTab === 'infinite-craft' && (
           <InfiniteCraftView />
         )}
@@ -84,24 +82,14 @@ function GameContent() {
           />
         )}
 
-        {activeTab === 'habitat' && (
-          <HabitatTerrarium />
+        {activeTab === 'sprite-lab' && (
+          <SpriteLabModal embedded />
         )}
 
         {activeTab === 'notebook' && (
           <NotebookView />
         )}
       </main>
-
-      {/* Sprite Lab launcher */}
-      <button
-        onClick={() => { sound.playClick(); setShowSpriteLab(true); }}
-        className="fixed right-3 bottom-20 z-40 px-3 py-2 rounded-xl bg-amber-400 text-black border border-amber-200 shadow-xl font-black text-[11px] flex items-center gap-1.5 active:scale-95 transition-transform"
-        title="Reroll or replace discovered sprites"
-      >
-        <span aria-hidden="true">🎨</span>
-        SPRITE LAB
-      </button>
 
       {/* Bottom Navigation */}
       <BottomNav />
@@ -117,9 +105,7 @@ function GameContent() {
         <VoiceLabModal onClose={() => setShowVoiceModal(false)} />
       )}
 
-      {showSpriteLab && (
-        <SpriteLabModal onClose={() => setShowSpriteLab(false)} />
-      )}
+
     </div>
   );
 }

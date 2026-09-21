@@ -1,3 +1,4 @@
+import { CraftSprite } from './CraftSprite';
 /**
  * CRAFTING CRUCIBLE - High-Visibility Designated Combine Zone
  * Optimized for Android / Google Pixel 9 touch interaction.
@@ -78,8 +79,8 @@ export function CraftingCrucible({
         >
           <Zap className="w-3.5 h-3.5 text-amber-500" />
           <span>Combine Pad</span>
-          {slotA && <span className="text-[11px] opacity-80">({slotA.emoji})</span>}
-          {slotB && <span className="text-[11px] opacity-80">({slotB.emoji})</span>}
+          {slotA && <span className="text-[11px] opacity-80">(<CraftSprite name={slotA.name} emoji={slotA.emoji} />)</span>}
+          {slotB && <span className="text-[11px] opacity-80">(<CraftSprite name={slotB.name} emoji={slotB.emoji} />)</span>}
           <ChevronUp className="w-3.5 h-3.5 text-zinc-400 ml-0.5" />
         </button>
       ) : (
@@ -166,7 +167,7 @@ export function CraftingCrucible({
               {slotA ? (
                 <>
                   <div className="flex items-center gap-1.5 min-w-0 overflow-hidden">
-                    <span className="text-base select-none">{slotA.emoji}</span>
+                    <span className="text-base select-none"><CraftSprite name={slotA.name} emoji={slotA.emoji} /></span>
                     <span className="truncate text-xs font-bold">{slotA.name}</span>
                     {slotA.isShiny && <span className="text-amber-400 text-[10px]">✨</span>}
                   </div>
@@ -208,7 +209,7 @@ export function CraftingCrucible({
               {slotB ? (
                 <>
                   <div className="flex items-center gap-1.5 min-w-0 overflow-hidden">
-                    <span className="text-base select-none">{slotB.emoji}</span>
+                    <span className="text-base select-none"><CraftSprite name={slotB.name} emoji={slotB.emoji} /></span>
                     <span className="truncate text-xs font-bold">{slotB.name}</span>
                     {slotB.isShiny && <span className="text-amber-400 text-[10px]">✨</span>}
                   </div>

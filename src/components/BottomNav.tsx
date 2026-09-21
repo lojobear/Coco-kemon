@@ -1,13 +1,13 @@
 /**
  * ODDKIN FOUNDRY - Mobile Navigation Bar
- * One-handed tactile switcher between Foundry, Archive, Habitats, and Notebook
+ * One-handed tactile switcher between Foundry, Archive, Sprite Lab, and Notebook
  */
 
 import React from 'react';
 import { useGame } from '../lib/gameStore';
 import { sound } from '../lib/audio';
 import { haptics } from '../lib/haptics';
-import { Sparkles, BookOpen, Trees, FileText, Infinity as InfinityIcon, FlaskConical } from 'lucide-react';
+import { Sparkles, BookOpen, Palette, FileText, Infinity as InfinityIcon, FlaskConical } from 'lucide-react';
 
 export function BottomNav() {
   const { activeTab, setActiveTab, materials, oddkinCollection, experiments } = useGame();
@@ -16,7 +16,7 @@ export function BottomNav() {
     { id: 'infinite-craft', label: 'CRAFT', icon: InfinityIcon, badge: null },
     { id: 'foundry', label: 'FOUNDRY', icon: FlaskConical, badge: null },
     { id: 'archive', label: 'ARCHIVE', icon: BookOpen, badge: materials.length + oddkinCollection.length },
-    { id: 'habitat', label: 'HABITAT', icon: Trees, badge: oddkinCollection.length },
+    { id: 'habitat', label: 'HABITAT', icon: Palette, badge: oddkinCollection.length },
     { id: 'notebook', label: 'NOTES', icon: FileText, badge: experiments.length },
   ] as const;
 
