@@ -179,3 +179,14 @@ test('configured AI failures never become cached crafting or foundry discoveries
     server.close(); await once(server, 'close');
   }
 });
+
+test('custom craft sprites survive backup round trips and reject unsafe image URLs', () => {
+  const png = 'data:image/png;base64,iVBORw0KGgo=';
+  const personalized = { ...complete, crafting: crafting.map(item => ({ ...item, customSpriteUrl: png })) };
+  const restored = importCompleteSave(JSON.stringify(personalized));
+  assert.deepEqual(parseSave(exportCompleteSave(restored)).crafting, personalized.crafting);
+  for (const customSpriteUrl of ['javascript:alert(1)', 'https://example.com/tracker.png', 'data:image/svg+xml;base64,AAAA', 'data:image/png;base64,' + 'a'.repeat(100001)]) {
+    assert.throws(() => parseSave(JSON.stringify({ ...complete, crafting: [{ ...crafting[0], customSpriteUrl }] })));
+  }
+  importCompleteSave(JSON.stringify(complete));
+});

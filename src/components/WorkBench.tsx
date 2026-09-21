@@ -1,3 +1,4 @@
+import { chooseRandomProcess } from '../lib/randomProcess';
 /**
  * ODDKIN FOUNDRY - Core Mobile-First Workbench Machine
  * High-tactile laboratory interface with brass/graphite detailing,
@@ -40,6 +41,14 @@ export function WorkBench({
     ...processes,
     ...EXTRA_PROCESSES.filter(extra => !processes.some(existing => existing.id === extra.id)),
   ];
+
+  const pickRandomProcess = () => {
+    if (isSynthesizing) return;
+    const next = chooseRandomProcess(availableProcesses, selectedProcess?.id);
+    if (!next) return;
+    sound.playClick();
+    setSelectedProcess(next);
+  };
 
   const filteredMaterials = materials.filter(m => {
     const matchesCat = filterCategory === 'ALL' || m.category === filterCategory;
@@ -133,7 +142,7 @@ export function WorkBench({
       </div>
 
       <div className="w-full rounded-xl bg-[#16181e] border border-[#262b35] p-3 space-y-2">
-        <div className="flex items-center justify-between text-xs"><span className="font-bold text-[#9ca3af] flex items-center gap-1.5 text-[11px]"><span>⚙️</span> PROCESS (ACTION) · {availableProcesses.length}</span>{selectedProcess && <span className="text-[10px] text-[#c084fc] font-semibold">{selectedProcess.verb}</span>}</div>
+        <div className="flex items-center justify-between text-xs"><span className="font-bold text-[#9ca3af] flex items-center gap-1.5 text-[11px]"><span>⚙️</span> PROCESS (ACTION) · {availableProcesses.length}</span><button type="button" onClick={pickRandomProcess} disabled={isSynthesizing || !availableProcesses.some(process => process.unlocked)} className="flex items-center gap-1 rounded-lg border border-purple-500/40 px-2 py-2 text-purple-300 disabled:opacity-40" aria-label="Choose a random process"><Shuffle className="w-3.5 h-3.5" /> Random</button>{selectedProcess && <span className="text-[10px] text-[#c084fc] font-semibold">{selectedProcess.verb}</span>}</div>
         <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto pr-1">
           {availableProcesses.map(proc => { const isSelected = selectedProcess?.id === proc.id; return <button key={proc.id} onClick={() => { sound.playClick(); setSelectedProcess(isSelected ? null : proc); }} className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all border ${isSelected ? 'bg-[#a855f7] border-[#c084fc] text-black font-bold shadow-[0_0_8px_rgba(168,85,247,0.4)]' : 'bg-[#1e222b] hover:bg-[#252b36] border-[#2e3544] text-[#d1d5db]'}`} title={`${proc.category}: ${proc.description}`}><span>{proc.symbol}</span><span>{proc.name}</span></button>; })}
         </div>

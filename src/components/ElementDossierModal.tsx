@@ -1,3 +1,4 @@
+import { CraftSprite } from './CraftSprite';
 import React, { useState } from 'react';
 import {
   X,
@@ -120,7 +121,7 @@ export function ElementDossierModal({
                     : 'bg-slate-800/80 border border-slate-700'
                 }`}
               >
-                <span>{element.emoji}</span>
+                <span><CraftSprite name={element.name} emoji={element.emoji} /></span>
               </div>
 
               {/* Sparkle badge for shiny */}

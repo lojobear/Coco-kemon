@@ -4,7 +4,7 @@
  */
 
 import { Material, Process, Habitat } from '../types';
-import { EXTRA_PROCESSES } from './extraProcesses';
+import { EXTRA_PROCESSES } from './extraProcesses.js';
 
 export const STARTER_MATERIALS: Material[] = [
   {

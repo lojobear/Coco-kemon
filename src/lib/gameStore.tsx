@@ -44,7 +44,7 @@ interface GameState {
     isChroma?: boolean;
     explanation: string;
   } | null;
-  activeTab: 'infinite-craft' | 'foundry' | 'archive' | 'habitat' | 'notebook' | 'seeds';
+  activeTab: 'infinite-craft' | 'foundry' | 'archive' | 'sprite-lab' | 'notebook' | 'seeds';
   inspectedItem: { type: 'material' | 'oddkin'; item: Material | Oddkin } | null;
   isMuted: boolean;
   
@@ -53,7 +53,7 @@ interface GameState {
   setSlotB: (m: Material | null) => void;
   setSelectedProcess: (p: Process | null) => void;
   clearSlots: () => void;
-  setActiveTab: (tab: 'infinite-craft' | 'foundry' | 'archive' | 'habitat' | 'notebook' | 'seeds') => void;
+  setActiveTab: (tab: 'infinite-craft' | 'foundry' | 'archive' | 'sprite-lab' | 'notebook' | 'seeds') => void;
   setInspectedItem: (item: { type: 'material' | 'oddkin'; item: Material | Oddkin } | null) => void;
   closeDiscoveryModal: () => void;
   toggleMute: () => void;
@@ -188,7 +188,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const [synthesisError, setSynthesisError] = useState<string | null>(null);
   const [synthesisStage, setSynthesisStage] = useState<SynthesisStage>(null);
   const [recentDiscovery, setRecentDiscovery] = useState<GameState['recentDiscovery']>(null);
-  const [activeTab, setActiveTab] = useState<'infinite-craft' | 'foundry' | 'archive' | 'habitat' | 'notebook' | 'seeds'>('infinite-craft');
+  const [activeTab, setActiveTab] = useState<'infinite-craft' | 'foundry' | 'archive' | 'sprite-lab' | 'notebook' | 'seeds'>('infinite-craft');
   const [inspectedItem, setInspectedItem] = useState<GameState['inspectedItem']>(null);
   const [isMuted, setIsMuted] = useState<boolean>(() => sound.isMuted());
 

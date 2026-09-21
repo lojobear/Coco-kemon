@@ -10,6 +10,7 @@ export interface InfiniteElement {
   id: string;
   name: string;
   emoji: string;
+  customSpriteUrl?: string;
   discoveredAt?: number;
   isNew?: boolean;
   recipe?: { first: string; second: string };
