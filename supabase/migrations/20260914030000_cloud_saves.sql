@@ -1,5 +1,7 @@
--- One private, versioned backup per account. Apply through Supabase SQL Editor.
-create table public.game_saves (
+-- One private, versioned backup per account.
+-- Replay-safe for projects bootstrapped through the SQL Editor before migration tracking.
+-- Preserve existing rows; this does not reconcile an incompatible pre-existing schema.
+create table if not exists public.game_saves (
   user_id uuid primary key references auth.users(id) on delete cascade,
   payload jsonb not null,
   revision integer not null default 1 check (revision > 0),
@@ -16,12 +18,13 @@ create table public.game_saves (
 alter table public.game_saves enable row level security;
 revoke all on public.game_saves from anon, authenticated;
 grant select on public.game_saves to authenticated;
+drop policy if exists "Read own save" on public.game_saves;
 create policy "Read own save" on public.game_saves for select to authenticated
   using ((select auth.uid()) = user_id);
 
 -- Writes go through one atomic compare-and-swap operation. Never accept a user ID
 -- from the client. A stale device must reload before it can replace a newer save.
-create function public.write_game_save(save_payload jsonb, expected_revision integer)
+create or replace function public.write_game_save(save_payload jsonb, expected_revision integer)
 returns setof public.game_saves
 language plpgsql security definer set search_path = '' as $$
 declare

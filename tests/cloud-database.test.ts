@@ -20,6 +20,8 @@ test('cloud database isolates accounts and atomically rejects stale saves', asyn
       insert into auth.users values ('${alice}'), ('${bob}');
     `);
     await db.exec(await readFile('supabase/migrations/20260914030000_cloud_saves.sql', 'utf8'));
+    // Replaying an SQL Editor bootstrap must not fail on existing objects.
+    await db.exec(await readFile('supabase/migrations/20260914030000_cloud_saves.sql', 'utf8'));
     await db.exec('set role anon');
     await assert.rejects(db.query('select * from public.game_saves'), /permission denied/);
     await assert.rejects(db.query('select * from public.write_game_save($1, 0)', [payload]), /permission denied/);
@@ -37,6 +39,11 @@ test('cloud database isolates accounts and atomically rejects stale saves', asyn
     await assert.rejects(db.query('select * from public.write_game_save($1, 1)', [payload]), /Cloud save changed/);
     await assert.rejects(db.query('select * from public.write_game_save($1, 2)', ['{"version":null,"crafting":[],"foundry":{}}']), /save_format/);
     await assert.rejects(db.query('select * from public.write_game_save($1, 2)', ['{}']), /save_format/);
+    // Also replay with existing user data, then check revisions, RLS, and writes below.
+    await db.exec('reset role');
+    await db.exec(await readFile('supabase/migrations/20260914030000_cloud_saves.sql', 'utf8'));
+    assert.equal((await db.query<{ revision: number }>('select revision from public.game_saves')).rows[0].revision, 2);
+    await db.exec('set role authenticated');
     await db.query("select set_config('request.jwt.claim.sub', $1, false)", [bob]);
     assert.equal((await db.query('select * from public.game_saves')).rows.length, 0);
     await assert.rejects(db.query('select * from public.write_game_save($1, 2)', [payload]), /Cloud save changed/);
