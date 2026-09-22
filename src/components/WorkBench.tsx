@@ -1,3 +1,6 @@
+import { readCraftElements, SAVE_IMPORTED_EVENT } from '../lib/saveData';
+import { conceptMaterial } from '../lib/conceptMaterial';
+import { generateMaterialSprite } from '../lib/pixelRenderer';
 import { chooseRandomProcess } from '../lib/randomProcess';
 /**
  * ODDKIN FOUNDRY - Core Mobile-First Workbench Machine
@@ -5,7 +8,7 @@ import { chooseRandomProcess } from '../lib/randomProcess';
  * dual slot chamber, process selector, and real-stage latency readout.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useGame } from '../lib/gameStore';
 import { Material, Process } from '../types';
 import { sound } from '../lib/audio';
@@ -18,7 +21,7 @@ export function WorkBench({
   onInspectMaterial: (m: Material) => void;
 }) {
   const {
-    materials,
+    materials: foundryMaterials,
     processes,
     slotA,
     slotB,
@@ -32,11 +35,26 @@ export function WorkBench({
     synthesisStage,
   } = useGame();
 
+  const [craftItems, setCraftItems] = useState(readCraftElements);
+  useEffect(() => {
+    const reload = () => setCraftItems(readCraftElements());
+    window.addEventListener(SAVE_IMPORTED_EVENT, reload);
+    return () => window.removeEventListener(SAVE_IMPORTED_EVENT, reload);
+  }, []);
+  const materials = useMemo(() => {
+    const names = new Set(foundryMaterials.map(item => item.displayName.toLowerCase()));
+    const imported = craftItems.filter(item => !names.has(item.name.toLowerCase())).map(item => {
+      const material = conceptMaterial({ result: item.name, emoji: item.emoji, explanation: item.explanation, connection: item.connection });
+      return { ...material, customSpriteUrl: item.customSpriteUrl || generateMaterialSprite(material) };
+    });
+    return [...foundryMaterials, ...imported];
+  }, [foundryMaterials, craftItems]);
+
   const [activePickerSlot, setActivePickerSlot] = useState<'A' | 'B' | null>(null);
   const [filterCategory, setFilterCategory] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
-  const categories = ['ALL', 'Elemental', 'Mineral', 'Organic', 'Metallic', 'Composite', 'Energy', 'Biological'];
+  const categories = ['ALL', ...Array.from(new Set(materials.map(item => item.category))).sort()];
   const availableProcesses = [
     ...processes,
     ...EXTRA_PROCESSES.filter(extra => !processes.some(existing => existing.id === extra.id)),
@@ -81,6 +99,7 @@ export function WorkBench({
 
   return (
     <div className="w-full flex flex-col flex-1 max-w-xl mx-auto px-3 py-2 space-y-3 font-mono select-none">
+      <p className="text-xs text-slate-400">Use your Craft discoveries here too. Mix follows Infinite Craft; other processes transform the idea.</p>
       <div className="relative w-full rounded-2xl bg-[#181b20] border-2 border-[#2b303c] shadow-2xl p-4 overflow-hidden brass-border">
         <div className="flex items-center justify-between pb-3 border-b border-[#2a2f3a] text-[10px] text-[#9ca3af]">
           <div className="flex items-center gap-2">
@@ -136,7 +155,7 @@ export function WorkBench({
 
         <div className="flex items-center gap-2 pt-1">
           <button onClick={clearSlots} disabled={!slotA && !slotB && !selectedProcess} className="px-3 py-2.5 rounded-xl bg-[#20242d] hover:bg-[#282e3a] disabled:opacity-40 disabled:pointer-events-none border border-[#333a48] text-[#9ca3af] hover:text-[#f3f4f6] text-xs font-bold transition-all flex items-center gap-1.5" title="Reset Chamber"><Trash2 className="w-3.5 h-3.5" /><span className="hidden xs:inline">CLEAR</span></button>
-          <button onClick={pickRandomMaterial} disabled={!materials.length || isSynthesizing} className="px-3 py-2.5 rounded-xl bg-[#1b2730] hover:bg-[#223540] disabled:opacity-40 border border-[#35505f] text-cyan-300 text-xs font-bold transition-all flex items-center gap-1.5 active:scale-95" title="Drop a random discovered material into the next input slot"><Shuffle className="w-3.5 h-3.5" /><span className="hidden xs:inline">RANDOM</span></button>
+          <button onClick={pickRandomMaterial} disabled={!materials.length || isSynthesizing} className="px-3 py-2.5 rounded-xl bg-[#1b2730] hover:bg-[#223540] disabled:opacity-40 border border-[#35505f] text-cyan-300 text-xs font-bold transition-all flex items-center gap-1.5 active:scale-95" title="Drop a random discovered item into the next input slot"><Shuffle className="w-3.5 h-3.5" /><span className="hidden xs:inline">RANDOM</span></button>
           <button onClick={runSynthesis} disabled={!canSynthesize} className={`flex-1 py-3 px-4 rounded-xl text-xs sm:text-sm font-bold tracking-widest uppercase transition-all flex items-center justify-center gap-2 border shadow-lg ${canSynthesize ? 'bg-gradient-to-r from-[#d97706] via-[#f59e0b] to-[#b45309] hover:from-[#f59e0b] hover:to-[#d97706] text-black border-[#fbbf24] shadow-[0_0_20px_rgba(245,158,11,0.35)] cursor-pointer active:scale-[0.98]' : 'bg-[#1f242d] border-[#2e3542] text-[#6b7280] cursor-not-allowed'}`}><Sparkles className="w-4 h-4" />SYNTHESIZE</button>
         </div>
       </div>
@@ -149,7 +168,7 @@ export function WorkBench({
       </div>
 
       <div className="w-full rounded-xl bg-[#16181e] border border-[#262b35] p-3 space-y-2">
-        <div className="flex items-center justify-between text-xs"><span className="font-bold text-[#9ca3af] flex items-center gap-1.5 text-[11px]"><span>🧪</span> DISCOVERED MATERIALS ({materials.length})</span><span className="text-[10px] text-[#6b7280]">Tap to slot A / B</span></div>
+        <div className="flex items-center justify-between text-xs"><span className="font-bold text-[#9ca3af] flex items-center gap-1.5 text-[11px]"><span>🧪</span> DISCOVERED ITEMS ({materials.length})</span><span className="text-[10px] text-[#6b7280]">Tap to slot A / B</span></div>
         <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 max-h-48 overflow-y-auto p-1">
           {materials.map(mat => { const isSlotted = slotA?.id === mat.id || slotB?.id === mat.id; return <button key={mat.id} onClick={() => { sound.playClick(); if (!slotA) setSlotA(mat); else if (!slotB && slotA.id !== mat.id) setSlotB(mat); else if (slotA.id === mat.id) setSlotA(null); else if (slotB?.id === mat.id) setSlotB(null); else setSlotB(mat); }} onContextMenu={(e) => { e.preventDefault(); onInspectMaterial(mat); }} className={`relative flex flex-col items-center p-1.5 rounded-xl border transition-all text-center group ${isSlotted ? 'bg-[#f59e0b]/15 border-[#f59e0b] shadow-[0_0_8px_rgba(245,158,11,0.2)]' : 'bg-[#1a1e27] hover:bg-[#222834] border-[#2a303e] text-[#d1d5db]'}`} title={`${mat.displayName} (${mat.category}) - Right-click or hold for details`}><img src={mat.customSpriteUrl} alt={mat.displayName} className="w-9 h-9 pixelated drop-shadow mb-1 group-hover:scale-105 transition-transform" /><span className="text-[10px] font-bold text-[#f3f4f6] truncate w-full">{mat.displayName}</span><span className="text-[8px] text-[#9ca3af] truncate w-full">{mat.category}</span></button>; })}
         </div>
@@ -158,8 +177,8 @@ export function WorkBench({
       {activePickerSlot && (
         <div onClick={() => setActivePickerSlot(null)} className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
           <div onClick={e => e.stopPropagation()} className="bg-[#181b20] border-2 border-[#333a48] rounded-2xl p-4 max-w-md w-full max-h-[85vh] flex flex-col shadow-2xl space-y-3">
-            <div className="flex items-center justify-between pb-2 border-b border-[#282d37]"><div className="flex items-center gap-2"><span className="text-sm font-bold text-[#f59e0b]">CHOOSE MATERIAL FOR INPUT {activePickerSlot}</span></div><button onClick={() => setActivePickerSlot(null)} className="p-1 rounded-md bg-[#222630] text-[#9ca3af] hover:text-white"><X className="w-4 h-4" /></button></div>
-            <div className="space-y-2"><input type="text" placeholder="Search materials..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full px-3 py-1.5 rounded-lg bg-[#111317] border border-[#2a2f3c] text-xs text-[#f3f4f6] placeholder-[#6b7280] focus:outline-none focus:border-[#f59e0b]" /><div className="flex items-center gap-1 overflow-x-auto pb-1 text-[10px]">{categories.map(cat => <button key={cat} onClick={() => setFilterCategory(cat)} className={`px-2 py-1 rounded whitespace-nowrap transition-colors ${filterCategory === cat ? 'bg-[#f59e0b] text-black font-bold' : 'bg-[#222631] text-[#9ca3af] hover:text-white'}`}>{cat}</button>)}</div></div>
+            <div className="flex items-center justify-between pb-2 border-b border-[#282d37]"><div className="flex items-center gap-2"><span className="text-sm font-bold text-[#f59e0b]">CHOOSE ITEM FOR INPUT {activePickerSlot}</span></div><button onClick={() => setActivePickerSlot(null)} className="p-1 rounded-md bg-[#222630] text-[#9ca3af] hover:text-white"><X className="w-4 h-4" /></button></div>
+            <div className="space-y-2"><input type="text" placeholder="Search items, animals, brands..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full px-3 py-1.5 rounded-lg bg-[#111317] border border-[#2a2f3c] text-xs text-[#f3f4f6] placeholder-[#6b7280] focus:outline-none focus:border-[#f59e0b]" /><div className="flex items-center gap-1 overflow-x-auto pb-1 text-[10px]">{categories.map(cat => <button key={cat} onClick={() => setFilterCategory(cat)} className={`px-2 py-1 rounded whitespace-nowrap transition-colors ${filterCategory === cat ? 'bg-[#f59e0b] text-black font-bold' : 'bg-[#222631] text-[#9ca3af] hover:text-white'}`}>{cat}</button>)}</div></div>
             <div className="flex-1 overflow-y-auto grid grid-cols-3 gap-2 pr-1 min-h-[220px]">{filteredMaterials.map(mat => <div key={mat.id} onClick={() => { sound.playClick(); if (activePickerSlot === 'A') setSlotA(mat); else setSlotB(mat); setActivePickerSlot(null); }} className="flex flex-col items-center p-2 rounded-xl bg-[#13161c] hover:bg-[#1e232e] border border-[#282e3b] hover:border-[#f59e0b]/50 cursor-pointer text-center transition-all group"><img src={mat.customSpriteUrl} alt={mat.displayName} className="w-10 h-10 pixelated drop-shadow mb-1 group-hover:scale-105" /><span className="text-[11px] font-bold text-[#f3f4f6] truncate w-full">{mat.displayName}</span><span className="text-[9px] text-[#9ca3af] truncate w-full">{mat.category}</span></div>)}</div>
           </div>
         </div>
