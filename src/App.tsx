@@ -54,7 +54,7 @@ function GameContent() {
   };
 
   return (
-    <div className="h-[100dvh] max-h-[100dvh] w-full bg-[#0d0f12] text-[#f3f4f6] flex flex-col justify-between overflow-hidden selection:bg-amber-500 selection:text-black">
+    <div className="h-[100dvh] max-h-[100dvh] w-full collection-app bg-[#171329] text-[#f6f0df] flex flex-col justify-between overflow-hidden selection:bg-amber-500 selection:text-black">
       {/* Top Header */}
       <Header
         onOpenSeeds={() => setShowSeedsModal(true)}
@@ -66,7 +66,7 @@ function GameContent() {
         {synthesisError} <button disabled={isSynthesizing} className="underline ml-2 p-2" onClick={() => void runSynthesis()}>Retry synthesis</button>
       </div>}
       {/* Main Viewport Content */}
-      <main className={`flex-1 w-full min-h-0 flex flex-col ${(activeTab === 'infinite-craft' || activeTab === 'sprite-lab') ? 'overflow-hidden' : 'overflow-y-auto'}`}>
+      <main className={`flex-1 w-full min-h-0 flex flex-col ${(activeTab === 'infinite-craft' || activeTab === 'sprite-lab' || activeTab === 'foundry') ? 'overflow-hidden' : 'overflow-y-auto'}`}>
         {activeTab === 'infinite-craft' && (
           <InfiniteCraftView />
         )}

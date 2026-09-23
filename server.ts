@@ -24,7 +24,8 @@ import { ALL_PROCESSES } from './src/lib/starterData.js';
 if (process.env.CLOUDFLARE !== '1') dotenv.config();
 
 export const app = express();
-const PORT = Number(process.env.PORT) || 3000;
+const cliPortIndex = process.argv.indexOf('--port');
+const PORT = Number(process.env.PORT) || (cliPortIndex >= 0 ? Number(process.argv[cliPortIndex + 1]) : 0) || 3000;
 
 app.use(express.json({ limit: '25mb' }));
 
