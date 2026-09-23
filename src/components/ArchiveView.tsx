@@ -4,6 +4,7 @@
  * with interactive lineage trees, traits, taxonomy, and transformation tests.
  */
 
+import { materialArtwork } from '../lib/discoveryArtwork';
 import React, { useState } from 'react';
 import { useGame } from '../lib/gameStore';
 import { Material, Oddkin, Rarity } from '../types';
@@ -59,10 +60,10 @@ export function ArchiveView({
         <div>
           <h2 className="text-base sm:text-lg font-bold text-[#f3f4f6] flex items-center gap-2">
             <BookOpen className="w-5 h-5 text-[#f59e0b]" />
-            THE ARCHIVE
+            YOUR COLLECTION
           </h2>
           <p className="text-xs text-[#9ca3af]">
-            Permanent taxonomy of matter lineages and living genomes.
+            The things you discovered and the Oddkin you brought to life.
           </p>
         </div>
 
@@ -193,7 +194,7 @@ export function ArchiveView({
           <div className="space-y-2">
             <div className="flex items-center justify-between text-xs font-bold text-[#38bdf8]">
               <span className="flex items-center gap-1.5">
-                <span>🧪</span> SYNTHESIZED MATTER ({filteredMaterials.length})
+                <span>🧪</span> DISCOVERED ITEMS ({filteredMaterials.length})
               </span>
             </div>
 
@@ -209,7 +210,7 @@ export function ArchiveView({
                 >
                   <div className="w-14 h-14 rounded-lg bg-[#11141a] p-1 mb-2 flex items-center justify-center border border-[#232936] group-hover:scale-105 transition-transform">
                     <img
-                      src={mat.customSpriteUrl}
+                      src={materialArtwork(mat)}
                       alt={mat.displayName}
                       className="w-11 h-11 pixelated drop-shadow"
                     />
@@ -253,7 +254,7 @@ export function ArchiveView({
             <div className="flex items-center gap-4 pb-3 border-b border-[#282f3d]">
               <div className="w-20 h-20 rounded-xl bg-[#111317] border border-[#2f3747] flex items-center justify-center p-1">
                 <img
-                  src={activeInspected.item.customSpriteUrl}
+                  src={activeInspected.type === 'material' ? materialArtwork(activeInspected.item as Material) : activeInspected.item.customSpriteUrl}
                   alt={activeInspected.type === 'oddkin' ? (activeInspected.item as Oddkin).speciesName : (activeInspected.item as Material).displayName}
                   className="w-16 h-16 pixelated drop-shadow-lg"
                 />

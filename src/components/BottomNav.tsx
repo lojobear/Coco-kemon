@@ -1,60 +1,17 @@
-/**
- * ODDKIN FOUNDRY - Mobile Navigation Bar
- * One-handed tactile switcher between Foundry, Archive, Sprite Lab, and Notebook
- */
-
-import React from 'react';
 import { useGame } from '../lib/gameStore';
 import { sound } from '../lib/audio';
 import { haptics } from '../lib/haptics';
-import { Sparkles, BookOpen, Palette, FileText, Infinity as InfinityIcon, FlaskConical } from 'lucide-react';
+import { FlaskConical, Hammer, LayoutGrid, Cat } from 'lucide-react';
 
 export function BottomNav() {
-  const { activeTab, setActiveTab, materials, oddkinCollection, experiments } = useGame();
-
+  const { activeTab, setActiveTab } = useGame();
   const tabs = [
-    { id: 'infinite-craft', label: 'CRAFT', icon: InfinityIcon, badge: null },
-    { id: 'foundry', label: 'FOUNDRY', icon: FlaskConical, badge: null },
-    { id: 'archive', label: 'ARCHIVE', icon: BookOpen, badge: materials.length + oddkinCollection.length },
-    { id: 'habitat', label: 'HABITAT', icon: Palette, badge: oddkinCollection.length },
-    { id: 'notebook', label: 'NOTES', icon: FileText, badge: experiments.length },
+    { id: 'foundry', label: 'Foundry', icon: FlaskConical },
+    { id: 'infinite-craft', label: 'Craft', icon: Hammer },
+    { id: 'archive', label: 'Collection', icon: LayoutGrid },
+    { id: 'sprite-lab', label: 'Sprites', icon: Cat },
   ] as const;
-
-  return (
-    <nav className="sticky bottom-0 z-30 w-full bg-[#14161c]/98 backdrop-blur-md border-t border-[#262b35] pt-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] px-2 sm:px-4 shadow-lg select-none font-mono">
-      <div className="max-w-md mx-auto flex items-center justify-around gap-1">
-        {tabs.map(t => {
-          const Icon = t.icon;
-          const isActive = activeTab === t.id;
-          return (
-            <button
-              key={t.id}
-              onClick={() => {
-                sound.playClick();
-                haptics.lightTap();
-                setActiveTab(t.id);
-              }}
-              className={`flex-1 min-h-[48px] py-1 px-1.5 flex flex-col items-center justify-center rounded-xl transition-all relative active:scale-95 touch-manipulation ${
-                isActive
-                  ? 'text-[#f59e0b] bg-amber-500/10'
-                  : 'text-[#9ca3af] hover:text-[#e5e7eb] hover:bg-slate-800/40'
-              }`}
-            >
-              <div className="relative">
-                <Icon className={`w-5 h-5 ${isActive ? 'scale-110 drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]' : ''}`} />
-                {t.badge !== null && t.badge > 0 && (
-                  <span className="absolute -top-1 -right-2 text-[9px] font-bold px-1 rounded-full bg-[#272d3a] text-[#e5e7eb] border border-[#3e475a] leading-tight">
-                    {t.badge}
-                  </span>
-                )}
-              </div>
-              <span className={`text-[10px] font-bold mt-1 tracking-wider whitespace-nowrap ${isActive ? 'text-[#f59e0b]' : 'text-[#6b7280]'}`}>
-                {t.label}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-    </nav>
-  );
+  return <nav className="collection-nav" aria-label="Main navigation"><div>
+    {tabs.map(t => <button key={t.id} aria-current={activeTab === t.id ? 'page' : undefined} onClick={() => { sound.playClick(); haptics.lightTap(); setActiveTab(t.id); }}><t.icon size={25} /><span>{t.label}</span></button>)}
+  </div></nav>;
 }
