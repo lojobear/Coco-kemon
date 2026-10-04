@@ -60,7 +60,7 @@ export function KitchenView({ visible }: { visible: boolean }) {
       const clean = requestedGoal.trim();
       const cached = readCraftElements().find(el => el.kitchenRecipe?.goal.toLowerCase() === clean.toLowerCase() && el.kitchenRecipe.source === mode)?.kitchenRecipe;
       request.current = new AbortController();
-      const plan = cached || (mode === 'local' ? createCraftingPlan(clean) : (await requestJson<{ plan: unknown }>('/api/kitchen/plan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ goal: clean }), signal: request.current.signal })).plan);
+      const plan = cached || (mode === 'local' ? createCraftingPlan(clean) : (await requestJson<{ plan: unknown }>('/api/kitchen/plan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ goal: clean }), signal: request.current.signal }, 60000)).plan);
       if (!validKitchenPlan(plan)) throw new Error('This plan has an unresolved ingredient. Try an AI plan or another creation.');
       const next: KitchenRecipe = { ...plan, goal: clean, source: mode, createdAt: cached?.createdAt || Date.now() };
       if (!alive.current) return;
