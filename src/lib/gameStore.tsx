@@ -7,7 +7,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { Material, Oddkin, Process, ExperimentLog, Habitat, SynthesisResult, PhotoSeedResult, SketchSeedResult } from '../types';
 import { STARTER_MATERIALS, ALL_PROCESSES, INITIAL_HABITATS, mergeProcesses } from './starterData';
-import { generateMaterialSprite, generateOddkinSprite } from './pixelRenderer';
+import { generateMaterialSprite, generateOddkinSprite, MATERIAL_SPRITE_RENDERER_VERSION } from './pixelRenderer';
 import { requestJson } from './api';
 import { validMaterial, validOddkin } from './validation';
 import { readFoundrySave, saveFoundry, exportCompleteSave, importCompleteSave } from './saveData';
@@ -109,7 +109,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     }
     return STARTER_MATERIALS.map(m => ({
       ...m,
-      customSpriteUrl: generateMaterialSprite(m)
+      customSpriteUrl: generateMaterialSprite(m),
+      spriteRendererVersion: MATERIAL_SPRITE_RENDERER_VERSION
     }));
   });
 
@@ -214,10 +215,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
   // Ensure starter materials have generated sprites
   useEffect(() => {
-    setMaterials(prev => prev.map(m => m.customSpriteUrl && m.spriteRendererVersion === 2 ? m : {
+    setMaterials(prev => prev.map(m => m.customSpriteUrl && m.spriteRendererVersion === MATERIAL_SPRITE_RENDERER_VERSION ? m : {
       ...m,
       customSpriteUrl: generateMaterialSprite(m),
-      spriteRendererVersion: 2,
+      spriteRendererVersion: MATERIAL_SPRITE_RENDERER_VERSION,
     }));
   }, []);
 
@@ -381,6 +382,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         const newMat: Material = {
           ...discovery.material,
           customSpriteUrl: discovery.material.customSpriteUrl || generateMaterialSprite(discovery.material),
+          spriteRendererVersion: MATERIAL_SPRITE_RENDERER_VERSION,
         };
 
         sound.playDiscoveryChime(newMat.rarity);
@@ -501,6 +503,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       discoveryExplanation: `${speciesName} brought this back to the foundry.`,
     };
     forageMat.customSpriteUrl = generateMaterialSprite(forageMat);
+    forageMat.spriteRendererVersion = MATERIAL_SPRITE_RENDERER_VERSION;
 
     setMaterials(prev => [forageMat, ...prev]);
     setHabitats(prev => prev.map(h => h.id === habitatId ? { ...h, lastHarvestTimestamp: Date.now() } : h));
@@ -545,6 +548,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       discoveryExplanation: data.discoveryExplanation,
     };
     newMat.customSpriteUrl = generateMaterialSprite(newMat);
+    newMat.spriteRendererVersion = MATERIAL_SPRITE_RENDERER_VERSION;
 
     setMaterials(prev => deduplicateMaterials([newMat, ...prev]));
     setRecentDiscovery({
@@ -595,6 +599,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       discoveryExplanation: `Interpreted sketch into an active bio-morphology catalyst.`,
     };
     glyphMat.customSpriteUrl = generateMaterialSprite(glyphMat);
+    glyphMat.spriteRendererVersion = MATERIAL_SPRITE_RENDERER_VERSION;
 
     setMaterials(prev => [glyphMat, ...prev]);
     setRecentDiscovery({
@@ -643,7 +648,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem(STORAGE_KEY);
     const freshStarters = STARTER_MATERIALS.map(m => ({
       ...m,
-      customSpriteUrl: generateMaterialSprite(m)
+      customSpriteUrl: generateMaterialSprite(m),
+      spriteRendererVersion: MATERIAL_SPRITE_RENDERER_VERSION
     }));
     setMaterials(freshStarters);
     setOddkinCollection([]);

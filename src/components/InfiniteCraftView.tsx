@@ -19,6 +19,7 @@ import { haptics } from '../lib/haptics';
 import { CombineAnimationOverlay, ActiveCombination } from './CombineAnimationOverlay';
 import { CraftingCrucible, CrucibleSlotItem } from './CraftingCrucible';
 import { ElementDossierModal } from './ElementDossierModal';
+import { generateConceptSprite } from '../lib/pixelRenderer';
 import { rollIsShiny, generatePhysicalData, getShinyFoilStyle } from '../lib/physicalDataEngine';
 import {
   normalizeElementStats,
@@ -545,7 +546,10 @@ export function InfiniteCraftView() {
   }, []);
 
   const clearCanvas = () => { sound.playClick(); haptics.heavyTap(); setCanvasItems([]); setSelectedCanvasId(null); };
-  const customSprites = useMemo(() => new Map(elements.filter(el => el.customSpriteUrl).map(el => [el.name.trim().toLowerCase(), el.customSpriteUrl!])), [elements]);
+  const customSprites = useMemo(() => new Map(elements.flatMap(el => {
+    const sprite = el.customSpriteUrl || generateConceptSprite(el.name, el.connection);
+    return sprite ? [[el.name.trim().toLowerCase(), sprite] as const] : [];
+  })), [elements]);
   const firstDiscoveriesCount = elements.filter(el => el.isNew).length;
   const selectedItemObj = canvasItems.find(it => it.instanceId === selectedCanvasId);
   const hoverTargetObj = canvasItems.find(it => it.instanceId === hoverTargetId);
