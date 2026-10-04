@@ -294,14 +294,14 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
                 <button disabled={uploading} onClick={() => reroll(selected)} className="w-full py-3 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-black text-sm flex items-center justify-center gap-2">
                   <RefreshCw className="w-4 h-4" /> REROLL SPRITE
                 </button>
-                <p className="text-[10px] text-[#80899a] leading-relaxed">Each element gets detailed 64×64 pixel art with dark outlines, highlights and shading, saved once on this device. Uploads override it. Restore default brings your saved emoji back. Reroll creates an optional pixel-art alternative.</p>
+                <p className="text-[10px] text-[#80899a] leading-relaxed">Each element gets a recognizable 64×64 inventory sprite built around its silhouette and defining visual cues, then saved once on this device. Older sprites stay cached until you choose the upgrade button. Uploads still override generated art.</p>
 
                 {selected.type !== 'oddkin' && <button disabled={uploading} className="w-full py-3 rounded-xl border text-xs font-bold" onClick={async () => {
-                  setUploading(true); setStatus('Drawing detailed pixel art…');
-                  try { await upgradeElementEmoji(selected.name); setStatus('Detailed art saved. If you use custom art, choose Restore default to show it.'); }
+                  setUploading(true); setStatus('Rebuilding a more recognizable sprite…');
+                  try { await upgradeElementEmoji(selected.name); setStatus('Recognizable v3 art saved. If you use custom art, choose Restore default to show it.'); }
                   catch (error) { setStatus(error instanceof Error ? error.message : 'Artwork upgrade failed.'); }
                   finally { setUploading(false); }
-                }}>UPGRADE TO DETAILED PIXEL ART</button>}
+                }}>UPGRADE TO RECOGNIZABLE PIXEL ART</button>}
                 {selected.type !== 'oddkin' && <button className="w-full py-2 text-xs underline" onClick={() => { retryElementEmoji(selected.name); setStatus('Retrying missing emoji. Existing saved art is reused.'); }}>Retry missing emoji</button>}
                 <input ref={uploadRef} type="file" accept="image/png,image/webp,image/jpeg" className="hidden" onChange={event => void uploadCustom(event.target.files?.[0])} />
                 <button disabled={uploading} onClick={() => uploadRef.current?.click()} className="w-full py-2.5 rounded-xl bg-[#18202a] border border-[#344154] text-white text-xs font-bold flex items-center justify-center gap-2">
