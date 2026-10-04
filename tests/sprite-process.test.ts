@@ -5,6 +5,8 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { chooseRandomProcess } from '../src/lib/randomProcess';
 import { ALL_PROCESSES } from '../src/lib/starterData';
 import { CraftSprite, CraftSprites } from '../src/components/CraftSprite';
+import { conceptMaterial } from '../src/lib/conceptMaterial';
+import { MATERIAL_SPRITE_RENDERER_VERSION, spriteDescriptorForConcept } from '../src/lib/pixelRenderer';
 
 test('random processes exclude locked and current choices, with empty and single-choice fallbacks', () => {
   const [first, second, third] = ALL_PROCESSES;
@@ -24,4 +26,14 @@ test('craft visual resolves custom art by name while default discoveries keep th
   assert.match(markup, /<img/);
   assert.match(markup, /data:image\/png;base64/);
   assert.equal(renderToStaticMarkup(React.createElement(CraftSprite, { name: 'Water', emoji: '💧' })), '💧');
+});
+
+
+test('existing elements get recognizable sprite descriptors and the renderer version is bumped', () => {
+  assert.equal(MATERIAL_SPRITE_RENDERER_VERSION, 3);
+  assert.equal(spriteDescriptorForConcept('Ocean').baseShape, 'droplet');
+  assert.equal(spriteDescriptorForConcept('Volcano').baseShape, 'sparks');
+  assert.equal(spriteDescriptorForConcept('Forest').baseShape, 'flora');
+  assert.equal(spriteDescriptorForConcept('Robot').baseShape, 'ingot');
+  assert.equal(conceptMaterial({ result: 'Fish', emoji: '🐟', connection: 'biology' }).semanticTags.includes('biology'), true);
 });
