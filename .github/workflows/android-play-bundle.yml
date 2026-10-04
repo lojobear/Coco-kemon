@@ -1,0 +1,103 @@
+name: Android Play Bundle
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_name:
+        description: Play Store version name
+        required: true
+        default: "1.0.0"
+      version_code:
+        description: Play Store version code (increase for every upload)
+        required: true
+        default: "1"
+      app_id:
+        description: Permanent Android application ID
+        required: true
+        default: "com.logaandavid.oddkinfoundry"
+      app_url:
+        description: Production Oddkin URL loaded by the native shell
+        required: true
+        default: "https://oddkin-foundry.vercel.app"
+
+permissions:
+  contents: read
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CAPACITOR_APP_ID: ${{ inputs.app_id }}
+      ODDKIN_APP_URL: ${{ inputs.app_url }}
+      ANDROID_VERSION_NAME: ${{ inputs.version_name }}
+      ANDROID_VERSION_CODE: ${{ inputs.version_code }}
+      KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Use Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Use Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android API 36
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Install Capacitor tooling
+        working-directory: mobile
+        run: npm install --no-audit --no-fund
+
+      - name: Generate Android project
+        working-directory: mobile
+        run: |
+          npm run android:init
+          npm run android:sync
+          npm run android:assets
+          npm run android:prepare
+
+      - name: Build release bundle and debug APK
+        working-directory: mobile/android
+        run: |
+          chmod +x ./gradlew
+          ./gradlew --no-daemon bundleRelease assembleDebug
+
+      - name: Sign release AAB when upload-key secrets exist
+        if: ${{ env.KEYSTORE_B64 != '' && env.KEYSTORE_PASSWORD != '' && env.KEY_ALIAS != '' && env.KEY_PASSWORD != '' }}
+        working-directory: mobile
+        run: |
+          printf '%s' "$KEYSTORE_B64" | base64 --decode > upload-keystore.jks
+          jarsigner             -sigalg SHA256withRSA             -digestalg SHA-256             -keystore upload-keystore.jks             -storepass "$KEYSTORE_PASSWORD"             -keypass "$KEY_PASSWORD"             android/app/build/outputs/bundle/release/app-release.aab             "$KEY_ALIAS"
+          jarsigner -verify -verbose -certs android/app/build/outputs/bundle/release/app-release.aab >/dev/null
+          echo "Signed Android App Bundle successfully."
+
+      - name: Mark unsigned bundle clearly
+        if: ${{ env.KEYSTORE_B64 == '' || env.KEYSTORE_PASSWORD == '' || env.KEY_ALIAS == '' || env.KEY_PASSWORD == '' }}
+        run: |
+          echo "::warning::Release AAB is unsigned because Android upload-key secrets are not configured yet."
+
+      - name: Upload Android build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: oddkin-android-${{ inputs.version_name }}-${{ inputs.version_code }}
+          if-no-files-found: error
+          retention-days: 14
+          path: |
+            mobile/android/app/build/outputs/bundle/release/app-release.aab
+            mobile/android/app/build/outputs/apk/debug/app-debug.apk
