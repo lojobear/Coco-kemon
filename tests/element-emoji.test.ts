@@ -10,19 +10,24 @@ test('emoji identity normalizes whitespace, case and Unicode', () => {
   assert.equal(emojiKey('Ｆｉｒｅ'), 'fire');
   assert.notEqual(emojiKey('Moon'), emojiKey('Moon Rock'));
 });
-test('AI drawing grammar rejects injected markup, URLs and oversized output', () => {
-  const rendered = renderEmojiDrawing(drawing);
+test('AI drawing grammar supports smooth 3D layers while rejecting unsafe markup', () => {
+  const rendered = renderEmojiDrawing({
+    paths: [
+      { d: 'M16 70C16 34 40 14 64 14C90 14 112 36 112 70Q112 108 64 116Q16 108 16 70Z', fill: '#ff9900' },
+      { d: 'M30 42Q52 22 76 30Q94 36 100 54Q78 42 58 48Q42 52 30 66Z', fill: '#fff2bd', opacity: 0.72 },
+    ],
+  });
   assert.match(rendered, /viewBox="0 0 128 128"/);
-  assert.match(rendered, /shape-rendering="crispEdges"/);
-  const snapped = renderEmojiDrawing({ paths: [
-    { d: 'M13 13L115 13L63 115Z', fill: '#ff9900' },
-    { d: 'M31 21L91 21L63 69Z', fill: '#ffee99' },
-  ] });
-  assert.match(snapped, /M14 14L116 14L64 116Z/);
+  assert.match(rendered, /shape-rendering="geometricPrecision"/);
+  assert.match(rendered, /opacity="0.72"/);
+  assert.match(rendered, /C16 34 40 14 64 14/);
+
   for (const bad of [
     { paths: [] }, { paths: Array(81).fill(drawing.paths[0]) },
-    { paths: [drawing.paths[0], { d: 'M0 0" onload="alert(1)', fill: '#ffffff' }] },
+    { paths: [drawing.paths[0], { d: 'M0 0" onload="alert(1)Z', fill: '#ffffff' }] },
     { paths: [drawing.paths[0], { d: 'M0 0L5 5Z', fill: 'url(https://evil.test)' }] },
+    { paths: [drawing.paths[0], { d: 'M0 0L140 5Z', fill: '#ffffff' }] },
+    { paths: [drawing.paths[0], { d: 'M0 0L5 5Z', fill: '#ffffff', opacity: 2 }] },
   ]) assert.throws(() => renderEmojiDrawing(bad));
 });
 test('endpoint generates once for simultaneous and repeated canonical names', async () => {
@@ -58,7 +63,7 @@ test('client deduplicates in flight and reads persistent art after a module relo
   const oldImage = globalThis.Image;
   const oldDocument = globalThis.document;
   Object.defineProperty(globalThis, 'Image', { configurable: true, value: class { src = ''; async decode() {} } });
-  Object.defineProperty(globalThis, 'document', { configurable: true, value: { createElement: () => ({ getContext: () => ({ drawImage() {}, clearRect() {}, imageSmoothingEnabled: false }), toDataURL: () => 'data:image/png;base64,dGVzdA==' }) } });
+  Object.defineProperty(globalThis, 'document', { configurable: true, value: { createElement: () => ({ getContext: () => ({ drawImage() {}, clearRect() {}, imageSmoothingEnabled: true, imageSmoothingQuality: 'high' }), toDataURL: () => 'data:image/png;base64,dGVzdA==' }) } });
   let calls = 0;
   const fakeDb = { transaction(_name: string, mode?: string) {
     const tx: any = { objectStore: () => ({
