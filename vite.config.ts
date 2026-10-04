@@ -20,8 +20,8 @@ export default defineConfig(() => {
           name: 'Oddkin Foundry',
           short_name: 'Oddkin',
           description: "Infinite matter crafting and life synthesis engine powered by Neal Agarwal's Infinite Craft pairing system and Gemini AI.",
-          theme_color: '#121417',
-          background_color: '#0c0e12',
+          theme_color: '#ffffff',
+          background_color: '#ffffff',
           display: 'standalone',
           orientation: 'portrait-primary',
           start_url: '/',
@@ -95,7 +95,7 @@ export default defineConfig(() => {
     server: {
       allowedHosts: ['terminal.local'],
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
-      // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
+      // Do not modify—file watching is disabled to prevent flickering during agent edits.
       hmr: process.env.DISABLE_HMR !== 'true',
       // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
       watch: process.env.DISABLE_HMR === 'true' ? null : {},
