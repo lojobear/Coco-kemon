@@ -7,9 +7,9 @@
     "node": ">=22"
   },
   "scripts": {
-    "android:init": "rm -rf android && npx cap add android",
+    "android:init": "node -e \"require('fs').rmSync('android',{recursive:true,force:true})\" && npx cap add android",
     "android:sync": "npx cap sync android",
-    "android:assets": "npx capacitor-assets generate --android --assetPath ../public --iconBackgroundColor '#ffffff' --iconBackgroundColorDark '#111111' --splashBackgroundColor '#ffffff' --splashBackgroundColorDark '#111111'",
+    "android:assets": "npx capacitor-assets generate --android --assetPath ../public --iconBackgroundColor=#ffffff --iconBackgroundColorDark=#111111 --splashBackgroundColor=#ffffff --splashBackgroundColorDark=#111111",
     "android:prepare": "node scripts/prepare-android.mjs",
     "android:open": "npx cap open android"
   },
