@@ -11,7 +11,14 @@ test('emoji identity normalizes whitespace, case and Unicode', () => {
   assert.notEqual(emojiKey('Moon'), emojiKey('Moon Rock'));
 });
 test('AI drawing grammar rejects injected markup, URLs and oversized output', () => {
-  assert.match(renderEmojiDrawing(drawing), /viewBox="0 0 128 128"/);
+  const rendered = renderEmojiDrawing(drawing);
+  assert.match(rendered, /viewBox="0 0 128 128"/);
+  assert.match(rendered, /shape-rendering="crispEdges"/);
+  const snapped = renderEmojiDrawing({ paths: [
+    { d: 'M13 13L115 13L63 115Z', fill: '#ff9900' },
+    { d: 'M31 21L91 21L63 69Z', fill: '#ffee99' },
+  ] });
+  assert.match(snapped, /M14 14L116 14L64 116Z/);
   for (const bad of [
     { paths: [] }, { paths: Array(81).fill(drawing.paths[0]) },
     { paths: [drawing.paths[0], { d: 'M0 0" onload="alert(1)', fill: '#ffffff' }] },
@@ -32,6 +39,12 @@ test('endpoint generates once for simultaneous and repeated canonical names', as
     assert.deepEqual(await replies[0].json(), await replies[1].json());
     assert.equal((await post('MOON ROCK')).status, 200);
     assert.equal(calls, 1);
+    const refreshed = await fetch(base + '/api/element-emoji', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'Moon Rock', regenerate: true }),
+    });
+    assert.equal(refreshed.status, 200);
+    assert.equal(calls, 2);
     assert.equal((await post('')).status, 400);
     assert.equal((await post({ bad: true })).status, 400);
     assert.equal(calls, 1);
@@ -62,6 +75,8 @@ test('client deduplicates in flight and reads persistent art after a module relo
     const reloaded = await import('../src/lib/elementEmoji.ts' + '?reloaded');
     assert.equal(await reloaded.getElementEmoji('moon rock'), a);
     assert.equal(calls, 1);
+    await reloaded.upgradeElementEmoji('moon rock');
+    assert.equal(calls, 2);
   } finally {
     Object.defineProperty(globalThis, 'indexedDB', { configurable: true, value: oldIndexedDB }); globalThis.fetch = oldFetch;
     Object.defineProperty(globalThis, 'Image', { configurable: true, value: oldImage });
