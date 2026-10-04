@@ -10,3 +10,9 @@ coverage/
 
 .worker-build/
 .dev.vars*
+
+# Generated Capacitor Android project and signing files
+mobile/android/
+mobile/upload-keystore.jks
+*.jks
+*.keystore
