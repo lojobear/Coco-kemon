@@ -47,7 +47,7 @@ test('endpoint generates once for simultaneous and repeated canonical names', as
     assert.equal(calls, 2);
     assert.equal((await post('')).status, 400);
     assert.equal((await post({ bad: true })).status, 400);
-    assert.equal(calls, 1);
+    assert.equal(calls, 2);
   } finally { server.closeAllConnections(); await new Promise<void>(r => server.close(() => r())); }
 });
 
@@ -58,7 +58,7 @@ test('client deduplicates in flight and reads persistent art after a module relo
   const oldImage = globalThis.Image;
   const oldDocument = globalThis.document;
   Object.defineProperty(globalThis, 'Image', { configurable: true, value: class { src = ''; async decode() {} } });
-  Object.defineProperty(globalThis, 'document', { configurable: true, value: { createElement: () => ({ getContext: () => ({ drawImage() {}, imageSmoothingEnabled: false }), toDataURL: () => 'data:image/png;base64,dGVzdA==' }) } });
+  Object.defineProperty(globalThis, 'document', { configurable: true, value: { createElement: () => ({ getContext: () => ({ drawImage() {}, clearRect() {}, imageSmoothingEnabled: false }), toDataURL: () => 'data:image/png;base64,dGVzdA==' }) } });
   let calls = 0;
   const fakeDb = { transaction(_name: string, mode?: string) {
     const tx: any = { objectStore: () => ({
