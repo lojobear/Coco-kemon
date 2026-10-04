@@ -13,7 +13,7 @@ test('emoji identity normalizes whitespace, case and Unicode', () => {
 test('AI drawing grammar rejects injected markup, URLs and oversized output', () => {
   assert.match(renderEmojiDrawing(drawing), /viewBox="0 0 128 128"/);
   for (const bad of [
-    { paths: [] }, { paths: Array(41).fill(drawing.paths[0]) },
+    { paths: [] }, { paths: Array(81).fill(drawing.paths[0]) },
     { paths: [drawing.paths[0], { d: 'M0 0" onload="alert(1)', fill: '#ffffff' }] },
     { paths: [drawing.paths[0], { d: 'M0 0L5 5Z', fill: 'url(https://evil.test)' }] },
   ]) assert.throws(() => renderEmojiDrawing(bad));
@@ -42,6 +42,10 @@ test('client deduplicates in flight and reads persistent art after a module relo
   const records = new Map<string, string>();
   const oldIndexedDB = globalThis.indexedDB;
   const oldFetch = globalThis.fetch;
+  const oldImage = globalThis.Image;
+  const oldDocument = globalThis.document;
+  Object.defineProperty(globalThis, 'Image', { configurable: true, value: class { src = ''; async decode() {} } });
+  Object.defineProperty(globalThis, 'document', { configurable: true, value: { createElement: () => ({ getContext: () => ({ drawImage() {}, imageSmoothingEnabled: false }), toDataURL: () => 'data:image/png;base64,dGVzdA==' }) } });
   let calls = 0;
   const fakeDb = { transaction(_name: string, mode?: string) {
     const tx: any = { objectStore: () => ({
@@ -60,5 +64,7 @@ test('client deduplicates in flight and reads persistent art after a module relo
     assert.equal(calls, 1);
   } finally {
     Object.defineProperty(globalThis, 'indexedDB', { configurable: true, value: oldIndexedDB }); globalThis.fetch = oldFetch;
+    Object.defineProperty(globalThis, 'Image', { configurable: true, value: oldImage });
+    Object.defineProperty(globalThis, 'document', { configurable: true, value: oldDocument });
   }
 });

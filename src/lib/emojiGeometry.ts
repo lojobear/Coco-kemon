@@ -4,7 +4,7 @@ export function emojiKey(name: string): string {
 }
 export function renderEmojiDrawing(value: unknown): string {
   const paths = (value as { paths?: unknown[] })?.paths;
-  if (!Array.isArray(paths) || paths.length < 2 || paths.length > 40) throw new Error('Invalid emoji drawing.');
+  if (!Array.isArray(paths) || paths.length < 2 || paths.length > 80) throw new Error('Invalid emoji drawing.');
   const body = paths.map((entry: any) => {
     if (!entry || typeof entry.d !== 'string' || entry.d.length > 2500 || !/^[MmLlHhVvCcSsQqTtAaZz0-9.,\s+\-]+$/.test(entry.d) || !/^[Mm]/.test(entry.d.trim())) throw new Error('Invalid emoji path.');
     if (typeof entry.fill !== 'string' || !/^#[0-9a-f]{6}$/i.test(entry.fill)) throw new Error('Invalid emoji color.');

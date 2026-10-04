@@ -922,3 +922,6 @@ body {
 .ingredient-pick .ingredient-emoji { width:46px; height:46px; }
 .ingredient-pick .element-emoji img { width:100%; height:100%; transform:none; }
 .element-emoji.reveal-art { display:flex; width:112px; height:112px; margin:24px auto; }
+
+/* Preserve native 64px clusters when displaying detailed item art. */
+.element-emoji > img { image-rendering:pixelated; }

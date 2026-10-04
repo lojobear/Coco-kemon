@@ -30,22 +30,34 @@ async function save(key: string, data: string) {
     tx.onabort = tx.onerror = () => reject(new Error('Could not save emoji. Free some browser storage.'));
   });
 }
-export function getElementEmoji(name: string): Promise<string> {
+async function rasterize(svg: string): Promise<string> {
+  const image = new Image();
+  image.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+  await image.decode();
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 64;
+  const context = canvas.getContext('2d');
+  if (!context) throw new Error('Could not draw pixel art.');
+  context.imageSmoothingEnabled = false;
+  context.drawImage(image, 0, 0, 64, 64);
+  return canvas.toDataURL('image/png');
+}
+export function getElementEmoji(name: string, upgrade = false): Promise<string> {
   const key = emojiKey(name);
   if (memory.has(key)) return Promise.resolve(memory.get(key)!);
   if (jobs.has(key)) return jobs.get(key)!;
   const work = async () => {
     // Check durable storage inside the lock; another tab may have already drawn it.
-    const cached = await stored(key);
+    const cached = await stored('pixel-v2:' + key) || (!upgrade ? await stored(key) : undefined);
     if (cached) { memory.set(key, cached); return cached; }
     const { svg } = await requestJson<{ svg: string }>('/api/element-emoji', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: key }),
     });
     if (typeof svg !== 'string' || !svg.startsWith('<svg ') || svg.length > 120000) throw new Error('Invalid emoji response.');
-    const data = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+    const data = await rasterize(svg);
     // Keep the generated result even if disk storage fails; never re-bill on rerender.
     memory.set(key, data);
-    await save(key, data);
+    await save('pixel-v2:' + key, data);
     return data;
   };
   const job = queue.then(() => navigator.locks
@@ -59,4 +71,16 @@ export function getElementEmoji(name: string): Promise<string> {
 export function retryElementEmoji(name: string) {
   jobs.delete(emojiKey(name));
   window.dispatchEvent(new CustomEvent('oddkin-emoji-retry', { detail: emojiKey(name) }));
+}
+
+/** Explicit upgrade keeps the old saved image available if generation fails. */
+export async function upgradeElementEmoji(name: string) {
+  const key = emojiKey(name);
+  const pending = jobs.get(key);
+  if (pending) await pending.catch(() => undefined);
+  memory.delete(key);
+  jobs.delete(key);
+  const art = await getElementEmoji(name, true);
+  window.dispatchEvent(new CustomEvent('oddkin-emoji-retry', { detail: key }));
+  return art;
 }
