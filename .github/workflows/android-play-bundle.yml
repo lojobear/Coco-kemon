@@ -1,6 +1,15 @@
 name: Android Play Bundle
 
 on:
+  pull_request:
+    paths:
+      - "mobile/**"
+      - ".github/workflows/android-play-bundle.yml"
+  push:
+    branches: [main]
+    paths:
+      - "mobile/**"
+      - ".github/workflows/android-play-bundle.yml"
   workflow_dispatch:
     inputs:
       version_name:
@@ -28,10 +37,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      CAPACITOR_APP_ID: ${{ inputs.app_id }}
-      ODDKIN_APP_URL: ${{ inputs.app_url }}
-      ANDROID_VERSION_NAME: ${{ inputs.version_name }}
-      ANDROID_VERSION_CODE: ${{ inputs.version_code }}
+      CAPACITOR_APP_ID: ${{ inputs.app_id || 'com.logaandavid.oddkinfoundry' }}
+      ODDKIN_APP_URL: ${{ inputs.app_url || 'https://oddkin-foundry.vercel.app' }}
+      ANDROID_VERSION_NAME: ${{ inputs.version_name || '1.0.0-ci' }}
+      ANDROID_VERSION_CODE: ${{ inputs.version_code || '1' }}
       KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
       KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
       KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
@@ -95,7 +104,7 @@ jobs:
       - name: Upload Android build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: oddkin-android-${{ inputs.version_name }}-${{ inputs.version_code }}
+          name: oddkin-android-${{ env.ANDROID_VERSION_NAME }}-${{ env.ANDROID_VERSION_CODE }}
           if-no-files-found: error
           retention-days: 14
           path: |
