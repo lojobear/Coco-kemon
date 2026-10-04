@@ -21,7 +21,9 @@ export function registerEmojiRoute(app: Express, generate = callGeminiStructured
                 type: 'object', properties: { d: { type: 'string', maxLength: 2500, pattern: '^[MmLlHhVvZz0-9.,\\s+\\-]+$' }, fill: { type: 'string', pattern: '^#[0-9a-fA-F]{6}$' } }, required: ['d', 'fill'], additionalProperties: false,
               } } }, required: ['paths'], additionalProperties: false },
             });
-            const result = renderEmojiDrawing(JSON.parse(raw));
+            let result: string;
+            try { result = renderEmojiDrawing(JSON.parse(raw)); }
+            catch (error) { throw new ApiFailure(502, error instanceof Error && /^Invalid emoji/.test(error.message) ? error.message : 'Invalid emoji drawing response.'); }
             if (completed.size >= 1000) completed.delete(completed.keys().next().value!);
             completed.set(key, result);
             return result;
