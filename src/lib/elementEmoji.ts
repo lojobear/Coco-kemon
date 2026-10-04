@@ -1,7 +1,8 @@
 import { emojiKey } from './emojiGeometry';
 import { requestJson } from './api';
 
-const ELEMENT_SPRITE_CACHE_PREFIX = 'pixel-v3-recognizable:';
+const ELEMENT_SPRITE_CACHE_PREFIX = 'emoji3d-v4:';
+const LEGACY_RECOGNIZABLE_CACHE_PREFIX = 'pixel-v3-recognizable:';
 const LEGACY_PIXEL_CACHE_PREFIX = 'pixel-v2:';
 
 const memory = new Map<string, string>();
@@ -43,13 +44,14 @@ async function rasterize(svg: string): Promise<string> {
   await image.decode();
 
   const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = 64;
+  canvas.width = canvas.height = 128;
   const context = canvas.getContext('2d');
-  if (!context) throw new Error('Could not draw pixel art.');
+  if (!context) throw new Error('Could not draw generated art.');
 
-  context.imageSmoothingEnabled = false;
-  context.clearRect(0, 0, 64, 64);
-  context.drawImage(image, 0, 0, 64, 64);
+  context.imageSmoothingEnabled = true;
+  context.imageSmoothingQuality = 'high';
+  context.clearRect(0, 0, 128, 128);
+  context.drawImage(image, 0, 0, 128, 128);
   return canvas.toDataURL('image/png');
 }
 
@@ -61,11 +63,12 @@ export function getElementEmoji(name: string, upgrade = false): Promise<string> 
   if (jobs.has(jobKey)) return jobs.get(jobKey)!;
 
   const work = async () => {
-    // Existing v2 art stays valid until the user explicitly upgrades it. New discoveries
-    // immediately use the v3 engine, avoiding a surprise regeneration bill for old saves.
+    // Existing generated art stays valid until the user explicitly upgrades it. New discoveries
+    // immediately use the v4 3D emoji engine, avoiding surprise regeneration costs for old saves.
     const cached = upgrade
       ? undefined
       : (await stored(ELEMENT_SPRITE_CACHE_PREFIX + key))
+        || (await stored(LEGACY_RECOGNIZABLE_CACHE_PREFIX + key))
         || (await stored(LEGACY_PIXEL_CACHE_PREFIX + key))
         || (await stored(key));
 
@@ -108,7 +111,7 @@ export function retryElementEmoji(name: string) {
   window.dispatchEvent(new CustomEvent('oddkin-emoji-retry', { detail: key }));
 }
 
-/** Explicit upgrade bypasses old art and asks the current engine for a fresh sprite. */
+/** Explicit upgrade bypasses old art and asks the current 3D emoji engine for a fresh sprite. */
 export async function upgradeElementEmoji(name: string) {
   const key = emojiKey(name);
   const pending = jobs.get(key);
