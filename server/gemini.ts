@@ -23,6 +23,24 @@ function sanitizeModel(name?: string): string | null {
   return null;
 }
 
+/** Shared with health reporting so the displayed model order is truthful. */
+export function getGeminiModels(): string[] {
+  return Array.from(new Set([
+    sanitizeModel(process.env.GEMINI_MODEL),
+    sanitizeModel(process.env.GEMINI_FALLBACK_MODEL),
+    'gemini-3.1-flash-lite',
+    'gemini-3.8-flash',
+  ].filter((model): model is string => Boolean(model)))).slice(0, 2);
+}
+
+function terminalGeminiFailure(error: unknown): ApiFailure | null {
+  const value = error as { status?: number; code?: number } | null;
+  const code = Number(value?.status || value?.code);
+  if (code === 429) return new ApiFailure(429, 'Gemini quota reached. Please wait a moment before retrying.');
+  if (code === 401 || code === 403) return new ApiFailure(503, 'Gemini API key is invalid or unauthorized. Please verify your key.');
+  return null;
+}
+
 const DISCOVERY_CONNECTIONS = [
   'science', 'function', 'appearance', 'mythology', 'wordplay',
   'chemistry', 'physics', 'biology', 'ecology', 'technology',
@@ -215,7 +233,9 @@ async function searchFoundryIdeas(
     const winner = ideas[0];
     if (!winner || winner.inputFit < 3 || winner.processFit < 3) return null;
     return winner;
-  } catch {
+  } catch (error) {
+    const terminal = terminalGeminiFailure(error);
+    if (terminal) throw terminal;
     return null;
   } finally {
     clearTimeout(timer);
@@ -290,15 +310,9 @@ export async function callGeminiStructured(
     ? enhanceDiscoveryInstruction(systemInstruction)
     : systemInstruction;
 
-  const configured = sanitizeModel(process.env.GEMINI_MODEL);
-  const fallback = sanitizeModel(process.env.GEMINI_FALLBACK_MODEL);
-  const candidates = [
-    configured,
-    fallback,
-    'gemini-3.1-flash-lite',
-    'gemini-3.8-flash',
-  ].filter((m): m is string => Boolean(m));
-  const models = Array.from(new Set(candidates)).slice(0, 2);
+  const models = getGeminiModels();
+  // Planning and failover share a deadline below the browser's 30s timeout.
+  const deadline = Date.now() + 28000;
 
   let foundryIdea: FoundryIdea | null = null;
   if (foundryRequest && typeof prompt === 'string' && models[0]) {
@@ -320,14 +334,16 @@ export async function callGeminiStructured(
   for (let attempt = 0; attempt < models.length; attempt++) {
     const currentModel = models[attempt];
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 12000);
+    const remainingMs = Math.min(12000, deadline - Date.now());
+    if (remainingMs <= 0) throw new ApiFailure(504, 'AI request timed out. Please retry.');
+    const timer = setTimeout(() => controller.abort(), remainingMs);
     try {
       const config: any = {
         responseMimeType: 'application/json',
         temperature: effectiveTemperature,
         systemInstruction: effectiveSystemInstruction,
         abortSignal: controller.signal,
-        httpOptions: { timeout: 12000 },
+        httpOptions: { timeout: remainingMs },
       };
       if (discoveryRequest) config.responseJsonSchema = DISCOVERY_RESPONSE_SCHEMA;
 
@@ -336,6 +352,7 @@ export async function callGeminiStructured(
         contents: effectivePrompt,
         config,
       });
+      if (controller.signal.aborted || Date.now() >= deadline) throw new ApiFailure(504, 'AI request timed out. Please retry.');
       const raw = response.text?.trim();
       if (!raw) throw new Error('AI returned an empty response');
       const parsed = JSON.parse(raw);
@@ -344,12 +361,8 @@ export async function callGeminiStructured(
     } catch (error: any) {
       last = error;
       const code = Number(error?.status || error?.code);
-      if (code === 429) {
-        throw new ApiFailure(429, 'Gemini quota reached. Please wait a moment before retrying.');
-      }
-      if (code === 401 || code === 403) {
-        throw new ApiFailure(503, 'Gemini API key is invalid or unauthorized. Please verify your key.');
-      }
+      const terminal = terminalGeminiFailure(error);
+      if (terminal) throw terminal;
 
       if (attempt < models.length - 1) {
         console.warn(`Model ${currentModel} failed (${code || error?.message || 'unknown'}). Failing over to ${models[attempt + 1]}...`);
@@ -368,3 +381,4 @@ export async function callGeminiStructured(
   }
   throw last;
 }
+

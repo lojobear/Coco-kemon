@@ -4,7 +4,7 @@
  * procedural sprite generation, and real latency discovery pipeline.
  */
 
-import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { Material, Oddkin, Process, ExperimentLog, Habitat, SynthesisResult, PhotoSeedResult, SketchSeedResult } from '../types';
 import { STARTER_MATERIALS, ALL_PROCESSES, INITIAL_HABITATS, mergeProcesses } from './starterData';
 import { generateMaterialSprite, generateOddkinSprite } from './pixelRenderer';
@@ -12,6 +12,7 @@ import { requestJson } from './api';
 import { validMaterial, validOddkin } from './validation';
 import { readFoundrySave, saveFoundry, exportCompleteSave, importCompleteSave } from './saveData';
 import { sound } from './audio';
+import { matchesFoundryRecipe, validSynthesisResult, resolveMaterialDiscovery } from './foundryRecipes';
 
 const STORAGE_KEY = 'oddkin_foundry_save_v1';
 
@@ -185,6 +186,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const [slotB, setSlotB] = useState<Material | null>(null);
   const [selectedProcess, setSelectedProcess] = useState<Process | null>(null);
   const [isSynthesizing, setIsSynthesizing] = useState<boolean>(false);
+  const synthesisInFlight = useRef(false);
   const [synthesisError, setSynthesisError] = useState<string | null>(null);
   const [synthesisStage, setSynthesisStage] = useState<SynthesisStage>(null);
   const [recentDiscovery, setRecentDiscovery] = useState<GameState['recentDiscovery']>(null);
@@ -238,26 +240,16 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
   // Main synthesis orchestration pipeline
   const runSynthesis = useCallback(async () => {
-    if (!slotA || !selectedProcess || isSynthesizing) return;
+    if (!slotA || !selectedProcess || synthesisInFlight.current) return;
+    synthesisInFlight.current = true;
 
     setSynthesisError(null);
     setIsSynthesizing(true);
     sound.playClunk();
     sound.startMachineHum();
 
-    // Check existing semantic memory / previous discoveries before calling network
-    const normA = slotA.canonicalName.toUpperCase();
-    const normB = slotB ? slotB.canonicalName.toUpperCase() : undefined;
-    const normProc = selectedProcess.id.toUpperCase();
-
-    // Check if this EXACT combination has already been discovered
-    const existingMatch = materials.find(m => {
-      const p = m.lineage?.parentIds || [];
-      if (slotB) {
-        return p.includes(slotA.id) && p.includes(slotB.id) && m.lineage?.processId === selectedProcess.id;
-      }
-      return p.length === 1 && p[0] === slotA.id && m.lineage?.processId === selectedProcess.id;
-    });
+    // Preserve both ingredient multiplicity and process identity.
+    const existingMatch = materials.find(m => matchesFoundryRecipe(m, slotA, slotB, selectedProcess.id));
 
     try {
       // 1. ANALYZING MATERIALS
@@ -325,9 +317,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         }),
       });
 
-      if ((data.status === 'new_material' && !validMaterial(data.material)) ||
-          (data.status === 'life_emergence' && !validOddkin(data.oddkin)) ||
-          !['new_material', 'life_emergence', 'no_reaction', 'existing_material'].includes(data.status)) {
+      if (!validSynthesisResult(data)) {
         throw new Error('The server returned an invalid discovery. Please retry.');
       }
 
@@ -386,10 +376,11 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
           explanation: data.explanation || newOddkin.description,
         });
 
-      } else if (data.status === 'new_material' && data.material) {
+      } else if ((data.status === 'new_material' || data.status === 'existing_material') && data.material) {
+        const discovery = resolveMaterialDiscovery(data.material, materials, data.status);
         const newMat: Material = {
-          ...data.material,
-          customSpriteUrl: generateMaterialSprite(data.material),
+          ...discovery.material,
+          customSpriteUrl: discovery.material.customSpriteUrl || generateMaterialSprite(discovery.material),
         };
 
         sound.playDiscoveryChime(newMat.rarity);
@@ -414,13 +405,13 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
           processName: selectedProcess.name,
           success: true,
           resultName: newMat.displayName,
-          observation: `Discovered ${newMat.displayName} (${newMat.rarity}). ${data.explanation}`,
+          observation: `${discovery.isNew ? 'Discovered' : 'Rediscovered'} ${newMat.displayName} (${newMat.rarity}). ${data.explanation}`,
         };
         setExperiments(prev => [log, ...prev]);
 
         setRecentDiscovery({
           material: newMat,
-          isNew: true,
+          isNew: discovery.isNew,
           explanation: data.explanation || newMat.discoveryExplanation,
         });
 
@@ -449,6 +440,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       sound.stopMachineHum();
       sound.playSpark();
     } finally {
+      synthesisInFlight.current = false;
       setIsSynthesizing(false);
       setSynthesisStage(null);
     }
@@ -773,3 +765,4 @@ export function useGame() {
   if (!ctx) throw new Error('useGame must be used within GameProvider');
   return ctx;
 }
+

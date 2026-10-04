@@ -10,7 +10,7 @@ test('Workers serves the frontend and JSON APIs using the deployment configurati
   const origin = `http://127.0.0.1:${port}`;
   const worker = spawn(process.execPath, ['node_modules/wrangler/bin/wrangler.js',
     'dev', '--local', '--ip', '127.0.0.1', '--port', String(port), '--inspector-port', '0',
-    '--var', 'GEMINI_MODEL:worker-smoke-model'], {
+    '--var', 'GEMINI_MODEL:gemini-worker-smoke'], {
     env: { ...process.env, WRANGLER_SEND_METRICS: 'false' }, stdio: ['ignore', 'pipe', 'pipe'],
   });
   let logs = '';
@@ -38,7 +38,7 @@ test('Workers serves the frontend and JSON APIs using the deployment configurati
     assert.ok(ready, logs);
     const health = await json('/api/health', 200);
     assert.equal(health.status, 'ok');
-    assert.equal(health.primaryModel, 'worker-smoke-model');
+    assert.equal(health.primaryModel, 'gemini-worker-smoke');
     const pair = await json('/api/infinite-craft/pair?first=Water&second=Fire', 200);
     assert.equal(pair.result, 'Steam');
     const postPair = await json('/api/pair', 200, {
@@ -60,3 +60,4 @@ test('Workers serves the frontend and JSON APIs using the deployment configurati
     clearTimeout(timer);
   }
 });
+

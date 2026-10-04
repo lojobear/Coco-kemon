@@ -12,7 +12,7 @@ npm run dev
 node --import tsx server.ts
 ```
 
-`GEMINI_MODEL` defaults to `gemini-3.1-flash-lite`. `GEMINI_FALLBACK_MODEL` is optional and disabled by default. Configure only a model your key can access. No free-tier availability is assumed. A request makes at most two model calls; quota/auth failures are not retried. Each model call has a 12-second timeout; browser requests stop after 30 seconds.
+`GEMINI_MODEL` and `GEMINI_FALLBACK_MODEL` select the model order. If not configured, the existing defaults are `gemini-3.1-flash-lite` followed by `gemini-3.8-flash`. Model access and quota depend on your key; neither availability nor free-tier access is assumed. `/api/health` reports the same sanitized model order used by generation. General requests use up to two model attempts (12 seconds each). Foundry transformations may also use a five-second concept-planning call; all stages share a 28-second budget, below the browser's 30-second timeout. Quota and authentication failures stop immediately, including during planning.
 
 ```sh
 npm run lint
@@ -42,3 +42,10 @@ Both collections are committed in one browser-storage write. If storage is full,
 ## Google login and cloud saves
 
 The Cloud save button connects Google accounts to private Supabase backups covering both collections, including shiny unlocks. Device saving stays automatic; cloud Save and Load are manual and confirm replacements. See [setup instructions](docs/google-cloud-saves.md) for the database migration, Google OAuth configuration, Vercel variables, and verification steps. Until configured, the app supports local play and JSON backups.
+
+
+## Foundry usability and reliability
+
+Foundry discoveries can be filtered by category or name/tags and sorted by collection order, newest, or name. Selected tiles show ingredient A/B badges, including A + B for repeated inputs. The dock supports swapping and clearing ingredients; artwork outside the viewport loads lazily.
+
+Recipe memory compares exact ingredient counts: A+A never reuses A+B or unary A. Repeated taps share one in-flight synthesis. Rediscovering a canonical material keeps its original artwork and lineage and is labelled as a rediscovery. No-reaction results show an explicit experiment outcome with a next action, rather than an empty discovery card.

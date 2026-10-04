@@ -13,7 +13,7 @@ if ((globalThis as unknown as { __dirname?: string }).__dirname === '.') {
 import express from 'express';
 import path from 'path';
 import dotenv from 'dotenv';
-import { callGeminiStructured, ApiFailure, publicFailure } from './server/gemini.js';
+import { callGeminiStructured, ApiFailure, publicFailure, getGeminiModels } from './server/gemini.js';
 import { validMaterial, validOddkin, validSprite, record, text, strings, color, finite } from './src/lib/validation.js';
 import { CANONICAL_INFINITE_CRAFT_RECIPES, makePairKey } from './src/lib/infiniteCraftData.js';
 
@@ -34,8 +34,8 @@ app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
     hasGeminiKey: Boolean(process.env.GEMINI_API_KEY),
-    primaryModel: process.env.GEMINI_MODEL || 'gemini-3.8-flash',
-    fallbackModel: process.env.GEMINI_FALLBACK_MODEL || 'gemini-3.1-flash-lite',
+    primaryModel: getGeminiModels()[0],
+    fallbackModel: getGeminiModels()[1] || null,
     engine: 'infinite-craft-compatible',
     mode: 'logical-real-brand-character-synthesis',
     time: new Date().toISOString(),
@@ -1000,3 +1000,4 @@ async function startServer() {
 if (process.env.NODE_ENV !== 'test' && process.env.VERCEL !== '1' && process.env.CLOUDFLARE !== '1') startServer();
 
 export default app;
+
