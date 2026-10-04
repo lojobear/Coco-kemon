@@ -1,3 +1,4 @@
+import { validKitchenRecipe } from './kitchen/engine';
 import { STARTER_ELEMENTS, type InfiniteElement } from './infiniteCraftData';
 import { ALL_PROCESSES, INITIAL_HABITATS } from './starterData';
 import { record, text, strings, finite, color, validMaterial, validOddkin } from './validation';
@@ -17,7 +18,7 @@ function status(message: string | null) {
 }
 const unique = (items: any[], key: string) => new Set(items.map(x => x[key])).size === items.length;
 export function validateCraft(v: unknown): v is InfiniteElement[] {
-  return Array.isArray(v) && v.every(x => record(x) && text(x.id) && text(x.name) && text(x.emoji) &&
+  return Array.isArray(v) && v.every(x => record(x) && (x.kitchenRecipe === undefined || validKitchenRecipe(x.kitchenRecipe)) && text(x.id) && text(x.name) && text(x.emoji) &&
     (['explanation', 'connection', 'variantOf'].every(k => x[k] === undefined || (text(x[k]) && x[k].length <= 280))) &&
     (x.customSpriteUrl === undefined || (typeof x.customSpriteUrl === 'string' && x.customSpriteUrl.length <= 100000 && /^data:image\/png;base64,[A-Za-z0-9+/]+={0,2}$/.test(x.customSpriteUrl))) &&
     (x.discoveredAt === undefined || finite(x.discoveredAt)) && (x.isNew === undefined || typeof x.isNew === 'boolean') &&
@@ -100,3 +101,4 @@ export function importCompleteSave(json: string) {
   window.dispatchEvent(new Event(SAVE_IMPORTED_EVENT));
   return parsed.foundry;
 }
+

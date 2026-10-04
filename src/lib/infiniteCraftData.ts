@@ -6,7 +6,10 @@
  * Canonical recipe combinations and starter items for Infinite Craft (by Neal Agarwal)
  */
 
+import type { KitchenRecipe } from './kitchen/engine';
+
 export interface InfiniteElement {
+  kitchenRecipe?: KitchenRecipe;
   id: string;
   name: string;
   emoji: string;
@@ -173,3 +176,4 @@ export const CANONICAL_INFINITE_CRAFT_RECIPES: Record<string, { result: string; 
   [makePairKey('Water', 'Heat')]: { result: 'Boiling Water', emoji: '♨️' },
   [makePairKey('Steam', 'Earth')]: { result: 'Geyser', emoji: '♨️' },
 };
+

@@ -5,7 +5,9 @@
  */
 
 import { MaterialSprite } from './ElementSprite';
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
+import { readCraftElements } from '../lib/saveData';
+import { conceptMaterial } from '../lib/conceptMaterial';
 import { useGame } from '../lib/gameStore';
 import { Material, Oddkin, Rarity } from '../types';
 import { sound } from '../lib/audio';
@@ -19,8 +21,16 @@ export function ArchiveView({
   inspectedItem: { type: 'material' | 'oddkin'; item: Material | Oddkin } | null;
   onCloseInspect: () => void;
 }) {
-  const { materials, oddkinCollection, setInspectedItem, transformOddkinWithCatalyst } = useGame();
+  const { materials: foundryMaterials, oddkinCollection, setInspectedItem, transformOddkinWithCatalyst } = useGame();
 
+  const [craftItems] = useState(readCraftElements);
+  const materials = useMemo(() => {
+    const names = new Set(foundryMaterials.map(item => item.displayName.trim().toLowerCase()));
+    return [...foundryMaterials, ...craftItems.filter(item => !names.has(item.name.trim().toLowerCase())).map(item => ({
+      ...conceptMaterial({ result: item.name, emoji: item.emoji, explanation: item.explanation, connection: item.connection }),
+      discoveredAt: item.discoveredAt || 0, customSpriteUrl: item.customSpriteUrl,
+    }))];
+  }, [foundryMaterials, craftItems]);
   const [activeSubTab, setActiveSubTab] = useState<'all' | 'oddkin' | 'materials'>('all');
   const [selectedRarity, setSelectedRarity] = useState<string>('ALL');
   const [searchFilter, setSearchFilter] = useState<string>('');

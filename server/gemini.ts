@@ -347,7 +347,10 @@ export async function callGeminiStructured(
         httpOptions: { timeout: remainingMs },
       };
       if (discoveryRequest) config.responseJsonSchema = DISCOVERY_RESPONSE_SCHEMA;
-      if (drawingOptions) config.responseJsonSchema = drawingOptions.schema;
+      if (drawingOptions) {
+        config.responseJsonSchema = drawingOptions.schema;
+        config.thinkingConfig = { thinkingLevel: 'MINIMAL' };
+      }
 
       const response = await ai.models.generateContent({
         model: currentModel,

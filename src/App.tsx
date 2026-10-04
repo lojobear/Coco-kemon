@@ -4,8 +4,9 @@
  * Mobile-First AI Crafting & Procedural Genome Sprite Collection Game
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { GameProvider, useGame } from './lib/gameStore';
+const KitchenView = lazy(() => import('./components/KitchenView').then(module => ({ default: module.KitchenView })));
 import { Header } from './components/Header';
 import { WorkBench } from './components/WorkBench';
 import { ArchiveView } from './components/ArchiveView';
@@ -23,6 +24,8 @@ import { Material } from './types';
 function GameContent() {
   const { activeTab, inspectedItem, setInspectedItem, synthesisError, isSynthesizing, runSynthesis } = useGame();
 
+  const [kitchenOpened, setKitchenOpened] = useState(false);
+  useEffect(() => { if (activeTab === 'kitchen') setKitchenOpened(true); }, [activeTab]);
   const [saveError, setSaveError] = useState(getSaveError);
   useEffect(() => {
     const update = () => setSaveError(getSaveError());
@@ -67,6 +70,7 @@ function GameContent() {
       </div>}
       {/* Main Viewport Content */}
       <main className={`flex-1 w-full min-h-0 flex flex-col ${(activeTab === 'infinite-craft' || activeTab === 'sprite-lab' || activeTab === 'foundry') ? 'overflow-hidden' : 'overflow-y-auto'}`}>
+        {kitchenOpened && <div hidden={activeTab !== 'kitchen'}><Suspense fallback={<p className="p-6 text-sm">Opening the Kitchen…</p>}><KitchenView visible={activeTab === 'kitchen'} /></Suspense></div>}
         {activeTab === 'infinite-craft' && (
           <InfiniteCraftView />
         )}
@@ -117,3 +121,4 @@ export default function App() {
     </GameProvider>
   );
 }
+

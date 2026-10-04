@@ -11,6 +11,7 @@ if ((globalThis as unknown as { __dirname?: string }).__dirname === '.') {
 }
 
 import express from 'express';
+import { registerKitchenRoute } from './server/kitchen.js';
 import { registerEmojiRoute } from './server/emoji.js';
 import path from 'path';
 import dotenv from 'dotenv';
@@ -30,6 +31,7 @@ const PORT = Number(process.env.PORT) || (cliPortIndex >= 0 ? Number(process.arg
 
 app.use(express.json({ limit: '25mb' }));
 registerEmojiRoute(app);
+registerKitchenRoute(app);
 
 // Health check
 app.get('/api/health', (req, res) => {
