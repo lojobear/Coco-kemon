@@ -25,7 +25,7 @@ test('craft visual resolves custom art by name while default discoveries keep th
   }));
   assert.match(markup, /<img/);
   assert.match(markup, /data:image\/png;base64/);
-  assert.equal(renderToStaticMarkup(React.createElement(CraftSprite, { name: 'Water', emoji: '💧' })), '💧');
+  assert.match(renderToStaticMarkup(React.createElement(CraftSprite, { name: 'Water', emoji: '💧' })), /💧/);
 });
 
 
@@ -37,3 +37,4 @@ test('existing elements get recognizable sprite descriptors and the renderer ver
   assert.equal(spriteDescriptorForConcept('Robot').baseShape, 'ingot');
   assert.equal(conceptMaterial({ result: 'Fish', emoji: '🐟', connection: 'biology' }).semanticTags.includes('biology'), true);
 });
+

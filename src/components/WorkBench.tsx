@@ -5,7 +5,7 @@ import type { Material } from '../types';
 import { readCraftElements, SAVE_IMPORTED_EVENT } from '../lib/saveData';
 import { conceptMaterial } from '../lib/conceptMaterial';
 import { generateMaterialSprite } from '../lib/pixelRenderer';
-import { materialArtwork } from '../lib/discoveryArtwork';
+import { MaterialSprite } from './ElementSprite';
 import { chooseRandomProcess } from '../lib/randomProcess';
 import { EXTRA_PROCESSES } from '../lib/extraProcesses';
 import { sound } from '../lib/audio';
@@ -31,7 +31,6 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
       return { ...material, discoveredAt: item.discoveredAt || 0, customSpriteUrl: item.customSpriteUrl || generateMaterialSprite(material) };
     })];
   }, [foundryMaterials, craftItems]);
-  const artwork = useMemo(() => new Map(materials.map(m => [m.id, materialArtwork(m)])), [materials]);
   const availableProcesses = useMemo(() => [...processes, ...EXTRA_PROCESSES.filter(extra => !processes.some(p => p.id === extra.id))].filter(p => p.unlocked), [processes]);
   // Mix is the useful default; all unlocked transformations remain available.
   const process = selectedProcess || availableProcesses.find(p => p.id === 'MIX') || availableProcesses[0];
@@ -88,7 +87,7 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
     <div className="discovery-grid" aria-label="Discovered items" aria-busy={isSynthesizing}>
       {filtered.map(item => <div key={item.id} className={`discovery-tile ${slotA?.id === item.id || slotB?.id === item.id ? 'is-selected' : ''}`}>
         <button className="discovery-pick" onClick={() => selectItem(item)} disabled={isSynthesizing} aria-label={`Select ${item.displayName}`} aria-pressed={slotA?.id === item.id || slotB?.id === item.id}>
-          <img src={artwork.get(item.id)} data-art={item.displayName.toLowerCase()} alt="" draggable={false} loading="lazy" decoding="async" className="pixelated" /><span>{item.displayName}</span>
+          <MaterialSprite material={item} className="discovery-emoji" /><span>{item.displayName}</span>
         </button>
         {(slotA?.id === item.id || slotB?.id === item.id) && <span className="ingredient-badge">{[slotA?.id === item.id ? 'A' : '', slotB?.id === item.id ? 'B' : ''].filter(Boolean).join(' + ')}</span>}
         <button className="discovery-info" aria-label={`Details for ${item.displayName}`} onClick={() => { onInspectMaterial(item); setActiveTab('archive'); }}><Info size={15} /></button>
@@ -102,7 +101,7 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
           return <React.Fragment key={key}>{index === 1 && <Plus className="ingredient-plus" size={20} />}
             <div className="ingredient">
               <button className={`ingredient-pick ${picker === key ? 'is-targeted' : ''}`} aria-label={`Choose item ${key}${item ? `: ${item.displayName}` : ''}`} disabled={isSynthesizing} onClick={() => chooseSlot(key)}>
-                {item ? <img src={artwork.get(item.id) || materialArtwork(item)} alt="" className="pixelated" /> : <Plus size={24} />}
+                {item ? <MaterialSprite material={item} className="ingredient-emoji" /> : <Plus size={24} />}
               </button>
               {item && <button className="ingredient-remove" aria-label={`Remove item ${key}`} disabled={isSynthesizing} onClick={() => key === 'A' ? setSlotA(null) : setSlotB(null)}><X size={15} /></button>}
               <span>{item?.displayName || (key === 'A' ? 'Choose item' : 'Optional item')}</span>

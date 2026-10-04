@@ -4,7 +4,7 @@
  * with interactive lineage trees, traits, taxonomy, and transformation tests.
  */
 
-import { materialArtwork } from '../lib/discoveryArtwork';
+import { MaterialSprite } from './ElementSprite';
 import React, { useState } from 'react';
 import { useGame } from '../lib/gameStore';
 import { Material, Oddkin, Rarity } from '../types';
@@ -209,11 +209,7 @@ export function ArchiveView({
                   className="p-3 rounded-xl bg-[#161920] hover:bg-[#1d222b] border border-[#282f3d] hover:border-[#38bdf8] cursor-pointer transition-all flex flex-col items-center text-center group shadow"
                 >
                   <div className="w-14 h-14 rounded-lg bg-[#11141a] p-1 mb-2 flex items-center justify-center border border-[#232936] group-hover:scale-105 transition-transform">
-                    <img
-                      src={materialArtwork(mat)}
-                      alt={mat.displayName}
-                      className="w-11 h-11 pixelated drop-shadow"
-                    />
+                    <MaterialSprite material={mat} alt={mat.displayName} className="w-11 h-11" />
                   </div>
 
                   <div className="text-xs font-bold text-white truncate w-full">
@@ -253,11 +249,7 @@ export function ArchiveView({
             {/* Header info */}
             <div className="flex items-center gap-4 pb-3 border-b border-[#282f3d]">
               <div className="w-20 h-20 rounded-xl bg-[#111317] border border-[#2f3747] flex items-center justify-center p-1">
-                <img
-                  src={activeInspected.type === 'material' ? materialArtwork(activeInspected.item as Material) : activeInspected.item.customSpriteUrl}
-                  alt={activeInspected.type === 'oddkin' ? (activeInspected.item as Oddkin).speciesName : (activeInspected.item as Material).displayName}
-                  className="w-16 h-16 pixelated drop-shadow-lg"
-                />
+                {activeInspected.type === 'material' ? <MaterialSprite material={activeInspected.item as Material} className="w-16 h-16" /> : <img src={activeInspected.item.customSpriteUrl} alt={(activeInspected.item as Oddkin).speciesName} className="w-16 h-16 pixelated" />}
               </div>
 
               <div>
@@ -451,3 +443,4 @@ export function ArchiveView({
     </div>
   );
 }
+

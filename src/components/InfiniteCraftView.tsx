@@ -547,7 +547,7 @@ export function InfiniteCraftView() {
 
   const clearCanvas = () => { sound.playClick(); haptics.heavyTap(); setCanvasItems([]); setSelectedCanvasId(null); };
   const customSprites = useMemo(() => new Map(elements.flatMap(el => {
-    const sprite = el.customSpriteUrl || generateConceptSprite(el.name, el.connection);
+    const sprite = el.customSpriteUrl;
     return sprite ? [[el.name.trim().toLowerCase(), sprite] as const] : [];
   })), [elements]);
   const firstDiscoveriesCount = elements.filter(el => el.isNew).length;
@@ -665,3 +665,4 @@ export function InfiniteCraftView() {
     </CraftSprites.Provider>
   );
 }
+

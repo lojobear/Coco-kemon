@@ -1,11 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ImagePlus, RefreshCw, RotateCcw, Search, Sparkles, Upload, X } from 'lucide-react';
 import { useGame } from '../lib/gameStore';
-import { generateMaterialSprite, generateOddkinSprite } from '../lib/pixelRenderer';
+import { MATERIAL_SPRITE_RENDERER_VERSION, generateMaterialSprite, generateOddkinSprite } from '../lib/pixelRenderer';
 import { Material, Oddkin, SpriteDescriptor } from '../types';
 import { readCraftElements, saveCraftElements, SAVE_IMPORTED_EVENT, getSaveError } from '../lib/saveData';
 import { InfiniteElement } from '../lib/infiniteCraftData';
 import { sound } from '../lib/audio';
+import { ElementSprite, MaterialSprite } from './ElementSprite';
+import { retryElementEmoji } from '../lib/elementEmoji';
 
 type LabItem =
   | { type: 'craft'; id: string; name: string; sprite?: string; item: InfiniteElement }
@@ -140,7 +142,7 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
       if (!saved) throw new Error('Material could not be found in the save.');
       saved.customSpriteUrl = sprite;
       // Keep the custom sprite from being replaced by the renderer migration on reload.
-      saved.spriteRendererVersion = 2;
+      saved.spriteRendererVersion = MATERIAL_SPRITE_RENDERER_VERSION;
     } else {
       const saved = foundry.oddkinCollection?.find((item: Oddkin) => item.speciesId === target.id);
       if (!saved) throw new Error('Oddkin could not be found in the save.');
@@ -211,12 +213,12 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
 
   const restoreDefault = (target: LabItem) => {
     try {
-      if (target.type === 'craft') { persistSprite(target); setStatus(`${target.name} restored to its original emoji.`); return; }
+      if (target.type === 'craft') { persistSprite(target); setStatus(`${target.name} restored to its saved unique emoji.`); return; }
       const sprite = target.type === 'material'
         ? generateMaterialSprite(target.item)
         : generateOddkinSprite(target.item, { isChroma: target.item.isChromaActive });
       persistSprite(target, sprite);
-      setStatus(`${target.name} restored to its canonical sprite.`);
+      setStatus(`${target.name} restored to its default artwork.`);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Could not restore the sprite.');
     }
@@ -269,7 +271,7 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
               return (
                 <button key={key} onClick={() => { sound.playClick(); setSelectedKey(key); setStatus(null); }} className={`rounded-xl border p-2 text-center min-w-0 transition ${active ? 'border-amber-400 bg-amber-400/10' : 'border-[#272e39] bg-[#161a21] hover:border-[#4a5568]'}`}>
                   <div className="aspect-square rounded-lg bg-[#0b0d11] flex items-center justify-center mb-1.5 overflow-hidden">
-                    {item.sprite ? <img src={item.sprite} alt="" className="w-[80%] h-[80%] object-contain pixelated" /> : item.type === 'craft' ? <span className="text-3xl">{item.item.emoji}</span> : <ImagePlus className="w-7 h-7 text-[#4b5563]" />}
+                    <LabSprite target={item} className="w-[80%] h-[80%]" />
                   </div>
                   <div className="text-[10px] font-bold text-white truncate">{item.name}</div>
                   <div className="text-[9px] text-[#6b7280] capitalize">{item.type}</div>
@@ -283,7 +285,7 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
               <div className="space-y-4">
                 <div className="text-center">
                   <div className="w-40 h-40 mx-auto rounded-2xl bg-[#07090c] border border-[#303744] flex items-center justify-center overflow-hidden">
-                    {selected.sprite ? <img src={selected.sprite} alt={selected.name} className="w-32 h-32 object-contain pixelated" /> : selected.type === 'craft' ? <span className="text-5xl">{selected.item.emoji}</span> : <ImagePlus className="w-12 h-12 text-[#4b5563]" />}
+                    <LabSprite target={selected} className="w-32 h-32" />
                   </div>
                   <div className="mt-2 font-black text-white">{selected.name}</div>
                   <div className="text-[10px] uppercase tracking-wider text-[#788397]">{selected.type}</div>
@@ -292,8 +294,9 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
                 <button disabled={uploading} onClick={() => reroll(selected)} className="w-full py-3 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-black text-sm flex items-center justify-center gap-2">
                   <RefreshCw className="w-4 h-4" /> REROLL SPRITE
                 </button>
-                <p className="text-[10px] text-[#80899a] leading-relaxed">Craft rerolls frame your emoji in new colors. Foundry rerolls change the silhouette. Upload your own art for a completely custom sprite.</p>
+                <p className="text-[10px] text-[#80899a] leading-relaxed">Each element gets a unique AI-drawn emoji, saved on this device and reused. Uploads override it. Restore default brings your saved emoji back. Reroll creates an optional pixel-art alternative.</p>
 
+                {selected.type !== 'oddkin' && <button className="w-full py-2 text-xs underline" onClick={() => { retryElementEmoji(selected.name); setStatus('Retrying missing emoji. Existing saved art is reused.'); }}>Retry missing emoji</button>}
                 <input ref={uploadRef} type="file" accept="image/png,image/webp,image/jpeg" className="hidden" onChange={event => void uploadCustom(event.target.files?.[0])} />
                 <button disabled={uploading} onClick={() => uploadRef.current?.click()} className="w-full py-2.5 rounded-xl bg-[#18202a] border border-[#344154] text-white text-xs font-bold flex items-center justify-center gap-2">
                   <Upload className="w-4 h-4" /> USE MY IMAGE
@@ -312,4 +315,11 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
       </div>
     </div>
   );
+}
+
+
+function LabSprite({ target, className }: { target: LabItem; className: string }) {
+  if (target.type === 'material') return <MaterialSprite material={target.item} className={className} alt={target.name} />;
+  if (target.type === 'craft') return <ElementSprite name={target.name} custom={target.sprite} fallback={target.item.emoji} className={className} alt={target.name} />;
+  return <img src={target.sprite} alt={target.name} className={`${className} object-contain pixelated`} />;
 }

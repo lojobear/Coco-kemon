@@ -910,3 +910,15 @@ body {
     margin-top: 3px;
   }
 }
+
+
+/* Unique element emoji: compact, antialiased, transparent, and never cropped. */
+.element-emoji { display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; vertical-align:middle; }
+.element-emoji > img { display:block; width:100%; height:100%; object-fit:contain; image-rendering:auto; pointer-events:none; }
+.element-emoji > span { font-size:inherit; }
+.craft-emoji { width:1.65em; height:1.65em; pointer-events:none; }
+.discovery-pick .discovery-emoji { width:56px; height:56px; max-width:none; overflow:visible; }
+.discovery-pick .element-emoji img, .discovery-pick:hover .element-emoji img { width:100%; height:100%; transform:none; }
+.ingredient-pick .ingredient-emoji { width:46px; height:46px; }
+.ingredient-pick .element-emoji img { width:100%; height:100%; transform:none; }
+.element-emoji.reveal-art { display:flex; width:112px; height:112px; margin:24px auto; }

@@ -11,6 +11,7 @@ if ((globalThis as unknown as { __dirname?: string }).__dirname === '.') {
 }
 
 import express from 'express';
+import { registerEmojiRoute } from './server/emoji.js';
 import path from 'path';
 import dotenv from 'dotenv';
 import { callGeminiStructured, ApiFailure, publicFailure, getGeminiModels } from './server/gemini.js';
@@ -28,6 +29,7 @@ const cliPortIndex = process.argv.indexOf('--port');
 const PORT = Number(process.env.PORT) || (cliPortIndex >= 0 ? Number(process.argv[cliPortIndex + 1]) : 0) || 3000;
 
 app.use(express.json({ limit: '25mb' }));
+registerEmojiRoute(app);
 
 // Health check
 app.get('/api/health', (req, res) => {
