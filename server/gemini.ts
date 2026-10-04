@@ -297,7 +297,8 @@ export async function callGeminiStructured(
   prompt: string | { parts: any[] },
   systemInstruction?: string,
   temperature = 0.4,
-  injectedClient?: Pick<GoogleGenAI, 'models'>
+  injectedClient?: Pick<GoogleGenAI, 'models'>,
+  drawingOptions?: { timeoutMs: number; schema: Record<string, unknown> }
 ): Promise<string> {
   if (!injectedClient && !process.env.GEMINI_API_KEY) {
     throw new ApiFailure(503, 'AI is not configured. Add a Gemini API key on the server.');
@@ -312,7 +313,7 @@ export async function callGeminiStructured(
 
   const models = getGeminiModels();
   // Planning and failover share a deadline below the browser's 30s timeout.
-  const deadline = Date.now() + 28000;
+  const deadline = Date.now() + (drawingOptions ? Math.min(55000, drawingOptions.timeoutMs) : 28000);
 
   let foundryIdea: FoundryIdea | null = null;
   if (foundryRequest && typeof prompt === 'string' && models[0]) {
@@ -334,7 +335,7 @@ export async function callGeminiStructured(
   for (let attempt = 0; attempt < models.length; attempt++) {
     const currentModel = models[attempt];
     const controller = new AbortController();
-    const remainingMs = Math.min(12000, deadline - Date.now());
+    const remainingMs = Math.min(drawingOptions ? 25000 : 12000, deadline - Date.now());
     if (remainingMs <= 0) throw new ApiFailure(504, 'AI request timed out. Please retry.');
     const timer = setTimeout(() => controller.abort(), remainingMs);
     try {
@@ -346,6 +347,7 @@ export async function callGeminiStructured(
         httpOptions: { timeout: remainingMs },
       };
       if (discoveryRequest) config.responseJsonSchema = DISCOVERY_RESPONSE_SCHEMA;
+      if (drawingOptions) config.responseJsonSchema = drawingOptions.schema;
 
       const response = await ai.models.generateContent({
         model: currentModel,

@@ -52,7 +52,7 @@ export function getElementEmoji(name: string, upgrade = false): Promise<string> 
     if (cached) { memory.set(key, cached); return cached; }
     const { svg } = await requestJson<{ svg: string }>('/api/element-emoji', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: key }),
-    });
+    }, 60000);
     if (typeof svg !== 'string' || !svg.startsWith('<svg ') || svg.length > 120000) throw new Error('Invalid emoji response.');
     const data = await rasterize(svg);
     // Keep the generated result even if disk storage fails; never re-bill on rerender.
