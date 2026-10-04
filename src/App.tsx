@@ -54,15 +54,15 @@ function GameContent() {
   };
 
   return (
-    <div className="h-[100dvh] max-h-[100dvh] w-full collection-app bg-[#171329] text-[#f6f0df] flex flex-col justify-between overflow-hidden selection:bg-amber-500 selection:text-black">
+    <div className="h-[100dvh] max-h-[100dvh] w-full collection-app bg-white text-neutral-900 flex flex-col justify-between overflow-hidden selection:bg-neutral-900 selection:text-white">
       {/* Top Header */}
       <Header
         onOpenSeeds={() => setShowSeedsModal(true)}
         onOpenVoice={() => setShowVoiceModal(true)}
       />
 
-      {saveError && <div role="alert" className="bg-red-950 text-white p-3 text-sm">{saveError}</div>}
-      {synthesisError && activeTab === 'foundry' && <div role="alert" className="bg-red-950 text-white p-3 text-sm">
+      {saveError && <div role="alert" className="bg-red-50 text-red-900 border-b border-red-200 p-3 text-sm">{saveError}</div>}
+      {synthesisError && activeTab === 'foundry' && <div role="alert" className="bg-red-50 text-red-900 border-b border-red-200 p-3 text-sm">
         {synthesisError} <button disabled={isSynthesizing} className="underline ml-2 p-2" onClick={() => void runSynthesis()}>Retry synthesis</button>
       </div>}
       {/* Main Viewport Content */}
