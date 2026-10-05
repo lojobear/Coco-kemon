@@ -9,7 +9,7 @@
   "scripts": {
     "android:init": "node -e \"require('fs').rmSync('android',{recursive:true,force:true})\" && npx cap add android",
     "android:sync": "npx cap sync android",
-    "android:assets": "npx capacitor-assets generate --android --assetPath ../public --iconBackgroundColor=#ffffff --iconBackgroundColorDark=#111111 --splashBackgroundColor=#ffffff --splashBackgroundColorDark=#111111",
+    "android:assets": "node scripts/prepare-assets.mjs && npx capacitor-assets generate --android --assetPath assets --iconBackgroundColor=#5B4BFF --iconBackgroundColorDark=#2A176A --splashBackgroundColor=#ffffff --splashBackgroundColorDark=#111111",
     "android:prepare": "node scripts/prepare-android.mjs",
     "android:open": "npx cap open android"
   },
@@ -20,6 +20,7 @@
   "devDependencies": {
     "@capacitor/assets": "^3.0.5",
     "@capacitor/cli": "^8.0.0",
-    "typescript": "~5.8.2"
+    "typescript": "~5.8.2",
+    "sharp": "^0.34.4"
   }
 }

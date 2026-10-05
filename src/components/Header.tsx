@@ -1,6 +1,4 @@
-/**
- * ODDKIN FOUNDRY - Top Bar Header
- */
+/** QuarkPop - top bar header */
 
 import React, { useState, useEffect } from 'react';
 import { useGame } from '../lib/gameStore';
@@ -50,8 +48,8 @@ export function Header({
   return (
     <header className="collection-header">
       <div className="collection-header-inner">
-        <button className="collection-brand" aria-label="Open Foundry" onClick={() => setActiveTab('foundry')}>
-          <img src="/art/mascot.png" alt="" /><span><strong>ODDKIN</strong><small>FOUNDRY</small></span>
+        <button className="collection-brand" aria-label="Open QuarkPop foundry" onClick={() => setActiveTab('foundry')}>
+          <img src="/icon.svg" alt="" /><span><strong>QUARKPOP</strong><small>MIX • MUTATE • DISCOVER</small></span>
         </button>
         <div className="header-actions">
           <button aria-label="Cloud saves and sign in" title="Cloud saves and sign in" onClick={() => setShowCloud(true)}><Cloud size={21} /></button>
@@ -66,7 +64,7 @@ export function Header({
           <div className="bg-[#181b20] border border-[#2e3440] rounded-2xl p-5 max-w-sm w-full shadow-2xl space-y-4 max-h-[90dvh] overflow-y-auto">
             <div className="flex items-center justify-between pb-2 border-b border-[#282d37]">
               <h3 className="text-sm font-bold font-mono text-[#f3f4f6] flex items-center gap-2">
-                <span>⚙️</span> FOUNDRY SETTINGS & DATA
+                <span>⚙️</span> QUARKPOP SETTINGS & DATA
               </h3>
               <button
                 onClick={() => {

@@ -1,12 +1,12 @@
 # Google Play release checklist
 
-Oddkin Foundry now has an Android packaging workflow under `mobile/`.
+QuarkPop now has an Android packaging workflow under `mobile/`.
 
 ## Before the first upload
 
 1. Decide the permanent Android application ID. The default is `com.logaandavid.oddkinfoundry`.
 2. Create a Google Play Console developer account if one is not already available.
-3. Create the Oddkin Foundry app entry in Play Console using the same application ID.
+3. Create the QuarkPop app entry in Play Console using the same application ID.
 4. Create and securely back up an Android upload keystore.
 5. Add the four Android signing secrets documented in `mobile/README.md`.
 6. Run the GitHub Actions workflow **Android Play Bundle** with version code `1`.
@@ -14,7 +14,7 @@ Oddkin Foundry now has an Android packaging workflow under `mobile/`.
 
 ## Store listing draft
 
-**App name:** Oddkin Foundry
+**App name:** QuarkPop
 
 **Short description:** Combine ideas, discover strange new elements, and build a growing collection of Oddkin.
 
