@@ -1,12 +1,13 @@
 /**
- * ODDKIN FOUNDRY
+ * QUARKPOP
  * "DISCOVER MATTER. CREATE LIFE."
  * Mobile-First AI Crafting & Procedural Genome Sprite Collection Game
  */
 
 import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { GameProvider, useGame } from './lib/gameStore';
-const KitchenView = lazy(() => import('./components/KitchenView').then(module => ({ default: module.KitchenView })));
+const loadKitchenView = () => import('./components/KitchenView');
+const KitchenView = lazy(() => loadKitchenView().then(module => ({ default: module.KitchenView })));
 import { Header } from './components/Header';
 import { WorkBench } from './components/WorkBench';
 import { ArchiveView } from './components/ArchiveView';
@@ -26,6 +27,13 @@ function GameContent() {
 
   const [kitchenOpened, setKitchenOpened] = useState(false);
   useEffect(() => { if (activeTab === 'kitchen') setKitchenOpened(true); }, [activeTab]);
+
+  // Warm the only lazy navigation chunk shortly after first paint so the first
+  // Kitchen tap does not have to wait for a network/module parse round-trip.
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void loadKitchenView(); }, 700);
+    return () => window.clearTimeout(timer);
+  }, []);
   const [saveError, setSaveError] = useState(getSaveError);
   useEffect(() => {
     const update = () => setSaveError(getSaveError());
@@ -96,7 +104,7 @@ function GameContent() {
       </main>
 
       {/* Bottom Navigation */}
-      <BottomNav />
+      <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} />
 
       {/* Floating Modals */}
       <DiscoveryModal />
