@@ -23,7 +23,7 @@ import { sound } from './lib/audio';
 import { Material } from './types';
 
 function GameContent() {
-  const { activeTab, inspectedItem, setInspectedItem, synthesisError, isSynthesizing, runSynthesis } = useGame();
+  const { activeTab, setActiveTab, inspectedItem, setInspectedItem, synthesisError, isSynthesizing, runSynthesis } = useGame();
 
   const [kitchenOpened, setKitchenOpened] = useState(false);
   useEffect(() => { if (activeTab === 'kitchen') setKitchenOpened(true); }, [activeTab]);
