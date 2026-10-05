@@ -1,43 +1,52 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <defs>
-    <radialGradient id="bgGrad" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#1e2229"/>
-      <stop offset="100%" stop-color="#0c0e12"/>
+    <linearGradient id="bg" x1="76" y1="52" x2="438" y2="472" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#5B4BFF"/>
+      <stop offset="0.56" stop-color="#7B35E8"/>
+      <stop offset="1" stop-color="#2A176A"/>
+    </linearGradient>
+    <radialGradient id="cyan" cx="0.32" cy="0.24" r="0.86">
+      <stop offset="0" stop-color="#D7FFFF"/>
+      <stop offset="0.28" stop-color="#59E8F6"/>
+      <stop offset="0.72" stop-color="#18A7D8"/>
+      <stop offset="1" stop-color="#0C668E"/>
     </radialGradient>
-    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#fde68a"/>
-      <stop offset="50%" stop-color="#f59e0b"/>
-      <stop offset="100%" stop-color="#b45309"/>
-    </linearGradient>
-    <linearGradient id="cyanGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#67e8f9"/>
-      <stop offset="100%" stop-color="#0891b2"/>
-    </linearGradient>
-    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="16" result="blur"/>
-      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    <radialGradient id="lime" cx="0.28" cy="0.2" r="0.88">
+      <stop offset="0" stop-color="#F4FFD1"/>
+      <stop offset="0.3" stop-color="#C9F75D"/>
+      <stop offset="0.72" stop-color="#78C93D"/>
+      <stop offset="1" stop-color="#39852F"/>
+    </radialGradient>
+    <radialGradient id="pink" cx="0.3" cy="0.18" r="0.9">
+      <stop offset="0" stop-color="#FFE0F3"/>
+      <stop offset="0.32" stop-color="#FF77C8"/>
+      <stop offset="0.72" stop-color="#DD3D99"/>
+      <stop offset="1" stop-color="#8E246B"/>
+    </radialGradient>
+    <filter id="shadow" x="-35%" y="-35%" width="170%" height="190%">
+      <feDropShadow dx="0" dy="22" stdDeviation="18" flood-color="#160B3B" flood-opacity=".42"/>
+    </filter>
+    <filter id="softGlow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="14"/>
     </filter>
   </defs>
 
-  <!-- Background Canvas -->
-  <rect width="512" height="512" rx="112" fill="url(#bgGrad)"/>
-  <rect width="504" height="504" x="4" y="4" rx="108" fill="none" stroke="#2d3340" stroke-width="8"/>
+  <rect x="18" y="18" width="476" height="476" rx="126" fill="url(#bg)"/>
+  <circle cx="256" cy="248" r="154" fill="#FFFFFF" opacity=".08"/>
+  <circle cx="256" cy="248" r="112" fill="#FFFFFF" opacity=".05"/>
 
-  <!-- Glowing Aura -->
-  <circle cx="256" cy="256" r="140" fill="url(#goldGrad)" opacity="0.12" filter="url(#glow)"/>
+  <g filter="url(#shadow)">
+    <path d="M121 255C121 196 161 153 215 153C246 153 269 168 284 190C304 163 332 146 367 146C422 146 458 188 458 240C458 290 422 330 372 330C347 330 327 322 310 307C297 342 266 365 227 365C168 365 121 320 121 255Z" fill="#160B3B" opacity=".2"/>
+    <circle cx="198" cy="248" r="91" fill="url(#cyan)"/>
+    <circle cx="332" cy="225" r="82" fill="url(#pink)"/>
+    <circle cx="292" cy="327" r="73" fill="url(#lime)"/>
+  </g>
 
-  <!-- Alchemical Ring & Orbitals -->
-  <circle cx="256" cy="256" r="150" fill="none" stroke="#374151" stroke-width="4" stroke-dasharray="8 6"/>
-  <circle cx="256" cy="256" r="120" fill="none" stroke="url(#goldGrad)" stroke-width="3" opacity="0.4"/>
+  <ellipse cx="168" cy="213" rx="27" ry="17" transform="rotate(-26 168 213)" fill="#FFFFFF" opacity=".68"/>
+  <ellipse cx="307" cy="190" rx="23" ry="14" transform="rotate(-22 307 190)" fill="#FFFFFF" opacity=".62"/>
+  <ellipse cx="270" cy="302" rx="20" ry="12" transform="rotate(-20 270 302)" fill="#FFFFFF" opacity=".56"/>
 
-  <!-- Orbiting Sparks -->
-  <circle cx="256" cy="106" r="12" fill="url(#goldGrad)" filter="url(#glow)"/>
-  <circle cx="362" cy="362" r="9" fill="url(#cyanGrad)" filter="url(#glow)"/>
-  <circle cx="150" cy="362" r="9" fill="#10b981" filter="url(#glow)"/>
-
-  <!-- Central Alchemical Emblem: Omega Ω -->
-  <path d="M 190 340 L 140 340 C 135 340 130 335 130 330 C 130 325 135 320 140 320 L 180 320 C 172 300 160 270 160 230 C 160 174 203 130 256 130 C 309 130 352 174 352 230 C 352 270 340 300 332 320 L 372 320 C 377 320 382 325 382 330 C 382 335 377 340 372 340 L 322 340 C 314 340 308 333 310 325 C 324 285 332 255 332 230 C 332 185 298 150 256 150 C 214 150 180 185 180 230 C 180 255 188 285 202 325 C 204 333 198 340 190 340 Z" fill="url(#goldGrad)" filter="url(#glow)"/>
-
-  <!-- Inner Spark -->
-  <path d="M 256 195 L 263 218 L 286 225 L 263 232 L 256 255 L 249 232 L 226 225 L 249 218 Z" fill="#ffffff"/>
+  <circle cx="263" cy="257" r="58" fill="#FFFFFF" opacity=".18" filter="url(#softGlow)"/>
+  <path d="M263 192L278 235L322 249L279 265L264 309L248 266L205 250L247 235L263 192Z" fill="#FFFFFF"/>
+  <circle cx="263" cy="251" r="9" fill="#FFF7B8"/>
 </svg>
