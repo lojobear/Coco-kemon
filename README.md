@@ -1,4 +1,4 @@
-# Coco-kemon / Oddkin Foundry
+# Coco-kemon / QuarkPop
 
 Concept crafting, material synthesis, and a collectible creature foundry built with React, Vite, Express, and Gemini.
 
