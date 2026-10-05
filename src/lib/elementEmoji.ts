@@ -55,9 +55,9 @@ async function rasterize(svg: string): Promise<string> {
   return canvas.toDataURL('image/png');
 }
 
-export function getElementEmoji(name: string, upgrade = false): Promise<string> {
+export function getElementEmoji(name: string, upgrade = false, variation = ''): Promise<string> {
   const key = emojiKey(name);
-  const jobKey = upgrade ? `${key}:upgrade` : key;
+  const jobKey = upgrade ? `${key}:upgrade:${variation || 'fresh'}` : key;
 
   if (!upgrade && memory.has(key)) return Promise.resolve(memory.get(key)!);
   if (jobs.has(jobKey)) return jobs.get(jobKey)!;
@@ -80,7 +80,7 @@ export function getElementEmoji(name: string, upgrade = false): Promise<string> 
     const { svg } = await requestJson<{ svg: string }>('/api/element-emoji', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: key, regenerate: upgrade }),
+      body: JSON.stringify({ name: key, regenerate: upgrade, variation: upgrade ? variation : undefined }),
     }, 60000);
 
     if (typeof svg !== 'string' || !svg.startsWith('<svg ') || svg.length > 120000) {
@@ -107,21 +107,21 @@ export function getElementEmoji(name: string, upgrade = false): Promise<string> 
 export function retryElementEmoji(name: string) {
   const key = emojiKey(name);
   jobs.delete(key);
-  jobs.delete(`${key}:upgrade`);
+  for (const jobKey of [...jobs.keys()]) if (jobKey.startsWith(`${key}:upgrade:`)) jobs.delete(jobKey);
   window.dispatchEvent(new CustomEvent('oddkin-emoji-retry', { detail: key }));
 }
 
-/** Explicit upgrade bypasses old art and asks the current 3D emoji engine for a fresh sprite. */
-export async function upgradeElementEmoji(name: string) {
+/** Explicit upgrade/reroll bypasses old art and asks the current 3D emoji engine for a fresh sprite. */
+export async function upgradeElementEmoji(name: string, variation = '') {
   const key = emojiKey(name);
   const pending = jobs.get(key);
   if (pending) await pending.catch(() => undefined);
 
   memory.delete(key);
   jobs.delete(key);
-  jobs.delete(`${key}:upgrade`);
+  for (const jobKey of [...jobs.keys()]) if (jobKey.startsWith(`${key}:upgrade:`)) jobs.delete(jobKey);
 
-  const art = await getElementEmoji(name, true);
+  const art = await getElementEmoji(name, true, variation);
   window.dispatchEvent(new CustomEvent('oddkin-emoji-retry', { detail: key }));
   return art;
 }
