@@ -27,7 +27,7 @@ Production needs a persistent Node service for the Express API, not static file 
 
 Built-in recipes work without an API key. Unknown combinations, failed photo/sketch analysis, and incomplete AI results display an error instead of adding invented fallback discoveries. Retry keeps the original crafting ingredients available. Skipping an animation never skips the network result.
 
-Material sprites are procedural PNGs drawn directly on a transparent 64×64 pixel grid. Object names select recognizable forms; semantic tags and inherited colours influence details. This is a local renderer, not a separate image-generation service. Existing material sprite caches refresh on load; creature art retains its existing renderer.
+New element/discovery sprites use Gemini native image generation, then are normalized to cached 512×512 PNGs in the browser for substantially richer pixel-art detail. The art direction targets polished RPG/crafting inventory icons with dark outlines, controlled color ramps, crisp highlights, and transparent backgrounds. Existing cached sprites are preserved until explicitly upgraded or rerolled. Procedural material/Oddkin renderers remain available as fallbacks/default restoration.
 
 ## Backups
 
