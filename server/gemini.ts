@@ -206,7 +206,7 @@ async function searchFoundryIdeas(
   const existingNames = extractExistingMaterialNames(prompt);
   const overusedRoots = findOverusedRoots(existingNames);
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 1500);
+  const timer = setTimeout(() => controller.abort(), 3000);
 
   const ideaPrompt = `You are the concept-search stage for an infinite crafting game.\n\n${compactFoundryContext(prompt)}\n\nGenerate six genuinely different plausible outcomes before any detailed object schema is written. Start from the causal meaning of BOTH inputs and the applied process. Do not choose a genre or domain first. The semantic connection determines the domain.\n\nThe result may be anything that forms a useful, recognizable node in an endless discovery graph: a real object, food, tool, gadget, vehicle, toy, wearable, cultural reference, fictional object or character, natural object, scientific phenomenon, place, creature-adjacent concept, fantasy artifact, joke, internet reference, or a coherent original collectible. This list is illustrative, never exhaustive.\n\nPop culture is welcome only when the recipe genuinely points there. Prefer specific recognizable nouns over pseudo-scientific filler. Avoid cosmetic cousins of recent discoveries and especially avoid repeated Ferro/Alloy/Crystal/Quantum/Core/Shard/Matrix naming families unless chemically or semantically unavoidable.\n\nA strong candidate must satisfy three tests: (1) both inputs visibly matter, (2) the process is the reason the transformation makes sense, and (3) the result creates useful possibilities for future combinations. Score each candidate honestly. Explanations must be short player-facing connections, not private reasoning. Return JSON only.`;
 
@@ -219,7 +219,7 @@ async function searchFoundryIdeas(
         responseJsonSchema: FOUNDRY_IDEA_SCHEMA,
         temperature: 0.9,
         abortSignal: controller.signal,
-        httpOptions: { timeout: 1500 },
+        httpOptions: { timeout: 3000 },
       } as any,
     });
     const raw = response.text?.trim();
@@ -410,9 +410,8 @@ export async function callGeminiStructured(
 
   const models = getGeminiModels();
   // Planning and failover share a deadline below the browser's 30s timeout.
-  // Per-attempt budgets are deliberately short so a hanging primary model fails over to the
-  // backup quickly instead of consuming the whole deadline. The client retries once on
-  // timeouts, so a genuinely slow request still gets a second full chance.
+  // Foundry synthesis prompts are substantially larger than normal requests, so give the
+  // primary model more room instead of timing it out at 12s and immediately falling back.
   const deadline = Date.now() + (drawingOptions ? Math.min(55000, drawingOptions.timeoutMs) : 29000);
 
   let foundryIdea: FoundryIdea | null = null;
@@ -436,7 +435,7 @@ export async function callGeminiStructured(
     const currentModel = models[attempt];
     const controller = new AbortController();
     const remainingMs = Math.min(
-      drawingOptions ? 20000 : foundryRequest ? 14000 : 10000,
+      drawingOptions ? 25000 : foundryRequest ? 21000 : 14000,
       deadline - Date.now()
     );
     if (remainingMs <= 0) throw new ApiFailure(504, 'AI request timed out. Please retry.');
