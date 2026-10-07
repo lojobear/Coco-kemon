@@ -117,12 +117,12 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
     setStatus(`${target.name} sprite updated.`);
   };
 
-  const fresh3dSprite = async (target: LabItem, mode: 'upgrade' | 'reroll') => {
+  const freshHdSprite = async (target: LabItem, mode: 'upgrade' | 'reroll') => {
     if (uploading) return;
     setUploading(true);
     rerollNonce.current += 1;
     const variation = `${mode}-${Date.now().toString(36)}-${rerollNonce.current}`;
-    setStatus(mode === 'reroll' ? 'Generating a fresh 3D reroll…' : 'Upgrading this sprite to 3D…');
+    setStatus(mode === 'reroll' ? 'Generating a fresh HD collection reroll…' : 'Upgrading this sprite to HD collection style…');
     try {
       const sprite = await upgradeElementEmoji(target.name, variation);
       // The generated art must become the selected item's active sprite. Previously
@@ -130,16 +130,16 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
       // kept winning and made both buttons appear broken.
       persistSprite(target, sprite);
       setStatus(mode === 'reroll'
-        ? `${target.name} rerolled with a new 3D emoji render.`
-        : `${target.name} upgraded to the 3D emoji style.`);
+        ? `${target.name} rerolled with a new HD collection render.`
+        : `${target.name} upgraded to the HD collection style.`);
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : '3D sprite generation failed.');
+      setStatus(error instanceof Error ? error.message : 'HD sprite generation failed.');
     } finally {
       setUploading(false);
     }
   };
 
-  const reroll = (target: LabItem) => fresh3dSprite(target, 'reroll');
+  const reroll = (target: LabItem) => freshHdSprite(target, 'reroll');
 
   const restoreDefault = (target: LabItem) => {
     try {
@@ -222,12 +222,12 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
                 </div>
 
                 <button disabled={uploading} onClick={() => void reroll(selected)} className="w-full py-3 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-black text-sm flex items-center justify-center gap-2">
-                  <RefreshCw className="w-4 h-4" /> REROLL SPRITE
+                  <RefreshCw className="w-4 h-4" /> REROLL HD SPRITE
                 </button>
-                <p className="text-[10px] text-[#80899a] leading-relaxed">Upgrade converts the selected item to the polished 3D emoji style. Reroll asks the AI for a visibly different 3D version and immediately saves it to that item. Uploads still override generated art.</p>
+                <p className="text-[10px] text-[#80899a] leading-relaxed">New discoveries now use a cleaner HD collection style by default: crisp silhouette, balanced proportions, restrained detail, and less uncanny AI weirdness. Upgrade applies that style to an older item; reroll creates a visibly different HD version. Uploads still override generated art.</p>
 
-                <button disabled={uploading} className="w-full py-3 rounded-xl border text-xs font-bold" onClick={() => void fresh3dSprite(selected, 'upgrade')}>
-                  UPGRADE TO 3D EMOJI STYLE
+                <button disabled={uploading} className="w-full py-3 rounded-xl border text-xs font-bold" onClick={() => void freshHdSprite(selected, 'upgrade')}>
+                  UPGRADE TO HD COLLECTION STYLE
                 </button>
                 {selected.type !== 'oddkin' && <button className="w-full py-2 text-xs underline" onClick={() => { retryElementEmoji(selected.name); setStatus('Retrying missing art. Existing saved art is reused.'); }}>Retry missing art</button>}
                 <input ref={uploadRef} type="file" accept="image/png,image/webp,image/jpeg" className="hidden" onChange={event => void uploadCustom(event.target.files?.[0])} />
