@@ -63,7 +63,7 @@ export function Header({
     <header className="collection-header">
       <div className="collection-header-inner">
         <button className="collection-brand" aria-label="Open QuarkPop foundry" onClick={() => setActiveTab('foundry')}>
-          <img src="/icon.svg" alt="" /><span><strong>QUARKPOP</strong><small>MIX • MUTATE • DISCOVER</small></span></span>
+          <img src="/icon.svg" alt="" /><span><strong>QUARKPOP</strong><small>MIX • MUTATE • DISCOVER</small></span>
         </button>
         <div className="header-actions">
           <button aria-label="Cloud saves and sign in" title="Cloud saves and sign in" onClick={() => setShowCloud(true)}><Cloud size={21} /></button>
