@@ -10,7 +10,7 @@ test('emoji identity normalizes whitespace, case and Unicode', () => {
   assert.equal(emojiKey('Ｆｉｒｅ'), 'fire');
   assert.notEqual(emojiKey('Moon'), emojiKey('Moon Rock'));
 });
-test('AI drawing grammar supports smooth 3D layers while rejecting unsafe markup', () => {
+test('AI drawing grammar supports crisp pixel layers while rejecting unsafe markup', () => {
   const rendered = renderEmojiDrawing({
     paths: [
       { d: 'M16 70C16 34 40 14 64 14C90 14 112 36 112 70Q112 108 64 116Q16 108 16 70Z', fill: '#ff9900' },
@@ -18,7 +18,7 @@ test('AI drawing grammar supports smooth 3D layers while rejecting unsafe markup
     ],
   });
   assert.match(rendered, /viewBox="0 0 128 128"/);
-  assert.match(rendered, /shape-rendering="geometricPrecision"/);
+  assert.match(rendered, /shape-rendering="crispEdges"/);
   assert.match(rendered, /opacity="0.72"/);
   assert.match(rendered, /C16 34 40 14 64 14/);
 
