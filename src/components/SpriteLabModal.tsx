@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ImagePlus, RefreshCw, RotateCcw, Search, Sparkles, Upload, X } from 'lucide-react';
 import { useGame } from '../lib/gameStore';
 import { MATERIAL_SPRITE_RENDERER_VERSION, generateMaterialSprite, generateOddkinSprite } from '../lib/pixelRenderer';
-import { Material, Oddkin, SpriteDescriptor } from '../types';
+import { Material, Oddkin } from '../types';
 import { readCraftElements, saveCraftElements, SAVE_IMPORTED_EVENT, getSaveError } from '../lib/saveData';
 import { InfiniteElement } from '../lib/infiniteCraftData';
 import { sound } from '../lib/audio';
@@ -13,43 +13,6 @@ type LabItem =
   | { type: 'craft'; id: string; name: string; sprite?: string; item: InfiniteElement }
   | { type: 'material'; id: string; name: string; sprite?: string; item: Material }
   | { type: 'oddkin'; id: string; name: string; sprite?: string; item: Oddkin };
-
-const MATERIAL_SHAPES: SpriteDescriptor['baseShape'][] = [
-  'droplet', 'crystal', 'powder', 'rock', 'ingot', 'flora', 'fluid', 'sparks', 'orb', 'vapor', 'curio',
-];
-
-const ODDKIN_PLANS: Oddkin['morphology']['bodyPlan'][] = [
-  'quadruped', 'biped', 'blob', 'serpentine', 'insectoid', 'avian', 'floating_orb', 'fungoid',
-];
-
-const EYE_STYLES: Oddkin['spriteSpecification']['eyeStyle'][] = [
-  'beady', 'slits', 'luminescent', 'compound', 'single', 'gentle',
-];
-
-function numericSeed(value: string) {
-  let hash = 2166136261;
-  for (let i = 0; i < value.length; i++) {
-    hash ^= value.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  return hash >>> 0;
-}
-
-function materialShapePool(mat: Material): SpriteDescriptor['baseShape'][] {
-  if (mat.properties.liquid) return ['droplet', 'fluid', 'orb', 'vapor', 'curio'];
-  if (mat.properties.gaseous) return ['vapor', 'sparks', 'orb', 'curio'];
-  if (mat.properties.crystalline) return ['crystal', 'rock', 'orb', 'curio', 'ingot'];
-  if (mat.properties.metallic) return ['ingot', 'rock', 'orb', 'curio', 'crystal'];
-  if (mat.properties.organic) return ['flora', 'curio', 'rock', 'powder', 'orb'];
-  if (mat.stateOfMatter === 'energy' || mat.properties.conductive) return ['sparks', 'orb', 'vapor', 'crystal', 'curio'];
-  return MATERIAL_SHAPES;
-}
-
-function nextDifferent<T>(values: T[], current: T | undefined, seed: number): T {
-  const alternatives = values.filter(value => value !== current);
-  const pool = alternatives.length ? alternatives : values;
-  return pool[seed % pool.length];
-}
 
 async function fileTo64pxSprite(file: File): Promise<string> {
   if (!file.type.startsWith('image/')) throw new Error('Choose a PNG, WebP, or JPG image.');
@@ -154,62 +117,29 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
     setStatus(`${target.name} sprite updated.`);
   };
 
-  const reroll = (target: LabItem) => {
+  const fresh3dSprite = async (target: LabItem, mode: 'upgrade' | 'reroll') => {
+    if (uploading) return;
+    setUploading(true);
+    rerollNonce.current += 1;
+    const variation = `${mode}-${Date.now().toString(36)}-${rerollNonce.current}`;
+    setStatus(mode === 'reroll' ? 'Generating a fresh 3D reroll…' : 'Upgrading this sprite to 3D…');
     try {
-      rerollNonce.current += 1;
-      const seed = numericSeed(`${target.type}:${target.id}:${Date.now()}:${rerollNonce.current}`);
-
-      if (target.type === 'craft') {
-        const canvas = document.createElement('canvas');
-        canvas.width = canvas.height = 64;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) throw new Error('Canvas is unavailable on this device.');
-        ctx.fillStyle = `hsl(${seed % 360} 70% 25%)`;
-        ctx.fillRect(4, 4, 56, 56);
-        ctx.strokeStyle = `hsl(${(seed + 70) % 360} 90% 65%)`;
-        ctx.lineWidth = 4;
-        ctx.strokeRect(4, 4, 56, 56);
-        ctx.font = '38px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(target.item.emoji, 32, 33);
-        persistSprite(target, canvas.toDataURL('image/png'));
-      } else if (target.type === 'material') {
-        const mat = target.item;
-        const baseShape = nextDifferent(materialShapePool(mat), mat.spriteDescriptor.baseShape, seed);
-        const paletteShift = seed % 3;
-        const colors = [mat.spriteDescriptor.primaryColor, mat.spriteDescriptor.secondaryColor, mat.spriteDescriptor.accentColor];
-        const rotated = [...colors.slice(paletteShift), ...colors.slice(0, paletteShift)];
-        const visualOnly: Material = {
-          ...mat,
-          // A neutral visual key prevents the renderer's name heuristics from forcing the same silhouette again.
-          canonicalName: `VISUAL_VARIANT_${seed}`,
-          semanticTags: [...mat.semanticTags, `visual-variant-${seed % 997}`],
-          spriteDescriptor: {
-            ...mat.spriteDescriptor,
-            baseShape,
-            primaryColor: rotated[0],
-            secondaryColor: rotated[1],
-            accentColor: rotated[2],
-          },
-        };
-        persistSprite(target, generateMaterialSprite(visualOnly));
-      } else {
-        const odd = target.item;
-        const bodyPlan = nextDifferent(ODDKIN_PLANS, odd.morphology.bodyPlan, seed);
-        const eyeStyle = nextDifferent(EYE_STYLES, odd.spriteSpecification.eyeStyle, Math.floor(seed / 7));
-        const visualOnly: Oddkin = {
-          ...odd,
-          speciesId: `${odd.speciesId}__visual_${seed}`,
-          morphology: { ...odd.morphology, bodyPlan },
-          spriteSpecification: { ...odd.spriteSpecification, eyeStyle },
-        };
-        persistSprite(target, generateOddkinSprite(visualOnly, { isChroma: odd.isChromaActive }));
-      }
+      const sprite = await upgradeElementEmoji(target.name, variation);
+      // The generated art must become the selected item's active sprite. Previously
+      // it only updated the hidden cache, so any existing custom/procedural sprite
+      // kept winning and made both buttons appear broken.
+      persistSprite(target, sprite);
+      setStatus(mode === 'reroll'
+        ? `${target.name} rerolled with a new 3D emoji render.`
+        : `${target.name} upgraded to the 3D emoji style.`);
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : 'Sprite reroll failed.');
+      setStatus(error instanceof Error ? error.message : '3D sprite generation failed.');
+    } finally {
+      setUploading(false);
     }
   };
+
+  const reroll = (target: LabItem) => fresh3dSprite(target, 'reroll');
 
   const restoreDefault = (target: LabItem) => {
     try {
@@ -291,17 +221,14 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
                   <div className="text-[10px] uppercase tracking-wider text-[#788397]">{selected.type}</div>
                 </div>
 
-                <button disabled={uploading} onClick={() => reroll(selected)} className="w-full py-3 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-black text-sm flex items-center justify-center gap-2">
+                <button disabled={uploading} onClick={() => void reroll(selected)} className="w-full py-3 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-black text-sm flex items-center justify-center gap-2">
                   <RefreshCw className="w-4 h-4" /> REROLL SPRITE
                 </button>
-                <p className="text-[10px] text-[#80899a] leading-relaxed">New element art uses a polished 3D emoji / collectible-game icon look: rounded volume, smooth materials, soft studio lighting, and strong recognizable silhouettes. Older sprites stay cached until you choose the upgrade button. Uploads still override generated art.</p>
+                <p className="text-[10px] text-[#80899a] leading-relaxed">Upgrade converts the selected item to the polished 3D emoji style. Reroll asks the AI for a visibly different 3D version and immediately saves it to that item. Uploads still override generated art.</p>
 
-                {selected.type !== 'oddkin' && <button disabled={uploading} className="w-full py-3 rounded-xl border text-xs font-bold" onClick={async () => {
-                  setUploading(true); setStatus('Rebuilding as a polished 3D emoji…');
-                  try { await upgradeElementEmoji(selected.name); setStatus('3D emoji v4 art saved. If you use custom art, choose Restore default to show it.'); }
-                  catch (error) { setStatus(error instanceof Error ? error.message : 'Artwork upgrade failed.'); }
-                  finally { setUploading(false); }
-                }}>UPGRADE TO 3D EMOJI STYLE</button>}
+                <button disabled={uploading} className="w-full py-3 rounded-xl border text-xs font-bold" onClick={() => void fresh3dSprite(selected, 'upgrade')}>
+                  UPGRADE TO 3D EMOJI STYLE
+                </button>
                 {selected.type !== 'oddkin' && <button className="w-full py-2 text-xs underline" onClick={() => { retryElementEmoji(selected.name); setStatus('Retrying missing art. Existing saved art is reused.'); }}>Retry missing art</button>}
                 <input ref={uploadRef} type="file" accept="image/png,image/webp,image/jpeg" className="hidden" onChange={event => void uploadCustom(event.target.files?.[0])} />
                 <button disabled={uploading} onClick={() => uploadRef.current?.click()} className="w-full py-2.5 rounded-xl bg-[#18202a] border border-[#344154] text-white text-xs font-bold flex items-center justify-center gap-2">

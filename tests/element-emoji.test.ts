@@ -46,7 +46,7 @@ test('endpoint generates once for simultaneous and repeated canonical names', as
     assert.equal(calls, 1);
     const refreshed = await fetch(base + '/api/element-emoji', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: 'Moon Rock', regenerate: true }),
+      body: JSON.stringify({ name: 'Moon Rock', regenerate: true, variation: 'reroll-a' }),
     });
     assert.equal(refreshed.status, 200);
     assert.equal(calls, 2);
@@ -80,8 +80,10 @@ test('client deduplicates in flight and reads persistent art after a module relo
     const reloaded = await import('../src/lib/elementEmoji.ts' + '?reloaded');
     assert.equal(await reloaded.getElementEmoji('moon rock'), a);
     assert.equal(calls, 1);
-    await reloaded.upgradeElementEmoji('moon rock');
+    await reloaded.upgradeElementEmoji('moon rock', 'upgrade-a');
     assert.equal(calls, 2);
+    await reloaded.upgradeElementEmoji('moon rock', 'reroll-b');
+    assert.equal(calls, 3);
   } finally {
     Object.defineProperty(globalThis, 'indexedDB', { configurable: true, value: oldIndexedDB }); globalThis.fetch = oldFetch;
     Object.defineProperty(globalThis, 'Image', { configurable: true, value: oldImage });
