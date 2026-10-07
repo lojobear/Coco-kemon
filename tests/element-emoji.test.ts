@@ -41,7 +41,11 @@ test('endpoint generates once for simultaneous and repeated canonical names', as
   try {
     const replies = await Promise.all([post('Moon Rock'), post(' moon   rock ')]);
     assert.ok(replies.every(r => r.ok));
-    assert.deepEqual(await replies[0].json(), await replies[1].json());
+    const firstReply = await replies[0].json() as any;
+    const secondReply = await replies[1].json() as any;
+    assert.deepEqual(firstReply, secondReply);
+    assert.equal(firstReply.engineVersion, 'v6-pixel-inventory');
+    assert.equal(firstReply.provenance, 'ai-generated-pixel-inventory-sprite');
     assert.equal((await post('MOON ROCK')).status, 200);
     assert.equal(calls, 1);
     const refreshed = await fetch(base + '/api/element-emoji', {
