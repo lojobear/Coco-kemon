@@ -324,7 +324,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
           existingMaterialNames: materials.map(m => m.canonicalName),
           knownOddkinNames: oddkinCollection.map(o => o.speciesName),
         }),
-      });
+      }, 30000, { retries: 1 });
 
       if (!validSynthesisResult(data)) {
         throw new Error('The server returned an invalid discovery. Please retry.');
