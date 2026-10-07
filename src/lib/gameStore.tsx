@@ -48,7 +48,7 @@ interface GameState {
   activeTab: 'infinite-craft' | 'foundry' | 'archive' | 'sprite-lab' | 'notebook' | 'seeds' | 'kitchen';
   inspectedItem: { type: 'material' | 'oddkin'; item: Material | Oddkin } | null;
   isMuted: boolean;
-  
+
   // Actions
   setSlotA: (m: Material | null) => void;
   setSlotB: (m: Material | null) => void;
@@ -215,11 +215,19 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
   // Ensure starter materials have generated sprites
   useEffect(() => {
-    setMaterials(prev => prev.map(m => m.customSpriteUrl && m.spriteRendererVersion === MATERIAL_SPRITE_RENDERER_VERSION ? m : {
-      ...m,
-      customSpriteUrl: generateMaterialSprite(m),
-      spriteRendererVersion: MATERIAL_SPRITE_RENDERER_VERSION,
-    }));
+    setMaterials(prev => {
+      let changed = false;
+      const next = prev.map(m => {
+        if (m.customSpriteUrl && m.spriteRendererVersion === MATERIAL_SPRITE_RENDERER_VERSION) return m;
+        changed = true;
+        return {
+          ...m,
+          customSpriteUrl: generateMaterialSprite(m),
+          spriteRendererVersion: MATERIAL_SPRITE_RENDERER_VERSION,
+        };
+      });
+      return changed ? next : prev;
+    });
   }, []);
 
   const clearSlots = useCallback(() => {
@@ -638,7 +646,6 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     setRecentDiscovery({
       oddkin: updatedOddkin,
       isNew: true,
-      isChroma: true,
       explanation: `${target.speciesName} transformed into ${transformedName}!`
     });
     return true;
@@ -771,5 +778,3 @@ export function useGame() {
   if (!ctx) throw new Error('useGame must be used within GameProvider');
   return ctx;
 }
-
-

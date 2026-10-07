@@ -11,10 +11,17 @@ const LEGACY_CRAFT = 'neal_infinite_craft_elements_v1';
 let craftMemory: InfiniteElement[] | undefined;
 let saveError: string | null = null;
 let recoveryRequired = false;
+let envelopeLoaded = false;
+let envelopeMemory: any = null;
 export const getSaveError = () => saveError;
 function status(message: string | null) {
   saveError = message;
   if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent(SAVE_STATUS_EVENT, { detail: message }));
+}
+// Drop the cached envelope so the next read re-parses localStorage.
+export function invalidateStoredEnvelope() {
+  envelopeLoaded = false;
+  envelopeMemory = null;
 }
 const unique = (items: any[], key: string) => new Set(items.map(x => x[key])).size === items.length;
 export function validateCraft(v: unknown): v is InfiniteElement[] {
@@ -34,10 +41,17 @@ export function validateFoundry(v: unknown): boolean {
     Array.isArray(v.habitats) && v.habitats.every((h: unknown) => record(h) && text(h.id) && text(h.name) && text(h.type) && typeof h.description === 'string' && strings(h.residentOddkinIds) && finite(h.lastHarvestTimestamp) && record(h.themePalette) && ['sky','ground','accent','foliage'].every(k => color(h.themePalette[k])));
 }
 function storedEnvelope(): any {
+  if (envelopeLoaded) return envelopeMemory;
   const raw = localStorage.getItem(SAVE_KEY);
-  if (!raw) return null;
+  if (!raw) {
+    envelopeLoaded = true;
+    envelopeMemory = null;
+    return null;
+  }
   const v = JSON.parse(raw);
   if (!record(v) || v.version !== 2 || !validateCraft(v.crafting) || (v.foundry !== null && !validateFoundry(v.foundry))) throw new Error('Invalid saved data');
+  envelopeLoaded = true;
+  envelopeMemory = v;
   return v;
 }
 export function readFoundrySave(): string | null {
@@ -60,6 +74,7 @@ export function readCraftElements(): InfiniteElement[] {
 function write(foundry: any, crafting: InfiniteElement[]) {
   // One setItem commits both collections atomically. Quota failures leave the old save intact.
   localStorage.setItem(SAVE_KEY, JSON.stringify({ version: 2, savedAt: Date.now(), foundry, crafting }));
+  invalidateStoredEnvelope();
   status(null);
 }
 export function saveCraftElements(elements: InfiniteElement[]) {
@@ -101,4 +116,3 @@ export function importCompleteSave(json: string) {
   window.dispatchEvent(new Event(SAVE_IMPORTED_EVENT));
   return parsed.foundry;
 }
-

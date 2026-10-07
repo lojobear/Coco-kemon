@@ -8,6 +8,21 @@ import { haptics } from '../lib/haptics';
 import { PWAInstallButton } from './PWAInstallButton';
 import { CloudSaves } from './CloudSaves';
 
+const HEALTH_CACHE_TTL_MS = 60 * 1000;
+let healthCache: { promise: Promise<boolean | null>; fetchedAt: number } | null = null;
+
+// Reuses the in-flight or fresh /api/health response across remounts.
+function fetchGeminiKeyStatus(): Promise<boolean | null> {
+  const now = Date.now();
+  if (healthCache && now - healthCache.fetchedAt < HEALTH_CACHE_TTL_MS) return healthCache.promise;
+  const promise = fetch('/api/health')
+    .then(res => res.json())
+    .then(data => (data && typeof data.hasGeminiKey === 'boolean' ? data.hasGeminiKey : null))
+    .catch(() => null);
+  healthCache = { promise, fetchedAt: now };
+  return promise;
+}
+
 export function Header({
   onOpenVoice,
   onOpenSeeds,
@@ -33,14 +48,13 @@ export function Header({
   const [hapticsOn, setHapticsOn] = useState<boolean>(() => haptics.isEnabled());
 
   useEffect(() => {
-    fetch('/api/health')
-      .then(res => res.json())
-      .then(data => {
-        if (data && typeof data.hasGeminiKey === 'boolean') {
-          setHasGeminiKey(data.hasGeminiKey);
-        }
-      })
-      .catch(() => {});
+    let cancelled = false;
+    fetchGeminiKeyStatus().then(hasKey => {
+      if (!cancelled && hasKey !== null) {
+        setHasGeminiKey(hasKey);
+      }
+    });
+    return () => { cancelled = true; };
   }, []);
 
   const chromaCount = oddkinCollection.filter(o => o.isChromaActive || o.variantFormsDiscovered?.includes('chroma')).length;
@@ -49,7 +63,7 @@ export function Header({
     <header className="collection-header">
       <div className="collection-header-inner">
         <button className="collection-brand" aria-label="Open QuarkPop foundry" onClick={() => setActiveTab('foundry')}>
-          <img src="/icon.svg" alt="" /><span><strong>QUARKPOP</strong><small>MIX • MUTATE • DISCOVER</small></span>
+          <img src="/icon.svg" alt="" /><span><strong>QUARKPOP</strong><small>MIX • MUTATE • DISCOVER</small></span></span>
         </button>
         <div className="header-actions">
           <button aria-label="Cloud saves and sign in" title="Cloud saves and sign in" onClick={() => setShowCloud(true)}><Cloud size={21} /></button>
