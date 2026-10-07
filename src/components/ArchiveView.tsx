@@ -5,14 +5,63 @@
  */
 
 import { MaterialSprite } from './ElementSprite';
-import React, { useMemo, useState } from 'react';
+import { SkeletonCard } from './SkeletonCard';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { readCraftElements } from '../lib/saveData';
 import { conceptMaterial } from '../lib/conceptMaterial';
 import { useGame } from '../lib/gameStore';
 import { Material, Oddkin, Rarity } from '../types';
 import { sound } from '../lib/audio';
 import { generatePhysicalData } from '../lib/physicalDataEngine';
-import { BookOpen, Sparkles, GitBranch, ArrowRight, X, Info, Flame, Shield, Heart } from 'lucide-react';
+import { useDebouncedValue } from '../lib/useDebouncedValue';
+import { BookOpen, Sparkles, GitBranch, ArrowRight, X, Info, Flame, Shield, Heart, Shuffle } from 'lucide-react';
+
+const FAVORITES_KEY = 'quarkpop_favorites_v1';
+
+// Rarest-first ranking used by the "Rarest first" sort mode.
+const RARITY_RANK: Record<Rarity, number> = {
+  ANOMALOUS: 5,
+  MYTHIC: 4,
+  EXOTIC: 3,
+  RARE: 2,
+  UNCOMMON: 1,
+  COMMON: 0,
+};
+
+type SortMode = 'newest' | 'name' | 'rarity';
+
+function loadFavorites(): string[] {
+  try {
+    const raw = localStorage.getItem(FAVORITES_KEY);
+    if (!raw) return [];
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((id): id is string => typeof id === 'string');
+  } catch {
+    return [];
+  }
+}
+
+function sortArchive<T extends { rarity: Rarity; discoveredAt: number }>(
+  items: T[],
+  nameOf: (item: T) => string,
+  mode: SortMode,
+): T[] {
+  const copy = [...items];
+  if (mode === 'name') {
+    copy.sort((a, b) => nameOf(a).localeCompare(nameOf(b)));
+  } else if (mode === 'rarity') {
+    copy.sort((a, b) => {
+      const byRarity = (RARITY_RANK[b.rarity] ?? 0) - (RARITY_RANK[a.rarity] ?? 0);
+      if (byRarity !== 0) return byRarity;
+      return (b.discoveredAt || 0) - (a.discoveredAt || 0);
+    });
+  } else {
+    // Newest: discovery timestamp, newest first (untimestamped sink to the bottom).
+    copy.sort((a, b) => (b.discoveredAt || 0) - (a.discoveredAt || 0));
+  }
+  return copy;
+}
 
 export function ArchiveView({
   inspectedItem,
@@ -35,25 +84,107 @@ export function ArchiveView({
   const [selectedRarity, setSelectedRarity] = useState<string>('ALL');
   const [searchFilter, setSearchFilter] = useState<string>('');
   const [selectedCatalyst, setSelectedCatalyst] = useState<Material | null>(null);
+  const [sortMode, setSortMode] = useState<SortMode>('newest');
+  const [favorites, setFavorites] = useState<string[]>(loadFavorites);
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState<boolean>(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Debounced search so the filter computation only re-runs once typing pauses.
+  const debouncedSearch = useDebouncedValue(searchFilter, 250);
+  const isDebouncing = searchFilter !== debouncedSearch;
 
   const rarities = ['ALL', 'COMMON', 'UNCOMMON', 'RARE', 'EXOTIC', 'MYTHIC', 'ANOMALOUS'];
 
-  const filteredOddkin = oddkinCollection.filter(o => {
-    const matchesRarity = selectedRarity === 'ALL' || o.rarity === selectedRarity;
-    const matchesSearch = !searchFilter || o.speciesName.toLowerCase().includes(searchFilter.toLowerCase()) || o.titleOrClassification.toLowerCase().includes(searchFilter.toLowerCase());
-    return matchesRarity && matchesSearch;
-  });
+  const toggleFavorite = (id: string) => {
+    setFavorites(prev => {
+      const next = prev.includes(id) ? prev.filter(fav => fav !== id) : [...prev, id];
+      try {
+        localStorage.setItem(FAVORITES_KEY, JSON.stringify(next));
+      } catch {
+        // Storage unavailable (e.g. private mode) — keep the in-memory copy.
+      }
+      return next;
+    });
+  };
 
-  const filteredMaterials = materials.filter(m => {
-    const matchesRarity = selectedRarity === 'ALL' || m.rarity === selectedRarity;
-    const matchesSearch = !searchFilter || m.displayName.toLowerCase().includes(searchFilter.toLowerCase()) || m.category.toLowerCase().includes(searchFilter.toLowerCase());
-    return matchesRarity && matchesSearch;
-  });
+  const filteredOddkin = useMemo(() => {
+    const q = debouncedSearch.trim().toLowerCase();
+    const favSet = new Set(favorites);
+    const filtered = oddkinCollection.filter(o => {
+      const matchesRarity = selectedRarity === 'ALL' || o.rarity === selectedRarity;
+      const matchesSearch = !q || o.speciesName.toLowerCase().includes(q) || o.titleOrClassification.toLowerCase().includes(q);
+      const matchesFavorite = !showFavoritesOnly || favSet.has(o.speciesId);
+      return matchesRarity && matchesSearch && matchesFavorite;
+    });
+    return sortArchive(filtered, o => o.speciesName, sortMode);
+  }, [oddkinCollection, selectedRarity, debouncedSearch, favorites, showFavoritesOnly, sortMode]);
+
+  const filteredMaterials = useMemo(() => {
+    const q = debouncedSearch.trim().toLowerCase();
+    const favSet = new Set(favorites);
+    const filtered = materials.filter(m => {
+      const matchesRarity = selectedRarity === 'ALL' || m.rarity === selectedRarity;
+      const matchesSearch = !q || m.displayName.toLowerCase().includes(q) || m.category.toLowerCase().includes(q);
+      const matchesFavorite = !showFavoritesOnly || favSet.has(m.id);
+      return matchesRarity && matchesSearch && matchesFavorite;
+    });
+    return sortArchive(filtered, m => m.displayName, sortMode);
+  }, [materials, selectedRarity, debouncedSearch, favorites, showFavoritesOnly, sortMode]);
 
   const activeInspected = inspectedItem;
 
+  // Opens a random discovery exactly the way tapping its card does.
+  const handleSurpriseMe = () => {
+    type Inspected = { type: 'oddkin'; item: Oddkin } | { type: 'material'; item: Material };
+    const filteredPool: Inspected[] = [
+      ...filteredOddkin.map((item): Inspected => ({ type: 'oddkin', item })),
+      ...filteredMaterials.map((item): Inspected => ({ type: 'material', item })),
+    ];
+    const pool = filteredPool.length > 0
+      ? filteredPool
+      : [
+          ...oddkinCollection.map((item): Inspected => ({ type: 'oddkin', item })),
+          ...materials.map((item): Inspected => ({ type: 'material', item })),
+        ];
+    if (pool.length === 0) return;
+    const pick = pool[Math.floor(Math.random() * pool.length)];
+    sound.playClick();
+    if (pick.type === 'oddkin') {
+      sound.playOddkinChirp(pick.item.chirpToneHz, pick.item.temperament);
+    }
+    setInspectedItem(pick);
+  };
+
+  const renderFavoriteStar = (id: string) => {
+    const isFav = favorites.includes(id);
+    return (
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          sound.playClick();
+          toggleFavorite(id);
+        }}
+        aria-label={isFav ? 'Remove from favorites' : 'Add to favorites'}
+        title={isFav ? 'Remove from favorites' : 'Add to favorites'}
+        className={`absolute top-2 left-2 z-10 w-7 h-7 flex items-center justify-center rounded-lg bg-black/40 border border-transparent hover:border-amber-400/60 transition-colors text-base leading-none ${
+          isFav ? 'text-amber-400' : 'text-[#5b6474] hover:text-amber-300'
+        }`}
+      >
+        {isFav ? '★' : '☆'}
+      </button>
+    );
+  };
+
+  const skeletonGrid = (count = 8) => (
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
+      {Array.from({ length: count }, (_, i) => (
+        <SkeletonCard key={i} />
+      ))}
+    </div>
+  );
+
   // Handle Escape key to close inspector
-  React.useEffect(() => {
+  useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && activeInspected) {
         onCloseInspect();
@@ -62,6 +193,22 @@ export function ArchiveView({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [activeInspected, onCloseInspect]);
+
+  // Press "/" to focus the archive search (when not already typing somewhere).
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== '/') return;
+      const target = e.target as HTMLElement | null;
+      if (target) {
+        const tag = target.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable) return;
+      }
+      e.preventDefault();
+      searchInputRef.current?.focus();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   return (
     <div className="w-full flex-1 max-w-4xl mx-auto px-3 py-4 space-y-4 font-mono select-none">
@@ -112,31 +259,65 @@ export function ArchiveView({
         </div>
       </div>
 
-      {/* Search & Rarity Controls */}
+      {/* Search, Sort & Surprise Controls */}
       <div className="flex flex-col sm:flex-row gap-2">
         <input
+          ref={searchInputRef}
           type="text"
-          placeholder="Filter by name, classification, or traits..."
+          placeholder="Filter by name, classification, or traits...  (press /)"
           value={searchFilter}
           onChange={e => setSearchFilter(e.target.value)}
           className="flex-1 px-3 py-1.5 rounded-lg bg-[#16181e] border border-[#2a2f3d] text-xs text-[#f3f4f6] placeholder-[#6b7280] focus:outline-none focus:border-[#f59e0b]"
         />
 
-        <div className="flex items-center gap-1 overflow-x-auto pb-1 text-[10px]">
-          {rarities.map(r => (
-            <button
-              key={r}
-              onClick={() => { sound.playClick(); setSelectedRarity(r); }}
-              className={`px-2 py-1 rounded whitespace-nowrap transition-colors border ${
-                selectedRarity === r
-                  ? 'bg-[#2b313f] border-[#f59e0b] text-[#f59e0b] font-bold'
-                  : 'bg-[#181b20] border-[#292e3a] text-[#9ca3af] hover:text-white'
-              }`}
-            >
-              {r}
-            </button>
-          ))}
+        <div className="flex items-center gap-2">
+          <select
+            value={sortMode}
+            onChange={e => { sound.playClick(); setSortMode(e.target.value as SortMode); }}
+            aria-label="Sort archive"
+            className="px-2 py-1.5 rounded-lg bg-[#16181e] border border-[#2a2f3d] text-xs text-[#f3f4f6] focus:outline-none focus:border-[#f59e0b]"
+          >
+            <option value="newest">Newest first</option>
+            <option value="name">Name A–Z</option>
+            <option value="rarity">Rarest first</option>
+          </select>
+
+          <button
+            onClick={handleSurpriseMe}
+            title="Open a random discovery"
+            className="px-3 py-1.5 rounded-lg bg-[#181b20] border border-[#2c3240] text-xs font-semibold text-[#9ca3af] hover:text-white hover:border-[#a855f7] transition-colors flex items-center gap-1.5 whitespace-nowrap"
+          >
+            <Shuffle className="w-3.5 h-3.5" />
+            Surprise me
+          </button>
         </div>
+      </div>
+
+      {/* Rarity & Favorites Filters */}
+      <div className="flex items-center gap-1 overflow-x-auto pb-1 text-[10px]">
+        {rarities.map(r => (
+          <button
+            key={r}
+            onClick={() => { sound.playClick(); setSelectedRarity(r); }}
+            className={`px-2 py-1 rounded whitespace-nowrap transition-colors border ${
+              selectedRarity === r
+                ? 'bg-[#2b313f] border-[#f59e0b] text-[#f59e0b] font-bold'
+                : 'bg-[#181b20] border-[#292e3a] text-[#9ca3af] hover:text-white'
+            }`}
+          >
+            {r}
+          </button>
+        ))}
+        <button
+          onClick={() => { sound.playClick(); setShowFavoritesOnly(v => !v); }}
+          className={`px-2 py-1 rounded whitespace-nowrap transition-colors border ${
+            showFavoritesOnly
+              ? 'bg-[#2b313f] border-amber-400 text-amber-400 font-bold'
+              : 'bg-[#181b20] border-[#292e3a] text-[#9ca3af] hover:text-white'
+          }`}
+        >
+          ★ Favorites ({favorites.length})
+        </button>
       </div>
 
       {/* Grid of Archive Items */}
@@ -154,11 +335,14 @@ export function ArchiveView({
               <div className="p-6 rounded-xl bg-[#15171d] border border-dashed border-[#2b303d] text-center text-xs text-[#6b7280]">
                 No living Oddkin species discovered matching filters. Experiment with high life-potential matter & bio-processes!
               </div>
+            ) : isDebouncing ? (
+              skeletonGrid()
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
                 {filteredOddkin.map(odd => (
                   <div
                     key={odd.speciesId}
+                    data-rarity={odd.rarity}
                     onClick={() => {
                       sound.playClick();
                       sound.playOddkinChirp(odd.chirpToneHz, odd.temperament);
@@ -166,6 +350,7 @@ export function ArchiveView({
                     }}
                     className="p-3 rounded-xl bg-[#181622] hover:bg-[#201d2d] border border-[#382f4e] hover:border-[#a855f7] cursor-pointer transition-all flex flex-col items-center text-center group relative shadow"
                   >
+                    {renderFavoriteStar(odd.speciesId)}
                     {odd.isChromaActive && (
                       <span className="absolute top-2 right-2 text-[9px] font-bold px-1 rounded bg-amber-400 text-black">
                         ★
@@ -208,32 +393,38 @@ export function ArchiveView({
               </span>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
-              {filteredMaterials.map(mat => (
-                <div
-                  key={mat.id}
-                  onClick={() => {
-                    sound.playClick();
-                    setInspectedItem({ type: 'material', item: mat });
-                  }}
-                  className="p-3 rounded-xl bg-[#161920] hover:bg-[#1d222b] border border-[#282f3d] hover:border-[#38bdf8] cursor-pointer transition-all flex flex-col items-center text-center group shadow"
-                >
-                  <div className="w-14 h-14 rounded-lg bg-[#11141a] p-1 mb-2 flex items-center justify-center border border-[#232936] group-hover:scale-105 transition-transform">
-                    <MaterialSprite material={mat} alt={mat.displayName} className="w-11 h-11" />
-                  </div>
+            {isDebouncing ? (
+              skeletonGrid()
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
+                {filteredMaterials.map(mat => (
+                  <div
+                    key={mat.id}
+                    data-rarity={mat.rarity}
+                    onClick={() => {
+                      sound.playClick();
+                      setInspectedItem({ type: 'material', item: mat });
+                    }}
+                    className="p-3 rounded-xl bg-[#161920] hover:bg-[#1d222b] border border-[#282f3d] hover:border-[#38bdf8] cursor-pointer transition-all flex flex-col items-center text-center group relative shadow"
+                  >
+                    {renderFavoriteStar(mat.id)}
+                    <div className="w-14 h-14 rounded-lg bg-[#11141a] p-1 mb-2 flex items-center justify-center border border-[#232936] group-hover:scale-105 transition-transform">
+                      <MaterialSprite material={mat} alt={mat.displayName} className="w-11 h-11" />
+                    </div>
 
-                  <div className="text-xs font-bold text-white truncate w-full">
-                    {mat.displayName}
+                    <div className="text-xs font-bold text-white truncate w-full">
+                      {mat.displayName}
+                    </div>
+                    <div className="text-[10px] text-[#9ca3af] truncate w-full">
+                      {mat.category}
+                    </div>
+                    <div className="text-[9px] text-[#6b7280] mt-1">
+                      {mat.rarity} • Depth {mat.lineage.depth}
+                    </div>
                   </div>
-                  <div className="text-[10px] text-[#9ca3af] truncate w-full">
-                    {mat.category}
-                  </div>
-                  <div className="text-[9px] text-[#6b7280] mt-1">
-                    {mat.rarity} • Depth {mat.lineage.depth}
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -453,4 +644,3 @@ export function ArchiveView({
     </div>
   );
 }
-
