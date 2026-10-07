@@ -10,7 +10,7 @@ test('emoji identity normalizes whitespace, case and Unicode', () => {
   assert.equal(emojiKey('Ｆｉｒｅ'), 'fire');
   assert.notEqual(emojiKey('Moon'), emojiKey('Moon Rock'));
 });
-test('AI drawing grammar supports smooth 3D layers while rejecting unsafe markup', () => {
+test('AI drawing grammar supports crisp pixel layers while rejecting unsafe markup', () => {
   const rendered = renderEmojiDrawing({
     paths: [
       { d: 'M16 70C16 34 40 14 64 14C90 14 112 36 112 70Q112 108 64 116Q16 108 16 70Z', fill: '#ff9900' },
@@ -18,7 +18,7 @@ test('AI drawing grammar supports smooth 3D layers while rejecting unsafe markup
     ],
   });
   assert.match(rendered, /viewBox="0 0 128 128"/);
-  assert.match(rendered, /shape-rendering="geometricPrecision"/);
+  assert.match(rendered, /shape-rendering="crispEdges"/);
   assert.match(rendered, /opacity="0.72"/);
   assert.match(rendered, /C16 34 40 14 64 14/);
 
@@ -41,7 +41,11 @@ test('endpoint generates once for simultaneous and repeated canonical names', as
   try {
     const replies = await Promise.all([post('Moon Rock'), post(' moon   rock ')]);
     assert.ok(replies.every(r => r.ok));
-    assert.deepEqual(await replies[0].json(), await replies[1].json());
+    const firstReply = await replies[0].json() as any;
+    const secondReply = await replies[1].json() as any;
+    assert.deepEqual(firstReply, secondReply);
+    assert.equal(firstReply.engineVersion, 'v6-pixel-inventory');
+    assert.equal(firstReply.provenance, 'ai-generated-pixel-inventory-sprite');
     assert.equal((await post('MOON ROCK')).status, 200);
     assert.equal(calls, 1);
     const refreshed = await fetch(base + '/api/element-emoji', {
