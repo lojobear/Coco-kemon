@@ -4,12 +4,12 @@ This folder contains the Android packaging layer for the existing QuarkPop web g
 
 ## Architecture
 
-The Android app uses Capacitor 8 and loads the production QuarkPop site over HTTPS inside a native Android shell. This keeps the existing Gemini API, Supabase cloud saves, live game updates, camera file input, audio, and browser storage behavior together instead of duplicating the backend inside the APK.
+The Android app uses Capacitor 8 and loads the production QuarkPop site from Cloudflare Workers over HTTPS inside a native Android shell. This keeps the existing Gemini API, Supabase cloud saves, live game updates, camera file input, audio, and browser storage behavior together instead of duplicating the backend inside the APK.
 
 Default application ID:
 
 ```text
-com.logaandavid.oddkinfoundry
+com.logaandavid.quarkpop
 ```
 
 **Important:** Android package IDs are effectively permanent once the app is published on Google Play. Change `CAPACITOR_APP_ID` before the first Play Console upload if you want a different ID.
@@ -43,7 +43,7 @@ Run the **Android Play Bundle** workflow manually from GitHub Actions. It asks f
 - version name, e.g. `1.0.0`
 - version code, e.g. `1`
 - Android application ID
-- production app URL
+- production Cloudflare app URL
 
 It produces:
 
@@ -65,6 +65,6 @@ If the signing secrets are absent, the workflow still builds an unsigned release
 
 ## Google Play notes
 
-Capacitor 8 targets Android 16 / API 36. The generated app is portrait-oriented, disallows cleartext HTTP traffic, and uses the existing production HTTPS site.
+Capacitor 8 targets Android 16 / API 36. The generated app is portrait-oriented, disallows cleartext HTTP traffic, and uses the production Cloudflare Workers site (`https://coco-kemon.logaandavid.workers.dev`).
 
 Before public release, finish the Play Console requirements: app listing, screenshots, feature graphic, privacy policy, Data safety form, content rating, target audience, app access instructions if needed, and closed/open testing requirements that apply to the developer account.
