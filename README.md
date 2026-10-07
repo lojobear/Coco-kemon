@@ -53,8 +53,8 @@ Recipe memory compares exact ingredient counts: A+A never reuses A+B or unary A.
 
 ## Android / Google Play
 
-The repository now includes a Capacitor 8 Android packaging layer in `mobile/` and a manual GitHub Actions workflow named **Android Play Bundle**. It generates an Android App Bundle (`.aab`) for Google Play plus a debug APK for device testing without changing the existing web deployment.
+The repository now includes a Capacitor 8 Android packaging layer in `mobile/` and a manual GitHub Actions workflow named **Android Play Bundle**. It generates an Android App Bundle (`.aab`) for Google Play plus a debug APK for device testing while loading the production Cloudflare Workers deployment.
 
-The default Android package ID is `com.logaandavid.oddkinfoundry`; choose the final package ID before the first Play Console upload because it should not change afterward. Release signing is supported through GitHub Actions secrets so the upload keystore never needs to be committed.
+The default Android package ID is `com.logaandavid.quarkpop`; choose the final package ID before the first Play Console upload because it should not change afterward. Release signing is supported through GitHub Actions secrets so the upload keystore never needs to be committed.
 
 See [mobile/README.md](mobile/README.md) for build commands and [docs/google-play-release.md](docs/google-play-release.md) for the Play Console checklist.
