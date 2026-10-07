@@ -23,11 +23,11 @@ on:
       app_id:
         description: Permanent Android application ID
         required: true
-        default: "com.logaandavid.oddkinfoundry"
+        default: "com.logaandavid.quarkpop"
       app_url:
-        description: Production Oddkin URL loaded by the native shell
+        description: Production QuarkPop Cloudflare URL loaded by the native shell
         required: true
-        default: "https://oddkin-foundry.vercel.app"
+        default: "https://coco-kemon.logaandavid.workers.dev"
 
 permissions:
   contents: read
@@ -37,8 +37,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      CAPACITOR_APP_ID: ${{ inputs.app_id || 'com.logaandavid.oddkinfoundry' }}
-      ODDKIN_APP_URL: ${{ inputs.app_url || 'https://oddkin-foundry.vercel.app' }}
+      CAPACITOR_APP_ID: ${{ inputs.app_id || 'com.logaandavid.quarkpop' }}
+      QUARKPOP_APP_URL: ${{ inputs.app_url || 'https://coco-kemon.logaandavid.workers.dev' }}
       ANDROID_VERSION_NAME: ${{ inputs.version_name || '1.0.0-ci' }}
       ANDROID_VERSION_CODE: ${{ inputs.version_code || '1' }}
       KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -104,7 +104,7 @@ jobs:
       - name: Upload Android build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: oddkin-android-${{ env.ANDROID_VERSION_NAME }}-${{ env.ANDROID_VERSION_CODE }}
+          name: quarkpop-android-${{ env.ANDROID_VERSION_NAME }}-${{ env.ANDROID_VERSION_CODE }}
           if-no-files-found: error
           retention-days: 14
           path: |
