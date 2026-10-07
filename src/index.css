@@ -1141,3 +1141,221 @@ body {
 .skeleton-card-line-meta {
   width: 42%;
 }
+/* =====================================================================
+   MIDNIGHT LAB — whole-app dark theme for QuarkPop
+   Activated by data-theme="midnight" on the .collection-app root.
+   Design language: deep midnight-purple surfaces, cream type, mint
+   actions/selection, coral counters (per the QA'd Option 2 vision in
+   design-qa.md). Purely additive/guarded: no behavior or logic changes.
+   The existing .collection-app neutralizer rules keep working here —
+   they map legacy dark hex utilities onto the midnight --basic-* vars.
+   ===================================================================== */
+
+/* ---- Palette ---- */
+.collection-app[data-theme="midnight"] {
+  --basic-bg: #131020;        /* deep midnight purple-charcoal */
+  --basic-text: #f2ead9;      /* cream */
+  --basic-muted: #9d94b8;     /* lavender gray */
+  --basic-line: #2c2740;      /* subtle purple-gray rules */
+  --basic-soft: #1c1829;      /* inset panels */
+  --basic-accent: #6fe3a5;    /* mint actions / selection */
+  --basic-focus: #6fe3a5;     /* mint focus ring */
+  --ml-elev: #1a1626;         /* card surface, one step up from bg */
+  --ml-elev-2: #221d33;       /* higher elevation */
+  --ml-coral: #ff7d6b;        /* counters */
+  background: var(--basic-bg);
+  color: var(--basic-text);
+}
+
+/* Page backdrop behind the app shell (body lives outside .collection-app). */
+body:has(.collection-app[data-theme="midnight"]) {
+  background-color: #131020;
+  color: #f2ead9;
+}
+
+/* ---- Remap live light Tailwind utilities to Midnight Lab surfaces ----
+   Exact class selectors (no substring over-match on e.g. bg-amber-500).
+   Unlayered rules beat Tailwind v4's layered utilities. */
+.collection-app[data-theme="midnight"] .bg-white { background-color: var(--ml-elev) !important; }
+.collection-app[data-theme="midnight"] .bg-white\/95 { background-color: #1e1a2ef2 !important; }
+.collection-app[data-theme="midnight"] .bg-zinc-50 { background-color: #171323 !important; }
+.collection-app[data-theme="midnight"] .bg-zinc-100 { background-color: var(--ml-elev-2) !important; }
+.collection-app[data-theme="midnight"] .bg-zinc-200 { background-color: #2c2740 !important; }
+.collection-app[data-theme="midnight"] .border-zinc-200 { border-color: #2c2740 !important; }
+.collection-app[data-theme="midnight"] .border-zinc-300 { border-color: #3a3354 !important; }
+.collection-app[data-theme="midnight"] .text-black { color: #f2ead9 !important; }
+.collection-app[data-theme="midnight"] .text-zinc-900 { color: #ece4d3 !important; }
+.collection-app[data-theme="midnight"] .text-zinc-800 { color: #d9d2e6 !important; }
+.collection-app[data-theme="midnight"] .text-zinc-700 { color: #bdb5d6 !important; }
+.collection-app[data-theme="midnight"] .text-zinc-600,
+.collection-app[data-theme="midnight"] .text-zinc-500 { color: #9d94b8 !important; }
+.collection-app[data-theme="midnight"] .bg-amber-50 { background-color: rgba(217, 119, 6, 0.14) !important; }
+.collection-app[data-theme="midnight"] .text-amber-900,
+.collection-app[data-theme="midnight"] .text-amber-800,
+.collection-app[data-theme="midnight"] .text-amber-700 { color: #f6c177 !important; }
+.collection-app[data-theme="midnight"] .bg-cyan-50,
+.collection-app[data-theme="midnight"] .bg-cyan-100 { background-color: rgba(34, 211, 238, 0.12) !important; }
+.collection-app[data-theme="midnight"] .text-cyan-800 { color: #67e8f9 !important; }
+.collection-app[data-theme="midnight"] .bg-red-50 { background-color: rgba(225, 29, 72, 0.14) !important; }
+.collection-app[data-theme="midnight"] .text-red-900 { color: #fda4af !important; }
+.collection-app[data-theme="midnight"] .border-red-200 { border-color: rgba(225, 29, 72, 0.4) !important; }
+
+/* ---- Contrast fixes: mint surfaces need dark text, cream needs dark text ---- */
+.collection-app[data-theme="midnight"] .combine-primary { color: #0c2417; }
+.collection-app[data-theme="midnight"] .craft-switch button[aria-pressed="true"] { color: #0c2417; }
+.collection-app[data-theme="midnight"] .ingredient-badge { color: #131020; }
+
+/* ---- Layout polish: elevation, rhythm, hierarchy ---- */
+.collection-app[data-theme="midnight"] .collection-header {
+  background: linear-gradient(180deg, #181425 0%, #131020 100%);
+}
+.collection-app[data-theme="midnight"] .collection-brand strong { letter-spacing: 0.02em; }
+.collection-app[data-theme="midnight"] .collection-nav button[aria-current="page"] {
+  color: var(--basic-accent);
+  border-bottom-color: var(--basic-accent);
+}
+.collection-app[data-theme="midnight"] .discovery-grid { gap: 10px; }
+.collection-app[data-theme="midnight"] .discovery-tile {
+  background: var(--ml-elev);
+  border-radius: 12px;
+}
+.collection-app[data-theme="midnight"] .combine-dock {
+  background: #171323;
+  border-radius: 12px;
+}
+.collection-app[data-theme="midnight"] .collection-reveal {
+  background: var(--ml-elev);
+  border-radius: 16px;
+}
+.collection-app[data-theme="midnight"] .discovery-search { background: var(--ml-elev); }
+.collection-app[data-theme="midnight"] .craft-switch { background: #171323; }
+
+/* ---- Rarity system, extended for Midnight Lab ----
+   Base glows (drop-shadow, so they survive the box-shadow reset) already
+   exist; here they intensify on dark and gain tinted borders. */
+.collection-app[data-theme="midnight"] [data-rarity="COMMON"] {
+  filter: drop-shadow(0 1px 4px rgba(148, 163, 184, 0.4));
+  border-color: rgba(148, 163, 184, 0.35);
+}
+.collection-app[data-theme="midnight"] [data-rarity="UNCOMMON"] {
+  filter: drop-shadow(0 1px 6px rgba(34, 197, 94, 0.55));
+  border-color: rgba(34, 197, 94, 0.5);
+}
+.collection-app[data-theme="midnight"] [data-rarity="RARE"] {
+  filter: drop-shadow(0 1px 7px rgba(59, 130, 246, 0.6));
+  border-color: rgba(59, 130, 246, 0.5);
+}
+.collection-app[data-theme="midnight"] [data-rarity="EXOTIC"] {
+  filter: drop-shadow(0 2px 8px rgba(168, 85, 247, 0.65));
+  border-color: rgba(168, 85, 247, 0.55);
+}
+.collection-app[data-theme="midnight"] [data-rarity="MYTHIC"] {
+  filter: drop-shadow(0 2px 9px rgba(245, 158, 11, 0.7));
+  border-color: rgba(245, 158, 11, 0.55);
+}
+.collection-app[data-theme="midnight"] [data-rarity="ANOMALOUS"] {
+  filter: drop-shadow(0 2px 10px rgba(251, 63, 91, 0.7));
+  border-color: rgba(251, 63, 91, 0.55);
+}
+.collection-app[data-theme="midnight"] [data-rarity="COMMON"]:hover {
+  filter: drop-shadow(0 2px 6px rgba(148, 163, 184, 0.55));
+}
+.collection-app[data-theme="midnight"] [data-rarity="UNCOMMON"]:hover {
+  filter: drop-shadow(0 2px 9px rgba(34, 197, 94, 0.7));
+}
+.collection-app[data-theme="midnight"] [data-rarity="RARE"]:hover {
+  filter: drop-shadow(0 2px 10px rgba(59, 130, 246, 0.75));
+}
+.collection-app[data-theme="midnight"] [data-rarity="EXOTIC"]:hover {
+  filter: drop-shadow(0 3px 11px rgba(168, 85, 247, 0.8));
+}
+.collection-app[data-theme="midnight"] [data-rarity="MYTHIC"]:hover {
+  filter: drop-shadow(0 3px 12px rgba(245, 158, 11, 0.85));
+}
+.collection-app[data-theme="midnight"] [data-rarity="ANOMALOUS"]:hover {
+  filter: drop-shadow(0 3px 13px rgba(251, 63, 91, 0.85));
+}
+
+/* ---- Dark scrollbars ---- */
+.collection-app[data-theme="midnight"] ::-webkit-scrollbar-track { background: #171323; }
+.collection-app[data-theme="midnight"] ::-webkit-scrollbar-thumb { background: #3a3354; }
+.collection-app[data-theme="midnight"] ::-webkit-scrollbar-thumb:hover { background: #4a4368; }
+
+/* ---- Dark skeleton shimmer ---- */
+.collection-app[data-theme="midnight"] .skeleton {
+  background-color: #221d33;
+  background-image: linear-gradient(
+    100deg,
+    rgba(255, 255, 255, 0) 25%,
+    rgba(255, 255, 255, 0.08) 50%,
+    rgba(255, 255, 255, 0) 75%
+  );
+}
+.collection-app[data-theme="midnight"] .skeleton-card {
+  background: #171323;
+  border-color: #2c2740;
+}
+
+/* ---- Kitchen island: dark sage treatment ----
+   The kitchen-* block uses hardcoded light hexes; remapped here for midnight
+   while keeping its sage-green identity. */
+.collection-app[data-theme="midnight"] .kitchen-view { color: #e9e4d4; }
+.collection-app[data-theme="midnight"] .kitchen-eyebrow { color: #9d94b8; }
+.collection-app[data-theme="midnight"] .kitchen-intro p { color: #a8a193; }
+.collection-app[data-theme="midnight"] .kitchen-creator { background: #1c1829; border-color: #2c2740; }
+.collection-app[data-theme="midnight"] .kitchen-view input:not([type=radio]),
+.collection-app[data-theme="midnight"] .kitchen-view select {
+  background: #141120;
+  border-color: #3a3354;
+  color: #f2ead9;
+}
+.collection-app[data-theme="midnight"] .kitchen-goal-row button,
+.collection-app[data-theme="midnight"] .kitchen-run-controls > button,
+.collection-app[data-theme="midnight"] .kitchen-finished > button {
+  background: var(--basic-accent);
+  color: #0c2417;
+}
+.collection-app[data-theme="midnight"] .kitchen-options > span { color: #9d94b8; }
+.collection-app[data-theme="midnight"] .kitchen-ideas button { background: var(--ml-elev); border-color: #2c2740; }
+.collection-app[data-theme="midnight"] .kitchen-panel { background: #171323; border-color: #2c2740; }
+.collection-app[data-theme="midnight"] .kitchen-panel-heading > span { color: #9d94b8; }
+.collection-app[data-theme="midnight"] .kitchen-note { color: #9d94b8; }
+.collection-app[data-theme="midnight"] .kitchen-count { background: var(--ml-elev-2); }
+.collection-app[data-theme="midnight"] .kitchen-supplies > span,
+.collection-app[data-theme="midnight"] .kitchen-supplies > button {
+  border-color: #2c2740;
+  background: var(--ml-elev);
+}
+.collection-app[data-theme="midnight"] .kitchen-recipe progress { accent-color: #6fe3a5; }
+.collection-app[data-theme="midnight"] .kitchen-view .kitchen-secondary {
+  background: var(--ml-elev-2);
+  color: #f2ead9;
+  border-color: #3a3354;
+}
+.collection-app[data-theme="midnight"] .kitchen-timeline li { border-top-color: #2c2740; }
+.collection-app[data-theme="midnight"] .kitchen-timeline li.current { background: #1e1a2e; }
+.collection-app[data-theme="midnight"] .kitchen-step-number { border-color: #3a3354; color: #9d94b8; }
+.collection-app[data-theme="midnight"] .kitchen-timeline .complete .kitchen-step-number {
+  background: rgba(111, 227, 165, 0.16);
+  color: #6fe3a5;
+  border-color: transparent;
+}
+.collection-app[data-theme="midnight"] .kitchen-tool-name { color: #6fe3a5; }
+.collection-app[data-theme="midnight"] .kitchen-timeline p { color: #a8a193; }
+.collection-app[data-theme="midnight"] .kitchen-timeline .kitchen-inputs { color: #c9c2b4; }
+.collection-app[data-theme="midnight"] .kitchen-tools > div { border-color: #2c2740; background: #171323; }
+.collection-app[data-theme="midnight"] .kitchen-tools > div.active {
+  border-color: #6fe3a5;
+  background: rgba(111, 227, 165, 0.12);
+}
+.collection-app[data-theme="midnight"] .kitchen-empty svg { color: #6fe3a5; }
+.collection-app[data-theme="midnight"] .kitchen-empty > span { color: #9d94b8; }
+.collection-app[data-theme="midnight"] .kitchen-finished { background: #171323; }
+.collection-app[data-theme="midnight"] .kitchen-add button { background: var(--ml-elev-2); }
+.collection-app[data-theme="midnight"] .kitchen-gallery button { border-color: #2c2740; }
+.collection-app[data-theme="midnight"] .kitchen-gallery button > span:last-child { color: #9d94b8; }
+.collection-app[data-theme="midnight"] .kitchen-error {
+  background: rgba(225, 29, 72, 0.12);
+  color: #fda4af;
+  border-color: rgba(225, 29, 72, 0.4);
+}
