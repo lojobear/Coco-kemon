@@ -446,8 +446,8 @@ export async function generateGeminiImage(
 
 
 const WORKERS_TEXT_MODELS = [
-  '@cf/zai-org/glm-4.7-flash',
-  '@cf/meta/llama-4-scout-17b-16e-instruct',
+  '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
+  '@cf/meta/llama-3.1-8b-instruct',
 ];
 
 function workersAiText(response: any): string | undefined {
@@ -476,7 +476,8 @@ async function callWorkersAiStructured(
   if (!ai?.run) return null;
 
   let last: unknown;
-  for (const model of WORKERS_TEXT_MODELS) {
+  for (let attempt = 0; attempt < WORKERS_TEXT_MODELS.length; attempt++) {
+    const model = WORKERS_TEXT_MODELS[attempt];
     try {
       const messages = [
         ...(systemInstruction ? [{ role: 'system', content: systemInstruction }] : []),
@@ -487,15 +488,16 @@ async function callWorkersAiStructured(
         messages,
         stream: false,
         temperature: Math.min(1, Math.max(0, temperature)),
-        max_tokens: 8192,
+        max_tokens: 2600,
         response_format: schema
           ? { type: 'json_schema', json_schema: schema }
           : { type: 'json_object' },
       });
 
+      const timeoutMs = attempt === 0 ? 12000 : 8000;
       const response: any = await Promise.race([
         run,
-        new Promise((_, reject) => setTimeout(() => reject(new Error('Workers AI text request timed out.')), 22000)),
+        new Promise((_, reject) => setTimeout(() => reject(new Error(`Workers AI text request timed out after ${timeoutMs}ms.`)), timeoutMs)),
       ]);
 
       const raw = workersAiText(response);
@@ -507,7 +509,8 @@ async function callWorkersAiStructured(
       return JSON.stringify(parsed);
     } catch (error) {
       last = error;
-      console.warn(`Workers AI text model ${model} failed. Trying fallback...`);
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(`Workers AI text model ${model} failed: ${message}. Trying fallback...`);
     }
   }
 
