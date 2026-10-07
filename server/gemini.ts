@@ -293,6 +293,103 @@ function enrichDiscoveryPrompt(prompt: string | { parts: any[] }): string | { pa
 
 let client: GoogleGenAI | undefined;
 
+export type GeminiImageResult = {
+  data: string;
+  mimeType: string;
+  model: string;
+};
+
+export function getGeminiImageModels(): string[] {
+  return Array.from(new Set([
+    sanitizeModel(process.env.GEMINI_IMAGE_MODEL),
+    'gemini-nano-banana-2.1',
+    'gemini-3.1-flash-image',
+  ].filter((model): model is string => Boolean(model)))).slice(0, 2);
+}
+
+/**
+ * Generate a real raster image rather than asking a text model to describe vector paths.
+ * This is intentionally separate from structured JSON generation because image models do
+ * not support structured outputs.
+ */
+export async function generateGeminiImage(
+  prompt: string,
+  injectedClient?: Pick<GoogleGenAI, 'models'>
+): Promise<GeminiImageResult> {
+  if (!injectedClient && !process.env.GEMINI_API_KEY) {
+    throw new ApiFailure(503, 'AI image generation is not configured. Add a Gemini API key on the server.');
+  }
+  const ai = injectedClient ?? (client ??= new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! }));
+  const models = getGeminiImageModels();
+  const deadline = Date.now() + 55000;
+  let last: unknown;
+
+  for (let attempt = 0; attempt < models.length; attempt++) {
+    const currentModel = models[attempt];
+    const controller = new AbortController();
+    const remainingMs = Math.min(50000, deadline - Date.now());
+    if (remainingMs <= 0) throw new ApiFailure(504, 'AI image generation timed out. Please retry.');
+    const timer = setTimeout(() => controller.abort(), remainingMs);
+
+    try {
+      const response: any = await ai.models.generateContent({
+        model: currentModel,
+        contents: prompt,
+        config: {
+          responseModalities: ['IMAGE'],
+          imageConfig: {
+            aspectRatio: '1:1',
+            imageSize: '1K',
+          },
+          abortSignal: controller.signal,
+          httpOptions: { timeout: remainingMs },
+        } as any,
+      });
+
+      if (controller.signal.aborted || Date.now() >= deadline) {
+        throw new ApiFailure(504, 'AI image generation timed out. Please retry.');
+      }
+
+      const parts = (response?.candidates || [])
+        .flatMap((candidate: any) => candidate?.content?.parts || [])
+        .filter((part: any) => !part?.thought);
+
+      const imagePart = parts.find((part: any) =>
+        typeof part?.inlineData?.data === 'string' &&
+        /^image\//i.test(String(part?.inlineData?.mimeType || 'image/png'))
+      );
+      const data = imagePart?.inlineData?.data;
+      const mimeType = String(imagePart?.inlineData?.mimeType || 'image/png');
+
+      if (!data || data.length < 100 || data.length > 16_000_000) {
+        throw new Error('Image model returned no usable image.');
+      }
+      return { data, mimeType, model: currentModel };
+    } catch (error: any) {
+      last = error;
+      const code = Number(error?.status || error?.code);
+      const terminal = terminalGeminiFailure(error);
+      if (terminal) throw terminal;
+
+      if (attempt < models.length - 1) {
+        console.warn(`Image model ${currentModel} failed (${code || error?.message || 'unknown'}). Failing over to ${models[attempt + 1]}...`);
+        await new Promise(resolve => setTimeout(resolve, 250));
+        continue;
+      }
+      if (controller.signal.aborted || code === 408 || code === 504) {
+        throw new ApiFailure(504, 'AI image generation timed out. Please retry.');
+      }
+      if (error instanceof ApiFailure) throw error;
+      throw new ApiFailure(502, 'The AI image model could not generate a sprite. Please retry.');
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  throw last;
+}
+
+
 export async function callGeminiStructured(
   prompt: string | { parts: any[] },
   systemInstruction?: string,
