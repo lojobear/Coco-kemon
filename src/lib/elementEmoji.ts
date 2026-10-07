@@ -52,7 +52,7 @@ async function rasterize(svg: string): Promise<string> {
 
   context.imageSmoothingEnabled = true;
   context.imageSmoothingQuality = 'high';
-  context.clearRect(0, 0, 128, 128);
+  context.clearRect(0, 0, 256, 256);
   context.drawImage(image, 0, 0, 256, 256);
   return canvas.toDataURL('image/png');
 }
