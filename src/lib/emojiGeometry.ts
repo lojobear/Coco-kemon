@@ -47,5 +47,5 @@ export function renderEmojiDrawing(value: unknown): string {
     return `<path d="${d}" fill="${entry.fill}"${opacity}/>`;
   }).join('');
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" shape-rendering="geometricPrecision">${body}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" shape-rendering="crispEdges">${body}</svg>`;
 }
