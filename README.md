@@ -1,6 +1,6 @@
 # Coco-kemon / QuarkPop
 
-Concept crafting, material synthesis, and a collectible creature foundry built with React, Vite, Express, and Gemini.
+Concept crafting, material synthesis, and a collectible creature foundry built with React, Vite, Express, Gemini, and Cloudflare Workers AI.
 
 ## Run
 
@@ -12,7 +12,7 @@ npm run dev
 node --import tsx server.ts
 ```
 
-`GEMINI_MODEL` and `GEMINI_FALLBACK_MODEL` select the model order. If not configured, the existing defaults are `gemini-3.1-flash-lite` followed by `gemini-3.8-flash`. Model access and quota depend on your key; neither availability nor free-tier access is assumed. `/api/health` reports the same sanitized model order used by generation. General requests use up to two model attempts (12 seconds each). Foundry transformations may also use a five-second concept-planning call; all stages share a 28-second budget, below the browser's 30-second timeout. Quota and authentication failures stop immediately, including during planning.
+`GEMINI_MODEL` and `GEMINI_FALLBACK_MODEL` select the text-generation model order. The production defaults are `gemini-3.5-flash` followed by `gemini-3.5-flash-lite`; the previous Gemini 3.8 path was removed after repeated 503/504 failures in Cloudflare production. Model access and quota still depend on the configured Gemini key. `/api/health` reports the same sanitized model order used by generation.
 
 ```sh
 npm run lint
@@ -27,7 +27,7 @@ Production needs a persistent Node service for the Express API, not static file 
 
 Built-in recipes work without an API key. Unknown combinations, failed photo/sketch analysis, and incomplete AI results display an error instead of adding invented fallback discoveries. Retry keeps the original crafting ingredients available. Skipping an animation never skips the network result.
 
-New element/discovery sprites use Gemini native image generation, then are normalized to cached 512×512 PNGs in the browser for substantially richer pixel-art detail. The art direction targets polished RPG/crafting inventory icons with dark outlines, controlled color ramps, crisp highlights, and transparent backgrounds. Existing cached sprites are preserved until explicitly upgraded or rerolled. Procedural material/Oddkin renderers remain available as fallbacks/default restoration.
+New element/discovery sprites use Cloudflare Workers AI in production, preferring FLUX.2 Klein 4B with FLUX.1 Schnell as a fallback. Generated images are normalized to cached 512×512 PNGs in the browser for richer pixel-art detail. This avoids Gemini image-generation quota failures on projects without paid Gemini image access. Existing cached sprites are preserved until explicitly upgraded or rerolled. Local/non-Cloudflare development can still use Gemini image generation as a fallback.
 
 ## Backups
 

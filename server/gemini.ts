@@ -1,5 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
 import { conceptDNAFor } from './discovery.js';
+import { getWorkersAiBinding } from './workersAi.js';
 
 export class ApiFailure extends Error {
   status: number;
@@ -28,8 +29,8 @@ export function getGeminiModels(): string[] {
   return Array.from(new Set([
     sanitizeModel(process.env.GEMINI_MODEL),
     sanitizeModel(process.env.GEMINI_FALLBACK_MODEL),
-    'gemini-3.8-flash',
-    'gemini-3.1-flash-lite',
+    'gemini-3.5-flash',
+    'gemini-3.5-flash-lite',
   ].filter((model): model is string => Boolean(model)))).slice(0, 2);
 }
 
@@ -303,8 +304,58 @@ export function getGeminiImageModels(): string[] {
   return Array.from(new Set([
     sanitizeModel(process.env.GEMINI_IMAGE_MODEL),
     'gemini-nano-banana-2.1',
-    'gemini-3.1-flash-image',
+    'gemini-3.1-flash-lite-image',
   ].filter((model): model is string => Boolean(model)))).slice(0, 2);
+}
+
+async function generateWorkersAiImage(prompt: string): Promise<GeminiImageResult | null> {
+  const ai = getWorkersAiBinding();
+  if (!ai?.run) return null;
+
+  const models = [
+    '@cf/black-forest-labs/flux-2-klein-4b',
+    '@cf/black-forest-labs/flux-1-schnell',
+  ];
+
+  let last: unknown;
+  for (const model of models) {
+    try {
+      let response: any;
+      if (model.includes('flux-2-klein-4b')) {
+        const form = new FormData();
+        form.append('prompt', prompt);
+        form.append('width', '512');
+        form.append('height', '512');
+        form.append('guidance', '4.5');
+        const serialized = new Response(form);
+        response = await ai.run(model, {
+          multipart: {
+            body: serialized.body,
+            contentType: serialized.headers.get('content-type'),
+          },
+        });
+      } else {
+        response = await ai.run(model, { prompt, steps: 8 });
+      }
+
+      const data = typeof response?.image === 'string'
+        ? response.image
+        : typeof response === 'string'
+          ? response
+          : undefined;
+
+      if (data && data.length >= 100 && data.length <= 16_000_000) {
+        return { data, mimeType: 'image/jpeg', model };
+      }
+      throw new Error('Workers AI returned no usable image.');
+    } catch (error) {
+      last = error;
+      console.warn(`Workers AI image model ${model} failed. Trying fallback...`);
+    }
+  }
+
+  console.error('Workers AI image generation failed:', last);
+  throw new ApiFailure(502, 'The Cloudflare image model could not generate a sprite. Please retry.');
 }
 
 /**
@@ -316,6 +367,10 @@ export async function generateGeminiImage(
   prompt: string,
   injectedClient?: Pick<GoogleGenAI, 'models'>
 ): Promise<GeminiImageResult> {
+  if (!injectedClient) {
+    const workersImage = await generateWorkersAiImage(prompt);
+    if (workersImage) return workersImage;
+  }
   if (!injectedClient && !process.env.GEMINI_API_KEY) {
     throw new ApiFailure(503, 'AI image generation is not configured. Add a Gemini API key on the server.');
   }

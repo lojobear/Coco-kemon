@@ -2,7 +2,7 @@ import type { Express } from 'express';
 import { generateGeminiImage, publicFailure, ApiFailure, type GeminiImageResult } from './gemini.js';
 import { emojiKey } from '../src/lib/emojiGeometry.js';
 
-const SPRITE_ENGINE_VERSION = 'v7-native-image-pixel';
+const SPRITE_ENGINE_VERSION = 'v8-cloudflare-pixel';
 
 type ImageGenerator = (prompt: string) => Promise<GeminiImageResult>;
 
@@ -87,7 +87,7 @@ export function registerEmojiRoute(app: Express, generateImage: ImageGenerator =
       if (!image) {
         let job = pending.get(pendingKey);
         if (!job) {
-          if (pending.size >= 2) throw new ApiFailure(429, 'Sprite artist is busy. Try again shortly.');
+          if (pending.size >= 6) throw new ApiFailure(429, 'Sprite artist is busy. Try again shortly.');
           job = generateImage(buildSpritePrompt(key, variation)).then(validBase64Image);
           pending.set(pendingKey, job);
         }
@@ -105,7 +105,10 @@ export function registerEmojiRoute(app: Express, generateImage: ImageGenerator =
       res.json({
         imageBase64: image.data,
         mimeType: image.mimeType,
-        provenance: 'gemini-native-image-pixel-art',
+        provenance: image.model.startsWith('@cf/')
+          ? 'cloudflare-workers-ai-pixel-art'
+          : 'gemini-native-image-pixel-art',
+        model: image.model,
         engineVersion: SPRITE_ENGINE_VERSION,
       });
     } catch (error) {

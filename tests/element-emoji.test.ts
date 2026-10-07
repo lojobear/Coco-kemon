@@ -79,7 +79,7 @@ test('endpoint generates once for simultaneous and repeated canonical names', as
     const firstReply = await replies[0].json() as any;
     const secondReply = await replies[1].json() as any;
     assert.deepEqual(firstReply, secondReply);
-    assert.equal(firstReply.engineVersion, 'v7-native-image-pixel');
+    assert.equal(firstReply.engineVersion, 'v8-cloudflare-pixel');
     assert.equal(firstReply.provenance, 'gemini-native-image-pixel-art');
     assert.equal(firstReply.mimeType, 'image/png');
     assert.equal(firstReply.imageBase64, fakeImage.data);
@@ -171,7 +171,7 @@ test('client deduplicates, persists normalized high-resolution art, and supports
     return new Response(JSON.stringify({
       imageBase64: fakeImage.data,
       mimeType: fakeImage.mimeType,
-      engineVersion: 'v7-native-image-pixel',
+      engineVersion: 'v8-cloudflare-pixel',
     }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
