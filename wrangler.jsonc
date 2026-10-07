@@ -11,6 +11,9 @@
       "GEMINI_API_KEY"
     ]
   },
+  "ai": {
+    "binding": "AI"
+  },
   "observability": {
     "enabled": true
   },
