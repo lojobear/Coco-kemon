@@ -4,7 +4,7 @@ QuarkPop now has an Android packaging workflow under `mobile/`.
 
 ## Before the first upload
 
-1. Decide the permanent Android application ID. The default is `com.logaandavid.oddkinfoundry`.
+1. Decide the permanent Android application ID. The default is `com.logaandavid.quarkpop`.
 2. Create a Google Play Console developer account if one is not already available.
 3. Create the QuarkPop app entry in Play Console using the same application ID.
 4. Create and securely back up an Android upload keystore.
@@ -23,7 +23,7 @@ QuarkPop now has an Android packaging workflow under `mobile/`.
 **Core features:**
 - infinite-style concept crafting
 - AI-assisted discoveries
-- collectible 3D emoji-style element art
+- collectible HD collection-style element art
 - Oddkin creature collection
 - photo and sketch seed tools
 - local saves, backups, and optional cloud saves
@@ -34,4 +34,4 @@ QuarkPop now has an Android packaging workflow under `mobile/`.
 - Keep the application ID unchanged after publishing.
 - Test Google sign-in, camera/photo selection, sound, cloud saves, orientation, back navigation, and offline/error states on a physical Android device before production.
 - Use Internal testing first, then Closed/Open testing as required by the Play account.
-- Keep the production HTTPS app URL stable because the native shell loads that deployment.
+- Keep the production Cloudflare Workers URL stable because the native shell loads that deployment (`https://coco-kemon.logaandavid.workers.dev`).
