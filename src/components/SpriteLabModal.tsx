@@ -14,7 +14,7 @@ type LabItem =
   | { type: 'material'; id: string; name: string; sprite?: string; item: Material }
   | { type: 'oddkin'; id: string; name: string; sprite?: string; item: Oddkin };
 
-async function fileTo64pxSprite(file: File): Promise<string> {
+async function fileToSprite(file: File): Promise<string> {
   if (!file.type.startsWith('image/')) throw new Error('Choose a PNG, WebP, or JPG image.');
   if (file.size > 8 * 1024 * 1024) throw new Error('Please keep sprite images under 8 MB.');
 
@@ -33,18 +33,18 @@ async function fileTo64pxSprite(file: File): Promise<string> {
   });
 
   const canvas = document.createElement('canvas');
-  canvas.width = 64;
-  canvas.height = 64;
+  canvas.width = 512;
+  canvas.height = 512;
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Canvas is unavailable on this device.');
   ctx.imageSmoothingEnabled = false;
-  ctx.clearRect(0, 0, 64, 64);
+  ctx.clearRect(0, 0, 512, 512);
 
-  const scale = Math.min(64 / image.width, 64 / image.height);
+  const scale = Math.min(512 / image.width, 512 / image.height);
   const width = Math.max(1, Math.round(image.width * scale));
   const height = Math.max(1, Math.round(image.height * scale));
-  const x = Math.floor((64 - width) / 2);
-  const y = Math.floor((64 - height) / 2);
+  const x = Math.floor((512 - width) / 2);
+  const y = Math.floor((512 - height) / 2);
   ctx.drawImage(image, x, y, width, height);
   return canvas.toDataURL('image/png');
 }
@@ -122,7 +122,7 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
     setUploading(true);
     rerollNonce.current += 1;
     const variation = `${mode}-${Date.now().toString(36)}-${rerollNonce.current}`;
-    setStatus(mode === 'reroll' ? 'Generating a fresh pixel inventory reroll…' : 'Upgrading this sprite to pixel inventory style…');
+    setStatus(mode === 'reroll' ? 'Generating a fresh high-quality pixel sprite…' : 'Rebuilding this sprite with native AI image generation…');
     try {
       const sprite = await upgradeElementEmoji(target.name, variation);
       // The generated art must become the selected item's active sprite. Previously
@@ -130,8 +130,8 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
       // kept winning and made both buttons appear broken.
       persistSprite(target, sprite);
       setStatus(mode === 'reroll'
-        ? `${target.name} rerolled with a new pixel inventory sprite.`
-        : `${target.name} upgraded to the pixel inventory style.`);
+        ? `${target.name} rerolled with a new high-quality pixel sprite.`
+        : `${target.name} upgraded to native high-quality pixel art.`);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Pixel sprite generation failed.');
     } finally {
@@ -158,7 +158,7 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
     if (!file || !selected || uploading) return;
     setUploading(true);
     try {
-      const sprite = await fileTo64pxSprite(file);
+      const sprite = await fileToSprite(file);
       persistSprite(selected, sprite);
       setStatus(`${selected.name} now uses your custom sprite.`);
     } catch (error) {
@@ -222,12 +222,12 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
                 </div>
 
                 <button disabled={uploading} onClick={() => void reroll(selected)} className="w-full py-3 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-black text-sm flex items-center justify-center gap-2">
-                  <RefreshCw className="w-4 h-4" /> REROLL PIXEL SPRITE
+                  <RefreshCw className="w-4 h-4" /> REROLL HQ PIXEL SPRITE
                 </button>
-                <p className="text-[10px] text-[#80899a] leading-relaxed">New discoveries now use a clean pixel-inventory style by default: chunky pixels, dark outline, limited palette, top-left highlights, simple shadows, and a strong readable silhouette. Upgrade applies that style to an older item; reroll creates a visibly different pixel version. Uploads still override generated art.</p>
+                <p className="text-[10px] text-[#80899a] leading-relaxed">New discoveries now use a real image-generation model instead of AI-written vector paths. The target is polished inventory pixel art with a strong dark outline, richer color ramps, crisp top-left highlights, material-specific detail, and substantially more internal definition. Upgrade rebuilds older art with the new renderer; reroll makes a fresh variation.</p>
 
                 <button disabled={uploading} className="w-full py-3 rounded-xl border text-xs font-bold" onClick={() => void freshPixelSprite(selected, 'upgrade')}>
-                  UPGRADE TO PIXEL INVENTORY STYLE
+                  UPGRADE TO HQ PIXEL ART
                 </button>
                 {selected.type !== 'oddkin' && <button className="w-full py-2 text-xs underline" onClick={() => { retryElementEmoji(selected.name); setStatus('Retrying missing art. Existing saved art is reused.'); }}>Retry missing art</button>}
                 <input ref={uploadRef} type="file" accept="image/png,image/webp,image/jpeg" className="hidden" onChange={event => void uploadCustom(event.target.files?.[0])} />
