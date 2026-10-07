@@ -445,6 +445,76 @@ export async function generateGeminiImage(
 }
 
 
+const WORKERS_TEXT_MODELS = [
+  '@cf/zai-org/glm-4.7-flash',
+  '@cf/meta/llama-4-scout-17b-16e-instruct',
+];
+
+function workersAiText(response: any): string | undefined {
+  if (typeof response?.response === 'string') return response.response.trim();
+  if (response?.response && typeof response.response === 'object') return JSON.stringify(response.response);
+
+  const content = response?.choices?.[0]?.message?.content;
+  if (typeof content === 'string') return content.trim();
+  if (Array.isArray(content)) {
+    const joined = content
+      .map((part: any) => typeof part === 'string' ? part : typeof part?.text === 'string' ? part.text : '')
+      .join('')
+      .trim();
+    if (joined) return joined;
+  }
+  return undefined;
+}
+
+async function callWorkersAiStructured(
+  prompt: string,
+  systemInstruction: string | undefined,
+  temperature: number,
+  schema?: Record<string, unknown>,
+): Promise<string | null> {
+  const ai = getWorkersAiBinding();
+  if (!ai?.run) return null;
+
+  let last: unknown;
+  for (const model of WORKERS_TEXT_MODELS) {
+    try {
+      const messages = [
+        ...(systemInstruction ? [{ role: 'system', content: systemInstruction }] : []),
+        { role: 'user', content: prompt },
+      ];
+
+      const run = ai.run(model, {
+        messages,
+        stream: false,
+        temperature: Math.min(1, Math.max(0, temperature)),
+        max_tokens: 8192,
+        response_format: schema
+          ? { type: 'json_schema', json_schema: schema }
+          : { type: 'json_object' },
+      });
+
+      const response: any = await Promise.race([
+        run,
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Workers AI text request timed out.')), 22000)),
+      ]);
+
+      const raw = workersAiText(response);
+      if (!raw) throw new Error('Workers AI returned an empty response.');
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        throw new Error('Workers AI returned invalid JSON.');
+      }
+      return JSON.stringify(parsed);
+    } catch (error) {
+      last = error;
+      console.warn(`Workers AI text model ${model} failed. Trying fallback...`);
+    }
+  }
+
+  console.error('Workers AI text generation failed; falling back to Gemini:', last);
+  return null;
+}
+
 export async function callGeminiStructured(
   prompt: string | { parts: any[] },
   systemInstruction?: string,
@@ -452,21 +522,42 @@ export async function callGeminiStructured(
   injectedClient?: Pick<GoogleGenAI, 'models'>,
   drawingOptions?: { timeoutMs: number; schema: Record<string, unknown> }
 ): Promise<string> {
-  if (!injectedClient && !process.env.GEMINI_API_KEY) {
-    throw new ApiFailure(503, 'AI is not configured. Add a Gemini API key on the server.');
-  }
-  const ai = injectedClient ?? (client ??= new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! }));
-
   const discoveryRequest = isDiscoveryInstruction(systemInstruction);
   const foundryRequest = isFoundryPrompt(prompt);
   const effectiveSystemInstruction = discoveryRequest && systemInstruction
     ? enhanceDiscoveryInstruction(systemInstruction)
     : systemInstruction;
 
+  // Production plain-text generation runs on Cloudflare Workers AI first. This keeps the
+  // core crafting/foundry loop independent of Gemini availability and quota. Gemini remains
+  // a fallback and still handles multimodal photo/sketch requests.
+  if (!injectedClient && typeof prompt === 'string') {
+    const workersPrompt = foundryRequest
+      ? enhanceFoundryPrompt(prompt, null)
+      : discoveryRequest
+        ? enrichDiscoveryPrompt(prompt) as string
+        : prompt;
+    const workersTemperature = foundryRequest
+      ? Math.max(0.65, temperature)
+      : discoveryRequest
+        ? Math.max(0.72, temperature)
+        : temperature;
+    const workersSchema = drawingOptions?.schema || (discoveryRequest ? DISCOVERY_RESPONSE_SCHEMA : undefined);
+
+    const workersResult = await callWorkersAiStructured(
+      workersPrompt,
+      effectiveSystemInstruction,
+      workersTemperature,
+      workersSchema,
+    );
+    if (workersResult) return workersResult;
+  }
+
+  if (!injectedClient && !process.env.GEMINI_API_KEY) {
+    throw new ApiFailure(503, 'AI is not configured. Add a Gemini API key on the server.');
+  }
+  const ai = injectedClient ?? (client ??= new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! }));
   const models = getGeminiModels();
-  // Planning and failover share a deadline below the browser's 30s timeout.
-  // Foundry synthesis prompts are substantially larger than normal requests, so give the
-  // primary model more room instead of timing it out at 12s and immediately falling back.
   const deadline = Date.now() + (drawingOptions ? Math.min(55000, drawingOptions.timeoutMs) : 29000);
 
   let foundryIdea: FoundryIdea | null = null;
@@ -543,4 +634,3 @@ export async function callGeminiStructured(
   }
   throw last;
 }
-
