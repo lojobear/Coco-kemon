@@ -5,8 +5,8 @@ import { generateMaterialSprite } from '../lib/pixelRenderer';
 import type { Material } from '../types';
 
 /** Uploaded/rerolled art always wins. Generated defaults share one durable cache. */
-export function ElementSprite({ name, custom, fallback, className = '', alt = '' }: {
-  name: string; custom?: string; fallback?: string; className?: string; alt?: string;
+export function ElementSprite({ name, custom, fallback, className = '', alt = '', idle = true }: {
+  name: string; custom?: string; fallback?: string; className?: string; alt?: string; idle?: boolean;
 }) {
   const [art, setArt] = useState<{ key: string; url: string }>();
   const [error, setError] = useState('');
@@ -32,14 +32,14 @@ export function ElementSprite({ name, custom, fallback, className = '', alt = ''
     return () => { cancelled = true; observer.disconnect(); };
   }, [key, custom, retry]);
   const url = custom || (art?.key === key ? art.url : undefined);
-  return <span ref={host} className={`element-emoji ${className}`} title={error ? `Emoji unavailable: ${error} Retry in Sprites.` : undefined}>
+  return <span ref={host} className={`element-emoji${idle ? ' sprite-idle' : ''} ${className}`} title={error ? `Emoji unavailable: ${error} Retry in Sprites.` : undefined}>
     {url ? <img src={url} alt={alt} draggable={false} decoding="async" /> : fallback?.startsWith('data:') || fallback?.startsWith('/')
       ? <img src={fallback} alt={alt} draggable={false} />
       : <span role={alt ? 'img' : undefined} aria-label={alt || undefined}>{fallback || '◌'}</span>}
   </span>;
 }
-export function MaterialSprite({ material, className, alt = '' }: { material: Material; className?: string; alt?: string }) {
+export function MaterialSprite({ material, className, alt = '', idle = true }: { material: Material; className?: string; alt?: string; idle?: boolean }) {
   const procedural = useMemo(() => generateMaterialSprite(material), [material]);
   const custom = material.customSpriteUrl && material.customSpriteUrl !== procedural ? material.customSpriteUrl : undefined;
-  return <ElementSprite name={material.displayName} custom={custom} fallback={procedural} className={className} alt={alt} />;
+  return <ElementSprite name={material.displayName} custom={custom} fallback={procedural} className={className} alt={alt} idle={idle} />;
 }
