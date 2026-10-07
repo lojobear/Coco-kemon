@@ -23,7 +23,7 @@ QuarkPop now has an Android packaging workflow under `mobile/`.
 **Core features:**
 - infinite-style concept crafting
 - AI-assisted discoveries
-- collectible HD collection-style element art
+- collectible pixel-inventory element sprites
 - Oddkin creature collection
 - photo and sketch seed tools
 - local saves, backups, and optional cloud saves
