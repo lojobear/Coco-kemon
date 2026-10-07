@@ -925,9 +925,9 @@ body {
 }
 
 
-/* Unique element emoji: compact, antialiased, transparent, and never cropped. */
+/* Generated element sprites: compact, transparent, nearest-neighbor pixel art, and never cropped. */
 .element-emoji { display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; vertical-align:middle; }
-.element-emoji > img { display:block; width:100%; height:100%; object-fit:contain; image-rendering:auto; pointer-events:none; }
+.element-emoji > img { display:block; width:100%; height:100%; object-fit:contain; image-rendering:pixelated; image-rendering:crisp-edges; pointer-events:none; }
 .element-emoji > span { font-size:inherit; }
 .craft-emoji { width:1.65em; height:1.65em; pointer-events:none; }
 .discovery-pick .discovery-emoji { width:56px; height:56px; max-width:none; overflow:visible; }
@@ -936,8 +936,8 @@ body {
 .ingredient-pick .element-emoji img { width:100%; height:100%; transform:none; }
 .element-emoji.reveal-art { display:flex; width:112px; height:112px; margin:24px auto; }
 
-/* Generated element art is smooth 3D emoji-style artwork, not pixel art. */
-.element-emoji > img { image-rendering:auto; }
+/* Preserve chunky source pixels when sprites are displayed larger than their 64px generation grid. */
+.element-emoji > img { image-rendering:pixelated; image-rendering:crisp-edges; }
 
 /* Integrated Function Kitchen: tactile work cards and a readable recipe ledger. */
 .kitchen-view { max-width:1120px; width:100%; margin:auto; padding:24px 18px 32px; color:#292923; }
