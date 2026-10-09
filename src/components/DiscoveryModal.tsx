@@ -26,6 +26,7 @@ export function DiscoveryModal() {
         <span>🔥 Discovery streak <b>{progression.streak}</b></span>
         <span>🏆 Level <b>{progression.level}</b></span>
         <span>✨ {progression.xp} XP</span>
+        {recentDiscovery.xpBonus ? <span className="reveal-xp-bonus">+{recentDiscovery.xpBonus} streak bonus</span> : null}
       </div>}
       {oddkin?.lineage && <details className="reveal-lineage"><summary>How this Oddkin came to life</summary>{oddkin.lineage.fullAncestryChain.map((step, i) => <p key={i}>{step.inputs.join(' + ')} → {step.result} ({step.process})</p>)}</details>}
       {material && <button className="combine-primary" onClick={() => { setSlotA(material); setSlotB(null); setActiveTab('foundry'); closeDiscoveryModal(); }}>Use in next combination <ArrowRight size={19} /></button>}
