@@ -12,13 +12,19 @@
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --font-pixel: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --basic-bg: #ffffff;
-  --basic-text: #111827;
-  --basic-muted: #6b7280;
-  --basic-line: #d1d5db;
-  --basic-soft: #f9fafb;
-  --basic-accent: #111827;
-  --basic-focus: #2563eb;
+  --basic-bg: #0b0d12;
+  --basic-panel: #12151c;
+  --basic-panel-raised: #171b24;
+  --basic-text: #f5f7fb;
+  --basic-muted: #9299aa;
+  --basic-line: #252b36;
+  --basic-line-strong: #353e4d;
+  --basic-soft: #141820;
+  --basic-accent: #8b7cff;
+  --basic-accent-2: #57e4b8;
+  --basic-focus: #7dd3fc;
+  --basic-danger: #fb7185;
+  --surface-shadow: 0 10px 28px rgba(0,0,0,.24);
 }
 
 body {
@@ -91,46 +97,21 @@ body {
   animation: none;
 }
 
-/* Basic theme: plain surfaces, system type, gray rules, no decorative effects. */
+/* Premium QuarkPop shell: dark layered surfaces, restrained depth, sprite-first contrast. */
 .collection-app {
   font-family: var(--font-sans);
-  background: var(--basic-bg);
+  background:
+    radial-gradient(circle at 20% -10%, rgba(139,124,255,.11), transparent 28rem),
+    radial-gradient(circle at 95% 12%, rgba(87,228,184,.055), transparent 24rem),
+    var(--basic-bg) !important;
   color: var(--basic-text);
   --collection-muted: var(--basic-muted);
   --collection-line: var(--basic-line);
 }
 
-.collection-app *,
-.collection-app *::before,
-.collection-app *::after {
-  box-shadow: none !important;
-  text-shadow: none !important;
-}
-
-/* Neutralize the old dark hex utility palette inside the app shell. */
-.collection-app [class*="bg-[#0"],
-.collection-app [class*="bg-[#1"],
-.collection-app [class*="bg-[#2"] {
-  background-color: var(--basic-bg) !important;
-}
-
-.collection-app [class*="border-[#2"],
-.collection-app [class*="border-[#3"] {
-  border-color: var(--basic-line) !important;
-}
-
-.collection-app [class*="text-[#e"],
-.collection-app [class*="text-[#f"],
-.collection-app [class*="text-[#c"] {
-  color: var(--basic-text) !important;
-}
-
-.collection-app [class*="text-[#6"],
-.collection-app [class*="text-[#7"],
-.collection-app [class*="text-[#8"],
-.collection-app [class*="text-[#9"],
-.collection-app [class*="text-[#a"] {
-  color: var(--basic-muted) !important;
+/* Intentionally allow component elevation again. Keep shadows small and GPU-cheap. */
+.collection-app :is(.shadow, .shadow-sm, .shadow-lg, .shadow-xl, .shadow-2xl) {
+  box-shadow: var(--surface-shadow);
 }
 
 .collection-app button {
@@ -1659,4 +1640,293 @@ body:has(.collection-app[data-theme="midnight"]) {
 }
 @media (prefers-reduced-motion: reduce) {
   .craft-fusion-stage *, .craft-fusion-stage::before { animation:none !important; }
+}
+
+
+/* ===== QuarkPop premium visual + rendering pass ===== */
+.collection-header {
+  background: rgba(11,13,18,.94);
+  border-bottom-color: rgba(72,82,101,.45);
+  box-shadow: 0 8px 24px rgba(0,0,0,.18);
+}
+.collection-header-inner { max-width: 920px; }
+.collection-brand img {
+  background: linear-gradient(145deg, rgba(139,124,255,.18), rgba(87,228,184,.08));
+  border: 1px solid rgba(139,124,255,.26);
+  padding: 4px;
+  border-radius: 14px;
+}
+.collection-brand strong {
+  font-weight: 850;
+  letter-spacing: -.025em;
+}
+.collection-brand small { color: #7f8798; letter-spacing: 1.65px; }
+.header-actions { gap: 6px; }
+.header-actions button {
+  border: 1px solid transparent;
+  border-radius: 12px;
+  color: #9ba3b4;
+  transition: transform 110ms ease, background-color 110ms ease, border-color 110ms ease;
+}
+.header-actions button:hover {
+  background: #171b24;
+  border-color: #2a3140;
+  color: #f8fafc;
+}
+.header-actions button:active { transform: scale(.95); }
+
+.collection-workbench {
+  max-width: 920px;
+  padding-top: 14px;
+}
+.workbench-intro h1 {
+  font-size: clamp(22px, 4vw, 30px);
+  letter-spacing: -.035em;
+  margin-bottom: 12px;
+}
+.craft-switch {
+  background: #0f1218;
+  border-color: #242b36;
+  border-radius: 12px;
+  padding: 4px;
+}
+.craft-switch button {
+  border-radius: 9px;
+  transition: transform 120ms ease, background-color 120ms ease, color 120ms ease;
+}
+.craft-switch button[aria-pressed="true"] {
+  background: linear-gradient(135deg, #7568f4, #8d7df8);
+  color: #fff;
+  box-shadow: 0 5px 14px rgba(117,104,244,.22);
+}
+.craft-switch button:active { transform: scale(.98); }
+
+.progression-loop {
+  border-color: #272f3b;
+  background: linear-gradient(145deg, rgba(20,24,32,.96), rgba(13,16,22,.98));
+  box-shadow: 0 8px 22px rgba(0,0,0,.14);
+}
+.progression-chips > span, .progression-set-row span, .progression-goals span {
+  background: #10141b;
+  border-color: #242b37;
+}
+
+.discovery-heading h2 { letter-spacing: -.015em; }
+.discovery-heading h2 span {
+  background: #161a22;
+  border-color: #2a313d;
+  color: #cbd2df;
+}
+.discovery-search {
+  background: #10141a;
+  border-color: #28303b;
+  border-radius: 11px;
+}
+.discovery-search:focus-within {
+  border-color: rgba(125,211,252,.6);
+  box-shadow: 0 0 0 3px rgba(125,211,252,.08);
+}
+
+.discovery-grid {
+  gap: 10px;
+  scrollbar-gutter: stable;
+}
+.discovery-tile {
+  border-color: #252d38;
+  border-radius: 14px;
+  background: linear-gradient(180deg,#151922,#11151c);
+  overflow: clip;
+  contain: layout paint style;
+  content-visibility: auto;
+  contain-intrinsic-size: 126px 146px;
+  transition: transform 120ms ease, border-color 120ms ease, background-color 120ms ease;
+}
+.discovery-tile:hover {
+  border-color: #3a4454;
+  background: linear-gradient(180deg,#181d27,#121720);
+}
+.discovery-tile:active { transform: scale(.985); }
+.discovery-tile.is-selected {
+  border-color: #8b7cff;
+  box-shadow: inset 0 0 0 1px rgba(139,124,255,.5), 0 8px 18px rgba(44,36,96,.16);
+}
+.discovery-pick {
+  min-height: 142px;
+  padding: 12px 8px 11px;
+  justify-content: flex-end;
+}
+.discovery-pick img {
+  height: clamp(72px, 20vw, 108px);
+  max-width: 96%;
+  margin: auto;
+  transform: translateZ(0);
+}
+.discovery-pick span {
+  font-size: 12px;
+  font-weight: 700;
+  color: #e9edf4;
+}
+.discovery-info {
+  top: 3px; right: 3px;
+  width: 32px; height: 32px;
+  border-radius: 9px;
+  background: rgba(9,11,15,.54);
+  color: #8d96a8;
+}
+.discovery-info:hover { color: #fff; background: #202632; }
+
+.combine-dock {
+  position: relative;
+  padding: 14px;
+  border-color: #2a3340;
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, rgba(25,30,40,.98), rgba(14,18,24,.99));
+  box-shadow: 0 -3px 18px rgba(0,0,0,.12), 0 12px 30px rgba(0,0,0,.2);
+}
+.combine-dock::before {
+  content:"";
+  position:absolute;
+  inset:0 auto auto 16px;
+  width:72px;
+  height:1px;
+  background:linear-gradient(90deg,#8b7cff,#57e4b8,transparent);
+  opacity:.85;
+}
+.ingredient { flex-basis: 80px; }
+.ingredient-pick {
+  width: 74px; height: 74px;
+  border-radius: 14px;
+  background: #0d1117;
+  border-color: #303947;
+}
+.ingredient-pick.is-targeted {
+  border-color: #8b7cff;
+  box-shadow: 0 0 0 3px rgba(139,124,255,.08);
+}
+.ingredient-pick img { width: 64px; height: 64px; }
+.ingredient-remove {
+  background: #171c24;
+  border-color: #313b49;
+  color: #b4bdca;
+}
+.process-control select {
+  background: #0e1218;
+  border-color: #303946;
+  border-radius: 11px;
+}
+.combine-primary {
+  min-height: 52px;
+  border-radius: 13px;
+  background: linear-gradient(135deg,#7568f4 0%,#8b7cff 50%,#66d9b7 145%);
+  font-size: 16px;
+  letter-spacing: .01em;
+  box-shadow: 0 8px 18px rgba(85,70,190,.22);
+  transition: transform 110ms ease, filter 110ms ease;
+}
+.combine-primary:not(:disabled):hover { filter: brightness(1.06); }
+.combine-primary:not(:disabled):active { transform: scale(.985); }
+.random-items {
+  border-radius: 13px;
+  border-color: #2e3744;
+  background: #11151c;
+}
+
+.collection-nav {
+  background: rgba(10,12,17,.97);
+  border-top-color: rgba(62,72,89,.62);
+  padding-top: 6px;
+  box-shadow: 0 -10px 28px rgba(0,0,0,.18);
+}
+.collection-nav > div { max-width: 920px; }
+.collection-nav button {
+  min-height: 58px;
+  border-bottom: 0;
+  border-radius: 13px;
+  transition: color 100ms linear, background-color 100ms linear, transform 90ms ease-out;
+}
+.collection-nav button[aria-current="page"] {
+  color: #fff;
+  background: linear-gradient(180deg,rgba(139,124,255,.16),rgba(139,124,255,.07));
+}
+.collection-nav button[aria-current="page"] svg { color:#9f93ff; }
+.collection-nav button:not([aria-current="page"]):hover { background:#12161d; }
+
+.archive-card {
+  content-visibility: auto;
+  contain-intrinsic-size: 132px 156px;
+  contain: layout paint style;
+  will-change: auto;
+}
+.archive-load-sentinel { height: 1px; width: 100%; }
+.view-loading-card {
+  margin: auto;
+  padding: 14px 18px;
+  border-radius: 14px;
+  border: 1px solid #29313d;
+  background: #12161d;
+  color: #98a1b2;
+  font-size: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.16);
+}
+
+/* Rarity is a tiny collectible cue, not a neon frame around every card. */
+.discovery-tile[data-rarity="UNCOMMON"] { border-bottom-color: rgba(87,228,184,.46); }
+.discovery-tile[data-rarity="RARE"] { border-bottom-color: rgba(96,165,250,.58); }
+.discovery-tile[data-rarity="EXOTIC"] { border-bottom-color: rgba(192,132,252,.62); }
+.discovery-tile[data-rarity="MYTHIC"] { border-bottom-color: rgba(251,191,36,.68); }
+.discovery-tile[data-rarity="ANOMALOUS"] { border-bottom-color: rgba(251,113,133,.68); }
+
+/* Full-screen effects should stay visually rich without forcing an expensive
+   live blur of the entire app on mobile GPUs. */
+.fusion-overlay,
+.craft-fusion-overlay {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background: rgba(5,6,10,.88);
+}
+.fusion-reactor,
+.craft-fusion-stage {
+  contain: layout paint style;
+  transform: translateZ(0);
+}
+.fusion-stars i,
+.craft-fusion-specks i,
+.fusion-core-glow,
+.craft-fusion-core {
+  will-change: transform, opacity;
+}
+
+@media (max-width: 640px) {
+  .collection-header {
+    background: #0b0d12;
+    box-shadow: 0 5px 18px rgba(0,0,0,.16);
+  }
+  .collection-brand img { width: 39px; height: 39px; }
+  .collection-brand strong { font-size: 18px; }
+  .collection-brand small { font-size: 8px; letter-spacing: 1.4px; }
+  .collection-workbench { padding-inline: 12px; }
+  .discovery-grid { grid-template-columns: repeat(3,minmax(0,1fr)); gap: 7px; }
+  .discovery-pick { min-height: 126px; padding-inline: 5px; }
+  .discovery-pick img { height: clamp(62px,19vw,82px); }
+  .combine-dock { padding: 11px; border-radius: 14px; }
+  .ingredient { flex-basis: 68px; }
+  .ingredient-pick { width: 64px; height: 64px; }
+  .ingredient-pick img { width: 56px; height: 56px; }
+  .process-control { padding-left: 0; }
+  .collection-nav { box-shadow: none; }
+  .collection-nav button { min-height: 55px; }
+  .collection-nav button span { font-size: 10px; }
+  .fixed.backdrop-blur-sm,
+  .fixed.backdrop-blur-md {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .discovery-tile,
+  .combine-primary,
+  .header-actions button,
+  .craft-switch button { transition: none !important; }
 }
