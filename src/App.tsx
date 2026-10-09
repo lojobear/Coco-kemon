@@ -6,18 +6,26 @@
 
 import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { GameProvider, useGame } from './lib/gameStore';
-const loadKitchenView = () => import('./components/KitchenView');
-const KitchenView = lazy(() => loadKitchenView().then(module => ({ default: module.KitchenView })));
 import { Header } from './components/Header';
 import { WorkBench } from './components/WorkBench';
-import { ArchiveView } from './components/ArchiveView';
-import { NotebookView } from './components/NotebookView';
 import { DiscoveryModal } from './components/DiscoveryModal';
-import { SeedsModal } from './components/SeedsModal';
-import { VoiceLabModal } from './components/VoiceLabModal';
-import { SpriteLabModal } from './components/SpriteLabModal';
 import { BottomNav } from './components/BottomNav';
-import { InfiniteCraftView } from './components/InfiniteCraftView';
+
+const loadKitchenView = () => import('./components/KitchenView');
+const loadInfiniteCraftView = () => import('./components/InfiniteCraftView');
+const loadArchiveView = () => import('./components/ArchiveView');
+const loadSpriteLabModal = () => import('./components/SpriteLabModal');
+const loadNotebookView = () => import('./components/NotebookView');
+const loadSeedsModal = () => import('./components/SeedsModal');
+const loadVoiceLabModal = () => import('./components/VoiceLabModal');
+
+const KitchenView = lazy(() => loadKitchenView().then(module => ({ default: module.KitchenView })));
+const InfiniteCraftView = lazy(() => loadInfiniteCraftView().then(module => ({ default: module.InfiniteCraftView })));
+const ArchiveView = lazy(() => loadArchiveView().then(module => ({ default: module.ArchiveView })));
+const SpriteLabModal = lazy(() => loadSpriteLabModal().then(module => ({ default: module.SpriteLabModal })));
+const NotebookView = lazy(() => loadNotebookView().then(module => ({ default: module.NotebookView })));
+const SeedsModal = lazy(() => loadSeedsModal().then(module => ({ default: module.SeedsModal })));
+const VoiceLabModal = lazy(() => loadVoiceLabModal().then(module => ({ default: module.VoiceLabModal })));
 import { SAVE_STATUS_EVENT, getSaveError } from './lib/saveData';
 import { sound } from './lib/audio';
 import { Material } from './types';
@@ -28,11 +36,21 @@ function GameContent() {
   const [kitchenOpened, setKitchenOpened] = useState(false);
   useEffect(() => { if (activeTab === 'kitchen') setKitchenOpened(true); }, [activeTab]);
 
-  // Warm the only lazy navigation chunk shortly after first paint so the first
-  // Kitchen tap does not have to wait for a network/module parse round-trip.
+  // Warm likely next screens during idle time instead of shipping every heavy view
+  // in the initial Android bundle. This keeps first paint fast without making taps feel cold.
   useEffect(() => {
-    const timer = window.setTimeout(() => { void loadKitchenView(); }, 700);
-    return () => window.clearTimeout(timer);
+    const warm = () => {
+      void loadKitchenView();
+      void loadInfiniteCraftView();
+      void loadArchiveView();
+    };
+    const idle = 'requestIdleCallback' in window
+      ? (window as any).requestIdleCallback(warm, { timeout: 1800 })
+      : window.setTimeout(warm, 1000);
+    return () => {
+      if ('cancelIdleCallback' in window) (window as any).cancelIdleCallback(idle);
+      else window.clearTimeout(idle);
+    };
   }, []);
   const [saveError, setSaveError] = useState(getSaveError);
   useEffect(() => {
@@ -78,9 +96,10 @@ function GameContent() {
       </div>}
       {/* Main Viewport Content */}
       <main className={`flex-1 w-full min-h-0 flex flex-col ${(activeTab === 'infinite-craft' || activeTab === 'sprite-lab' || activeTab === 'foundry') ? 'overflow-hidden' : 'overflow-y-auto'}`}>
-        {kitchenOpened && <div hidden={activeTab !== 'kitchen'}><Suspense fallback={<p className="p-6 text-sm">Opening the Kitchen…</p>}><KitchenView visible={activeTab === 'kitchen'} /></Suspense></div>}
+        {kitchenOpened && <div hidden={activeTab !== 'kitchen'}><Suspense fallback={<div className="view-loading-card">Opening Kitchen…</div>}><KitchenView visible={activeTab === 'kitchen'} /></Suspense></div>}
+
         {activeTab === 'infinite-craft' && (
-          <InfiniteCraftView />
+          <Suspense fallback={<div className="view-loading-card">Warming the Craft lab…</div>}><InfiniteCraftView /></Suspense>
         )}
 
         {activeTab === 'foundry' && (
@@ -88,18 +107,20 @@ function GameContent() {
         )}
 
         {activeTab === 'archive' && (
-          <ArchiveView
-            inspectedItem={inspectedItem}
-            onCloseInspect={() => setInspectedItem(null)}
-          />
+          <Suspense fallback={<div className="view-loading-card">Opening your collection…</div>}>
+            <ArchiveView
+              inspectedItem={inspectedItem}
+              onCloseInspect={() => setInspectedItem(null)}
+            />
+          </Suspense>
         )}
 
         {activeTab === 'sprite-lab' && (
-          <SpriteLabModal embedded />
+          <Suspense fallback={<div className="view-loading-card">Opening Sprite Lab…</div>}><SpriteLabModal embedded /></Suspense>
         )}
 
         {activeTab === 'notebook' && (
-          <NotebookView />
+          <Suspense fallback={<div className="view-loading-card">Opening notebook…</div>}><NotebookView /></Suspense>
         )}
       </main>
 
@@ -110,11 +131,11 @@ function GameContent() {
       <DiscoveryModal />
 
       {showSeedsModal && (
-        <SeedsModal onClose={() => setShowSeedsModal(false)} />
+        <Suspense fallback={null}><SeedsModal onClose={() => setShowSeedsModal(false)} /></Suspense>
       )}
 
       {showVoiceModal && (
-        <VoiceLabModal onClose={() => setShowVoiceModal(false)} />
+        <Suspense fallback={null}><VoiceLabModal onClose={() => setShowVoiceModal(false)} /></Suspense>
       )}
 
 
