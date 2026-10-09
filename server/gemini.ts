@@ -308,6 +308,61 @@ export function getGeminiImageModels(): string[] {
   ].filter((model): model is string => Boolean(model)))).slice(0, 2);
 }
 
+function bytesToBase64(bytes: Uint8Array): string {
+  // Workers with nodejs_compat expose Buffer; browsers/tests can fall back to btoa.
+  if (typeof Buffer !== 'undefined') return Buffer.from(bytes).toString('base64');
+  let binary = '';
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
+
+async function normalizeWorkersImagePayload(payload: any): Promise<{ data: string; mimeType: string } | null> {
+  if (!payload) return null;
+
+  if (typeof payload === 'string') {
+    const dataUrl = payload.match(/^data:(image\/[a-z0-9.+-]+);base64,(.+)$/is);
+    if (dataUrl) return { mimeType: dataUrl[1], data: dataUrl[2].replace(/\s+/g, '') };
+    const compact = payload.replace(/\s+/g, '');
+    if (/^[A-Za-z0-9+/=]+$/.test(compact) && compact.length >= 100) {
+      return { data: compact, mimeType: 'image/png' };
+    }
+    return null;
+  }
+
+  if (payload instanceof ArrayBuffer) {
+    return { data: bytesToBase64(new Uint8Array(payload)), mimeType: 'image/png' };
+  }
+
+  if (ArrayBuffer.isView(payload)) {
+    const bytes = new Uint8Array(payload.buffer, payload.byteOffset, payload.byteLength);
+    return { data: bytesToBase64(bytes), mimeType: 'image/png' };
+  }
+
+  if (typeof Blob !== 'undefined' && payload instanceof Blob) {
+    return {
+      data: bytesToBase64(new Uint8Array(await payload.arrayBuffer())),
+      mimeType: payload.type || 'image/png',
+    };
+  }
+
+  if (typeof Response !== 'undefined' && payload instanceof Response) {
+    const mimeType = payload.headers.get('content-type')?.split(';')[0] || 'image/png';
+    return { data: bytesToBase64(new Uint8Array(await payload.arrayBuffer())), mimeType };
+  }
+
+  if (typeof ReadableStream !== 'undefined' && payload instanceof ReadableStream) {
+    return {
+      data: bytesToBase64(new Uint8Array(await new Response(payload).arrayBuffer())),
+      mimeType: 'image/png',
+    };
+  }
+
+  return null;
+}
+
 async function generateWorkersAiImage(prompt: string): Promise<GeminiImageResult | null> {
   const ai = getWorkersAiBinding();
   if (!ai?.run) return null;
@@ -338,24 +393,24 @@ async function generateWorkersAiImage(prompt: string): Promise<GeminiImageResult
         response = await ai.run(model, { prompt, steps: 8 });
       }
 
-      const data = typeof response?.image === 'string'
-        ? response.image
-        : typeof response === 'string'
-          ? response
-          : undefined;
-
-      if (data && data.length >= 100 && data.length <= 16_000_000) {
-        return { data, mimeType: 'image/jpeg', model };
+      const candidate = response?.image ?? response?.result?.image ?? response;
+      const normalized = await normalizeWorkersImagePayload(candidate);
+      if (normalized?.data && normalized.data.length >= 100 && normalized.data.length <= 16_000_000) {
+        return { ...normalized, model };
       }
-      throw new Error('Workers AI returned no usable image.');
+      throw new Error('Workers AI returned no usable image payload.');
     } catch (error) {
       last = error;
-      console.warn(`Workers AI image model ${model} failed. Trying fallback...`);
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(`Workers AI image model ${model} failed: ${message}. Trying fallback...`);
     }
   }
 
-  console.error('Workers AI image generation failed:', last);
-  throw new ApiFailure(502, 'The Cloudflare image model could not generate a sprite. Please retry.');
+  // Crucially, do not strand every sprite when Workers AI changes response shape or a model is
+  // temporarily unavailable. Returning null lets generateGeminiImage use the configured Gemini
+  // image model as the secondary provider.
+  console.error('Workers AI image generation failed; falling back to Gemini:', last);
+  return null;
 }
 
 /**
