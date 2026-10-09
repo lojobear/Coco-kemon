@@ -488,7 +488,7 @@ async function callWorkersAiStructured(
         messages,
         stream: false,
         temperature: Math.min(1, Math.max(0, temperature)),
-        max_tokens: 2600,
+        max_tokens: 1200,
         response_format: schema
           ? { type: 'json_schema', json_schema: schema }
           : { type: 'json_object' },
