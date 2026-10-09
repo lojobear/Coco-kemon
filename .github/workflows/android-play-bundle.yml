@@ -15,11 +15,11 @@ on:
       version_name:
         description: Play Store version name
         required: true
-        default: "1.0.0"
+        default: "1.0.1"
       version_code:
         description: Play Store version code (increase for every upload)
         required: true
-        default: "1"
+        default: "2"
       app_id:
         description: Permanent Android application ID
         required: true
