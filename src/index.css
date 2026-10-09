@@ -1359,3 +1359,183 @@ body:has(.collection-app[data-theme="midnight"]) {
   color: #fda4af;
   border-color: rgba(225, 29, 72, 0.4);
 }
+
+
+/* ===== Addictive progression loop ===== */
+.progression-loop {
+  flex-shrink: 0;
+  border: 1px solid var(--basic-line);
+  border-radius: 12px;
+  padding: 10px;
+  background: linear-gradient(145deg, rgba(111,227,165,0.08), rgba(124,92,255,0.08));
+  display: grid;
+  gap: 8px;
+}
+.progression-level { display:flex; align-items:center; gap:8px; min-width:0; }
+.progression-icon {
+  width:32px; height:32px; border-radius:9px; display:grid; place-items:center;
+  background:rgba(111,227,165,0.14); color:var(--basic-accent); flex-shrink:0;
+}
+.progression-level > div:nth-child(2) { min-width:72px; }
+.progression-level strong { display:block; font-size:12px; }
+.progression-level small { display:block; font-size:9px; color:var(--basic-muted); margin-top:1px; }
+.progression-xp {
+  height:8px; border-radius:999px; background:rgba(128,128,128,0.16); overflow:hidden; flex:1;
+}
+.progression-xp > span {
+  display:block; height:100%; border-radius:inherit; background:linear-gradient(90deg,#6fe3a5,#67e8f9,#a78bfa);
+  transition:width 350ms ease;
+}
+.progression-chips { display:flex; gap:6px; flex-wrap:wrap; }
+.progression-chips > span {
+  min-height:26px; display:inline-flex; align-items:center; gap:4px; padding:4px 7px;
+  border:1px solid var(--basic-line); border-radius:999px; font-size:10px; background:var(--basic-bg);
+}
+.progression-chips small { color:var(--basic-muted); font-size:8px; }
+.progression-details { display:grid; gap:5px; }
+.progression-set-row, .progression-goals { display:flex; gap:5px; overflow-x:auto; scrollbar-width:none; }
+.progression-set-row::-webkit-scrollbar, .progression-goals::-webkit-scrollbar { display:none; }
+.progression-set-row span, .progression-goals span {
+  white-space:nowrap; font-size:9px; padding:4px 6px; border-radius:6px; background:rgba(128,128,128,0.09);
+  color:var(--basic-muted); border:1px solid transparent;
+}
+.progression-set-row span.complete, .progression-goals span.complete {
+  color:#6fe3a5; border-color:rgba(111,227,165,0.28); background:rgba(111,227,165,0.08);
+}
+.progression-hint {
+  display:flex; align-items:center; gap:5px; margin:0; font-size:9px; color:var(--basic-muted);
+}
+.variant-badge {
+  position:absolute; left:6px; bottom:6px; z-index:2; max-width:80%;
+  font-size:8px; font-weight:800; text-transform:uppercase; letter-spacing:.05em;
+  padding:3px 5px; border-radius:5px; background:#171323; color:#fff;
+}
+.variant-holographic { color:#67e8f9 !important; border:1px solid rgba(103,232,249,.45); }
+.variant-ancient { color:#f6c177 !important; border:1px solid rgba(246,193,119,.45); }
+.variant-glitched { color:#c4b5fd !important; border:1px solid rgba(196,181,253,.45); }
+.variant-corrupted { color:#fda4af !important; border:1px solid rgba(253,164,175,.45); }
+
+.reveal-variant {
+  width:max-content; max-width:100%; margin:10px auto 0; display:flex; align-items:center; gap:5px;
+  padding:5px 8px; border-radius:999px; font-size:9px; font-weight:800; letter-spacing:.08em;
+  border:1px solid var(--basic-line);
+}
+.reveal-progression {
+  display:flex; justify-content:center; gap:6px; flex-wrap:wrap; margin:-6px 0 16px;
+}
+.reveal-progression span {
+  padding:5px 7px; border-radius:999px; font-size:9px; border:1px solid var(--basic-line); background:var(--basic-soft);
+}
+
+/* ===== Full-duration Foundry fusion reactor ===== */
+.fusion-overlay {
+  position:fixed; inset:0; z-index:75; display:grid; place-items:center;
+  background:rgba(7,6,12,.76); backdrop-filter:blur(8px);
+  pointer-events:auto;
+}
+.fusion-reactor {
+  position:relative; width:min(92vw,520px); height:min(72dvh,540px); min-height:400px;
+  border:1px solid rgba(255,255,255,.14); border-radius:28px; overflow:hidden;
+  background:
+    radial-gradient(circle at 50% 44%, rgba(103,232,249,.11), transparent 22%),
+    radial-gradient(circle at 50% 46%, rgba(167,139,250,.11), transparent 42%),
+    linear-gradient(180deg,#161125 0%,#090711 100%);
+  filter:drop-shadow(0 20px 42px rgba(0,0,0,.45));
+}
+.fusion-reactor::before {
+  content:""; position:absolute; inset:8%; border-radius:50%;
+  background:conic-gradient(from 0deg, transparent, rgba(111,227,165,.09), transparent, rgba(103,232,249,.09), transparent);
+  animation:fusion-field-spin 8s linear infinite;
+}
+.fusion-ring {
+  position:absolute; left:50%; top:43%; translate:-50% -50%; border-radius:50%;
+  border:1px solid rgba(255,255,255,.16); pointer-events:none;
+}
+.fusion-ring-one { width:260px; height:260px; animation:fusion-ring-pulse 2.3s ease-in-out infinite; }
+.fusion-ring-two { width:190px; height:190px; border-style:dashed; animation:fusion-field-spin 5s linear infinite reverse; }
+.fusion-stars i {
+  --angle: calc(var(--i) * 20deg);
+  position:absolute; left:50%; top:43%; width:4px; height:4px; border-radius:50%; background:#f8fafc;
+  transform:rotate(var(--angle)) translateX(125px); transform-origin:0 0;
+  opacity:.28; animation:fusion-star-pulse 1.6s ease-in-out infinite;
+  animation-delay:calc(var(--i) * -90ms);
+}
+.fusion-material {
+  position:absolute; top:43%; width:110px; display:grid; justify-items:center; gap:6px;
+  transform:translateY(-50%); z-index:4;
+}
+.fusion-material-a { left:10%; animation:fusion-left-orbit 2.8s ease-in-out infinite; }
+.fusion-material-b { right:10%; animation:fusion-right-orbit 2.8s ease-in-out infinite; }
+.fusion-material-art {
+  width:82px; height:82px; object-fit:contain; filter:drop-shadow(0 8px 14px rgba(0,0,0,.35));
+}
+.fusion-material span {
+  max-width:105px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  font-size:10px; font-weight:700; color:#e9e4d4; padding:3px 6px; border-radius:999px; background:rgba(15,12,23,.7);
+}
+.fusion-core {
+  position:absolute; left:50%; top:43%; translate:-50% -50%; width:118px; height:118px; z-index:5;
+  display:grid; place-items:center; border-radius:50%;
+}
+.fusion-core-glow {
+  position:absolute; inset:0; border-radius:50%;
+  background:radial-gradient(circle,#fef3c7 0 7%,#67e8f9 9%,rgba(167,139,250,.75) 28%,rgba(167,139,250,.08) 58%,transparent 72%);
+  animation:fusion-core-breathe 1.35s ease-in-out infinite;
+}
+.fusion-process-icon {
+  position:absolute; width:48px; height:48px; display:grid; place-items:center; border-radius:50%;
+  color:#120f1d; background:#f6c177; animation:fusion-process-pop 1.7s ease-in-out infinite;
+}
+.fusion-mystery {
+  position:absolute; bottom:-40px; color:rgba(255,255,255,.32); font-size:30px; font-weight:900;
+  animation:fusion-mystery-flicker 1.2s steps(2,end) infinite;
+}
+.fusion-status-card {
+  position:absolute; left:18px; right:18px; bottom:18px; z-index:6; border:1px solid rgba(255,255,255,.12);
+  border-radius:16px; padding:12px; background:rgba(15,12,23,.86); color:#f2ead9;
+}
+.fusion-status-top { display:flex; align-items:center; gap:7px; }
+.fusion-status-top strong { font-size:12px; }
+.fusion-status-top span { margin-left:auto; font-size:9px; color:#9d94b8; font-variant-numeric:tabular-nums; }
+.fusion-status-card p { margin:6px 0 8px; font-size:11px; color:#c9c2d8; }
+.fusion-progress { height:5px; overflow:hidden; border-radius:999px; background:rgba(255,255,255,.08); }
+.fusion-progress span {
+  display:block; width:42%; height:100%; border-radius:inherit;
+  background:linear-gradient(90deg,transparent,#6fe3a5,#67e8f9,#a78bfa,transparent);
+  animation:fusion-progress-scan 1.25s ease-in-out infinite;
+}
+.fusion-process-heat .fusion-core-glow { filter:hue-rotate(-55deg) saturate(1.35); }
+.fusion-process-charge .fusion-core-glow { filter:hue-rotate(25deg) saturate(1.45); }
+.fusion-process-freeze .fusion-core-glow, .fusion-process-cool .fusion-core-glow { filter:hue-rotate(65deg) brightness(1.15); }
+.fusion-process-crush .fusion-ring-two, .fusion-process-press .fusion-ring-two { animation-duration:1.15s; }
+.fusion-process-mix .fusion-ring-one, .fusion-process-soak .fusion-ring-one { animation-duration:1.45s; }
+
+@keyframes fusion-field-spin { to { transform:rotate(360deg); } }
+@keyframes fusion-ring-pulse { 0%,100%{scale:.92;opacity:.35} 50%{scale:1.08;opacity:.8} }
+@keyframes fusion-star-pulse { 0%,100%{opacity:.15;scale:.7} 50%{opacity:.95;scale:1.4} }
+@keyframes fusion-left-orbit {
+  0%,100%{transform:translate(0,-50%) rotate(-3deg)}
+  50%{transform:translate(34px,-50%) rotate(4deg) scale(.92)}
+}
+@keyframes fusion-right-orbit {
+  0%,100%{transform:translate(0,-50%) rotate(3deg)}
+  50%{transform:translate(-34px,-50%) rotate(-4deg) scale(.92)}
+}
+@keyframes fusion-core-breathe { 0%,100%{scale:.8;opacity:.6} 50%{scale:1.15;opacity:1} }
+@keyframes fusion-process-pop { 0%,100%{scale:.82;rotate:-6deg} 50%{scale:1.05;rotate:6deg} }
+@keyframes fusion-mystery-flicker { 0%,100%{opacity:.2;translate:0 0} 50%{opacity:.65;translate:0 -3px} }
+@keyframes fusion-progress-scan { from{transform:translateX(-110%)} to{transform:translateX(260%)} }
+
+@media (max-width:520px) {
+  .progression-details { display:none; }
+  .progression-loop { padding:8px; gap:6px; }
+  .fusion-reactor { height:68dvh; min-height:390px; }
+  .fusion-material-a { left:5%; }
+  .fusion-material-b { right:5%; }
+  .fusion-material-art { width:68px; height:68px; }
+  .fusion-ring-one { width:225px; height:225px; }
+  .fusion-ring-two { width:165px; height:165px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fusion-reactor *, .fusion-reactor::before { animation:none !important; }
+}
