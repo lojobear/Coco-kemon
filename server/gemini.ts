@@ -478,43 +478,72 @@ async function callWorkersAiStructured(
   let last: unknown;
   for (let attempt = 0; attempt < WORKERS_TEXT_MODELS.length; attempt++) {
     const model = WORKERS_TEXT_MODELS[attempt];
-    try {
-      const messages = [
-        ...(systemInstruction ? [{ role: 'system', content: systemInstruction }] : []),
-        { role: 'user', content: prompt },
-      ];
+    const messages = [
+      ...(systemInstruction ? [{ role: 'system', content: systemInstruction }] : []),
+      { role: 'user', content: prompt },
+    ];
 
-      const run = ai.run(model, {
-        messages,
-        stream: false,
-        temperature: Math.min(1, Math.max(0, temperature)),
-        max_tokens: 1200,
-        response_format: schema
-          ? { type: 'json_schema', json_schema: schema }
-          : { type: 'json_object' },
-      });
+    // First try the strongest structured mode. If the model rejects that response format,
+    // retry once with a strict "JSON only" instruction instead of immediately spilling to Gemini.
+    for (let formatAttempt = 0; formatAttempt < 2; formatAttempt++) {
+      try {
+        const recovery = formatAttempt === 1;
+        const recoveryMessages = recovery
+          ? [
+              ...messages.slice(0, -1),
+              {
+                role: 'user',
+                content: `${prompt}\n\nReturn ONLY one valid JSON object. No markdown, no prose before or after it.`,
+              },
+            ]
+          : messages;
 
-      const timeoutMs = attempt === 0 ? 12000 : 8000;
-      const response: any = await Promise.race([
-        run,
-        new Promise((_, reject) => setTimeout(() => reject(new Error(`Workers AI text request timed out after ${timeoutMs}ms.`)), timeoutMs)),
-      ]);
+        const input: any = {
+          messages: recoveryMessages,
+          stream: false,
+          temperature: recovery ? Math.min(0.55, temperature) : Math.min(1, Math.max(0, temperature)),
+          max_tokens: 1400,
+        };
+        if (!recovery) {
+          input.response_format = schema
+            ? { type: 'json_schema', json_schema: schema }
+            : { type: 'json_object' };
+        }
 
-      const raw = workersAiText(response);
-      if (!raw) throw new Error('Workers AI returned an empty response.');
-      const parsed = JSON.parse(raw);
-      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-        throw new Error('Workers AI returned invalid JSON.');
+        const run = ai.run(model, input);
+        const timeoutMs = attempt === 0 ? 14000 : 10000;
+        const response: any = await Promise.race([
+          run,
+          new Promise((_, reject) => setTimeout(() => reject(new Error(`Workers AI text request timed out after ${timeoutMs}ms.`)), timeoutMs)),
+        ]);
+
+        const raw = workersAiText(response);
+        if (!raw) throw new Error('Workers AI returned an empty response.');
+
+        const cleaned = raw
+          .replace(/^\s*```(?:json)?\s*/i, '')
+          .replace(/\s*```\s*$/i, '')
+          .trim();
+        const firstBrace = cleaned.indexOf('{');
+        const lastBrace = cleaned.lastIndexOf('}');
+        const jsonText = firstBrace >= 0 && lastBrace > firstBrace
+          ? cleaned.slice(firstBrace, lastBrace + 1)
+          : cleaned;
+
+        const parsed = JSON.parse(jsonText);
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+          throw new Error('Workers AI returned invalid JSON.');
+        }
+        return JSON.stringify(parsed);
+      } catch (error) {
+        last = error;
+        const message = error instanceof Error ? error.message : String(error);
+        console.warn(`Workers AI text model ${model} attempt ${formatAttempt + 1} failed: ${message}.`);
       }
-      return JSON.stringify(parsed);
-    } catch (error) {
-      last = error;
-      const message = error instanceof Error ? error.message : String(error);
-      console.warn(`Workers AI text model ${model} failed: ${message}. Trying fallback...`);
     }
   }
 
-  console.error('Workers AI text generation failed; falling back to Gemini:', last);
+  console.error('Workers AI text generation failed after structured and recovery attempts:', last);
   return null;
 }
 
@@ -531,9 +560,9 @@ export async function callGeminiStructured(
     ? enhanceDiscoveryInstruction(systemInstruction)
     : systemInstruction;
 
-  // Production plain-text generation runs on Cloudflare Workers AI first. This keeps the
-  // core crafting/foundry loop independent of Gemini availability and quota. Gemini remains
-  // a fallback and still handles multimodal photo/sketch requests.
+  // Production plain-text generation is Cloudflare-only. Do not fall through to Gemini
+  // after a Workers AI miss, because a temporary Workers failure should never burn or block
+  // the player's Google free-tier quota for ordinary combinations.
   if (!injectedClient && typeof prompt === 'string') {
     const workersPrompt = foundryRequest
       ? enhanceFoundryPrompt(prompt, null)
@@ -547,6 +576,7 @@ export async function callGeminiStructured(
         : temperature;
     const workersSchema = drawingOptions?.schema || (discoveryRequest ? DISCOVERY_RESPONSE_SCHEMA : undefined);
 
+    const workersAvailable = Boolean(getWorkersAiBinding()?.run);
     const workersResult = await callWorkersAiStructured(
       workersPrompt,
       effectiveSystemInstruction,
@@ -554,6 +584,13 @@ export async function callGeminiStructured(
       workersSchema,
     );
     if (workersResult) return workersResult;
+
+    if (workersAvailable) {
+      throw new ApiFailure(
+        503,
+        'Cloudflare AI is temporarily busy. Please retry in a moment; Google quota was not used.'
+      );
+    }
   }
 
   if (!injectedClient && !process.env.GEMINI_API_KEY) {
