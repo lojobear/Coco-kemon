@@ -22,6 +22,7 @@ import { CANONICAL_INFINITE_CRAFT_RECIPES, makePairKey } from './src/lib/infinit
 import { chooseConcept, applyInheritance, inheritanceFor, type ConceptResult } from './server/discovery.js';
 import { TRAIL_RECIPES, rollRareVariant } from './src/lib/discoveryTrails.js';
 import { ALL_PROCESSES } from './src/lib/starterData.js';
+import { cachedWork } from './server/persistentCache.js';
 
 if (process.env.CLOUDFLARE !== '1') dotenv.config();
 
@@ -105,32 +106,35 @@ Do not include private reasoning; explanations describe only the connection.`;
   const prompt = `Find satisfying discoveries for these input names: ${JSON.stringify([first, second])}`;
 
   try {
-    const rawJson = await callGeminiStructured(prompt, systemInstruction, 0.4);
+    const resolved = await cachedWork<ConceptResult>('infinite-pair-v2', key, async () => {
+      const rawJson = await callGeminiStructured(prompt, systemInstruction, 0.4);
+      if (!rawJson) throw new ApiFailure(502, 'AI returned an incomplete combination. Please retry.');
 
-    if (rawJson) {
       const parsed = chooseConcept(JSON.parse(rawJson), first, second);
-      if (parsed && typeof parsed.result === 'string' && parsed.result.trim() && parsed.result.length <= 160 && typeof parsed.emoji === 'string' && parsed.emoji.trim() && parsed.emoji.length <= 32) {
-        const cleanedResult = parsed.result.trim();
-        const cleanedEmoji = (parsed.emoji || '✨').trim();
-        const lowerRes = cleanedResult.toLowerCase();
-        const isFirstDiscovery = !discoveredResultsSet.has(lowerRes);
-
-        discoveredResultsSet.add(lowerRes);
-        dynamicInfiniteCraftCache.set(key, { ...parsed, result: cleanedResult, emoji: cleanedEmoji });
-
-        return {
-          ...parsed,
-          result: cleanedResult,
-          emoji: cleanedEmoji,
-          isNew: isFirstDiscovery,
-        };
+      if (!parsed || typeof parsed.result !== 'string' || !parsed.result.trim() || parsed.result.length > 160 ||
+          typeof parsed.emoji !== 'string' || !parsed.emoji.trim() || parsed.emoji.length > 32) {
+        throw new ApiFailure(502, 'AI returned an incomplete combination. Please retry.');
       }
-    }
+      return { ...parsed, result: parsed.result.trim(), emoji: (parsed.emoji || '✨').trim() };
+    });
+
+    const cleanedResult = resolved.value.result.trim();
+    const lowerRes = cleanedResult.toLowerCase();
+    const isFirstDiscovery = resolved.cache === 'miss' && !discoveredResultsSet.has(lowerRes);
+
+    discoveredResultsSet.add(lowerRes);
+    dynamicInfiniteCraftCache.set(key, resolved.value);
+
+    return {
+      ...resolved.value,
+      result: cleanedResult,
+      emoji: resolved.value.emoji,
+      isNew: isFirstDiscovery,
+    };
   } catch (err) {
-    // Preserve quota, access and timeout errors; never cache failed generation.
+    // Preserve quota, access and timeout errors; failed generations are never cached.
     throw err;
   }
-  throw new ApiFailure(502, 'AI returned an incomplete combination. Please retry.');
 }
 
 // Neal.fun's exact endpoint: /api/infinite-craft/pair?first=Water&second=Fire
@@ -491,6 +495,38 @@ function getRecipeKey(a: string, b: string | undefined, proc: string): string {
   return `${sorted[0]}+${sorted[1]}+${normProc}`;
 }
 
+function stableHash(input: string): string {
+  let hash = 2166136261;
+  for (let i = 0; i < input.length; i++) {
+    hash ^= input.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(36);
+}
+
+function foundryContextKey(inputA: any, inputB: any, processId: string, existingNames: unknown, knownOddkin: unknown, shouldEmergeOddkin: boolean): string {
+  const compactMaterial = (m: any) => m ? {
+    canonicalName: m.canonicalName,
+    category: m.category,
+    stateOfMatter: m.stateOfMatter,
+    properties: m.properties,
+    semanticTags: m.semanticTags,
+    lifePotential: m.lifePotential,
+    depth: m.lineage?.depth || 0,
+    generation: m.lineage?.generation || 0,
+    recipeDesc: m.lineage?.recipeDesc || '',
+  } : null;
+  const context = {
+    a: compactMaterial(inputA),
+    b: compactMaterial(inputB),
+    processId,
+    existing: Array.isArray(existingNames) ? existingNames.slice(-25) : [],
+    oddkin: Array.isArray(knownOddkin) ? knownOddkin : [],
+    life: shouldEmergeOddkin,
+  };
+  return `${getRecipeKey(inputA.canonicalName, inputB?.canonicalName, processId)}:${stableHash(JSON.stringify(context))}`;
+}
+
 // Synthesis endpoint
 app.post('/api/synthesize', async (req, res) => {
   try {
@@ -705,70 +741,78 @@ Format your response as a strict JSON object with this structure:
   "explanation": "Player-facing summary of why this reaction succeeded"
 }`;
 
-    const rawResponse = await callGeminiStructured(prompt);
-    if (rawResponse) {
-      try {
-        const parsed = JSON.parse(rawResponse);
-        if (parsed.status === 'no_reaction' && text(parsed.explanation)) {
-          return res.json({ status: 'no_reaction', explanation: parsed.explanation, observationIfFailed: parsed.explanation });
-        }
-        if (parsed.status === 'life_emergence' && parsed.oddkin) {
-          if (!shouldEmergeOddkin) throw new ApiFailure(502, 'These inputs do not qualify for life emergence. Please retry.');
-          const oddkinObj = {
-            ...parsed.oddkin,
-            speciesId: `odd_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-            ancestryTags: [
-              ...inputMaterialA.semanticTags,
-              ...(inputMaterialB?.semanticTags || []),
-              process.name.toLowerCase()
-            ],
-            lineage: {
-              parentMaterialIds: [inputMaterialA.id, ...(inputMaterialB ? [inputMaterialB.id] : [])],
-              catalystProcessId: process.id,
-              depth: currentDepth,
-              fullAncestryChain: [
-                {
-                  step: currentDepth,
-                  inputs: [inputMaterialA.displayName, ...(inputMaterialB ? [inputMaterialB.displayName] : [])],
-                  process: process.name,
-                  result: parsed.oddkin.speciesName,
-                }
-              ]
-            },
-            discoveredAt: Date.now(),
-            encounterCount: 1,
-            variantFormsDiscovered: ['standard'],
-          };
-          if (!validOddkin(oddkinObj)) throw new ApiFailure(502, 'AI returned an incomplete creature. Please retry.');
-          return res.json({
-            status: 'life_emergence',
-            oddkin: applyInheritance(oddkinObj, inputMaterialA, inputMaterialB, process),
-            explanation: parsed.explanation || parsed.oddkin.description,
-          });
-        } else if (parsed.material) {
-          const matObj = {
-            ...parsed.material,
-            id: `mat_${parsed.material.canonicalName.toLowerCase().replace(/[^a-z0-9]/g, '_')}_${Date.now()}`,
-            lineage: {
-              parentIds: [inputMaterialA.id, ...(inputMaterialB ? [inputMaterialB.id] : [])],
-              processId: process.id,
-              depth: currentDepth,
-              generation: (inputMaterialA.lineage?.generation || 0) + 1,
-              recipeDesc: `${inputMaterialA.displayName} ${inputMaterialB ? `+ ${inputMaterialB.displayName}` : ''} (${process.name})`
-            },
-            discoveredAt: Date.now(),
-            possibleProcessAffinities: ['HEAT', 'MIX', 'SOAK', 'CRUSH', 'INCUBATE'],
-          };
-          if (!validMaterial(matObj)) throw new ApiFailure(502, 'AI returned an incomplete material. Please retry.');
-          return res.json({
-            status: 'new_material',
-            material: matObj,
-            explanation: parsed.material.discoveryExplanation || parsed.explanation,
-          });
-        }
-      } catch {
-        // Invalid AI output must not become a saved discovery.
+    const foundryCacheKey = foundryContextKey(inputMaterialA, inputMaterialB, normProc, existingMaterialNames, knownOddkinNames, shouldEmergeOddkin);
+    const resolved = await cachedWork<any>('foundry-result-v2', foundryCacheKey, async () => {
+      const rawResponse = await callGeminiStructured(prompt);
+      if (!rawResponse) throw new ApiFailure(502, 'AI returned an incomplete material. Please retry.');
+      const parsed = JSON.parse(rawResponse);
+      const validNoReaction = parsed?.status === 'no_reaction' && text(parsed.explanation);
+      const validLife = parsed?.status === 'life_emergence' && parsed?.oddkin && shouldEmergeOddkin;
+      const validMaterialTemplate = parsed?.material && text(parsed.material.canonicalName) && text(parsed.material.displayName);
+      if (!validNoReaction && !validLife && !validMaterialTemplate) {
+        throw new ApiFailure(502, 'AI returned an incomplete material. Please retry.');
       }
+      return parsed;
+    });
+
+    const parsed = resolved.value;
+    if (parsed.status === 'no_reaction' && text(parsed.explanation)) {
+      return res.json({ status: 'no_reaction', explanation: parsed.explanation, observationIfFailed: parsed.explanation });
+    }
+    if (parsed.status === 'life_emergence' && parsed.oddkin) {
+      if (!shouldEmergeOddkin) throw new ApiFailure(502, 'These inputs do not qualify for life emergence. Please retry.');
+      const oddkinObj = {
+        ...parsed.oddkin,
+        speciesId: `odd_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        ancestryTags: [
+          ...inputMaterialA.semanticTags,
+          ...(inputMaterialB?.semanticTags || []),
+          process.name.toLowerCase()
+        ],
+        lineage: {
+          parentMaterialIds: [inputMaterialA.id, ...(inputMaterialB ? [inputMaterialB.id] : [])],
+          catalystProcessId: process.id,
+          depth: currentDepth,
+          fullAncestryChain: [
+            {
+              step: currentDepth,
+              inputs: [inputMaterialA.displayName, ...(inputMaterialB ? [inputMaterialB.displayName] : [])],
+              process: process.name,
+              result: parsed.oddkin.speciesName,
+            }
+          ]
+        },
+        discoveredAt: Date.now(),
+        encounterCount: 1,
+        variantFormsDiscovered: ['standard'],
+      };
+      if (!validOddkin(oddkinObj)) throw new ApiFailure(502, 'AI returned an incomplete creature. Please retry.');
+      return res.json({
+        status: 'life_emergence',
+        oddkin: applyInheritance(oddkinObj, inputMaterialA, inputMaterialB, process),
+        explanation: parsed.explanation || parsed.oddkin.description,
+      });
+    }
+    if (parsed.material) {
+      const matObj = {
+        ...parsed.material,
+        id: `mat_${parsed.material.canonicalName.toLowerCase().replace(/[^a-z0-9]/g, '_')}_${Date.now()}`,
+        lineage: {
+          parentIds: [inputMaterialA.id, ...(inputMaterialB ? [inputMaterialB.id] : [])],
+          processId: process.id,
+          depth: currentDepth,
+          generation: (inputMaterialA.lineage?.generation || 0) + 1,
+          recipeDesc: `${inputMaterialA.displayName} ${inputMaterialB ? `+ ${inputMaterialB.displayName}` : ''} (${process.name})`
+        },
+        discoveredAt: Date.now(),
+        possibleProcessAffinities: ['HEAT', 'MIX', 'SOAK', 'CRUSH', 'INCUBATE'],
+      };
+      if (!validMaterial(matObj)) throw new ApiFailure(502, 'AI returned an incomplete material. Please retry.');
+      return res.json({
+        status: 'new_material',
+        material: matObj,
+        explanation: parsed.material.discoveryExplanation || parsed.explanation,
+      });
     }
 
     throw new ApiFailure(502, 'AI returned an incomplete material. Please retry.');

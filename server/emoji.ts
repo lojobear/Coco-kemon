@@ -1,6 +1,7 @@
 import type { Express } from 'express';
 import { generateGeminiImage, publicFailure, ApiFailure, type GeminiImageResult } from './gemini.js';
 import { emojiKey } from '../src/lib/emojiGeometry.js';
+import { cachedWork } from './persistentCache.js';
 
 const SPRITE_ENGINE_VERSION = 'v9-hq-2p5d-pixel';
 
@@ -87,17 +88,27 @@ export function registerEmojiRoute(app: Express, generateImage: ImageGenerator =
 
       let image = regenerate ? undefined : completed.get(cacheKey);
       if (!image) {
-        let job = pending.get(pendingKey);
-        if (!job) {
-          if (pending.size >= 6) throw new ApiFailure(429, 'Sprite artist is busy. Try again shortly.');
-          job = generateImage(buildSpritePrompt(key, variation)).then(validBase64Image);
-          pending.set(pendingKey, job);
-        }
-
-        try {
-          image = await job;
-        } finally {
-          pending.delete(pendingKey);
+        if (!regenerate) {
+          // Default art is generated once per engine version and then reused from Cloudflare's
+          // persistent edge cache. This removes repeat image-model calls without changing art quality.
+          const resolved = await cachedWork<GeminiImageResult>('element-sprite-v9', cacheKey, async () => {
+            if (pending.size >= 6) throw new ApiFailure(429, 'Sprite artist is busy. Try again shortly.');
+            return validBase64Image(await generateImage(buildSpritePrompt(key)));
+          });
+          image = validBase64Image(resolved.value);
+        } else {
+          // Explicit rerolls stay fresh by design. Same simultaneous reroll is still deduplicated.
+          let job = pending.get(pendingKey);
+          if (!job) {
+            if (pending.size >= 6) throw new ApiFailure(429, 'Sprite artist is busy. Try again shortly.');
+            job = generateImage(buildSpritePrompt(key, variation)).then(validBase64Image);
+            pending.set(pendingKey, job);
+          }
+          try {
+            image = await job;
+          } finally {
+            pending.delete(pendingKey);
+          }
         }
 
         if (completed.size >= 500) completed.delete(completed.keys().next().value!);
