@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { FlaskConical, Hammer, Search, Plus, X, Dice5, Sparkles, Info, Shuffle, ArrowLeftRight, RotateCcw } from 'lucide-react';
+import { FlaskConical, Hammer, Search, Plus, X, Dice5, Sparkles, Info, Shuffle, ArrowLeftRight, RotateCcw, Trophy, Target, Layers3, Flame } from 'lucide-react';
 import { useGame } from '../lib/gameStore';
 import type { Material } from '../types';
 import { readCraftElements, SAVE_IMPORTED_EVENT } from '../lib/saveData';
@@ -9,10 +9,11 @@ import { MaterialSprite } from './ElementSprite';
 import { chooseRandomProcess } from '../lib/randomProcess';
 import { EXTRA_PROCESSES } from '../lib/extraProcesses';
 import { sound } from '../lib/audio';
+import { FoundryFusionOverlay } from './FoundryFusionOverlay';
 
 export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Material) => void }) {
   const { materials: foundryMaterials, processes, slotA, slotB, selectedProcess, setSlotA, setSlotB,
-    setSelectedProcess, runSynthesis, isSynthesizing, synthesisStage, setActiveTab, clearSlots } = useGame();
+    setSelectedProcess, runSynthesis, isSynthesizing, synthesisStage, setActiveTab, clearSlots, progression } = useGame();
   const [craftItems, setCraftItems] = useState(readCraftElements);
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('all');
@@ -67,12 +68,29 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
   // Synchronize the displayed default with the existing synthesis state.
   useEffect(() => { if (!selectedProcess && process && !isSynthesizing) setSelectedProcess(process); }, [selectedProcess, process, isSynthesizing, setSelectedProcess]);
 
-  return <section className="collection-workbench" aria-label="Foundry workspace">
+  return <section className="collection-workbench" aria-label="Foundry workspace"><FoundryFusionOverlay />
     <div className="workbench-intro">
       <h1>Small things.<br />Endless possibilities.</h1>
       <div className="craft-switch" aria-label="Crafting mode">
         <button type="button" aria-pressed="true"><FlaskConical size={19} /> Foundry</button>
         <button type="button" aria-pressed="false" onClick={() => setActiveTab('infinite-craft')}><Hammer size={19} /> Craft</button>
+      </div>
+    </div>
+    <div className="progression-loop" aria-label="Discovery progression">
+      <div className="progression-level">
+        <span className="progression-icon"><Trophy size={16} /></span>
+        <div><strong>Level {progression.level}</strong><small>{progression.xp} XP</small></div>
+        <div className="progression-xp"><span style={{ width: `${Math.min(100, (progression.levelCurrent / progression.levelRequired) * 100)}%` }} /></div>
+      </div>
+      <div className="progression-chips">
+        <span><Flame size={14} /><b>{progression.streak}</b> streak <small>next {progression.nextStreakMilestone}</small></span>
+        <span><Layers3 size={14} /><b>{progression.sets.filter(s => s.complete).length}/{progression.sets.length}</b> sets</span>
+        <span><Target size={14} /><b>{progression.dailyGoals.filter(g => g.progress >= g.target).length}/{progression.dailyGoals.length}</b> daily</span>
+      </div>
+      <div className="progression-details">
+        <div className="progression-set-row">{progression.sets.map(set => <span key={set.id} title={set.hint} className={set.complete ? 'complete' : ''}>{set.name} {Math.min(set.count, set.target)}/{set.target}</span>)}</div>
+        <div className="progression-goals">{progression.dailyGoals.map(goal => <span key={goal.id} className={goal.progress >= goal.target ? 'complete' : ''}>{goal.label} <b>{goal.progress}/{goal.target}</b></span>)}</div>
+        {progression.hint && <p className="progression-hint"><Sparkles size={13} /> {progression.hint}</p>}
       </div>
     </div>
     <div className="discovery-heading"><h2>Your discoveries <span>{materials.length}</span></h2>
@@ -85,11 +103,12 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
       <span aria-live="polite">{filtered.length} items</span>
     </div>
     <div className="discovery-grid" aria-label="Discovered items" aria-busy={isSynthesizing}>
-      {filtered.map(item => <div key={item.id} className={`discovery-tile ${slotA?.id === item.id || slotB?.id === item.id ? 'is-selected' : ''}`}>
+      {filtered.map(item => <div key={item.id} data-rarity={item.rarity} className={`discovery-tile ${slotA?.id === item.id || slotB?.id === item.id ? 'is-selected' : ''}`}>
         <button className="discovery-pick" onClick={() => selectItem(item)} disabled={isSynthesizing} aria-label={`Select ${item.displayName}`} aria-pressed={slotA?.id === item.id || slotB?.id === item.id}>
           <MaterialSprite material={item} className="discovery-emoji" /><span>{item.displayName}</span>
         </button>
         {(slotA?.id === item.id || slotB?.id === item.id) && <span className="ingredient-badge">{[slotA?.id === item.id ? 'A' : '', slotB?.id === item.id ? 'B' : ''].filter(Boolean).join(' + ')}</span>}
+        {item.variant && <span className={`variant-badge variant-${item.variant}`}>{item.variant}</span>}
         <button className="discovery-info" aria-label={`Details for ${item.displayName}`} onClick={() => { onInspectMaterial(item); setActiveTab('archive'); }}><Info size={15} /></button>
       </div>)}
       {!filtered.length && <p className="collection-empty">No discoveries match these filters. <button onClick={() => { setSearch(''); setCategory('all'); }}>Clear filters</button></p>}
