@@ -103,7 +103,7 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
       <span aria-live="polite">{filtered.length} items</span>
     </div>
     <div className="discovery-grid" aria-label="Discovered items" aria-busy={isSynthesizing}>
-      {filtered.map(item => <div key={item.id} data-rarity={item.rarity} className={`discovery-tile ${slotA?.id === item.id || slotB?.id === item.id ? 'is-selected' : ''}`}>
+      {filtered.map(item => <div key={item.id} data-rarity={item.rarity} className={`discovery-tile ${item.variant ? `variant-${item.variant}` : ''} ${slotA?.id === item.id || slotB?.id === item.id ? 'is-selected' : ''}`}>
         <button className="discovery-pick" onClick={() => selectItem(item)} disabled={isSynthesizing} aria-label={`Select ${item.displayName}`} aria-pressed={slotA?.id === item.id || slotB?.id === item.id}>
           <MaterialSprite material={item} className="discovery-emoji" /><span>{item.displayName}</span>
         </button>
