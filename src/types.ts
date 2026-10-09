@@ -66,6 +66,7 @@ export interface Material {
   discoveryExplanation: string;
   customSpriteUrl?: string;
   spriteRendererVersion?: number;
+  variant?: 'holographic' | 'ancient' | 'glitched' | 'corrupted';
 }
 
 export type ProcessCategory = 'Thermal' | 'Mechanical' | 'Biological' | 'Electromagnetic' | 'Alchemical' | 'Temporal' | 'Pressure';
@@ -163,6 +164,11 @@ export interface ExperimentLog {
   isOddkinEmergence?: boolean;
   observation: string;
   hint?: string;
+  wasNew?: boolean;
+  rarity?: Rarity;
+  category?: string;
+  variant?: 'holographic' | 'ancient' | 'glitched' | 'corrupted';
+  xpBonus?: number;
 }
 
 export interface Habitat {
