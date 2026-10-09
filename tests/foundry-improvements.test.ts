@@ -48,7 +48,7 @@ test('Foundry planning stops immediately on quota or authentication failure', as
   }
 });
 
-test('Foundry planning and failover share the 28-second request budget', async () => {
+test('Foundry planning and failover share the 25-second request budget', async () => {
   const previousNow=Date.now;
   const previousModel=process.env.GEMINI_MODEL,previousFallback=process.env.GEMINI_FALLBACK_MODEL;
   process.env.GEMINI_MODEL='gemini-primary-test';process.env.GEMINI_FALLBACK_MODEL='gemini-fallback-test';
@@ -62,7 +62,7 @@ test('Foundry planning and failover share the 28-second request budget', async (
       return {text:'{"status":"no_reaction","explanation":"No change."}'};
     }));
     assert.equal(JSON.parse(result).status,'no_reaction');
-    assert.deepEqual(timeouts,[5000,12000,11000]);
+    assert.deepEqual(timeouts,[3000,20000,8000]);
   } finally {
     Date.now=previousNow;
     if(previousModel===undefined)delete process.env.GEMINI_MODEL;else process.env.GEMINI_MODEL=previousModel;

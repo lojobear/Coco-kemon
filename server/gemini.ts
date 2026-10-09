@@ -526,12 +526,20 @@ async function callWorkersAiStructured(
   systemInstruction: string | undefined,
   temperature: number,
   schema?: Record<string, unknown>,
+  // Absolute timestamp (Date.now() ms) bounding the whole AI phase. When set,
+  // per-model timeouts shrink to fit the remaining budget and the loop bails
+  // early instead of burning quota after the client has given up.
+  deadlineMs?: number,
 ): Promise<string | null> {
   const ai = getWorkersAiBinding();
   if (!ai?.run) return null;
 
   let last: unknown;
   for (let attempt = 0; attempt < WORKERS_TEXT_MODELS.length; attempt++) {
+    if (deadlineMs !== undefined && Date.now() >= deadlineMs) {
+      console.warn('Workers AI phase reached the shared AI deadline; falling through.');
+      return null;
+    }
     const model = WORKERS_TEXT_MODELS[attempt];
     const messages = [
       ...(systemInstruction ? [{ role: 'system', content: systemInstruction }] : []),
@@ -566,7 +574,15 @@ async function callWorkersAiStructured(
         }
 
         const run = ai.run(model, input);
-        const timeoutMs = attempt === 0 ? 14000 : 10000;
+        const modelTimeoutMs = attempt === 0 ? 14000 : 10000;
+        // Shrink the per-attempt timeout to whatever is left of the shared
+        // deadline, so a slow Workers AI can't eat the Gemini fallback's budget.
+        const remainingMs = deadlineMs !== undefined ? deadlineMs - Date.now() : modelTimeoutMs;
+        if (remainingMs <= 0) {
+          console.warn('Workers AI phase out of shared AI budget; falling through.');
+          return null;
+        }
+        const timeoutMs = Math.min(modelTimeoutMs, remainingMs);
         const response: any = await Promise.race([
           run,
           new Promise((_, reject) => setTimeout(() => reject(new Error(`Workers AI text request timed out after ${timeoutMs}ms.`)), timeoutMs)),
@@ -609,6 +625,12 @@ export async function callGeminiStructured(
   injectedClient?: Pick<GoogleGenAI, 'models'>,
   drawingOptions?: { timeoutMs: number; schema: Record<string, unknown> }
 ): Promise<string> {
+  // One end-to-end deadline for the whole AI phase (Workers AI + Gemini
+  // fallback). Previously each phase had its own budget, so a degraded
+  // Workers AI could burn ~48s of quota after the 30s client abort and then
+  // still run the full Gemini fallback. Cap normal requests at ~25s so the
+  // client never waits on a dead request; drawing calls keep their own budget.
+  const overallDeadline = Date.now() + (drawingOptions ? Math.min(55000, drawingOptions.timeoutMs) : 25000);
   const discoveryRequest = isDiscoveryInstruction(systemInstruction);
   const foundryRequest = isFoundryPrompt(prompt);
   const effectiveSystemInstruction = discoveryRequest && systemInstruction
@@ -618,7 +640,9 @@ export async function callGeminiStructured(
   // Prefer Cloudflare Workers AI for production text generation, but never strand the
   // player if Workers AI is saturated, times out, or returns malformed JSON. Fall through
   // to the configured Gemini models as a secondary provider.
+  let workersAiAttempted = false;
   if (!injectedClient && typeof prompt === 'string') {
+    workersAiAttempted = true;
     const workersPrompt = foundryRequest
       ? enhanceFoundryPrompt(prompt, null)
       : discoveryRequest
@@ -636,6 +660,7 @@ export async function callGeminiStructured(
       effectiveSystemInstruction,
       workersTemperature,
       workersSchema,
+      overallDeadline,
     );
     if (workersResult) return workersResult;
 
@@ -649,10 +674,16 @@ export async function callGeminiStructured(
   }
   const ai = injectedClient ?? (client ??= new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! }));
   const models = getGeminiModels();
-  const deadline = Date.now() + (drawingOptions ? Math.min(55000, drawingOptions.timeoutMs) : 29000);
+  // Reuse the shared phase deadline instead of minting a fresh 29s budget here;
+  // whatever Workers AI consumed comes out of the fallback's time, not on top of it.
+  const deadline = overallDeadline;
 
   let foundryIdea: FoundryIdea | null = null;
-  if (foundryRequest && typeof prompt === 'string' && models[0]) {
+  // Skip the idea pre-pass when Workers AI already attempted the request: the
+  // prompt was already enhanced for Workers AI above, so this extra Gemini call
+  // just burns quota re-deriving ideas on the fallback path. (Tests inject a
+  // client, which bypasses Workers AI, so they keep the old behavior.)
+  if (foundryRequest && typeof prompt === 'string' && models[0] && !workersAiAttempted) {
     foundryIdea = await searchFoundryIdeas(ai, models[0], prompt);
   }
 
