@@ -87,6 +87,8 @@ export function ArchiveView({
   const [favorites, setFavorites] = useState<string[]>(loadFavorites);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState<boolean>(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+  const [renderLimit, setRenderLimit] = useState(48);
 
   // Debounced search so the filter computation only re-runs once typing pauses.
   const debouncedSearch = useDebouncedValue(searchFilter, 250);
@@ -130,7 +132,27 @@ export function ArchiveView({
     return sortArchive(filtered, m => m.displayName, sortMode);
   }, [materials, selectedRarity, debouncedSearch, favorites, showFavoritesOnly, sortMode]);
 
-  const activeInspected = inspectedItem;
+  const visibleOddkin = useMemo(() => filteredOddkin.slice(0, renderLimit), [filteredOddkin, renderLimit]);
+  const visibleMaterials = useMemo(() => filteredMaterials.slice(0, renderLimit), [filteredMaterials, renderLimit]);
+  const hasMoreArchiveItems = visibleOddkin.length < filteredOddkin.length || visibleMaterials.length < filteredMaterials.length;
+
+  useEffect(() => {
+    setRenderLimit(48);
+  }, [activeSubTab, selectedRarity, debouncedSearch, showFavoritesOnly, sortMode]);
+
+  useEffect(() => {
+    if (!hasMoreArchiveItems || !loadMoreRef.current) return;
+    const target = loadMoreRef.current;
+    const observer = new IntersectionObserver(entries => {
+      if (entries.some(entry => entry.isIntersecting)) {
+        setRenderLimit(limit => limit + 48);
+      }
+    }, { rootMargin: '320px 0px' });
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [hasMoreArchiveItems, renderLimit]);
+
+    const activeInspected = inspectedItem;
 
   // Opens a random discovery exactly the way tapping its card does.
   const handleSurpriseMe = () => {
@@ -338,7 +360,7 @@ export function ArchiveView({
               skeletonGrid()
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
-                {filteredOddkin.map(odd => (
+                {visibleOddkin.map(odd => (
                   <div
                     key={odd.speciesId}
                     data-rarity={odd.rarity}
@@ -347,7 +369,7 @@ export function ArchiveView({
                       sound.playOddkinChirp(odd.chirpToneHz, odd.temperament);
                       setInspectedItem({ type: 'oddkin', item: odd });
                     }}
-                    className="p-3 rounded-xl bg-[#181622] hover:bg-[#201d2d] border border-[#382f4e] hover:border-[#a855f7] cursor-pointer transition-all flex flex-col items-center text-center group relative shadow"
+                    className="archive-card p-3 rounded-xl bg-[#181622] hover:bg-[#201d2d] border border-[#382f4e] hover:border-[#a855f7] cursor-pointer transition-all flex flex-col items-center text-center group relative shadow"
                   >
                     {renderFavoriteStar(odd.speciesId)}
                     {odd.isChromaActive && (
@@ -396,7 +418,7 @@ export function ArchiveView({
               skeletonGrid()
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
-                {filteredMaterials.map(mat => (
+                {visibleMaterials.map(mat => (
                   <div
                     key={mat.id}
                     data-rarity={mat.rarity}
@@ -404,7 +426,7 @@ export function ArchiveView({
                       sound.playClick();
                       setInspectedItem({ type: 'material', item: mat });
                     }}
-                    className="p-3 rounded-xl bg-[#161920] hover:bg-[#1d222b] border border-[#282f3d] hover:border-[#38bdf8] cursor-pointer transition-all flex flex-col items-center text-center group relative shadow"
+                    className="archive-card p-3 rounded-xl bg-[#161920] hover:bg-[#1d222b] border border-[#282f3d] hover:border-[#38bdf8] cursor-pointer transition-all flex flex-col items-center text-center group relative shadow"
                   >
                     {renderFavoriteStar(mat.id)}
                     <div className="w-14 h-14 rounded-lg bg-[#11141a] p-1 mb-2 flex items-center justify-center border border-[#232936] group-hover:scale-105 transition-transform">
@@ -426,6 +448,7 @@ export function ArchiveView({
             )}
           </div>
         )}
+        {hasMoreArchiveItems && <div ref={loadMoreRef} className="archive-load-sentinel" aria-hidden="true" />}
       </div>
 
       {/* FULL INSPECTED ITEM MODAL */}
