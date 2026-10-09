@@ -1930,3 +1930,172 @@ body:has(.collection-app[data-theme="midnight"]) {
   .header-actions button,
   .craft-switch button { transition: none !important; }
 }
+
+
+/* ===== QuarkPop white speckled visual pass ===== */
+:root {
+  --basic-bg: #fcfcfb;
+  --basic-panel: #ffffff;
+  --basic-panel-raised: #f7f7f5;
+  --basic-text: #16181d;
+  --basic-muted: #6f7785;
+  --basic-line: #d9dde4;
+  --basic-line-strong: #c7cdd8;
+  --basic-soft: #f4f5f3;
+  --basic-focus: #60a5fa;
+  --surface-shadow: 0 8px 22px rgba(0,0,0,.08);
+}
+
+body {
+  background: #fcfcfb;
+  color: var(--basic-text);
+}
+
+.collection-app {
+  color: var(--basic-text);
+  --collection-muted: var(--basic-muted);
+  --collection-line: var(--basic-line);
+  background-color: #fcfcfb !important;
+  background-image:
+    radial-gradient(circle at 12% 18%, rgba(0,0,0,.045) 0 1px, transparent 1.2px),
+    radial-gradient(circle at 78% 34%, rgba(0,0,0,.035) 0 1px, transparent 1.2px),
+    radial-gradient(circle at 32% 72%, rgba(0,0,0,.03) 0 1px, transparent 1.2px),
+    radial-gradient(circle at 88% 82%, rgba(0,0,0,.04) 0 1px, transparent 1.2px),
+    radial-gradient(circle at 54% 52%, rgba(0,0,0,.025) 0 1px, transparent 1.2px),
+    linear-gradient(180deg, #ffffff 0%, #fafaf8 100%) !important;
+  background-size:
+    140px 140px,
+    180px 180px,
+    160px 160px,
+    210px 210px,
+    190px 190px,
+    100% 100% !important;
+}
+
+.collection-header {
+  background: rgba(255,255,255,.94) !important;
+  border-bottom-color: rgba(20,24,32,.09) !important;
+  box-shadow: 0 6px 18px rgba(0,0,0,.05) !important;
+  color: var(--basic-text);
+}
+.collection-brand img {
+  background: #ffffff !important;
+  border-color: #e2e5ea !important;
+}
+.collection-brand strong { color: #17191e; }
+.collection-brand small { color: #777f8d !important; }
+.header-actions button { color: #7b8492 !important; }
+.header-actions button:hover {
+  background: #f2f3f5 !important;
+  border-color: #dfe3e8 !important;
+  color: #17191e !important;
+}
+
+.craft-switch {
+  background: #f1f2f4 !important;
+  border-color: #daddE3 !important;
+}
+.craft-switch button { color: #737b88 !important; }
+.craft-switch button[aria-pressed="true"] {
+  color: #ffffff !important;
+  background: linear-gradient(135deg,#7568f4,#8b7cff) !important;
+}
+
+.progression-loop,
+.combine-dock,
+.view-loading-card,
+.discovery-tile,
+.archive-card,
+.collection-reveal {
+  background: rgba(255,255,255,.96) !important;
+  border-color: var(--basic-line) !important;
+  box-shadow: var(--surface-shadow) !important;
+  color: var(--basic-text) !important;
+}
+
+.progression-chips > span,
+.progression-set-row span,
+.progression-goals span,
+.discovery-heading h2 span {
+  background: #f5f6f7 !important;
+  border-color: #dde1e6 !important;
+  color: #414855 !important;
+}
+
+.discovery-search,
+.random-items,
+.process-control select,
+.ingredient-pick,
+.settings-quick-tools button,
+.collection-filters select,
+.recipe-tools button {
+  background: #ffffff !important;
+  border-color: var(--basic-line-strong) !important;
+  color: var(--basic-text) !important;
+}
+
+.discovery-search:focus-within {
+  border-color: rgba(96,165,250,.65) !important;
+  box-shadow: 0 0 0 3px rgba(96,165,250,.10) !important;
+}
+
+.discovery-tile {
+  overflow: clip;
+  background: linear-gradient(180deg,#ffffff,#fafafa) !important;
+}
+.discovery-tile:hover {
+  border-color: #bcc3ce !important;
+  background: #ffffff !important;
+}
+.discovery-pick span { color: #252a33 !important; }
+.discovery-info {
+  background: rgba(248,249,250,.86) !important;
+  color: #7c8592 !important;
+}
+.discovery-info:hover {
+  background: #eef0f3 !important;
+  color: #1c2027 !important;
+}
+
+.combine-dock {
+  background: rgba(255,255,255,.98) !important;
+  box-shadow: 0 -3px 18px rgba(0,0,0,.04), 0 12px 30px rgba(0,0,0,.08) !important;
+}
+.ingredient-remove {
+  background: #ffffff !important;
+  border-color: #d6dbe2 !important;
+  color: #6b7481 !important;
+}
+.random-items span,
+.process-control label,
+.synthesis-status,
+.recipe-tools > span,
+.collection-filters > span {
+  color: var(--basic-muted) !important;
+}
+
+.collection-nav {
+  background: rgba(255,255,255,.96) !important;
+  border-top-color: rgba(20,24,32,.09) !important;
+  box-shadow: 0 -8px 18px rgba(0,0,0,.05) !important;
+}
+.collection-nav button { color: #7b8492 !important; }
+.collection-nav button[aria-current="page"] {
+  color: #181b21 !important;
+  background: #f0efff !important;
+}
+.collection-nav button[aria-current="page"] svg { color: #7f70f4 !important; }
+.collection-nav button:not([aria-current="page"]):hover { background: #f4f5f6 !important; }
+
+.view-loading-card { color: #707987 !important; }
+
+@media (max-width: 640px) {
+  .collection-header {
+    background: rgba(255,255,255,.97) !important;
+    box-shadow: 0 5px 18px rgba(0,0,0,.05) !important;
+  }
+  .collection-nav {
+    background: rgba(255,255,255,.98) !important;
+    border-top-color: rgba(20,24,32,.08) !important;
+  }
+}
