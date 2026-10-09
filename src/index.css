@@ -2319,3 +2319,588 @@ body {
     height: 50px;
   }
 }
+
+
+/* ===== QuarkPop compact high-contrast UI =====
+   Designed to keep all primary controls visible on Pixel-class phones. */
+:root {
+  --basic-bg: #f6f7f4;
+  --basic-panel: #ffffff;
+  --basic-panel-raised: #fbfcfa;
+  --basic-text: #17201b;
+  --basic-muted: #657168;
+  --basic-line: #d9dfda;
+  --basic-line-strong: #c5cec7;
+  --basic-soft: #eef2ee;
+  --basic-accent: #256f4a;
+  --basic-accent-2: #45b97c;
+  --basic-focus: #2f8f62;
+  --basic-danger: #c94e5d;
+  --surface-shadow: 0 7px 22px rgba(28,44,34,.08);
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  overflow: hidden;
+  background: var(--basic-bg);
+}
+
+.collection-app[data-theme="quark-light"] {
+  background:
+    radial-gradient(circle at 20% 10%, rgba(53,134,91,.055), transparent 24rem),
+    radial-gradient(circle at 92% 18%, rgba(121,177,143,.045), transparent 20rem),
+    #f6f7f4 !important;
+  color: var(--basic-text) !important;
+}
+
+.collection-app[data-theme="quark-light"] :is(button, input, select):focus-visible {
+  outline: 2px solid var(--basic-focus);
+  outline-offset: 2px;
+}
+
+.collection-header {
+  background: rgba(255,255,255,.96) !important;
+  border-bottom: 1px solid var(--basic-line) !important;
+  box-shadow: 0 3px 12px rgba(25,45,34,.05) !important;
+  color: var(--basic-text) !important;
+}
+
+.collection-brand strong { color: var(--basic-text) !important; }
+.collection-brand small { color: var(--basic-muted) !important; }
+.header-actions { color: var(--basic-muted) !important; }
+.header-actions button {
+  color: var(--basic-muted) !important;
+  background: transparent !important;
+}
+.header-actions button:hover {
+  color: var(--basic-text) !important;
+  background: var(--basic-soft) !important;
+}
+
+.collection-workbench {
+  max-width: 860px !important;
+}
+
+.craft-switch,
+.progression-loop,
+.discovery-tile,
+.combine-dock,
+.collection-reveal,
+.view-loading-card {
+  background: var(--basic-panel) !important;
+  border-color: var(--basic-line) !important;
+  color: var(--basic-text) !important;
+  box-shadow: var(--surface-shadow) !important;
+}
+
+.craft-switch button {
+  color: var(--basic-muted) !important;
+}
+.craft-switch button[aria-pressed="true"] {
+  color: #fff !important;
+  background: linear-gradient(135deg,#245f43,#2d7c56) !important;
+  box-shadow: 0 4px 10px rgba(37,111,74,.16) !important;
+}
+
+.progression-icon {
+  color: var(--basic-accent) !important;
+}
+.progression-xp {
+  background: #e5ebe6 !important;
+}
+.progression-xp > span {
+  background: linear-gradient(90deg,#2f8f62,#59bd82) !important;
+}
+.progression-chips > span,
+.progression-set-row span,
+.progression-goals span,
+.discovery-heading h2 span {
+  background: #f1f4f1 !important;
+  border-color: #dce3dd !important;
+  color: #4b5b50 !important;
+}
+.progression-set-row span.complete,
+.progression-goals span.complete {
+  color: #216a46 !important;
+  border-color: #a9d4bc !important;
+  background: #e9f5ee !important;
+}
+
+.discovery-search,
+.collection-filters select,
+.process-control select,
+.ingredient-pick,
+.ingredient-remove,
+.random-items,
+.recipe-tools button,
+.random-process {
+  background: #fff !important;
+  border-color: var(--basic-line-strong) !important;
+  color: var(--basic-text) !important;
+}
+
+.discovery-search input {
+  color: var(--basic-text) !important;
+}
+.discovery-search input::placeholder {
+  color: #839087 !important;
+}
+
+.discovery-tile {
+  background: linear-gradient(180deg,#fff,#fbfcfa) !important;
+}
+.discovery-tile.is-selected {
+  border-color: #2e8a5e !important;
+  box-shadow: inset 0 0 0 1px #2e8a5e, 0 4px 12px rgba(46,138,94,.08) !important;
+}
+.discovery-pick span {
+  color: #26342b !important;
+}
+.discovery-info {
+  color: #78847c !important;
+  background: rgba(246,248,246,.84) !important;
+}
+.discovery-info:hover {
+  color: #1c2820 !important;
+  background: #edf2ee !important;
+}
+
+.combine-dock {
+  background: rgba(255,255,255,.985) !important;
+  box-shadow: 0 -3px 16px rgba(26,43,33,.05), 0 8px 20px rgba(26,43,33,.06) !important;
+}
+
+.combine-primary {
+  color: #fff !important;
+  background: linear-gradient(135deg,#236b48,#2f8f62) !important;
+  box-shadow: 0 5px 14px rgba(47,143,98,.18) !important;
+}
+.combine-primary:disabled {
+  background: #9aa69e !important;
+  box-shadow: none !important;
+}
+
+.random-items {
+  color: #245f43 !important;
+  background: #eef7f1 !important;
+  border-color: #b9d9c5 !important;
+}
+.random-items span {
+  color: #3b6f50 !important;
+}
+.random-process {
+  color: #356e4d !important;
+}
+
+.synthesis-status {
+  color: #467357 !important;
+}
+
+.collection-nav {
+  background: rgba(255,255,255,.98) !important;
+  border-top-color: var(--basic-line) !important;
+  box-shadow: 0 -5px 15px rgba(26,43,33,.055) !important;
+}
+.collection-nav button {
+  color: #7b877f !important;
+  border-bottom-color: transparent !important;
+}
+.collection-nav button[aria-current="page"] {
+  color: #215f40 !important;
+  background: #eaf4ed !important;
+  border-bottom-color: #2f8f62 !important;
+}
+
+/* Any health/ready-style dot or status marker should read green, not blue. */
+.collection-app [class*="status"]::before,
+.collection-app [class*="ready"]::before {
+  background-color: #35a86d;
+  border-color: #35a86d;
+}
+
+/* ---- Phone-first fit ---- */
+@media (max-width: 520px) {
+  .collection-header {
+    padding: max(7px, env(safe-area-inset-top, 0px)) 10px 6px !important;
+  }
+
+  .collection-header-inner {
+    max-width: none !important;
+  }
+
+  .collection-brand {
+    gap: 7px !important;
+  }
+
+  .collection-brand img {
+    width: 34px !important;
+    height: 34px !important;
+    border-radius: 9px !important;
+  }
+
+  .collection-brand strong {
+    font-size: 16px !important;
+    line-height: 1.05 !important;
+  }
+
+  .collection-brand small {
+    display: none !important;
+  }
+
+  .header-actions {
+    gap: 0 !important;
+  }
+
+  .header-actions button {
+    width: 36px !important;
+    height: 38px !important;
+    min-width: 36px !important;
+    min-height: 38px !important;
+    border-radius: 9px !important;
+  }
+
+  .collection-workbench {
+    padding: 7px 9px 5px !important;
+    gap: 6px !important;
+    overflow: hidden !important;
+  }
+
+  .workbench-intro {
+    flex-shrink: 0 !important;
+  }
+
+  .workbench-intro h1 {
+    display: none !important;
+  }
+
+  .craft-switch {
+    padding: 2px !important;
+    border-radius: 10px !important;
+  }
+
+  .craft-switch button {
+    min-height: 34px !important;
+    font-size: 12px !important;
+    gap: 5px !important;
+  }
+
+  .craft-switch button svg {
+    width: 16px !important;
+    height: 16px !important;
+  }
+
+  .progression-loop {
+    padding: 6px 7px !important;
+    gap: 4px !important;
+    border-radius: 10px !important;
+  }
+
+  .progression-level {
+    gap: 6px !important;
+  }
+
+  .progression-level strong {
+    font-size: 10px !important;
+  }
+
+  .progression-level small {
+    font-size: 8px !important;
+  }
+
+  .progression-xp {
+    height: 6px !important;
+  }
+
+  .progression-chips {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    gap: 4px !important;
+    scrollbar-width: none !important;
+  }
+
+  .progression-chips::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .progression-chips > span {
+    flex: 0 0 auto !important;
+    min-height: 22px !important;
+    padding: 2px 5px !important;
+    font-size: 9px !important;
+  }
+
+  .progression-chips small,
+  .progression-details {
+    display: none !important;
+  }
+
+  .discovery-heading {
+    gap: 6px !important;
+  }
+
+  .discovery-heading h2 {
+    font-size: 13px !important;
+    white-space: nowrap !important;
+  }
+
+  .discovery-search {
+    min-height: 34px !important;
+    height: 34px !important;
+    max-width: 180px !important;
+    padding: 0 7px !important;
+  }
+
+  .discovery-search input {
+    font-size: 12px !important;
+  }
+
+  .collection-filters {
+    gap: 5px !important;
+  }
+
+  .collection-filters select {
+    min-height: 33px !important;
+    height: 33px !important;
+    padding: 4px 6px !important;
+    font-size: 10px !important;
+  }
+
+  .collection-filters > span {
+    font-size: 10px !important;
+  }
+
+  .discovery-grid {
+    grid-template-columns: repeat(3,minmax(0,1fr)) !important;
+    gap: 5px !important;
+    min-height: 0 !important;
+    padding: 2px !important;
+    margin: -2px !important;
+  }
+
+  .discovery-tile {
+    border-radius: 9px !important;
+  }
+
+  .discovery-pick {
+    min-height: 88px !important;
+    padding: 5px 3px !important;
+    gap: 3px !important;
+  }
+
+  .discovery-pick .discovery-emoji {
+    width: 49px !important;
+    height: 49px !important;
+  }
+
+  .discovery-pick img {
+    height: 49px !important;
+  }
+
+  .discovery-pick span {
+    font-size: 10px !important;
+    line-height: 1.15 !important;
+  }
+
+  .discovery-info {
+    width: 24px !important;
+    height: 24px !important;
+  }
+
+  .ingredient-badge,
+  .variant-badge {
+    font-size: 7px !important;
+    padding: 2px 4px !important;
+  }
+
+  .combine-dock {
+    padding: 7px !important;
+    border-radius: 11px !important;
+  }
+
+  .combine-inputs {
+    gap: 4px !important;
+  }
+
+  .ingredient {
+    flex: 0 0 52px !important;
+  }
+
+  .ingredient-pick {
+    width: 50px !important;
+    height: 50px !important;
+    border-radius: 9px !important;
+  }
+
+  .ingredient-pick .ingredient-emoji {
+    width: 43px !important;
+    height: 43px !important;
+  }
+
+  .ingredient-pick img {
+    width: 43px !important;
+    height: 43px !important;
+  }
+
+  .ingredient > span {
+    font-size: 9px !important;
+    margin-top: 2px !important;
+  }
+
+  .ingredient-plus {
+    width: 14px !important;
+    height: 14px !important;
+    margin-top: -13px !important;
+  }
+
+  .ingredient-remove {
+    width: 24px !important;
+    height: 24px !important;
+    top: -6px !important;
+    right: -2px !important;
+  }
+
+  .process-control {
+    padding-left: 0 !important;
+    max-width: none !important;
+  }
+
+  .process-control label {
+    margin-bottom: 2px !important;
+    font-size: 9px !important;
+  }
+
+  .process-control select {
+    min-height: 34px !important;
+    height: 34px !important;
+    padding: 4px 5px !important;
+    font-size: 11px !important;
+  }
+
+  .random-process {
+    min-height: 20px !important;
+    font-size: 8px !important;
+    gap: 2px !important;
+  }
+
+  .recipe-tools {
+    margin-top: 3px !important;
+    gap: 3px !important;
+  }
+
+  .recipe-tools > span {
+    font-size: 9px !important;
+  }
+
+  .recipe-tools button {
+    min-width: 32px !important;
+    width: 32px !important;
+    min-height: 30px !important;
+    height: 30px !important;
+  }
+
+  .combine-actions {
+    margin-top: 5px !important;
+    gap: 6px !important;
+  }
+
+  .combine-primary {
+    min-height: 42px !important;
+    height: 42px !important;
+    font-size: 14px !important;
+    border-radius: 9px !important;
+  }
+
+  .combine-primary svg {
+    width: 18px !important;
+    height: 18px !important;
+  }
+
+  .random-items {
+    min-width: 72px !important;
+    width: 72px !important;
+    min-height: 42px !important;
+    height: 42px !important;
+    border-radius: 9px !important;
+    flex-shrink: 0 !important;
+  }
+
+  .random-items svg {
+    width: 19px !important;
+    height: 19px !important;
+  }
+
+  .random-items span {
+    font-size: 9px !important;
+  }
+
+  .synthesis-status {
+    margin-top: 4px !important;
+    font-size: 9px !important;
+  }
+
+  .collection-nav {
+    padding: 3px 5px max(5px,env(safe-area-inset-bottom,0px)) !important;
+  }
+
+  .collection-nav button {
+    min-height: 46px !important;
+    height: 46px !important;
+    padding: 2px 0 !important;
+    gap: 1px !important;
+    border-radius: 8px !important;
+  }
+
+  .collection-nav button svg {
+    width: 19px !important;
+    height: 19px !important;
+  }
+
+  .collection-nav button span {
+    font-size: 8px !important;
+  }
+}
+
+/* When browser chrome, font scaling, or accessibility settings reduce vertical room,
+   prioritize gameplay controls over secondary progression UI. */
+@media (max-width: 520px) and (max-height: 850px) {
+  .progression-loop {
+    display: none !important;
+  }
+
+  .discovery-pick {
+    min-height: 80px !important;
+  }
+
+  .discovery-pick .discovery-emoji,
+  .discovery-pick img {
+    width: 44px !important;
+    height: 44px !important;
+  }
+}
+
+@media (max-width: 390px) {
+  .collection-brand strong {
+    font-size: 15px !important;
+  }
+
+  .header-actions button {
+    width: 33px !important;
+    min-width: 33px !important;
+  }
+
+  .discovery-heading h2 {
+    font-size: 12px !important;
+  }
+
+  .discovery-search {
+    max-width: 150px !important;
+  }
+
+  .random-items {
+    min-width: 66px !important;
+    width: 66px !important;
+  }
+}
