@@ -1,6 +1,7 @@
 import { handleAsNodeRequest } from 'cloudflare:node';
 import { app } from './server.js';
 import { setWorkersAiBinding } from './server/workersAi.js';
+import { setPersistentCacheBinding } from './server/cacheBinding.js';
 
 // nodejs_compat populates process.env from text/secret bindings at this compatibility date.
 // Workers AI is an object binding, so expose it to the shared Express server explicitly.
@@ -12,8 +13,9 @@ app.use((error: any, _req: any, res: any, _next: any) => {
 app.listen(3000);
 
 export default {
-  fetch(request: Request, env: { AI?: any }) {
+  fetch(request: Request, env: { AI?: any; QUARKPOP_CACHE?: any }) {
     setWorkersAiBinding(env.AI);
+    setPersistentCacheBinding(env.QUARKPOP_CACHE);
     return handleAsNodeRequest(3000, request);
   },
 };
