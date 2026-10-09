@@ -618,6 +618,82 @@ async function callWorkersAiStructured(
   return null;
 }
 
+const GROQ_TEXT_MODEL = 'openai/gpt-oss-120b';
+const GROQ_CHAT_URL = 'https://api.groq.com/openai/v1/chat/completions';
+
+/**
+ * Groq structured text generation (OpenAI-compatible chat completions).
+ * Returns null when no GROQ_API_KEY is configured or the call fails, so the
+ * caller falls through to Workers AI / Gemini. Free tier (no credit card);
+ * key comes from a Worker secret via nodejs_compat's process.env population.
+ * Note: Groq retires models regularly — verify the model id against
+ * https://api.groq.com/openai/v1/models if calls start 404ing.
+ */
+async function callGroqStructured(
+  prompt: string,
+  systemInstruction: string | undefined,
+  temperature: number,
+  deadlineMs?: number,
+): Promise<string | null> {
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) return null;
+
+  const remainingMs = deadlineMs !== undefined ? deadlineMs - Date.now() : 12000;
+  if (remainingMs <= 0) return null;
+  const timeoutMs = Math.min(12000, remainingMs);
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(GROQ_CHAT_URL, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: GROQ_TEXT_MODEL,
+        messages: [
+          ...(systemInstruction ? [{ role: 'system', content: systemInstruction }] : []),
+          { role: 'user', content: `${prompt}\n\nReturn ONLY one valid JSON object. No markdown, no prose before or after it.` },
+        ],
+        temperature: Math.min(1, Math.max(0, temperature)),
+        max_tokens: 1400,
+        response_format: { type: 'json_object' },
+      }),
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      throw new Error(`Groq request failed with status ${response.status}.`);
+    }
+    const data: any = await response.json();
+    const raw = data?.choices?.[0]?.message?.content;
+    if (typeof raw !== 'string' || !raw.trim()) {
+      throw new Error('Groq returned an empty response.');
+    }
+    const cleaned = raw
+      .replace(/^\s*```(?:json)?\s*/i, '')
+      .replace(/\s*```\s*$/i, '')
+      .trim();
+    const firstBrace = cleaned.indexOf('{');
+    const lastBrace = cleaned.lastIndexOf('}');
+    const jsonText = firstBrace >= 0 && lastBrace > firstBrace
+      ? cleaned.slice(firstBrace, lastBrace + 1)
+      : cleaned;
+    const parsed = JSON.parse(jsonText);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      throw new Error('Groq returned invalid JSON.');
+    }
+    return JSON.stringify(parsed);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn(`Groq text generation failed: ${message}.`);
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function callGeminiStructured(
   prompt: string | { parts: any[] },
   systemInstruction?: string,
@@ -625,7 +701,7 @@ export async function callGeminiStructured(
   injectedClient?: Pick<GoogleGenAI, 'models'>,
   drawingOptions?: { timeoutMs: number; schema: Record<string, unknown> }
 ): Promise<string> {
-  // One end-to-end deadline for the whole AI phase (Workers AI + Gemini
+  // One end-to-end deadline for the whole AI phase (Groq + Workers AI + Gemini
   // fallback). Previously each phase had its own budget, so a degraded
   // Workers AI could burn ~48s of quota after the 30s client abort and then
   // still run the full Gemini fallback. Cap normal requests at ~25s so the
@@ -637,26 +713,42 @@ export async function callGeminiStructured(
     ? enhanceDiscoveryInstruction(systemInstruction)
     : systemInstruction;
 
-  // Prefer Cloudflare Workers AI for production text generation, but never strand the
-  // player if Workers AI is saturated, times out, or returns malformed JSON. Fall through
-  // to the configured Gemini models as a secondary provider.
+  // Provider order: Groq first (fast, generous 1,000 req/day free tier), then
+  // Cloudflare Workers AI, then Gemini as the final fallback. Never strand the
+  // player if an upstream provider is saturated, times out, or returns
+  // malformed JSON — fall through instead of surfacing a 503.
+  let groqAttempted = false;
   let workersAiAttempted = false;
   if (!injectedClient && typeof prompt === 'string') {
-    workersAiAttempted = true;
-    const workersPrompt = foundryRequest
+    const upstreamPrompt = foundryRequest
       ? enhanceFoundryPrompt(prompt, null)
       : discoveryRequest
         ? enrichDiscoveryPrompt(prompt) as string
         : prompt;
-    const workersTemperature = foundryRequest
+    const upstreamTemperature = foundryRequest
       ? Math.max(0.65, temperature)
       : discoveryRequest
         ? Math.max(0.72, temperature)
         : temperature;
+
+    if (process.env.GROQ_API_KEY) {
+      groqAttempted = true;
+      const groqResult = await callGroqStructured(
+        upstreamPrompt,
+        effectiveSystemInstruction,
+        upstreamTemperature,
+        overallDeadline,
+      );
+      if (groqResult) return groqResult;
+      console.warn('Groq text generation unavailable; falling back to Workers AI.');
+    }
+
+    workersAiAttempted = true;
+    const workersTemperature = upstreamTemperature;
     const workersSchema = drawingOptions?.schema || (discoveryRequest ? DISCOVERY_RESPONSE_SCHEMA : undefined);
 
     const workersResult = await callWorkersAiStructured(
-      workersPrompt,
+      upstreamPrompt,
       effectiveSystemInstruction,
       workersTemperature,
       workersSchema,
@@ -670,7 +762,7 @@ export async function callGeminiStructured(
   }
 
   if (!injectedClient && !process.env.GEMINI_API_KEY) {
-    throw new ApiFailure(503, 'AI is not configured. Add a Gemini API key on the server.');
+    throw new ApiFailure(503, 'AI is not configured. Add a Groq or Gemini API key on the server.');
   }
   const ai = injectedClient ?? (client ??= new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! }));
   const models = getGeminiModels();
@@ -679,11 +771,11 @@ export async function callGeminiStructured(
   const deadline = overallDeadline;
 
   let foundryIdea: FoundryIdea | null = null;
-  // Skip the idea pre-pass when Workers AI already attempted the request: the
-  // prompt was already enhanced for Workers AI above, so this extra Gemini call
+  // Skip the idea pre-pass when an upstream provider already attempted the request: the
+  // prompt was already enhanced for Groq/Workers AI above, so this extra Gemini call
   // just burns quota re-deriving ideas on the fallback path. (Tests inject a
-  // client, which bypasses Workers AI, so they keep the old behavior.)
-  if (foundryRequest && typeof prompt === 'string' && models[0] && !workersAiAttempted) {
+  // client, which bypasses the upstream providers, so they keep the old behavior.)
+  if (foundryRequest && typeof prompt === 'string' && models[0] && !groqAttempted && !workersAiAttempted) {
     foundryIdea = await searchFoundryIdeas(ai, models[0], prompt);
   }
 
