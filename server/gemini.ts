@@ -615,9 +615,9 @@ export async function callGeminiStructured(
     ? enhanceDiscoveryInstruction(systemInstruction)
     : systemInstruction;
 
-  // Production plain-text generation is Cloudflare-only. Do not fall through to Gemini
-  // after a Workers AI miss, because a temporary Workers failure should never burn or block
-  // the player's Google free-tier quota for ordinary combinations.
+  // Prefer Cloudflare Workers AI for production text generation, but never strand the
+  // player if Workers AI is saturated, times out, or returns malformed JSON. Fall through
+  // to the configured Gemini models as a secondary provider.
   if (!injectedClient && typeof prompt === 'string') {
     const workersPrompt = foundryRequest
       ? enhanceFoundryPrompt(prompt, null)
@@ -631,7 +631,6 @@ export async function callGeminiStructured(
         : temperature;
     const workersSchema = drawingOptions?.schema || (discoveryRequest ? DISCOVERY_RESPONSE_SCHEMA : undefined);
 
-    const workersAvailable = Boolean(getWorkersAiBinding()?.run);
     const workersResult = await callWorkersAiStructured(
       workersPrompt,
       effectiveSystemInstruction,
@@ -640,12 +639,9 @@ export async function callGeminiStructured(
     );
     if (workersResult) return workersResult;
 
-    if (workersAvailable) {
-      throw new ApiFailure(
-        503,
-        'Cloudflare AI is temporarily busy. Please retry in a moment; Google quota was not used.'
-      );
-    }
+    // Workers AI was unavailable/busy or returned unusable structured output.
+    // Continue below to Gemini instead of surfacing a 503 to the player.
+    console.warn('Workers AI text generation unavailable; falling back to Gemini.');
   }
 
   if (!injectedClient && !process.env.GEMINI_API_KEY) {
