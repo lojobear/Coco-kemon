@@ -1,3 +1,4 @@
+import { getPersistentCacheBinding } from './cacheBinding.js';
 const memory = new Map<string, unknown>();
 const pending = new Map<string, Promise<unknown>>();
 
@@ -17,6 +18,19 @@ function cloudflareCache(): Cache | undefined {
 export async function readPersistentJson<T>(namespace: string, key: string): Promise<T | undefined> {
   const memoryKey = `${namespace}:${key}`;
   if (memory.has(memoryKey)) return memory.get(memoryKey) as T;
+
+  const kv = getPersistentCacheBinding();
+  if (kv) {
+    try {
+      const value = await kv.get(memoryKey, 'json') as T | null;
+      if (value !== null && value !== undefined) {
+        memory.set(memoryKey, value);
+        return value;
+      }
+    } catch {
+      // Fall through to edge Cache API / memory-only behavior.
+    }
+  }
 
   const cache = cloudflareCache();
   if (!cache) return undefined;
@@ -40,6 +54,15 @@ export async function writePersistentJson<T>(
 ): Promise<void> {
   const memoryKey = `${namespace}:${key}`;
   memory.set(memoryKey, value);
+
+  const kv = getPersistentCacheBinding();
+  if (kv) {
+    try {
+      await kv.put(memoryKey, JSON.stringify(value), { expirationTtl: maxAgeSeconds });
+    } catch {
+      // KV failure must never block gameplay.
+    }
+  }
 
   const cache = cloudflareCache();
   if (!cache) return;
