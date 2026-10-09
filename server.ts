@@ -495,6 +495,38 @@ function getRecipeKey(a: string, b: string | undefined, proc: string): string {
   return `${sorted[0]}+${sorted[1]}+${normProc}`;
 }
 
+function stableHash(input: string): string {
+  let hash = 2166136261;
+  for (let i = 0; i < input.length; i++) {
+    hash ^= input.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(36);
+}
+
+function foundryContextKey(inputA: any, inputB: any, processId: string, existingNames: unknown, knownOddkin: unknown, shouldEmergeOddkin: boolean): string {
+  const compactMaterial = (m: any) => m ? {
+    canonicalName: m.canonicalName,
+    category: m.category,
+    stateOfMatter: m.stateOfMatter,
+    properties: m.properties,
+    semanticTags: m.semanticTags,
+    lifePotential: m.lifePotential,
+    depth: m.lineage?.depth || 0,
+    generation: m.lineage?.generation || 0,
+    recipeDesc: m.lineage?.recipeDesc || '',
+  } : null;
+  const context = {
+    a: compactMaterial(inputA),
+    b: compactMaterial(inputB),
+    processId,
+    existing: Array.isArray(existingNames) ? existingNames.slice(-25) : [],
+    oddkin: Array.isArray(knownOddkin) ? knownOddkin : [],
+    life: shouldEmergeOddkin,
+  };
+  return `${getRecipeKey(inputA.canonicalName, inputB?.canonicalName, processId)}:${stableHash(JSON.stringify(context))}`;
+}
+
 // Synthesis endpoint
 app.post('/api/synthesize', async (req, res) => {
   try {
@@ -709,7 +741,7 @@ Format your response as a strict JSON object with this structure:
   "explanation": "Player-facing summary of why this reaction succeeded"
 }`;
 
-    const foundryCacheKey = `${getRecipeKey(normA, normB, normProc)}:life=${shouldEmergeOddkin ? '1' : '0'}`;
+    const foundryCacheKey = foundryContextKey(inputMaterialA, inputMaterialB, normProc, existingMaterialNames, knownOddkinNames, shouldEmergeOddkin);
     const resolved = await cachedWork<any>('foundry-result-v2', foundryCacheKey, async () => {
       const rawResponse = await callGeminiStructured(prompt);
       if (!rawResponse) throw new ApiFailure(502, 'AI returned an incomplete material. Please retry.');
