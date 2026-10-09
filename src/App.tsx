@@ -83,7 +83,7 @@ function GameContent() {
   };
 
   return (
-    <div data-theme="midnight" className="h-[100dvh] max-h-[100dvh] w-full collection-app bg-white text-neutral-900 flex flex-col justify-between overflow-hidden selection:bg-neutral-900 selection:text-white">
+    <div data-theme="quark-light" className="h-[100dvh] max-h-[100dvh] w-full collection-app bg-white text-neutral-900 flex flex-col justify-between overflow-hidden selection:bg-neutral-900 selection:text-white">
       {/* Top Header */}
       <Header
         onOpenSeeds={() => setShowSeedsModal(true)}
