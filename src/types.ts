@@ -67,7 +67,6 @@ export interface Material {
   customSpriteUrl?: string;
   spriteRendererVersion?: number;
   variant?: 'holographic' | 'ancient' | 'glitched' | 'corrupted';
-  xpBonus?: number;
 }
 
 export type ProcessCategory = 'Thermal' | 'Mechanical' | 'Biological' | 'Electromagnetic' | 'Alchemical' | 'Temporal' | 'Pressure';
@@ -169,6 +168,7 @@ export interface ExperimentLog {
   rarity?: Rarity;
   category?: string;
   variant?: 'holographic' | 'ancient' | 'glitched' | 'corrupted';
+  xpBonus?: number;
 }
 
 export interface Habitat {
