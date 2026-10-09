@@ -12,7 +12,6 @@ import { conceptMaterial } from '../lib/conceptMaterial';
 import { useGame } from '../lib/gameStore';
 import { Material, Oddkin, Rarity } from '../types';
 import { sound } from '../lib/audio';
-import { generatePhysicalData } from '../lib/physicalDataEngine';
 import { useDebouncedValue } from '../lib/useDebouncedValue';
 import { BookOpen, Sparkles, GitBranch, ArrowRight, X, Info, Flame, Shield, Heart, Shuffle } from 'lucide-react';
 
@@ -567,74 +566,49 @@ export function ArchiveView({
             {/* MATERIAL-SPECIFIC DETAILS */}
             {activeInspected.type === 'material' && (() => {
               const mat = activeInspected.item as Material;
-              const phys = generatePhysicalData(mat.displayName, '⚗️', false);
+              const activeTraits = Object.entries(mat.properties)
+                .filter(([, value]) => value)
+                .map(([key]) => key)
+                .slice(0, 5);
 
               return (
                 <div className="space-y-3">
-                  {/* Empirical Telemetry Matrix */}
-                  <div className="p-3 rounded-xl bg-[#121419] border border-[#252b37] space-y-2 text-xs">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold text-[#38bdf8] uppercase tracking-wider">
-                        EMPIRICAL DATA MATRIX
-                      </span>
-                      <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">
-                        {phys.cosmicTier}
-                      </span>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="p-3 rounded-xl bg-[#121419] border border-[#252b37]">
+                      <div className="text-[9px] uppercase tracking-wider text-[#6b7280] mb-1">Type</div>
+                      <div className="text-white font-bold">{mat.category}</div>
                     </div>
-
-                    <div className="grid grid-cols-2 gap-2 text-[10px] font-mono">
-                      <div className="p-1.5 rounded bg-[#161a22] border border-[#262c3a] flex flex-col">
-                        <span className="text-[9px] text-zinc-400">STATE / MASS</span>
-                        <span className="text-zinc-200 font-bold">{phys.stateOfMatter} ({phys.massClass})</span>
-                      </div>
-                      <div className="p-1.5 rounded bg-[#161a22] border border-[#262c3a] flex flex-col">
-                        <span className="text-[9px] text-zinc-400">THERMAL / DENSITY</span>
-                        <span className="text-amber-300 font-bold">{phys.thermalReading} ({phys.density})</span>
-                      </div>
-                      <div className="p-1.5 rounded bg-[#161a22] border border-[#262c3a] flex flex-col">
-                        <span className="text-[9px] text-zinc-400">MOHS / CONDUCTIVITY</span>
-                        <span className="text-emerald-300 font-bold">{phys.mohsHardness} / 10 ({phys.conductivity})</span>
-                      </div>
-                      <div className="p-1.5 rounded bg-[#161a22] border border-[#262c3a] flex flex-col">
-                        <span className="text-[9px] text-zinc-400">QUANTUM RESONANCE</span>
-                        <span className="text-purple-300 font-bold">{phys.resonanceHz} Hz</span>
-                      </div>
+                    <div className="p-3 rounded-xl bg-[#121419] border border-[#252b37]">
+                      <div className="text-[9px] uppercase tracking-wider text-[#6b7280] mb-1">State</div>
+                      <div className="text-white font-bold capitalize">{mat.stateOfMatter}</div>
                     </div>
                   </div>
 
-                  {/* Physical Properties Flags */}
-                  <div className="p-3 rounded-xl bg-[#121419] border border-[#252b37] space-y-2 text-xs">
-                    <span className="text-[10px] font-bold text-[#38bdf8] uppercase">
-                      TACTILE PHENOTYPE
-                    </span>
-
-                    <div className="grid grid-cols-3 gap-1 text-[10px]">
-                      {Object.entries(mat.properties).map(([key, val]) => (
-                        <div
-                          key={key}
-                          className={`px-2 py-1 rounded flex items-center justify-between ${
-                            val ? 'bg-[#1e232e] text-[#f3f4f6] font-semibold' : 'bg-[#15171d] text-[#4b5563]'
-                          }`}
-                        >
-                          <span className="capitalize">{key}</span>
-                          <span>{val ? '✓' : '—'}</span>
-                        </div>
-                      ))}
+                  {activeTraits.length > 0 && (
+                    <div className="p-3 rounded-xl bg-[#121419] border border-[#252b37]">
+                      <div className="text-[9px] uppercase tracking-wider text-[#6b7280] mb-2">Useful traits</div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {activeTraits.map(trait => (
+                          <span key={trait} className="px-2 py-1 rounded-lg bg-[#1d222b] text-[10px] text-[#cbd5e1] capitalize">
+                            {trait}
+                          </span>
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  )}
 
-                  {/* Recipe Lineage */}
-                  <div className="p-3 rounded-xl bg-[#121419] border border-[#252b37] space-y-1 text-xs">
-                    <span className="text-[10px] font-bold text-amber-400 uppercase">
-                      SYNTHESIS ORIGIN
-                    </span>
+                  <div className="p-3 rounded-xl bg-[#121419] border border-[#252b37] space-y-1">
+                    <div className="text-[9px] uppercase tracking-wider text-amber-400">How it was made</div>
                     <p className="text-stone-300 text-[11px]">
-                      {mat.lineage.recipeDesc || 'Primordial source matter.'}
-                    </p>
-                    <p className="text-[10px] text-[#9ca3af]">
-                      Process Affinities: {mat.possibleProcessAffinities.join(', ')}
+                      {mat.lineage.recipeDesc || 'Starter element.'}
                     </p>
                   </div>
+
+                  {mat.variant && (
+                    <div className={`px-3 py-2 rounded-xl border text-[10px] uppercase font-bold tracking-wider variant-${mat.variant}`}>
+                      {mat.variant} variant
+                    </div>
+                  )}
                 </div>
               );
             })()}
