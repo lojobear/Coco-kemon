@@ -122,7 +122,7 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
     setUploading(true);
     rerollNonce.current += 1;
     const variation = `${mode}-${Date.now().toString(36)}-${rerollNonce.current}`;
-    setStatus(mode === 'reroll' ? 'Generating a fresh high-quality pixel sprite…' : 'Rebuilding this sprite with native AI image generation…');
+    setStatus(mode === 'reroll' ? 'Generating a fresh high-quality 2.5D pixel sprite…' : 'Rebuilding this sprite with premium 2.5D pixel depth…');
     try {
       const sprite = await upgradeElementEmoji(target.name, variation);
       // The generated art must become the selected item's active sprite. Previously
@@ -130,8 +130,8 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
       // kept winning and made both buttons appear broken.
       persistSprite(target, sprite);
       setStatus(mode === 'reroll'
-        ? `${target.name} rerolled with a new high-quality pixel sprite.`
-        : `${target.name} upgraded to native high-quality pixel art.`);
+        ? `${target.name} rerolled with a new high-quality 2.5D pixel sprite.`
+        : `${target.name} upgraded to premium 2.5D pixel art.`);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Pixel sprite generation failed.');
     } finally {
@@ -222,12 +222,12 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
                 </div>
 
                 <button disabled={uploading} onClick={() => void reroll(selected)} className="w-full py-3 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-black text-sm flex items-center justify-center gap-2">
-                  <RefreshCw className="w-4 h-4" /> REROLL HQ PIXEL SPRITE
+                  <RefreshCw className="w-4 h-4" /> REROLL HQ 2.5D SPRITE
                 </button>
-                <p className="text-[10px] text-[#80899a] leading-relaxed">New discoveries now use a real image-generation model instead of AI-written vector paths. The target is polished inventory pixel art with a strong dark outline, richer color ramps, crisp top-left highlights, material-specific detail, and substantially more internal definition. Upgrade rebuilds older art with the new renderer; reroll makes a fresh variation.</p>
+                <p className="text-[10px] text-[#80899a] leading-relaxed">New discoveries now target premium 2.5D inventory pixel art: a slight 3/4 view, readable top/side planes, stepped bevels, deeper occlusion shadows, richer color ramps, crisp top-left highlights, and material-specific micro-detail. Upgrade rebuilds older art with the new renderer; reroll makes a fresh variation.</p>
 
                 <button disabled={uploading} className="w-full py-3 rounded-xl border text-xs font-bold" onClick={() => void freshPixelSprite(selected, 'upgrade')}>
-                  UPGRADE TO HQ PIXEL ART
+                  UPGRADE TO HQ 2.5D PIXEL ART
                 </button>
                 {selected.type !== 'oddkin' && <button className="w-full py-2 text-xs underline" onClick={() => { retryElementEmoji(selected.name); setStatus('Retrying missing art. Existing saved art is reused.'); }}>Retry missing art</button>}
                 <input ref={uploadRef} type="file" accept="image/png,image/webp,image/jpeg" className="hidden" onChange={event => void uploadCustom(event.target.files?.[0])} />
