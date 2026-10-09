@@ -21,7 +21,7 @@ const rarityXp: Record<Rarity, number> = {
 export function progressionXp(materials: Material[], oddkin: Oddkin[], experiments: ExperimentLog[]): number {
   const materialXp = materials.reduce((sum, m) => sum + rarityXp[m.rarity] + (m.variant ? 35 : 0), 0);
   const oddkinXp = oddkin.reduce((sum, o) => sum + 90 + rarityXp[o.rarity] + (o.isChromaActive ? 75 : 0), 0);
-  const experimentXp = experiments.reduce((sum, e) => sum + (e.success ? 2 : 0), 0);
+  const experimentXp = experiments.reduce((sum, e) => sum + (e.success ? 2 : 0) + (e.xpBonus || 0), 0);
   return materialXp + oddkinXp + experimentXp;
 }
 
@@ -98,4 +98,14 @@ export function rollMaterialVariant(rarity: Rarity): MaterialVariant | undefined
 
 export function nextStreakMilestone(streak: number) {
   return [3,5,10,25,50].find(n => n > streak) ?? Math.ceil((streak + 1) / 25) * 25;
+}
+
+
+export function streakReward(streak: number): number {
+  if (streak >= 50 && streak % 25 === 0) return 500;
+  if (streak === 25) return 300;
+  if (streak === 10) return 150;
+  if (streak === 5) return 75;
+  if (streak === 3) return 35;
+  return 0;
 }
