@@ -13,7 +13,7 @@ import { validMaterial, validOddkin } from './validation';
 import { readFoundrySave, saveFoundry, exportCompleteSave, importCompleteSave } from './saveData';
 import { sound } from './audio';
 import { matchesFoundryRecipe, validSynthesisResult, resolveMaterialDiscovery } from './foundryRecipes';
-import { dailyGoals, discoveryStreak, levelFromXp, nearMissHint, nextStreakMilestone, progressionXp, rollMaterialVariant, setProgress } from './progression';
+import { dailyGoals, discoveryStreak, levelFromXp, nearMissHint, nextStreakMilestone, progressionXp, rollMaterialVariant, setProgress, streakReward } from './progression';
 
 const STORAGE_KEY = 'oddkin_foundry_save_v1';
 
@@ -46,6 +46,7 @@ interface GameState {
     isChroma?: boolean;
     explanation: string;
     variant?: 'holographic' | 'ancient' | 'glitched' | 'corrupted';
+    xpBonus?: number;
   } | null;
   progression: {
     xp: number;
@@ -387,6 +388,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         setProcesses(prev => prev.map(p => p.id === 'INCUBATE' || p.id === 'GROW' ? { ...p, unlocked: true } : p));
 
         // Notebook entry
+        const oddkinStreak = discoveryStreak(experiments) + 1;
+        const oddkinXpBonus = streakReward(oddkinStreak);
         const log: ExperimentLog = {
           id: `exp_${Date.now()}`,
           timestamp: Date.now(),
@@ -399,6 +402,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
           wasNew: true,
           rarity: newOddkin.rarity,
           category: 'Oddkin',
+          xpBonus: oddkinXpBonus,
         };
         setExperiments(prev => [log, ...prev]);
 
@@ -407,6 +411,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
           isNew: true,
           isChroma: isChromaRoll,
           explanation: data.explanation || newOddkin.description,
+          xpBonus: oddkinXpBonus,
         });
 
       } else if ((data.status === 'new_material' || data.status === 'existing_material') && data.material) {
@@ -434,6 +439,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         }
 
         // Notebook entry
+        const materialStreak = discovery.isNew ? discoveryStreak(experiments) + 1 : 0;
+        const materialXpBonus = discovery.isNew ? streakReward(materialStreak) : 0;
         const log: ExperimentLog = {
           id: `exp_${Date.now()}`,
           timestamp: Date.now(),
@@ -446,6 +453,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
           rarity: newMat.rarity,
           category: newMat.category,
           variant: newMat.variant,
+          xpBonus: materialXpBonus,
         };
         setExperiments(prev => [log, ...prev]);
 
@@ -454,6 +462,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
           isNew: discovery.isNew,
           explanation: data.explanation || newMat.discoveryExplanation,
           variant: newMat.variant,
+          xpBonus: materialXpBonus,
         });
 
       } else {
@@ -486,7 +495,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       setIsSynthesizing(false);
       setSynthesisStage(null);
     }
-  }, [slotA, slotB, selectedProcess, isSynthesizing, materials, oddkinCollection, habitats]);
+  }, [slotA, slotB, selectedProcess, isSynthesizing, materials, oddkinCollection, habitats, experiments]);
 
   // Habitat oddkin assignment
   const assignOddkinToHabitat = useCallback((oddkinId: string, habitatId: string) => {
