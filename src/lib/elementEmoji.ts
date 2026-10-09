@@ -1,8 +1,9 @@
 import { emojiKey } from './emojiGeometry';
 import { requestJson } from './api';
 
-const ELEMENT_SPRITE_CACHE_PREFIX = 'pixelimage-v8:';
-const LEGACY_NATIVE_IMAGE_CACHE_PREFIX = 'pixelimage-v7:';
+const ELEMENT_SPRITE_CACHE_PREFIX = 'pixelimage-v9-2p5d:';
+const LEGACY_NATIVE_IMAGE_V8_CACHE_PREFIX = 'pixelimage-v8:';
+const LEGACY_NATIVE_IMAGE_V7_CACHE_PREFIX = 'pixelimage-v7:';
 const LEGACY_PIXEL_INVENTORY_CACHE_PREFIX = 'pixelinventory-v6:';
 const LEGACY_HD_CACHE_PREFIX = 'collectionhd-v5:';
 const LEGACY_3D_CACHE_PREFIX = 'emoji3d-v4:';
@@ -159,7 +160,8 @@ export function getElementEmoji(name: string, upgrade = false, variation = ''): 
     const cached = upgrade
       ? undefined
       : (await stored(ELEMENT_SPRITE_CACHE_PREFIX + key))
-        || (await stored(LEGACY_NATIVE_IMAGE_CACHE_PREFIX + key))
+        || (await stored(LEGACY_NATIVE_IMAGE_V8_CACHE_PREFIX + key))
+        || (await stored(LEGACY_NATIVE_IMAGE_V7_CACHE_PREFIX + key))
         || (await stored(LEGACY_PIXEL_INVENTORY_CACHE_PREFIX + key))
         || (await stored(LEGACY_HD_CACHE_PREFIX + key))
         || (await stored(LEGACY_3D_CACHE_PREFIX + key))

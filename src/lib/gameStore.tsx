@@ -260,11 +260,25 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     // Preserve both ingredient multiplicity and process identity.
     const existingMatch = materials.find(m => matchesFoundryRecipe(m, slotA, slotB, selectedProcess.id));
 
+    // Start the network work immediately for new recipes. The machine animation now runs
+    // in parallel instead of adding ~1.4s before the request even begins.
+    const synthesisRequest = existingMatch ? null : requestJson<SynthesisResult>('/api/synthesize', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        inputMaterialA: slotA,
+        inputMaterialB: slotB || undefined,
+        process: selectedProcess,
+        existingMaterialNames: materials.map(m => m.canonicalName),
+        knownOddkinNames: oddkinCollection.map(o => o.speciesName),
+      }),
+    });
+
     try {
       // 1. ANALYZING MATERIALS
       setSynthesisStage('ANALYZING MATERIALS');
       sound.playGlassTap();
-      await new Promise(r => setTimeout(r, 450));
+      await new Promise(r => setTimeout(r, 120));
 
       // 2. APPLYING PROCESS
       setSynthesisStage('APPLYING PROCESS');
@@ -275,16 +289,16 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       } else {
         sound.playClunk();
       }
-      await new Promise(r => setTimeout(r, 550));
+      await new Promise(r => setTimeout(r, 140));
 
       // 3. CHECKING LINEAGE
       setSynthesisStage('CHECKING LINEAGE');
-      await new Promise(r => setTimeout(r, 400));
+      await new Promise(r => setTimeout(r, 120));
 
       // If already discovered in memory, resolve quickly without synonym explosion!
       if (existingMatch) {
         setSynthesisStage('RESOLVING RESULT');
-        await new Promise(r => setTimeout(r, 300));
+        await new Promise(r => setTimeout(r, 100));
         sound.stopMachineHum();
         sound.playDiscoveryChime(existingMatch.rarity);
 
@@ -314,17 +328,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       // 4. RESOLVING RESULT via API
       setSynthesisStage('RESOLVING RESULT');
 
-      const data = await requestJson<SynthesisResult>('/api/synthesize', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          inputMaterialA: slotA,
-          inputMaterialB: slotB || undefined,
-          process: selectedProcess,
-          existingMaterialNames: materials.map(m => m.canonicalName),
-          knownOddkinNames: oddkinCollection.map(o => o.speciesName),
-        }),
-      });
+      const data = await synthesisRequest!;
 
       if (!validSynthesisResult(data)) {
         throw new Error('The server returned an invalid discovery. Please retry.');
@@ -332,7 +336,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
       // 5. CATALOGUING & RENDERING SPRITE
       setSynthesisStage('CATALOGUING DISCOVERY');
-      await new Promise(r => setTimeout(r, 350));
+      await new Promise(r => setTimeout(r, 120));
 
       setSynthesisStage('RENDERING SPRITE');
 
