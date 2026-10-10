@@ -117,7 +117,7 @@ export function ArchiveView({
       const matchesFavorite = !showFavoritesOnly || favSet.has(o.speciesId);
       return matchesRarity && matchesSearch && matchesFavorite;
     });
-    return sortArchive(filtered, o => o.speciesName, sortMode);
+    return sortArchive<Oddkin>(filtered, o => o.speciesName, sortMode);
   }, [oddkinCollection, selectedRarity, debouncedSearch, favorites, showFavoritesOnly, sortMode]);
 
   const filteredMaterials = useMemo(() => {
@@ -129,7 +129,7 @@ export function ArchiveView({
       const matchesFavorite = !showFavoritesOnly || favSet.has(m.id);
       return matchesRarity && matchesSearch && matchesFavorite;
     });
-    return sortArchive(filtered, m => m.displayName, sortMode);
+    return sortArchive<Material>(filtered, m => m.displayName, sortMode);
   }, [materials, selectedRarity, debouncedSearch, favorites, showFavoritesOnly, sortMode]);
 
   const visibleOddkin = useMemo(() => filteredOddkin.slice(0, renderLimit), [filteredOddkin, renderLimit]);
@@ -199,7 +199,7 @@ export function ArchiveView({
   const skeletonGrid = (count = 8) => (
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
       {Array.from({ length: count }, (_, i) => (
-        <SkeletonCard key={i} />
+        <div key={i}><SkeletonCard /></div>
       ))}
     </div>
   );

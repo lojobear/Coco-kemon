@@ -44,13 +44,17 @@ function GameContent() {
       void loadInfiniteCraftView();
       void loadArchiveView();
     };
-    const idle = 'requestIdleCallback' in window
-      ? (window as any).requestIdleCallback(warm, { timeout: 1800 })
-      : window.setTimeout(warm, 1000);
-    return () => {
-      if ('cancelIdleCallback' in window) (window as any).cancelIdleCallback(idle);
-      else window.clearTimeout(idle);
+    // Keep a timeout fallback without narrowing the Window type to never.
+    const idleApi = window as Window & {
+      requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number;
+      cancelIdleCallback?: (id: number) => void;
     };
+    if (typeof idleApi.requestIdleCallback === 'function' && typeof idleApi.cancelIdleCallback === 'function') {
+      const idle = idleApi.requestIdleCallback(warm, { timeout: 1800 });
+      return () => idleApi.cancelIdleCallback?.(idle);
+    }
+    const timeout = globalThis.setTimeout(warm, 1000);
+    return () => globalThis.clearTimeout(timeout);
   }, []);
   const [saveError, setSaveError] = useState(getSaveError);
   useEffect(() => {
