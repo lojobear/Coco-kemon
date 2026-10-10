@@ -9,7 +9,7 @@ import { PWAInstallButton } from './PWAInstallButton';
 import { CloudSaves } from './CloudSaves';
 
 const HEALTH_CACHE_TTL_MS = 60 * 1000;
-type AiHealth = { hasAiKey: boolean; primaryProvider?: string; primaryModel?: string };
+type AiHealth = { hasAiKey: boolean; hasGroqKey: boolean; primaryProvider?: string; primaryModel?: string };
 let healthCache: { promise: Promise<AiHealth | null>; fetchedAt: number } | null = null;
 
 // Reuses the in-flight or fresh /api/health response across remounts.
@@ -19,7 +19,7 @@ function fetchAiStatus(): Promise<AiHealth | null> {
   const promise = fetch('/api/health')
     .then(res => res.json())
     .then(data => data && typeof data.hasAiKey === 'boolean'
-      ? { hasAiKey: data.hasAiKey, primaryProvider: data.primaryProvider, primaryModel: data.primaryModel }
+      ? { hasAiKey: data.hasAiKey, hasGroqKey: data.hasGroqKey === true, primaryProvider: data.primaryProvider, primaryModel: data.primaryModel }
       : null)
     .catch(() => null);
   healthCache = { promise, fetchedAt: now };
@@ -47,7 +47,7 @@ export function Header({
 
   const [showSettings, setShowSettings] = useState(false);
   const [showCloud, setShowCloud] = useState(false);
-  const [aiHealth, setAiHealth] = useState<AiHealth>({ hasAiKey: false });
+  const [aiHealth, setAiHealth] = useState<AiHealth>({ hasAiKey: false, hasGroqKey: false });
   const [hapticsOn, setHapticsOn] = useState<boolean>(() => haptics.isEnabled());
 
   useEffect(() => {
@@ -144,12 +144,14 @@ export function Header({
                 </div>
                 <div className="space-y-1">
                   <div className="font-bold text-[12px] flex items-center gap-1.5">
-                    <span>{aiHealth.hasAiKey ? 'Groq primary AI configured' : 'AI not configured'}</span>
+                    <span>{aiHealth.hasGroqKey ? 'Groq primary AI configured' : aiHealth.hasAiKey ? 'Fallback AI configured' : 'AI not configured'}</span>
                   </div>
                   <p className="text-[10px] leading-relaxed text-[#9ca3af]">
-                    {aiHealth.hasAiKey
-                      ? 'Groq handles fast text discoveries first; Cloudflare AI and Gemini remain fallbacks, with Gemini reserved for multimodal/photo/sketch tasks when needed.'
-                      : 'Built-in recipes still work. New AI discoveries require a configured API key.'}
+                    {aiHealth.hasGroqKey
+                      ? `Groq is primary for text discoveries (${aiHealth.primaryModel || 'configured model'}); Cloudflare AI and Gemini remain fallbacks.`
+                      : aiHealth.hasAiKey
+                        ? 'Groq is not configured yet, so QuarkPop is currently using its fallback AI providers.'
+                        : 'Built-in recipes still work. Add GROQ_API_KEY for primary AI discoveries.'}
                   </p>
                 </div>
               </div>
