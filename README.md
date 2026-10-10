@@ -1,10 +1,10 @@
 # Coco-kemon / QuarkPop
 
-Concept crafting, material synthesis, and a collectible creature foundry built with React, Vite, Express, Gemini, and Cloudflare Workers AI.
+Concept crafting, material synthesis, and a collectible discovery encyclopedia built with React, Vite, Express, Groq, Cloudflare Workers AI, and Gemini.
 
 ## Run
 
-Use Node 22 or newer. Install dependencies with `npm ci`, copy `.env.example` to `.env`, and set `GEMINI_API_KEY` on the server. Never expose the key in a Vite/client environment variable.
+Use Node 22 or newer. Install dependencies with `npm ci`, copy `.env.example` to `.env`, and set `GROQ_API_KEY` on the server for primary text generation. Keep `GEMINI_API_KEY` configured for fallback and multimodal/image paths. Never expose either key in a Vite/client environment variable.
 
 ```sh
 npm run dev
@@ -12,7 +12,7 @@ npm run dev
 node --import tsx server.ts
 ```
 
-`GEMINI_MODEL` and `GEMINI_FALLBACK_MODEL` select the text-generation model order. The production defaults are `gemini-3.5-flash` followed by `gemini-3.5-flash-lite`; the previous Gemini 3.8 path was removed after repeated 503/504 failures in Cloudflare production. Model access and quota still depend on the configured Gemini key. `/api/health` reports the same sanitized model order used by generation.
+Text generation now uses **Groq first**, then Cloudflare Workers AI, then Gemini as the final text fallback. `GROQ_MODEL` defaults to `openai/gpt-oss-120b` and `GROQ_FALLBACK_MODEL` to `openai/gpt-oss-20b`. `GEMINI_MODEL` and `GEMINI_FALLBACK_MODEL` remain the final fallback order and continue powering multimodal/photo/sketch flows. `/api/health` reports the active primary provider and fallback stack.
 
 ```sh
 npm run lint
