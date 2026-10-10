@@ -207,7 +207,7 @@ export function retryElementEmoji(name: string) {
   const key = emojiKey(name);
   jobs.delete(key);
   for (const jobKey of [...jobs.keys()]) if (jobKey.startsWith(`${key}:upgrade:`)) jobs.delete(jobKey);
-  window.dispatchEvent(new CustomEvent('oddkin-emoji-retry', { detail: key }));
+  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('oddkin-emoji-retry', { detail: key }));
 }
 
 /** Explicit upgrade/reroll bypasses old art and asks the native image model for a fresh sprite. */
@@ -221,6 +221,6 @@ export async function upgradeElementEmoji(name: string, variation = '') {
   for (const jobKey of [...jobs.keys()]) if (jobKey.startsWith(`${key}:upgrade:`)) jobs.delete(jobKey);
 
   const art = await getElementEmoji(name, true, variation);
-  window.dispatchEvent(new CustomEvent('oddkin-emoji-retry', { detail: key }));
+  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('oddkin-emoji-retry', { detail: key }));
   return art;
 }

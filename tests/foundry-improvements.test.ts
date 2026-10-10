@@ -73,6 +73,6 @@ test('Foundry planning and failover share the 25-second request budget', async (
 test('health model configuration follows the same actual default order as generation', () => {
   const previousModel=process.env.GEMINI_MODEL,previousFallback=process.env.GEMINI_FALLBACK_MODEL;
   delete process.env.GEMINI_MODEL;delete process.env.GEMINI_FALLBACK_MODEL;
-  try { assert.deepEqual(getGeminiModels(),['gemini-3.1-flash-lite','gemini-3.8-flash']); }
+  try { assert.deepEqual(getGeminiModels(),['gemini-3.5-flash','gemini-3.5-flash-lite']); }
   finally { if(previousModel!==undefined)process.env.GEMINI_MODEL=previousModel;if(previousFallback!==undefined)process.env.GEMINI_FALLBACK_MODEL=previousFallback; }
 });

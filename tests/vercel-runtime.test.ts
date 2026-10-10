@@ -14,7 +14,7 @@ test('compiled Vercel entrypoint serves health and combinations in plain Node ES
     await writeFile(path.join(output, 'package.json'), '{"type":"module"}');
     await symlink(path.join(root, 'node_modules'), path.join(output, 'node_modules'), 'dir');
     // Preserve module imports, as the function runtime does; do not bundle or use tsx.
-    for (const file of ['api/index.ts', 'server.ts', 'server/gemini.ts', 'server/emoji.ts', 'server/kitchen.ts', 'src/lib/kitchen/engine.ts', 'src/lib/emojiGeometry.ts', 'src/lib/pixelRenderer.ts', 'server/discovery.ts', 'src/lib/discoveryTrails.ts', 'src/lib/starterData.ts', 'src/lib/extraProcesses.ts', 'src/lib/conceptMaterial.ts', 'src/lib/cultureRecipes.ts', 'src/lib/validation.ts', 'src/lib/infiniteCraftData.ts']) {
+    for (const file of ['api/index.ts', 'server.ts', 'server/gemini.ts', 'server/emoji.ts', 'server/kitchen.ts', 'src/lib/kitchen/engine.ts', 'src/lib/emojiGeometry.ts', 'src/lib/pixelRenderer.ts', 'server/discovery.ts', 'server/persistentCache.ts', 'server/cacheBinding.ts', 'server/workersAi.ts', 'server/rateLimit.ts', 'src/lib/discoveryTrails.ts', 'src/lib/starterData.ts', 'src/lib/extraProcesses.ts', 'src/lib/conceptMaterial.ts', 'src/lib/cultureRecipes.ts', 'src/lib/validation.ts', 'src/lib/infiniteCraftData.ts']) {
       const destination = path.join(output, file.replace(/\.ts$/, '.js'));
       await mkdir(path.dirname(destination), { recursive: true });
       const source = await readFile(path.join(root, file), 'utf8');
