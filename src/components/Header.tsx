@@ -9,15 +9,18 @@ import { PWAInstallButton } from './PWAInstallButton';
 import { CloudSaves } from './CloudSaves';
 
 const HEALTH_CACHE_TTL_MS = 60 * 1000;
-let healthCache: { promise: Promise<boolean | null>; fetchedAt: number } | null = null;
+type AiHealth = { hasAiKey: boolean; primaryProvider?: string; primaryModel?: string };
+let healthCache: { promise: Promise<AiHealth | null>; fetchedAt: number } | null = null;
 
 // Reuses the in-flight or fresh /api/health response across remounts.
-function fetchGeminiKeyStatus(): Promise<boolean | null> {
+function fetchAiStatus(): Promise<AiHealth | null> {
   const now = Date.now();
   if (healthCache && now - healthCache.fetchedAt < HEALTH_CACHE_TTL_MS) return healthCache.promise;
   const promise = fetch('/api/health')
     .then(res => res.json())
-    .then(data => (data && typeof data.hasGeminiKey === 'boolean' ? data.hasGeminiKey : null))
+    .then(data => data && typeof data.hasAiKey === 'boolean'
+      ? { hasAiKey: data.hasAiKey, primaryProvider: data.primaryProvider, primaryModel: data.primaryModel }
+      : null)
     .catch(() => null);
   healthCache = { promise, fetchedAt: now };
   return promise;
@@ -44,15 +47,13 @@ export function Header({
 
   const [showSettings, setShowSettings] = useState(false);
   const [showCloud, setShowCloud] = useState(false);
-  const [hasGeminiKey, setHasGeminiKey] = useState<boolean>(false);
+  const [aiHealth, setAiHealth] = useState<AiHealth>({ hasAiKey: false });
   const [hapticsOn, setHapticsOn] = useState<boolean>(() => haptics.isEnabled());
 
   useEffect(() => {
     let cancelled = false;
-    fetchGeminiKeyStatus().then(hasKey => {
-      if (!cancelled && hasKey !== null) {
-        setHasGeminiKey(hasKey);
-      }
+    fetchAiStatus().then(status => {
+      if (!cancelled && status) setAiHealth(status);
     });
     return () => { cancelled = true; };
   }, []);
@@ -126,16 +127,16 @@ export function Header({
                 </button>
               </div>
 
-              {/* Gemini Engine Status Banner */}
+              {/* AI Engine Status Banner */}
               <div
                 className={`p-2.5 rounded-lg border flex items-start gap-2.5 ${
-                  hasGeminiKey
+                  aiHealth.hasAiKey
                     ? 'bg-emerald-950/30 border-emerald-500/30 text-emerald-300'
                     : 'bg-amber-950/30 border-amber-500/30 text-amber-300'
                 }`}
               >
                 <div className="mt-0.5">
-                  {hasGeminiKey ? (
+                  {aiHealth.hasAiKey ? (
                     <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                   ) : (
                     <Zap className="w-4 h-4 text-amber-400" />
@@ -143,11 +144,11 @@ export function Header({
                 </div>
                 <div className="space-y-1">
                   <div className="font-bold text-[12px] flex items-center gap-1.5">
-                    <span>{hasGeminiKey ? 'Gemini API key configured' : 'AI not configured'}</span>
+                    <span>{aiHealth.hasAiKey ? 'Groq primary AI configured' : 'AI not configured'}</span>
                   </div>
                   <p className="text-[10px] leading-relaxed text-[#9ca3af]">
-                    {hasGeminiKey
-                      ? 'Powering infinite AI concept crafting, procedural 64x64 pixel-art genetics, and multimodal photo & sketch seeds.'
+                    {aiHealth.hasAiKey
+                      ? 'Groq handles fast text discoveries first; Cloudflare AI and Gemini remain fallbacks, with Gemini reserved for multimodal/photo/sketch tasks when needed.'
                       : 'Built-in recipes still work. New AI discoveries require a configured API key.'}
                   </p>
                 </div>
