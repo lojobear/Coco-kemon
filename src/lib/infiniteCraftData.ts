@@ -46,10 +46,12 @@ export const STARTER_ELEMENTS: InfiniteElement[] = [
   { id: 'earth', name: 'Earth', emoji: '🌍' },
 ];
 
+// NFKC + collapsed whitespace so "Sea  Lion" and "Sea Lion" share one recipe/cache entry
+// (and one AI call). Plain single-spaced names produce the same keys as before.
+const normalizeName = (value: string) => value.normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase();
+
 export function makePairKey(a: string, b: string): string {
-  const normA = a.trim().toLowerCase();
-  const normB = b.trim().toLowerCase();
-  return [normA, normB].sort().join(':::');
+  return [normalizeName(a), normalizeName(b)].sort().join(':::');
 }
 
 /**

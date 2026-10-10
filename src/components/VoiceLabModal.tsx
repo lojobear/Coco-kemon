@@ -114,8 +114,9 @@ export function VoiceLabModal({ onClose }: { onClose: () => void }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           transcript: text,
-          availableMaterials: materials,
-          availableProcesses: processes,
+          // The server only needs ids and names; full materials carry sprite images.
+          availableMaterials: materials.map(m => ({ id: m.id, displayName: m.displayName })),
+          availableProcesses: processes.map(p => ({ id: p.id, name: p.name })),
         }),
       });
 

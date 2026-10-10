@@ -6,6 +6,16 @@ import { record, text, strings, finite, color, validMaterial, validOddkin } from
 export const SAVE_KEY = 'coco_kemon_save_v2';
 export const SAVE_IMPORTED_EVENT = 'coco-kemon-save-imported';
 export const SAVE_STATUS_EVENT = 'coco-kemon-save-status';
+/** Largest data-URL a sprite may have inside the save. Shared with Sprite Lab so it can shrink images to fit. */
+export const MAX_SPRITE_CHARS = 100000;
+const STALE_TAB_MESSAGE = 'Another tab or window updated your save, so this one stopped saving to avoid overwriting it. Export a backup if you made progress here, then reload.';
+class StaleSaveError extends Error {}
+// savedAt of the envelope this tab last read or wrote; used to detect writes from other tabs.
+let lastSeenSavedAt: number | undefined;
+function storedSavedAt(): number {
+  const match = localStorage.getItem(SAVE_KEY)?.slice(0, 120).match(/"savedAt":(\d+)/);
+  return match ? Number(match[1]) : 0;
+}
 const LEGACY_FOUNDRY = 'oddkin_foundry_save_v1';
 const LEGACY_CRAFT = 'neal_infinite_craft_elements_v1';
 let craftMemory: InfiniteElement[] | undefined;
@@ -27,7 +37,7 @@ const unique = (items: any[], key: string) => new Set(items.map(x => x[key])).si
 export function validateCraft(v: unknown): v is InfiniteElement[] {
   return Array.isArray(v) && v.every(x => record(x) && (x.kitchenRecipe === undefined || validKitchenRecipe(x.kitchenRecipe)) && text(x.id) && text(x.name) && text(x.emoji) &&
     (['explanation', 'connection', 'variantOf'].every(k => x[k] === undefined || (text(x[k]) && x[k].length <= 280))) &&
-    (x.customSpriteUrl === undefined || (typeof x.customSpriteUrl === 'string' && x.customSpriteUrl.length <= 100000 && /^data:image\/png;base64,[A-Za-z0-9+/]+={0,2}$/.test(x.customSpriteUrl))) &&
+    (x.customSpriteUrl === undefined || (typeof x.customSpriteUrl === 'string' && x.customSpriteUrl.length <= MAX_SPRITE_CHARS && /^data:image\/png;base64,[A-Za-z0-9+/]+={0,2}$/.test(x.customSpriteUrl))) &&
     (x.discoveredAt === undefined || finite(x.discoveredAt)) && (x.isNew === undefined || typeof x.isNew === 'boolean') &&
     (x.isShiny === undefined || typeof x.isShiny === 'boolean') &&
     (x.unlockedShiny === undefined || typeof x.unlockedShiny === 'boolean') &&
@@ -46,12 +56,14 @@ function storedEnvelope(): any {
   if (!raw) {
     envelopeLoaded = true;
     envelopeMemory = null;
+    lastSeenSavedAt ??= 0;
     return null;
   }
   const v = JSON.parse(raw);
   if (!record(v) || v.version !== 2 || !validateCraft(v.crafting) || (v.foundry !== null && !validateFoundry(v.foundry))) throw new Error('Invalid saved data');
   envelopeLoaded = true;
   envelopeMemory = v;
+  lastSeenSavedAt ??= Number.isFinite(v.savedAt) ? v.savedAt : 0;
   return v;
 }
 export function readFoundrySave(): string | null {
@@ -71,9 +83,16 @@ export function readCraftElements(): InfiniteElement[] {
     return craftMemory = v;
   } catch { recoveryRequired = true; status('Crafting save could not be loaded. Import a valid backup to recover.'); return STARTER_ELEMENTS; }
 }
-function write(foundry: any, crafting: InfiniteElement[]) {
+function write(foundry: any, crafting: InfiniteElement[], force = false) {
+  // Refuse to overwrite a save that another tab wrote after this tab last read it.
+  if (!force && lastSeenSavedAt !== undefined && storedSavedAt() > lastSeenSavedAt) {
+    status(STALE_TAB_MESSAGE);
+    throw new StaleSaveError(STALE_TAB_MESSAGE);
+  }
+  const savedAt = Math.max(Date.now(), (lastSeenSavedAt ?? 0) + 1);
   // One setItem commits both collections atomically. Quota failures leave the old save intact.
-  localStorage.setItem(SAVE_KEY, JSON.stringify({ version: 2, savedAt: Date.now(), foundry, crafting }));
+  localStorage.setItem(SAVE_KEY, JSON.stringify({ version: 2, savedAt, foundry, crafting }));
+  lastSeenSavedAt = savedAt;
   invalidateStoredEnvelope();
   status(null);
 }
@@ -81,11 +100,19 @@ export function saveCraftElements(elements: InfiniteElement[]) {
   craftMemory = elements; // Keep export available even when browser storage is full.
   try {
     if (recoveryRequired) throw new Error('Recovery required');
+    // Never commit data that the loader would reject on the next launch (that locks the player out).
+    const oversizedSprite = elements.some(x => typeof x?.customSpriteUrl === 'string' && x.customSpriteUrl.length > MAX_SPRITE_CHARS);
+    if (!validateCraft(elements)) {
+      status(oversizedSprite
+        ? 'A sprite image is too large to store in your save. Try a smaller image.'
+        : 'Some discoveries failed validation, so this change was not saved. Export a backup and reload.');
+      return;
+    }
     const envelope = storedEnvelope();
     const legacy = envelope ? envelope.foundry : JSON.parse(localStorage.getItem(LEGACY_FOUNDRY) || 'null');
     if (legacy !== null && !validateFoundry(legacy)) throw new Error('Invalid existing save');
     write(legacy, elements);
-  } catch { status('Progress could not be saved. Keep this page open and export a backup from Save Management.'); }
+  } catch (error) { if (!(error instanceof StaleSaveError)) status('Progress could not be saved. Keep this page open and export a backup from Save Management.'); }
 }
 export function saveFoundry(foundry: any) {
   try {
@@ -95,7 +122,7 @@ export function saveFoundry(foundry: any) {
     if (recoveryRequired) throw new Error('Recovery required');
     write(foundry, crafting);
   }
-  catch { status('Progress could not be saved. Keep this page open and export a backup from Save Management.'); }
+  catch (error) { if (!(error instanceof StaleSaveError)) status('Progress could not be saved. Keep this page open and export a backup from Save Management.'); }
 }
 export function exportCompleteSave(foundry: any): string {
   return JSON.stringify({ version: 2, exportedAt: new Date().toISOString(), foundry, crafting: readCraftElements() }, null, 2);
@@ -110,7 +137,7 @@ export function parseSave(json: string) {
 }
 export function importCompleteSave(json: string) {
   const parsed = parseSave(json);
-  write(parsed.foundry, parsed.crafting);
+  write(parsed.foundry, parsed.crafting, true);
   recoveryRequired = false;
   craftMemory = parsed.crafting;
   window.dispatchEvent(new Event(SAVE_IMPORTED_EVENT));

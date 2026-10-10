@@ -280,8 +280,9 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        inputMaterialA: slotA,
-        inputMaterialB: slotB || undefined,
+        // Sprite images can be hundreds of KB and the server never reads them.
+        inputMaterialA: { ...slotA, customSpriteUrl: undefined },
+        inputMaterialB: slotB ? { ...slotB, customSpriteUrl: undefined } : undefined,
         process: selectedProcess,
         existingMaterialNames: materials.map(m => m.canonicalName),
         knownOddkinNames: oddkinCollection.map(o => o.speciesName),

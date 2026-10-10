@@ -3,7 +3,7 @@ import { ImagePlus, RefreshCw, RotateCcw, Search, Sparkles, Upload, X } from 'lu
 import { useGame } from '../lib/gameStore';
 import { MATERIAL_SPRITE_RENDERER_VERSION, generateMaterialSprite, generateOddkinSprite } from '../lib/pixelRenderer';
 import { Material, Oddkin } from '../types';
-import { readCraftElements, saveCraftElements, SAVE_IMPORTED_EVENT, getSaveError } from '../lib/saveData';
+import { readCraftElements, saveCraftElements, SAVE_IMPORTED_EVENT, getSaveError, MAX_SPRITE_CHARS } from '../lib/saveData';
 import { InfiniteElement } from '../lib/infiniteCraftData';
 import { sound } from '../lib/audio';
 import { ElementSprite, MaterialSprite } from './ElementSprite';
@@ -46,7 +46,19 @@ async function fileToSprite(file: File): Promise<string> {
   const x = Math.floor((512 - width) / 2);
   const y = Math.floor((512 - height) / 2);
   ctx.drawImage(image, x, y, width, height);
-  return canvas.toDataURL('image/png');
+  let out = canvas.toDataURL('image/png');
+  // Sprites live inside the save, which rejects anything over MAX_SPRITE_CHARS. Halve the size until it fits.
+  for (let size = 256; out.length > MAX_SPRITE_CHARS && size >= 64; size /= 2) {
+    const small = document.createElement('canvas');
+    small.width = small.height = size;
+    const smallCtx = small.getContext('2d');
+    if (!smallCtx) break;
+    smallCtx.imageSmoothingEnabled = false;
+    smallCtx.drawImage(canvas, 0, 0, size, size);
+    out = small.toDataURL('image/png');
+  }
+  if (out.length > MAX_SPRITE_CHARS) throw new Error('That image is too detailed to store. Try a simpler one.');
+  return out;
 }
 
 export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => void; embedded?: boolean }) {
