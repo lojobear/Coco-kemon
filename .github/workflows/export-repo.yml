@@ -1,0 +1,30 @@
+name: Export repository ZIP
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/export-repo.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Remove Git metadata
+        run: rm -rf .git
+      - name: Create archive
+        run: zip -r QuarkPop-full-project.zip . -x "QuarkPop-full-project.zip"
+      - name: Upload archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: QuarkPop-full-project
+          path: QuarkPop-full-project.zip
+          if-no-files-found: error
+          retention-days: 7
