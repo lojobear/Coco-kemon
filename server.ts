@@ -23,6 +23,7 @@ import { chooseConcept, applyInheritance, inheritanceFor, type ConceptResult } f
 import { TRAIL_RECIPES, rollRareVariant } from './src/lib/discoveryTrails.js';
 import { ALL_PROCESSES } from './src/lib/starterData.js';
 import { cachedWork } from './server/persistentCache.js';
+import { clientId, takeAiBudget } from './server/rateLimit.js';
 
 if (process.env.CLOUDFLARE !== '1') dotenv.config();
 
@@ -30,7 +31,15 @@ export const app = express();
 const cliPortIndex = process.argv.indexOf('--port');
 const PORT = Number(process.env.PORT) || (cliPortIndex >= 0 ? Number(process.argv[cliPortIndex + 1]) : 0) || 3000;
 
-app.use(express.json({ limit: '25mb' }));
+// Only the image routes need large bodies; everything else is small JSON. body-parser skips a request
+// that an earlier parser already handled, so the per-route image parsers must come first.
+app.use(['/api/photo-seed', '/api/sketch-seed'], express.json({ limit: '16mb' }));
+app.use(express.json({ limit: '1mb' }));
+app.use((error: any, _req: express.Request, res: express.Response, next: express.NextFunction) => {
+  if (error?.type === 'entity.too.large' || error?.status === 413) return res.status(413).json({ error: 'Request is too large.' });
+  if (error?.type === 'entity.parse.failed') return res.status(400).json({ error: 'Invalid request body.' });
+  next(error);
+});
 registerEmojiRoute(app);
 registerKitchenRoute(app);
 
@@ -62,7 +71,8 @@ const discoveredResultsSet = new Set<string>([
 
 async function resolveInfiniteCraftPair(
   rawFirst: string,
-  rawSecond: string
+  rawSecond: string,
+  client = 'unknown'
 ): Promise<ConceptResult & { isNew: boolean }> {
   if (typeof rawFirst !== 'string' || typeof rawSecond !== 'string' || rawFirst.length > 160 || rawSecond.length > 160) throw new ApiFailure(400, 'Provide two names, each under 160 characters.');
   const first = (rawFirst || '').trim();
@@ -113,6 +123,7 @@ Do not include private reasoning; explanations describe only the connection.`;
 
   try {
     const resolved = await cachedWork<ConceptResult>('infinite-pair-v2', key, async () => {
+      takeAiBudget(client, 1);
       const rawJson = await callGeminiStructured(prompt, systemInstruction, 0.4);
       if (!rawJson) throw new ApiFailure(502, 'AI returned an incomplete combination. Please retry.');
 
@@ -151,7 +162,7 @@ app.get('/api/infinite-craft/pair', async (req, res) => {
     if (!first || !second) {
       return res.status(400).json({ error: 'Missing first or second query parameters' });
     }
-    const outcome = await resolveInfiniteCraftPair(first, second);
+    const outcome = await resolveInfiniteCraftPair(first, second, clientId(req));
     return res.json({ ...outcome, bonus: rollRareVariant(outcome.result) });
   } catch (err: any) {
     const failure = publicFailure(err);
@@ -166,7 +177,7 @@ app.post('/api/infinite-craft/pair', async (req, res) => {
     if (!first || !second) {
       return res.status(400).json({ error: 'Missing first or second in body' });
     }
-    const outcome = await resolveInfiniteCraftPair(first, second);
+    const outcome = await resolveInfiniteCraftPair(first, second, clientId(req));
     return res.json({ ...outcome, bonus: rollRareVariant(outcome.result) });
   } catch (err: any) {
     const failure = publicFailure(err);
@@ -178,7 +189,7 @@ app.post('/api/infinite-craft/pair', async (req, res) => {
 app.post('/api/pair', async (req, res) => {
   try {
     const { first, second } = req.body || {};
-    const outcome = await resolveInfiniteCraftPair(first || '', second || '');
+    const outcome = await resolveInfiniteCraftPair(first || '', second || '', clientId(req));
     return res.json({ ...outcome, bonus: rollRareVariant(outcome.result) });
   } catch (err: any) {
     const failure = publicFailure(err);
@@ -553,15 +564,16 @@ app.post('/api/synthesize', async (req, res) => {
 
     // Mix shares the exact Infinite Craft concept engine, including its canonical recipes.
     if (normProc === 'MIX' && inputMaterialB) {
-      const concept = await resolveInfiniteCraftPair(inputMaterialA.displayName, inputMaterialB.displayName);
+      const concept = await resolveInfiniteCraftPair(inputMaterialA.displayName, inputMaterialB.displayName, clientId(req));
       const material = conceptMaterial(concept, [inputMaterialA, inputMaterialB], process.id);
       return res.json({ status: 'new_material', material, explanation: material.discoveryExplanation });
     }
 
     // Check life potential
-    const combinedLifePotential = Math.round(
-      ((inputMaterialA.lifePotential || 30) + (inputMaterialB?.lifePotential || 0)) / (inputMaterialB ? 1.6 : 1.0)
-    );
+    // `??` keeps a legitimate lifePotential of 0 (|| used to turn it into 30); clamp so two strong inputs can't exceed 100.
+    const combinedLifePotential = Math.min(100, Math.round(
+      ((inputMaterialA.lifePotential ?? 30) + (inputMaterialB?.lifePotential ?? 0)) / (inputMaterialB ? 1.6 : 1.0)
+    ));
 
     // Check if process is bio-catalytic (INCUBATE, GROW, FERMENT) or combines spark/energy with living/organic materials
     const isBioProcess = ['INCUBATE', 'GROW', 'FERMENT'].includes(normProc);
@@ -572,7 +584,9 @@ app.post('/api/synthesize', async (req, res) => {
     // Life emergence conditions:
     // 1. High life potential (>= 75) AND (isBioProcess OR (hasLivingOrOrganic && hasEnergyOrCatalyst))
     // 2. Or explicit deep lineage incubation
-    const shouldEmergeOddkin = (combinedLifePotential >= 75 && (isBioProcess || hasEnergyOrCatalyst)) ||
+    // Matches the rule documented above: energy alone is not enough, the inputs must be living/organic
+    // (isBioProcess is itself part of hasEnergyOrCatalyst, so it is listed separately for clarity).
+    const shouldEmergeOddkin = (combinedLifePotential >= 75 && (isBioProcess || (hasLivingOrOrganic && hasEnergyOrCatalyst))) ||
       (currentDepth >= 3 && isBioProcess && hasLivingOrOrganic);
 
     // 1. Instant Canonical Engine Lookup (Fastest, deterministic & zero latency)
@@ -749,6 +763,7 @@ Format your response as a strict JSON object with this structure:
 
     const foundryCacheKey = foundryContextKey(inputMaterialA, inputMaterialB, normProc, existingMaterialNames, knownOddkinNames, shouldEmergeOddkin);
     const resolved = await cachedWork<any>('foundry-result-v2', foundryCacheKey, async () => {
+      takeAiBudget(clientId(req), 2); // Gemini path makes a concept-search call plus the generation call.
       const rawResponse = await callGeminiStructured(prompt);
       if (!rawResponse) throw new ApiFailure(502, 'AI returned an incomplete material. Please retry.');
       const parsed = JSON.parse(rawResponse);
@@ -874,6 +889,7 @@ Return a strict JSON object:
   }
 }`;
 
+    takeAiBudget(clientId(req), 3);
     const rawVisionJson = await callGeminiStructured({
       parts: [
         { inlineData: { mimeType, data: cleanBase64 } },
@@ -925,6 +941,7 @@ Return a strict JSON object:
   "lifePotentialBonus": number (20-45)
 }`;
 
+    takeAiBudget(clientId(req), 3);
     const rawSketchJson = await callGeminiStructured({
       parts: [
         { inlineData: { mimeType: 'image/png', data: cleanBase64 } },
@@ -972,6 +989,7 @@ Return a strict JSON object:
   "action": "synthesize" | "inspect" | "archive"
 }`;
 
+    takeAiBudget(clientId(req), 1);
     const rawVoiceJson = await callGeminiStructured(prompt);
     if (rawVoiceJson) {
       try {

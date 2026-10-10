@@ -2,6 +2,7 @@ import type { Express } from 'express';
 import { generateGeminiImage, publicFailure, ApiFailure, type GeminiImageResult } from './gemini.js';
 import { emojiKey } from '../src/lib/emojiGeometry.js';
 import { cachedWork } from './persistentCache.js';
+import { clientId, takeAiBudget } from './rateLimit.js';
 
 const SPRITE_ENGINE_VERSION = 'v9-hq-2p5d-pixel';
 
@@ -73,6 +74,20 @@ function validBase64Image(result: GeminiImageResult): GeminiImageResult {
 export function registerEmojiRoute(app: Express, generateImage: ImageGenerator = generateGeminiImage) {
   const completed = new Map<string, GeminiImageResult>();
   const pending = new Map<string, Promise<GeminiImageResult>>();
+  // Count real in-flight generations. The previous `pending.size` check never saw the default
+  // (cached) path, so only rerolls were ever limited.
+  const MAX_ACTIVE_GENERATIONS = 6;
+  let active = 0;
+  const generate = async (prompt: string, client: string) => {
+    if (active >= MAX_ACTIVE_GENERATIONS) throw new ApiFailure(429, 'Sprite artist is busy. Try again shortly.');
+    takeAiBudget(client, 5);
+    active++;
+    try {
+      return validBase64Image(await generateImage(prompt));
+    } finally {
+      active--;
+    }
+  };
 
   app.post('/api/element-emoji', async (req, res) => {
     try {
@@ -80,6 +95,7 @@ export function registerEmojiRoute(app: Express, generateImage: ImageGenerator =
         throw new ApiFailure(400, 'Provide an element name under 160 characters.');
       }
 
+      const client = clientId(req);
       const key = emojiKey(req.body.name);
       const regenerate = req.body?.regenerate === true;
       const variation = typeof req.body?.variation === 'string' ? req.body.variation.trim().slice(0, 64) : '';
@@ -91,17 +107,13 @@ export function registerEmojiRoute(app: Express, generateImage: ImageGenerator =
         if (!regenerate) {
           // Default art is generated once per engine version and then reused from Cloudflare's
           // persistent edge cache. This removes repeat image-model calls without changing art quality.
-          const resolved = await cachedWork<GeminiImageResult>('element-sprite-v9', cacheKey, async () => {
-            if (pending.size >= 6) throw new ApiFailure(429, 'Sprite artist is busy. Try again shortly.');
-            return validBase64Image(await generateImage(buildSpritePrompt(key)));
-          });
+          const resolved = await cachedWork<GeminiImageResult>('element-sprite-v9', cacheKey, () => generate(buildSpritePrompt(key), client));
           image = validBase64Image(resolved.value);
         } else {
           // Explicit rerolls stay fresh by design. Same simultaneous reroll is still deduplicated.
           let job = pending.get(pendingKey);
           if (!job) {
-            if (pending.size >= 6) throw new ApiFailure(429, 'Sprite artist is busy. Try again shortly.');
-            job = generateImage(buildSpritePrompt(key, variation)).then(validBase64Image);
+            job = generate(buildSpritePrompt(key, variation), client);
             pending.set(pendingKey, job);
           }
           try {
