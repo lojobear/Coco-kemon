@@ -15,7 +15,7 @@ import { registerKitchenRoute } from './server/kitchen.js';
 import { registerEmojiRoute } from './server/emoji.js';
 import path from 'path';
 import dotenv from 'dotenv';
-import { callGeminiStructured, ApiFailure, publicFailure, getGeminiModels } from './server/gemini.js';
+import { callGeminiStructured, ApiFailure, publicFailure, getGeminiModels, getGroqModels } from './server/gemini.js';
 import { validMaterial, validOddkin, validSprite, record, text, strings, color, finite } from './src/lib/validation.js';
 import { CANONICAL_INFINITE_CRAFT_RECIPES, makePairKey } from './src/lib/infiniteCraftData.js';
 
@@ -36,11 +36,17 @@ registerKitchenRoute(app);
 
 // Health check
 app.get('/api/health', (req, res) => {
+  const hasGroqKey = Boolean(process.env.GROQ_API_KEY);
+  const hasGeminiKey = Boolean(process.env.GEMINI_API_KEY);
   res.json({
     status: 'ok',
-    hasGeminiKey: Boolean(process.env.GEMINI_API_KEY),
-    primaryModel: getGeminiModels()[0],
-    fallbackModel: getGeminiModels()[1] || null,
+    hasGroqKey,
+    hasGeminiKey,
+    hasAiKey: hasGroqKey || hasGeminiKey,
+    primaryProvider: hasGroqKey ? 'groq' : 'cloudflare-workers-ai',
+    primaryModel: hasGroqKey ? getGroqModels()[0] : '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
+    fallbackProviders: ['cloudflare-workers-ai', ...(hasGeminiKey ? ['gemini'] : [])],
+    fallbackModels: [...(hasGroqKey ? [getGroqModels()[1]].filter(Boolean) : []), ...getGeminiModels()],
     engine: 'infinite-craft-compatible',
     mode: 'logical-real-brand-character-synthesis',
     time: new Date().toISOString(),
@@ -82,7 +88,7 @@ async function resolveInfiniteCraftPair(
     return { ...match, isNew: false };
   }
 
-  // 3. AI Generation with Gemini API key:
+  // 3. AI generation: Groq primary, Workers AI secondary, Gemini fallback:
   // Combines two objects into a logical new object (real things, brands, characters, inventions, concepts)
   const systemInstruction = `You design discoveries for a playful conceptual crafting game.
 Consider up to three DISTINCT possible results using different connections: science, function,
@@ -623,7 +629,7 @@ app.post('/api/synthesize', async (req, res) => {
       });
     }
 
-    // 2. Gemini Generative Synthesis Engine (with automatic multi-model failover)
+    // 2. Generative synthesis engine (Groq -> Workers AI -> Gemini failover)
     const prompt = `You are the synthesis engine for ODDKIN FOUNDRY, a playful conceptual crafting game with the same open discovery space as Infinite Craft. Everything has lineage, but discoveries are NOT limited to substances.
 DISCOVER ANIMALS, FOOD, BRANDS, CHARACTERS, PLACES, GAMES, TECHNOLOGY AND IDEAS.
 
