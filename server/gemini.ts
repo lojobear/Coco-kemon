@@ -500,6 +500,100 @@ export async function generateGeminiImage(
 }
 
 
+export function getGroqModels(): string[] {
+  const sanitizeGroqModel = (name?: string): string | null => {
+    if (!name || typeof name !== 'string') return null;
+    const trimmed = name.trim();
+    if (!/^[a-z0-9][a-z0-9._/-]+$/i.test(trimmed)) return null;
+    return trimmed;
+  };
+  return Array.from(new Set([
+    sanitizeGroqModel(process.env.GROQ_MODEL),
+    sanitizeGroqModel(process.env.GROQ_FALLBACK_MODEL),
+    'openai/gpt-oss-120b',
+    'openai/gpt-oss-20b',
+  ].filter((model): model is string => Boolean(model)))).slice(0, 2);
+}
+
+async function callGroqStructured(
+  prompt: string,
+  systemInstruction: string | undefined,
+  temperature: number,
+  schema?: Record<string, unknown>,
+  deadlineMs?: number,
+): Promise<string | null> {
+  const apiKey = process.env.GROQ_API_KEY?.trim();
+  if (!apiKey) return null;
+
+  let last: unknown;
+  for (let attempt = 0; attempt < getGroqModels().length; attempt++) {
+    const model = getGroqModels()[attempt];
+    const remaining = deadlineMs !== undefined ? deadlineMs - Date.now() : 6000;
+    if (remaining <= 0) return null;
+
+    const controller = new AbortController();
+    const timeoutMs = Math.min(attempt === 0 ? 5000 : 3500, remaining);
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      const body: any = {
+        model,
+        messages: [
+          ...(systemInstruction ? [{ role: 'system', content: systemInstruction }] : []),
+          {
+            role: 'user',
+            content: `${prompt}\n\nReturn ONLY one valid JSON object. No markdown or prose outside the JSON.`,
+          },
+        ],
+        temperature: Math.max(0.01, Math.min(1.2, temperature)),
+        max_completion_tokens: 1600,
+        stream: false,
+        response_format: schema
+          ? { type: 'json_schema', json_schema: { name: 'quarkpop_response', schema, strict: true } }
+          : { type: 'json_object' },
+      };
+
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        const detail = await response.text().catch(() => '');
+        throw new Error(`Groq ${response.status}: ${detail.slice(0, 240)}`);
+      }
+
+      const payload: any = await response.json();
+      const raw = payload?.choices?.[0]?.message?.content;
+      if (typeof raw !== 'string' || !raw.trim()) throw new Error('Groq returned an empty response.');
+
+      const cleaned = raw
+        .replace(/^\s*\`\`\`(?:json)?\s*/i, '')
+        .replace(/\s*\`\`\`\s*$/i, '')
+        .trim();
+      const parsed = JSON.parse(cleaned);
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        throw new Error('Groq returned invalid JSON.');
+      }
+      return JSON.stringify(parsed);
+    } catch (error) {
+      last = error;
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(`Groq model ${model} failed: ${message}.`);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  console.error('Groq text generation failed; falling through to secondary providers:', last);
+  return null;
+}
+
 const WORKERS_TEXT_MODELS = [
   '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
   '@cf/meta/llama-3.1-8b-instruct',
@@ -637,40 +731,47 @@ export async function callGeminiStructured(
     ? enhanceDiscoveryInstruction(systemInstruction)
     : systemInstruction;
 
-  // Prefer Cloudflare Workers AI for production text generation, but never strand the
-  // player if Workers AI is saturated, times out, or returns malformed JSON. Fall through
-  // to the configured Gemini models as a secondary provider.
+  // Provider order for text generation:
+  // 1) Groq (fast primary), 2) Cloudflare Workers AI, 3) Gemini fallback.
+  // Injected Gemini clients used by tests/multimodal paths bypass external text providers.
   let workersAiAttempted = false;
   if (!injectedClient && typeof prompt === 'string') {
-    workersAiAttempted = true;
-    const workersPrompt = foundryRequest
+    const providerPrompt = foundryRequest
       ? enhanceFoundryPrompt(prompt, null)
       : discoveryRequest
         ? enrichDiscoveryPrompt(prompt) as string
         : prompt;
-    const workersTemperature = foundryRequest
+    const providerTemperature = foundryRequest
       ? Math.max(0.65, temperature)
       : discoveryRequest
         ? Math.max(0.72, temperature)
         : temperature;
-    const workersSchema = drawingOptions?.schema || (discoveryRequest ? DISCOVERY_RESPONSE_SCHEMA : undefined);
+    const providerSchema = drawingOptions?.schema || (discoveryRequest ? DISCOVERY_RESPONSE_SCHEMA : undefined);
 
-    const workersResult = await callWorkersAiStructured(
-      workersPrompt,
+    const groqResult = await callGroqStructured(
+      providerPrompt,
       effectiveSystemInstruction,
-      workersTemperature,
-      workersSchema,
+      providerTemperature,
+      providerSchema,
+      overallDeadline,
+    );
+    if (groqResult) return groqResult;
+
+    workersAiAttempted = true;
+    const workersResult = await callWorkersAiStructured(
+      providerPrompt,
+      effectiveSystemInstruction,
+      providerTemperature,
+      providerSchema,
       overallDeadline,
     );
     if (workersResult) return workersResult;
 
-    // Workers AI was unavailable/busy or returned unusable structured output.
-    // Continue below to Gemini instead of surfacing a 503 to the player.
-    console.warn('Workers AI text generation unavailable; falling back to Gemini.');
+    console.warn('Groq and Workers AI unavailable; falling back to Gemini.');
   }
 
   if (!injectedClient && !process.env.GEMINI_API_KEY) {
-    throw new ApiFailure(503, 'AI is not configured. Add a Gemini API key on the server.');
+    throw new ApiFailure(503, 'AI is not configured. Add GROQ_API_KEY for primary text generation or GEMINI_API_KEY for fallback/multimodal generation.');
   }
   const ai = injectedClient ?? (client ??= new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! }));
   const models = getGeminiModels();
