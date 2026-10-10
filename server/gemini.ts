@@ -548,9 +548,10 @@ async function callGroqStructured(
         temperature: Math.max(0.01, Math.min(1.2, temperature)),
         max_completion_tokens: 1600,
         stream: false,
-        response_format: schema
-          ? { type: 'json_schema', json_schema: { name: 'quarkpop_response', schema, strict: true } }
-          : { type: 'json_object' },
+        // Groq's strict JSON-schema validator can reject otherwise valid generations
+        // for QuarkPop's larger nested discovery schemas. JSON mode is much more reliable
+        // here; we still parse/validate the object locally before accepting it.
+        response_format: { type: 'json_object' },
       };
 
       const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
