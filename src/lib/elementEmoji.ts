@@ -147,6 +147,25 @@ async function normalizeGeneratedImage(imageBase64: string, mimeType: string): P
   return canvas.toDataURL('image/png');
 }
 
+/** Return locally cached native artwork without generating or spending AI quota. */
+export async function getCachedElementSprite(name: string): Promise<string | undefined> {
+  const key = emojiKey(name);
+  if (memory.has(key)) return memory.get(key);
+  try {
+    return await stored(ELEMENT_SPRITE_CACHE_PREFIX + key);
+  } catch {
+    return undefined;
+  }
+}
+
+/** Restore a downloaded profile image to the local cache for other collection views. */
+export async function storeProfileElementSprite(name: string, data: string): Promise<void> {
+  const key = emojiKey(name);
+  memory.set(key, data);
+  await save(ELEMENT_SPRITE_CACHE_PREFIX + key, data);
+  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('oddkin-emoji-retry', { detail: key }));
+}
+
 export function getElementEmoji(name: string, upgrade = false, variation = ''): Promise<string> {
   const key = emojiKey(name);
   const jobKey = upgrade ? `${key}:upgrade:${variation || 'fresh'}` : key;

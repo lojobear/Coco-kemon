@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { useGame } from '../lib/gameStore';
 import { cloud, readCloudSave, writeCloudSave, validateCloudPayload, downloadBackup, RECOVERY_KEY, type CloudSave } from '../lib/cloudSave';
+import { saveProfileSprites, loadProfileSprites } from '../lib/profileSprites';
 
 export function CloudSaves({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { exportSaveData, importSaveData, isSynthesizing } = useGame();
@@ -14,6 +15,7 @@ export function CloudSaves({ open, onClose }: { open: boolean; onClose: () => vo
   const [snapshot, setSnapshot] = useState<CloudSave | null | undefined>(undefined);
   const [message, setMessage] = useState('');
   const [hasRecovery, setHasRecovery] = useState(false);
+  const [spriteStatus, setSpriteStatus] = useState('');
   // Always access the latest store callbacks after asynchronous requests.
   const game = useRef({ exportSaveData, importSaveData, isSynthesizing });
   game.current = { exportSaveData, importSaveData, isSynthesizing };
@@ -35,6 +37,7 @@ export function CloudSaves({ open, onClose }: { open: boolean; onClose: () => vo
         setSnapshot(undefined);
         setBusy(false);
         setMessage('');
+        setSpriteStatus('');
       }
       setUser(next);
       setReady(true);
@@ -111,6 +114,31 @@ export function CloudSaves({ open, onClose }: { open: boolean; onClose: () => vo
       <p className="break-all text-sm">Signed in as <strong>{user.email ?? 'Google user'}</strong></p>
       <p className="text-xs text-slate-300">{snapshot === undefined ? 'Cloud info has not loaded yet.' : snapshot === null ? 'No cloud save yet. Save this device’s collection to get started.' : `Cloud save: ${new Date(snapshot.updated_at).toLocaleString()} · revision ${snapshot.revision}`}</p>
       <p className="text-xs text-slate-400">Device saves are automatic. Cloud saves are manual: save before switching devices, then load on the other device.</p>
+      <div className="rounded-lg border border-cyan-800/50 bg-cyan-950/20 p-3 space-y-2">
+        <h3 className="font-bold text-sm text-cyan-200">Profile sprite library</h3>
+        <p className="text-xs text-slate-300">Back up your uploaded, upgraded and cached AI-generated sprites to your private Google profile. Restore them on a different device without spending AI credits.</p>
+        <div className="grid grid-cols-2 gap-2">
+          <button className={button} disabled={busy || isSynthesizing} onClick={() => run(async current => {
+            const local = game.current.exportSaveData();
+            const count = await saveProfileSprites(user.id, local);
+            if (current()) setSpriteStatus(`${count} sprites saved privately to your profile.`);
+          })}>Save sprites</button>
+          <button className={button} disabled={busy || isSynthesizing} onClick={() => run(async current => {
+            const currentJson = game.current.exportSaveData();
+            const restored = await loadProfileSprites(user.id, currentJson);
+            if (!current()) return;
+            if (!restored.count) { setSpriteStatus('No matching discovered sprites to restore on this device.'); return; }
+            if (!window.confirm(`Restore ${restored.count} saved profile sprites onto your device? A local recovery backup will be kept.`)) return;
+            if (game.current.isSynthesizing) throw new Error('Finish crafting first.');
+            try { localStorage.setItem(RECOVERY_KEY, currentJson); }
+            catch { throw new Error('Not enough local space for a recovery backup. Export your collection first.'); }
+            setHasRecovery(true);
+            if (!game.current.importSaveData(restored.json)) throw new Error('Could not restore sprites. Your recovery backup is preserved.');
+            setSpriteStatus(`Restored ${restored.count} sprites from your profile.`);
+          })}>Restore sprites</button>
+        </div>
+        <p role="status" className="text-xs text-cyan-300">{spriteStatus}</p>
+      </div>
       <div className="grid grid-cols-2 gap-2">
         <button className={button} disabled={busy || snapshot === undefined || isSynthesizing} onClick={() => run(async current => {
           if (snapshot && !window.confirm(`Replace the cloud collection for ${user.email ?? 'this account'} with this device’s progress?`)) return;
