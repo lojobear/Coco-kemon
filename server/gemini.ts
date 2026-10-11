@@ -303,8 +303,9 @@ export type GeminiImageResult = {
 export function getGeminiImageModels(): string[] {
   return Array.from(new Set([
     sanitizeModel(process.env.GEMINI_IMAGE_MODEL),
-    'gemini-nano-banana-2.1',
+    // Use low-latency generateContent image models by default; allow an explicit override.
     'gemini-3.1-flash-lite-image',
+    'gemini-3.1-flash-image',
   ].filter((model): model is string => Boolean(model)))).slice(0, 2);
 }
 
@@ -363,6 +364,30 @@ async function normalizeWorkersImagePayload(payload: any): Promise<{ data: strin
   return null;
 }
 
+/**
+ * The premium sprite brief is too long for FLUX.1 Schnell's 2048-character limit.
+ * Only Schnell receives this compact fallback; FLUX.2 and Gemini keep full detail.
+ */
+export function compactSchnellImagePrompt(prompt: string): string {
+  const firstLine = prompt.split('\n', 1)[0]?.trim() || '';
+  const subject = firstLine.startsWith('Create one premium pixel-art inventory sprite for this exact subject:')
+    ? firstLine.slice(0, 400)
+    : `Create one pixel-art inventory sprite of: ${JSON.stringify(prompt.slice(0, 180))}.`;
+  const rerollToken = prompt.match(/Variation token: ([^\n]+)\./)?.[1]?.slice(0, 100);
+  const concise = [
+    subject,
+    rerollToken ? `Reroll variant ${rerollToken}: change angle, pose or silhouette; preserve subject identity.` : '',
+    'Premium 32-bit RPG inventory pixel art. One recognizable subject, centered and large (75-80%) in a square canvas.',
+    'Subtle 3/4 isometric perspective, strong near-black pixel outline, stepped bevels and layered 2.5D volume.',
+    'Crisp 96x96 implied pixel grid, square pixel clusters, faceted materials, rich color ramps, top-left highlights, deeper lower-right shadows.',
+    'Accurate literal form: recognizable creature anatomy or object shape. No unrelated crystal/orb/slime, no extra limbs or faces on inanimate things.',
+    'Absolutely no text, logos, cards, scenery, cast shadow, aura, particles, duplicate subjects or blurry/soft illustration.',
+    'Perfectly flat SOLID #FF00FF magenta background across entire canvas; no gradients or noise, no magenta inside the subject. Leave clear edge padding.',
+    'Output only one detailed pixel-art item, instantly readable at thumbnail size.',
+  ].filter(Boolean).join('\n');
+  return concise.slice(0, 2048);
+}
+
 async function generateWorkersAiImage(prompt: string): Promise<GeminiImageResult | null> {
   const ai = getWorkersAiBinding();
   if (!ai?.run) return null;
@@ -390,12 +415,13 @@ async function generateWorkersAiImage(prompt: string): Promise<GeminiImageResult
           },
         });
       } else {
-        response = await ai.run(model, { prompt, steps: 8 });
+        response = await ai.run(model, { prompt: compactSchnellImagePrompt(prompt), steps: 8 });
       }
 
       const candidate = response?.image ?? response?.result?.image ?? response;
       const normalized = await normalizeWorkersImagePayload(candidate);
       if (normalized?.data && normalized.data.length >= 100 && normalized.data.length <= 16_000_000) {
+        console.info(`Sprite image generated with ${model}.`);
         return { ...normalized, model };
       }
       throw new Error('Workers AI returned no usable image payload.');
@@ -474,6 +500,7 @@ export async function generateGeminiImage(
       if (!data || data.length < 100 || data.length > 16_000_000) {
         throw new Error('Image model returned no usable image.');
       }
+      console.info(`Sprite image generated with ${currentModel}.`);
       return { data, mimeType, model: currentModel };
     } catch (error: any) {
       last = error;
