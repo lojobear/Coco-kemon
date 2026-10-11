@@ -236,7 +236,7 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
                 <button disabled={uploading} onClick={() => void reroll(selected)} className="w-full py-3 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-black text-sm flex items-center justify-center gap-2">
                   <RefreshCw className="w-4 h-4" /> REROLL HQ 2.5D SPRITE
                 </button>
-                <p className="text-[10px] text-[#80899a] leading-relaxed">New discoveries now target premium 2.5D inventory pixel art: a slight 3/4 view, readable top/side planes, stepped bevels, deeper occlusion shadows, richer color ramps, crisp top-left highlights, and material-specific micro-detail. Upgrade rebuilds older art with the new renderer; reroll makes a fresh variation.</p>
+                <p className="text-[10px] text-[#80899a] leading-relaxed">New sprites use brighter, subject-matched colors, clean chromatic outlines, readable 2.5D bevels and crisp pixel highlights. Existing sprites stay as they are unless you choose to reroll or upgrade one.</p>
 
                 <button disabled={uploading} className="w-full py-3 rounded-xl border text-xs font-bold" onClick={() => void freshPixelSprite(selected, 'upgrade')}>
                   UPGRADE TO HQ 2.5D PIXEL ART
