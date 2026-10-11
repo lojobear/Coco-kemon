@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { compactSchnellImagePrompt, generateGeminiImage, getGeminiImageModels } from '../server/gemini.js';
 import { setWorkersAiBinding } from '../server/workersAi.js';
+import { buildSpritePrompt } from '../server/emoji.js';
 
 function verboseSpritePrompt() {
   return [
@@ -18,7 +19,25 @@ test('Schnell prompt fits 2048 characters while preserving subject and sprite re
   assert.match(prompt, /upgrade-abc123/);
   assert.match(prompt, /pixel art|pixel-art/i);
   assert.match(prompt, /#FF00FF/);
-  assert.match(prompt, /near-black pixel outline/);
+  assert.match(prompt, /dark CHROMATIC outline/);
+  assert.match(prompt, /65-75%/);
+  assert.match(prompt, /No muddy browns/);
+});
+
+test('New native sprites request vibrant subject palettes without invalidating existing cache', () => {
+  const prompt = buildSpritePrompt('Sunflower');
+  assert.match(prompt, /Sunflower/);
+  assert.match(prompt, /COLOR IS THE HERO/);
+  assert.match(prompt, /65-75%/);
+  assert.match(prompt, /deep saturated version of the subject color/i);
+  assert.match(prompt, /do NOT coat unrelated subjects with the same brown/i);
+  assert.match(prompt, /#FF00FF/);
+  const reroll = buildSpritePrompt('Sunflower', 'new-colors');
+  assert.match(reroll, /Variation token: "new-colors"/);
+  const compact = compactSchnellImagePrompt(prompt);
+  assert.ok(compact.length <= 2048);
+  assert.match(compact, /Sunflower/);
+  assert.match(compact, /No muddy browns/);
 });
 
 test('FLUX.2 receives the original detailed prompt; Schnell fallback receives the compact one', async () => {
