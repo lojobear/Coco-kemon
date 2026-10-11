@@ -1,6 +1,6 @@
 import { cloud } from './cloudSave';
 import { readCraftElements } from './saveData';
-import { getCachedElementSprite, storeProfileElementSprite } from './elementEmoji';
+import { getCachedElementSprite } from './elementEmoji';
 import { generateMaterialSprite } from './pixelRenderer';
 import type { InfiniteElement } from './infiniteCraftData';
 
@@ -9,7 +9,6 @@ const MAX_ITEMS = 2000;
 const MAX_BYTES = 4 * 1024 * 1024;
 export type SpriteEntry = { id: string; type: 'craft' | 'material' | 'oddkin'; name: string; path: string };
 export type SpriteManifest = { version: 1; updatedAt: string; items: SpriteEntry[] };
-const itemKey = (type: SpriteEntry['type'], id: string) => `${type}:${id}`;
 
 function requireCloud() {
   if (!cloud) throw new Error('Cloud profiles are not configured.');
