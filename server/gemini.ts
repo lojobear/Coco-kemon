@@ -434,6 +434,26 @@ async function generateWorkersAiImage(prompt: string): Promise<GeminiImageResult
     } catch (error) {
       last = error;
       const message = error instanceof Error ? error.message : String(error);
+      if (model.includes('flux-2-klein-4b') && /3030|flagged/i.test(message)) {
+        // A long decorative prompt may trip the image safety filter. Retry with a
+        // compact, neutral inventory-art prompt; never attempt to bypass a filter
+        // on a genuinely disallowed subject.
+        const subject = prompt.match(/exact subject:\s*([^\n]+)/i)?.[1]?.slice(0, 120);
+        if (subject && !/violence|weapon|sexual|nude|gore/i.test(subject)) {
+          try {
+            const form = new FormData();
+            form.append('prompt', `A simple colorful pixel-art inventory icon of ${subject}. Single centered object, plain magenta background, no text.`);
+            form.append('width', '512');
+            form.append('height', '512');
+            const serialized = new Response(form);
+            const retry = await ai.run(model, { multipart: { body: serialized.body, contentType: serialized.headers.get('content-type') } });
+            const normalized = await normalizeWorkersImagePayload(retry);
+            if (normalized?.data && normalized.data.length >= 100 && normalized.data.length <= 16_000_000) return { ...normalized, model };
+          } catch (retryError) {
+            console.warn(`Simplified FLUX image retry failed: ${String(retryError).slice(0, 180)}`);
+          }
+        }
+      }
       console.warn(`Workers AI image model ${model} failed: ${message}. Trying fallback...`);
     }
   }
