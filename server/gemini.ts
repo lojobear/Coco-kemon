@@ -561,7 +561,7 @@ async function callGroqStructured(
     if (remaining <= 0) return null;
 
     const controller = new AbortController();
-    const timeoutMs = Math.min(attempt === 0 ? 5000 : 3500, remaining);
+    const timeoutMs = Math.min(attempt === 0 ? 3200 : 2200, Math.max(1, remaining - 7000));
     const timer = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
@@ -712,7 +712,7 @@ async function callWorkersAiStructured(
         }
 
         const run = ai.run(model, input);
-        const modelTimeoutMs = attempt === 0 ? 14000 : 10000;
+        const modelTimeoutMs = attempt === 0 ? 3500 : 2000;
         // Shrink the per-attempt timeout to whatever is left of the shared
         // deadline, so a slow Workers AI can't eat the Gemini fallback's budget.
         const remainingMs = deadlineMs !== undefined ? deadlineMs - Date.now() : modelTimeoutMs;
@@ -720,7 +720,7 @@ async function callWorkersAiStructured(
           console.warn('Workers AI phase out of shared AI budget; falling through.');
           return null;
         }
-        const timeoutMs = Math.min(modelTimeoutMs, remainingMs);
+        const timeoutMs = Math.min(modelTimeoutMs, Math.max(1, remainingMs - 6500));
         const response: any = await Promise.race([
           run,
           new Promise((_, reject) => setTimeout(() => reject(new Error(`Workers AI text request timed out after ${timeoutMs}ms.`)), timeoutMs)),
@@ -768,7 +768,7 @@ export async function callGeminiStructured(
   // Workers AI could burn ~48s of quota after the 30s client abort and then
   // still run the full Gemini fallback. Cap normal requests at ~25s so the
   // client never waits on a dead request; drawing calls keep their own budget.
-  const overallDeadline = Date.now() + (drawingOptions ? Math.min(55000, drawingOptions.timeoutMs) : 25000);
+  const overallDeadline = Date.now() + (drawingOptions ? Math.min(55000, drawingOptions.timeoutMs) : 23000);
   const discoveryRequest = isDiscoveryInstruction(systemInstruction);
   const foundryRequest = isFoundryPrompt(prompt);
   const effectiveSystemInstruction = discoveryRequest && systemInstruction
