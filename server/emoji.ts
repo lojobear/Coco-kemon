@@ -126,8 +126,12 @@ export function registerEmojiRoute(app: Express, generateImage: ImageGenerator =
           }
         }
 
-        if (completed.size >= 500) completed.delete(completed.keys().next().value!);
-        completed.set(cacheKey, image);
+        // Rerolls are previews, not replacements for the canonical sprite.
+        // Only default generations populate the shared in-memory cache.
+        if (!regenerate) {
+          if (completed.size >= 500) completed.delete(completed.keys().next().value!);
+          completed.set(cacheKey, image);
+        }
       }
 
       res.json({
