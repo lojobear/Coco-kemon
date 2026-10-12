@@ -7,7 +7,6 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { GameProvider, useGame } from './lib/gameStore';
 import { Header } from './components/Header';
-import { WorkBench } from './components/WorkBench';
 import { DiscoveryModal } from './components/DiscoveryModal';
 import { BottomNav } from './components/BottomNav';
 
@@ -28,10 +27,9 @@ const SeedsModal = lazy(() => loadSeedsModal().then(module => ({ default: module
 const VoiceLabModal = lazy(() => loadVoiceLabModal().then(module => ({ default: module.VoiceLabModal })));
 import { SAVE_STATUS_EVENT, getSaveError } from './lib/saveData';
 import { sound } from './lib/audio';
-import { Material } from './types';
 
 function GameContent() {
-  const { activeTab, setActiveTab, inspectedItem, setInspectedItem, synthesisError, isSynthesizing, runSynthesis } = useGame();
+  const { activeTab, setActiveTab, inspectedItem, setInspectedItem } = useGame();
 
   const [kitchenOpened, setKitchenOpened] = useState(false);
   useEffect(() => { if (activeTab === 'kitchen') setKitchenOpened(true); }, [activeTab]);
@@ -82,10 +80,6 @@ function GameContent() {
   const [showSeedsModal, setShowSeedsModal] = useState<boolean>(false);
   const [showVoiceModal, setShowVoiceModal] = useState<boolean>(false);
 
-  const handleInspectMaterial = (mat: Material) => {
-    setInspectedItem({ type: 'material', item: mat });
-  };
-
   return (
     <div data-theme="quark-light" className="h-[100dvh] max-h-[100dvh] w-full collection-app bg-white text-neutral-900 flex flex-col justify-between overflow-hidden selection:bg-neutral-900 selection:text-white">
       {/* Top Header */}
@@ -95,19 +89,12 @@ function GameContent() {
       />
 
       {saveError && <div role="alert" className="bg-red-50 text-red-900 border-b border-red-200 p-3 text-sm">{saveError}</div>}
-      {synthesisError && activeTab === 'foundry' && <div role="alert" className="bg-red-50 text-red-900 border-b border-red-200 p-3 text-sm">
-        {synthesisError} <button disabled={isSynthesizing} className="underline ml-2 p-2" onClick={() => void runSynthesis()}>Retry synthesis</button>
-      </div>}
       {/* Main Viewport Content */}
       <main className={`flex-1 w-full min-h-0 flex flex-col ${(activeTab === 'infinite-craft' || activeTab === 'sprite-lab' || activeTab === 'foundry') ? 'overflow-hidden' : 'overflow-y-auto'}`}>
         {kitchenOpened && <div hidden={activeTab !== 'kitchen'}><Suspense fallback={<div className="view-loading-card">Opening Kitchen…</div>}><KitchenView visible={activeTab === 'kitchen'} /></Suspense></div>}
 
         {activeTab === 'infinite-craft' && (
           <Suspense fallback={<div className="view-loading-card">Warming the Craft lab…</div>}><InfiniteCraftView /></Suspense>
-        )}
-
-        {activeTab === 'foundry' && (
-          <WorkBench onInspectMaterial={handleInspectMaterial} />
         )}
 
         {activeTab === 'archive' && (
