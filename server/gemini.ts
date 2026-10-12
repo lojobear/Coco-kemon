@@ -571,11 +571,13 @@ async function callGroqStructured(
           ...(systemInstruction ? [{ role: 'system', content: systemInstruction }] : []),
           {
             role: 'user',
-            content: `${prompt}\n\nReturn ONLY one valid JSON object. No markdown or prose outside the JSON.`,
+            content: `${prompt}\n\nRespond with exactly one complete, syntactically valid JSON object. Use double-quoted keys and strings, no trailing commas, no markdown, no explanation. Keep values concise.`,
           },
         ],
-        temperature: Math.max(0.01, Math.min(1.2, temperature)),
-        max_completion_tokens: 1600,
+        // Keep Groq's TPM request comfortably below the 8k/min free-tier ceiling.
+        // Reserve output for JSON rather than verbose reasoning or prose.
+        temperature: Math.max(0.01, Math.min(0.55, temperature)),
+        max_completion_tokens: 900,
         stream: false,
         // Groq's strict JSON-schema validator can reject otherwise valid generations
         // for QuarkPop's larger nested discovery schemas. JSON mode is much more reliable
@@ -595,6 +597,18 @@ async function callGroqStructured(
 
       if (!response.ok) {
         const detail = await response.text().catch(() => '');
+        // A 429 means this model is out of budget; don't waste tokens retrying it.
+        // The next configured model/provider can still serve the request.
+        if (response.status === 429) {
+          console.warn(`Groq model ${model} rate limited (429); trying next provider.`);
+          continue;
+        }
+        // JSON-mode 400 errors are model-side validation failures, not user errors.
+        // Fall through to another model instead of surfacing them to the client.
+        if (response.status === 400 && detail.includes('json_validate_failed')) {
+          console.warn(`Groq model ${model} rejected JSON generation; trying next provider.`);
+          continue;
+        }
         throw new Error(`Groq ${response.status}: ${detail.slice(0, 240)}`);
       }
 
