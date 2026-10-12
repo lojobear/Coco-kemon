@@ -205,7 +205,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const [synthesisError, setSynthesisError] = useState<string | null>(null);
   const [synthesisStage, setSynthesisStage] = useState<SynthesisStage>(null);
   const [recentDiscovery, setRecentDiscovery] = useState<GameState['recentDiscovery']>(null);
-  const [activeTab, setActiveTab] = useState<'infinite-craft' | 'foundry' | 'archive' | 'sprite-lab' | 'notebook' | 'seeds' | 'kitchen'>('foundry');
+  const [activeTab, setActiveTab] = useState<'infinite-craft' | 'foundry' | 'archive' | 'sprite-lab' | 'notebook' | 'seeds' | 'kitchen'>('infinite-craft');
   const [inspectedItem, setInspectedItem] = useState<GameState['inspectedItem']>(null);
   const [isMuted, setIsMuted] = useState<boolean>(() => sound.isMuted());
 

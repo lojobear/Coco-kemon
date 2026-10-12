@@ -1,12 +1,11 @@
 import { memo, startTransition, useCallback, useEffect, useRef, useState } from 'react';
 import { sound } from '../lib/audio';
 import { haptics } from '../lib/haptics';
-import { FlaskConical, Hammer, LayoutGrid, Cat, ChefHat } from 'lucide-react';
+import { Hammer, LayoutGrid, Cat, ChefHat } from 'lucide-react';
 
 export type BottomTab = 'foundry' | 'kitchen' | 'infinite-craft' | 'archive' | 'sprite-lab';
 
 const TABS = [
-  { id: 'foundry', label: 'Foundry', icon: FlaskConical },
   { id: 'kitchen', label: 'Kitchen', icon: ChefHat },
   { id: 'infinite-craft', label: 'Craft', icon: Hammer },
   { id: 'archive', label: 'Collection', icon: LayoutGrid },
