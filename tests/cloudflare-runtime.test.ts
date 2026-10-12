@@ -38,7 +38,12 @@ test('Workers serves the frontend and JSON APIs using the deployment configurati
     assert.ok(ready, logs);
     const health = await json('/api/health', 200);
     assert.equal(health.status, 'ok');
-    assert.equal(health.primaryModel, 'gemini-worker-smoke');
+    // The health endpoint reports the actual primary text provider, not the Gemini fallback model.
+    assert.equal(health.primaryProvider, health.hasGroqKey ? 'groq' : 'cloudflare-workers-ai');
+    assert.equal(health.primaryModel, health.hasGroqKey
+      ? 'openai/gpt-oss-120b'
+      : '@cf/meta/llama-3.3-70b-instruct-fp8-fast');
+    assert.ok(Array.isArray(health.fallbackProviders));
     const pair = await json('/api/infinite-craft/pair?first=Water&second=Fire', 200);
     assert.equal(pair.result, 'Steam');
     const postPair = await json('/api/pair', 200, {
