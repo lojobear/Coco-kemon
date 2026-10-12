@@ -662,8 +662,8 @@ async function callGroqStructured(
 }
 
 const WORKERS_TEXT_MODELS = [
-  '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
-  '@cf/meta/llama-3.1-8b-instruct',
+  '@cf/meta/llama-3.2-3b-instruct',
+  '@cf/meta/llama-3.1-8b-instruct-fp8',
 ];
 
 function workersAiText(response: any): string | undefined {
@@ -735,7 +735,7 @@ async function callWorkersAiStructured(
         }
 
         const run = ai.run(model, input);
-        const modelTimeoutMs = attempt === 0 ? 3500 : 2000;
+        const modelTimeoutMs = attempt === 0 ? 5500 : 4000;
         // Shrink the per-attempt timeout to whatever is left of the shared
         // deadline, so a slow Workers AI can't eat the Gemini fallback's budget.
         const remainingMs = deadlineMs !== undefined ? deadlineMs - Date.now() : modelTimeoutMs;
