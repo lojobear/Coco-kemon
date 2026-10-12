@@ -574,10 +574,10 @@ async function callGroqStructured(
             content: `${prompt}\n\nRespond with exactly one complete, syntactically valid JSON object. Use double-quoted keys and strings, no trailing commas, no markdown, no explanation. Keep values concise.`,
           },
         ],
-        // Keep Groq's TPM request comfortably below the 8k/min free-tier ceiling.
-        // Reserve output for JSON rather than verbose reasoning or prose.
+        // Small recipes need little output; complex structured payloads need more.
+        // A fixed 900-token cap caused truncated JSON on larger requests.
         temperature: Math.max(0.01, Math.min(0.55, temperature)),
-        max_completion_tokens: 900,
+        max_completion_tokens: prompt.length > 3000 || JSON.stringify(schema ?? {}).length > 1200 ? 1800 : 1100,
         stream: false,
         // Groq's strict JSON-schema validator can reject otherwise valid generations
         // for QuarkPop's larger nested discovery schemas. JSON mode is much more reliable
