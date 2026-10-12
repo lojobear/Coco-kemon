@@ -577,7 +577,7 @@ async function callGroqStructured(
         // Keep Groq's TPM request comfortably below the 8k/min free-tier ceiling.
         // Reserve output for JSON rather than verbose reasoning or prose.
         temperature: Math.max(0.01, Math.min(0.55, temperature)),
-        max_completion_tokens: 900,
+        max_completion_tokens: schema ? 1800 : 1200,
         stream: false,
         // Groq's strict JSON-schema validator can reject otherwise valid generations
         // for QuarkPop's larger nested discovery schemas. JSON mode is much more reliable
@@ -606,7 +606,30 @@ async function callGroqStructured(
         // JSON-mode 400 errors are model-side validation failures, not user errors.
         // Fall through to another model instead of surfacing them to the client.
         if (response.status === 400 && detail.includes('json_validate_failed')) {
-          console.warn(`Groq model ${model} rejected JSON generation; trying next provider.`);
+          // Groq JSON mode can reject otherwise recoverable model output.
+          // Retry this model once without JSON-mode enforcement, then parse locally.
+          console.warn(`Groq model ${model} rejected JSON generation; retrying without enforced JSON mode.`);
+          const recoveryBody = { ...body, response_format: undefined, temperature: 0.2 };
+          const recovery = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify(recoveryBody),
+            signal: controller.signal,
+          });
+          if (recovery.ok) {
+            const recovered: any = await recovery.json();
+            const recoveredText = recovered?.choices?.[0]?.message?.content;
+            if (typeof recoveredText === 'string') {
+              const jsonStart = recoveredText.indexOf('{');
+              const jsonEnd = recoveredText.lastIndexOf('}');
+              if (jsonStart >= 0 && jsonEnd > jsonStart) {
+                try {
+                  const parsed = JSON.parse(recoveredText.slice(jsonStart, jsonEnd + 1));
+                  if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return JSON.stringify(parsed);
+                } catch { /* Try the next model instead. */ }
+              }
+            }
+          }
           continue;
         }
         throw new Error(`Groq ${response.status}: ${detail.slice(0, 240)}`);
