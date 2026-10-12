@@ -323,6 +323,11 @@ function bytesToBase64(bytes: Uint8Array): string {
 async function normalizeWorkersImagePayload(payload: any): Promise<{ data: string; mimeType: string } | null> {
   if (!payload) return null;
 
+  if (typeof payload === 'object' && !(payload instanceof ArrayBuffer) && !ArrayBuffer.isView(payload)) {
+    const nested = payload.image ?? payload.data ?? payload.result?.image ?? payload.result?.data ?? payload.output?.image;
+    if (nested && nested !== payload) return normalizeWorkersImagePayload(nested);
+  }
+
   if (typeof payload === 'string') {
     const dataUrl = payload.match(/^data:(image\/[a-z0-9.+-]+);base64,(.+)$/is);
     if (dataUrl) return { mimeType: dataUrl[1], data: dataUrl[2].replace(/\s+/g, '') };
@@ -420,8 +425,7 @@ async function generateWorkersAiImage(prompt: string): Promise<GeminiImageResult
         response = await ai.run(model, { prompt: compactSchnellImagePrompt(prompt), steps: 8 });
       }
 
-      const candidate = response?.image ?? response?.result?.image ?? response;
-      const normalized = await normalizeWorkersImagePayload(candidate);
+      const normalized = await normalizeWorkersImagePayload(response);
       if (normalized?.data && normalized.data.length >= 100 && normalized.data.length <= 16_000_000) {
         console.info(`Sprite image generated with ${model}.`);
         return { ...normalized, model };
@@ -455,7 +459,7 @@ export async function generateGeminiImage(
     if (workersImage) return workersImage;
   }
   if (!injectedClient && !process.env.GEMINI_API_KEY) {
-    throw new ApiFailure(503, 'AI image generation is not configured. Add a Gemini API key on the server.');
+    throw new ApiFailure(503, 'Sprite rendering is unavailable: Cloudflare image models failed and Gemini is not configured.');
   }
   const ai = injectedClient ?? (client ??= new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! }));
   const models = getGeminiImageModels();
@@ -508,7 +512,12 @@ export async function generateGeminiImage(
       last = error;
       const code = Number(error?.status || error?.code);
       const terminal = terminalGeminiFailure(error);
-      if (terminal) throw terminal;
+      if (terminal) {
+        if (terminal.status === 429 && !injectedClient) {
+          throw new ApiFailure(503, 'Sprite rendering is temporarily unavailable: Cloudflare image generation failed and Gemini image quota is exhausted. Your discovery can still be saved; retry the sprite later.');
+        }
+        throw terminal;
+      }
 
       if (attempt < models.length - 1) {
         console.warn(`Image model ${currentModel} failed (${code || error?.message || 'unknown'}). Failing over to ${models[attempt + 1]}...`);
