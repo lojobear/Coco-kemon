@@ -590,7 +590,7 @@ async function callGroqStructured(
     if (remaining <= 0) return null;
 
     const controller = new AbortController();
-    const timeoutMs = Math.min(attempt === 0 ? 3200 : 2200, Math.max(1, remaining - 7000));
+    const timeoutMs = Math.min(attempt === 0 ? 2600 : 1800, Math.max(1, remaining - 1700));
     const timer = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
@@ -764,7 +764,7 @@ async function callWorkersAiStructured(
         }
 
         const run = ai.run(model, input);
-        const modelTimeoutMs = attempt === 0 ? 5500 : 4000;
+        const modelTimeoutMs = attempt === 0 ? 2100 : 1500;
         // Shrink the per-attempt timeout to whatever is left of the shared
         // deadline, so a slow Workers AI can't eat the Gemini fallback's budget.
         const remainingMs = deadlineMs !== undefined ? deadlineMs - Date.now() : modelTimeoutMs;
@@ -772,7 +772,7 @@ async function callWorkersAiStructured(
           console.warn('Workers AI phase out of shared AI budget; falling through.');
           return null;
         }
-        const timeoutMs = Math.min(modelTimeoutMs, Math.max(1, remainingMs - 6500));
+        const timeoutMs = Math.min(modelTimeoutMs, Math.max(1, remainingMs - 900));
         const response: any = await Promise.race([
           run,
           new Promise((_, reject) => setTimeout(() => reject(new Error(`Workers AI text request timed out after ${timeoutMs}ms.`)), timeoutMs)),
@@ -820,7 +820,7 @@ export async function callGeminiStructured(
   // Workers AI could burn ~48s of quota after the 30s client abort and then
   // still run the full Gemini fallback. Cap normal requests at ~25s so the
   // client never waits on a dead request; drawing calls keep their own budget.
-  const overallDeadline = Date.now() + (drawingOptions ? Math.min(55000, drawingOptions.timeoutMs) : 23000);
+  const overallDeadline = Date.now() + (drawingOptions ? Math.min(55000, drawingOptions.timeoutMs) : 8500);
   const discoveryRequest = isDiscoveryInstruction(systemInstruction);
   const foundryRequest = isFoundryPrompt(prompt);
   const effectiveSystemInstruction = discoveryRequest && systemInstruction
@@ -863,6 +863,11 @@ export async function callGeminiStructured(
     );
     if (workersResult) return workersResult;
 
+    // Do not let a quota-exhausted Gemini fallback keep the combination spinner
+    // running past the interactive 10-second target.
+    if (!drawingOptions && overallDeadline - Date.now() < 1800) {
+      throw new ApiFailure(503, 'Combination AI is busy. Please retry.');
+    }
     console.warn('Groq and Workers AI unavailable; falling back to Gemini.');
   }
 
