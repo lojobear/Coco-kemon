@@ -4,7 +4,7 @@ import { once } from 'node:events';
 import { DISCOVERY_TRAILS, TRAIL_RECIPES, trailProgress, rollRareVariant } from '../src/lib/discoveryTrails';
 import { CANONICAL_INFINITE_CRAFT_RECIPES, makePairKey, STARTER_ELEMENTS } from '../src/lib/infiniteCraftData';
 import { ALL_PROCESSES, mergeProcesses, STARTER_MATERIALS } from '../src/lib/starterData';
-import { chooseConcept, inheritanceFor, applyInheritance } from '../server/discovery';
+import { chooseConcept, candidateRejectionReason, inheritanceFor, applyInheritance } from '../server/discovery';
 import { validateCraft, parseSave } from '../src/lib/saveData';
 import { INITIAL_HABITATS } from '../src/lib/starterData';
 import { validMaterial } from '../src/lib/validation';
@@ -86,4 +86,13 @@ test('new trail and process recipes work through API without Gemini', async () =
       const data = await r.json(); assert.equal(r.status, 200); assert.equal(data.material.displayName, name); assert.ok(validMaterial(data.material));
     }
   } finally { server.close(); await once(server, 'close'); }
+});
+
+test('candidateRejectionReason names the failing gate', () => {
+  const base = { emoji: '✨', explanation: 'Fire heats water into steam.', connection: 'science', coherence: 5 };
+  assert.equal(candidateRejectionReason({ ...base, result: '' }, 'Fire', 'Water'), 'missing result');
+  assert.equal(candidateRejectionReason({ ...base, result: 'Steam', coherence: 2 }, 'Fire', 'Water'), 'coherence 2 < 3');
+  assert.equal(candidateRejectionReason({ ...base, result: 'FireWater' }, 'Fire', 'Water'), 'result is a literal mashup of the inputs');
+  assert.equal(candidateRejectionReason({ ...base, result: 'Steam', connection: 'alchemy' }, 'Fire', 'Water'), 'unknown connection "alchemy"');
+  assert.equal(candidateRejectionReason({ ...base, result: 'Steam', emoji: '💨' }, 'Fire', 'Water'), null);
 });

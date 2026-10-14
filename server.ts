@@ -117,22 +117,47 @@ result, emoji, connection (science/function/appearance/mythology/wordplay/biolog
 explanation (one player-facing sentence, at most 280 characters),
 coherence (integer 1–5, at least 4 only when BOTH inputs clearly fit),
 surprise (integer 1–5). Prioritize coherence over novelty.
-Do not include private reasoning; explanations describe only the connection.`;
+Do not include private reasoning; explanations describe only the connection.
+The explanation MUST mention both input ingredients by name; candidates that ignore an ingredient are rejected.`;
 
   const prompt = `Find satisfying discoveries for these input names: ${JSON.stringify([first, second])}`;
 
   try {
     const resolved = await cachedWork<ConceptResult>('infinite-pair-v2', key, async () => {
       takeAiBudget(client, 1);
-      const rawJson = await callGeminiStructured(prompt, systemInstruction, 0.4);
-      if (!rawJson) throw new ApiFailure(502, 'AI returned an incomplete combination. Please retry.');
 
-      const parsed = chooseConcept(JSON.parse(rawJson), first, second);
-      if (!parsed || typeof parsed.result !== 'string' || !parsed.result.trim() || parsed.result.length > 160 ||
-          typeof parsed.emoji !== 'string' || !parsed.emoji.trim() || parsed.emoji.length > 32) {
-        throw new ApiFailure(502, 'AI returned an incomplete combination. Please retry.');
+      const attemptResolve = async (usePrompt: string, useSystem: string): Promise<ConceptResult | undefined> => {
+        // Provider-level failures (quota, auth, timeout) throw and propagate;
+        // only validation/parse failures are eligible for the retry below.
+        const rawJson = await callGeminiStructured(usePrompt, useSystem, 0.4);
+        if (!rawJson) return undefined;
+        let parsed: unknown;
+        try {
+          parsed = JSON.parse(rawJson);
+        } catch {
+          return undefined;
+        }
+        const chosen = chooseConcept(parsed, first, second);
+        if (!chosen || typeof chosen.result !== 'string' || !chosen.result.trim() || chosen.result.length > 160 ||
+            typeof chosen.emoji !== 'string' || !chosen.emoji.trim() || chosen.emoji.length > 32) {
+          return undefined;
+        }
+        return { ...chosen, result: chosen.result.trim(), emoji: (chosen.emoji || '✨').trim() };
+      };
+
+      // Attempt 1: standard prompt.
+      let result = await attemptResolve(prompt, systemInstruction);
+      if (!result) {
+        // Attempt 2: stricter nudge. The most common silent rejection is an
+        // explanation that never names both ingredients (-32 score penalty),
+        // so require it explicitly before giving up.
+        console.warn(`[pair] ${first} + ${second}: first attempt produced no valid candidate, retrying with stricter prompt`);
+        takeAiBudget(client, 1);
+        const strictSystem = `${systemInstruction}\nCRITICAL: the explanation MUST mention BOTH input ingredients by name, or the candidate is rejected. Only propose results where both inputs clearly contribute.`;
+        result = await attemptResolve(prompt, strictSystem);
       }
-      return { ...parsed, result: parsed.result.trim(), emoji: (parsed.emoji || '✨').trim() };
+      if (!result) throw new ApiFailure(502, 'AI returned an incomplete combination. Please retry.');
+      return result;
     });
 
     const cleanedResult = resolved.value.result.trim();
