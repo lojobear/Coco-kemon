@@ -286,6 +286,35 @@ function candidateIsValid(c: unknown, first: string, second: string): c is Candi
   return true;
 }
 
+
+/**
+ * Human-readable reason a candidate failed validation, for server logs.
+ * Mirrors candidateIsValid so on-call debugging can see which gate rejected what.
+ */
+export function candidateRejectionReason(c: unknown, first: string, second: string): string | null {
+  if (!record(c)) return 'not an object';
+  if (!text(c.result)) return 'missing result';
+  if (c.result.length > 160) return `result too long (${c.result.length} chars)`;
+  if (!text(c.emoji)) return 'missing emoji';
+  if (c.emoji.length > 32) return 'emoji too long';
+  if (!text(c.explanation)) return 'missing explanation';
+  if (c.explanation.length > 280) return `explanation too long (${c.explanation.length} chars)`;
+  if (!text(c.connection)) return 'missing connection';
+  if (!CONNECTIONS.has(c.connection as ConceptConnection)) return `unknown connection "${c.connection}"`;
+  if (![c.coherence, c.surprise, c.inputFit, c.recognizability, c.chainPotential, c.novelty].every(validOptionalScore)) return 'invalid optional score';
+  if (typeof c.coherence === 'number' && c.coherence < 3) return `coherence ${c.coherence} < 3`;
+  if (typeof c.inputFit === 'number' && c.inputFit < 3) return `inputFit ${c.inputFit} < 3`;
+  const normalizedResult = normalize(c.result);
+  if (!normalizedResult) return 'result normalizes to empty';
+  const literal = new Set([
+    normalize(first + second), normalize(second + first),
+    normalize(`${first} ${second}`), normalize(`${second} ${first}`),
+  ]);
+  if (literal.has(normalizedResult)) return 'result is a literal mashup of the inputs';
+  if (normalizedResult === normalize(first) || normalizedResult === normalize(second)) return 'result repeats an input';
+  return null;
+}
+
 function scoreCandidate(candidate: Candidate, first: string, second: string, routeFrequency: Map<string, number>): { score: number; dna: ConceptDNA } {
   const dna = inferDNA(candidate, first, second);
   const mentionsFirst = hasIngredientReference(candidate.explanation, first);
@@ -360,9 +389,15 @@ export function chooseConcept(parsed: unknown, first: string, second: string): C
       explanation: text(parsed.explanation) ? parsed.explanation.trim() : `${first} and ${second} combine into ${parsed.result.trim()}.`,
       connection: text(parsed.connection) && CONNECTIONS.has(parsed.connection as ConceptConnection) ? parsed.connection as ConceptConnection : 'science',
     };
-    if (!candidateIsValid(fallback, first, second)) return;
+    if (!candidateIsValid(fallback, first, second)) {
+      console.warn(`[chooseConcept] ${first} + ${second}: single result rejected`, candidateRejectionReason(fallback, first, second));
+      return;
+    }
     const { score, dna } = scoreCandidate(fallback, first, second, new Map([[fallback.connection, 1]]));
-    if (score < 18) return;
+    if (score < 18) {
+      console.warn(`[chooseConcept] ${first} + ${second}: single result scored ${Math.round(score)} < 18`, { result: fallback.result });
+      return;
+    }
     conceptRegistry.set(normalize(fallback.result), dna);
     resultUsage.set(normalize(fallback.result), (resultUsage.get(normalize(fallback.result)) || 0) + 1);
     rememberResult(fallback.result);
@@ -378,8 +413,21 @@ export function chooseConcept(parsed: unknown, first: string, second: string): C
   }
 
   // Accept a broad candidate set; ranking is fully server-side.
-  const candidates = parsed.candidates.slice(0, 10).filter((c: unknown) => candidateIsValid(c, first, second)) as Candidate[];
-  if (!candidates.length) return;
+  const rawCandidates: unknown[] = parsed.candidates.slice(0, 10);
+  const rejected: Array<{ result: string; reason: string }> = [];
+  const candidates = rawCandidates.filter((c: unknown): c is Candidate => {
+    if (candidateIsValid(c, first, second)) return true;
+    const maybeResult = (c as { result?: unknown } | null)?.result;
+    rejected.push({
+      result: typeof maybeResult === 'string' ? maybeResult.slice(0, 60) : '?',
+      reason: candidateRejectionReason(c, first, second) ?? 'unknown',
+    });
+    return false;
+  });
+  if (!candidates.length) {
+    console.warn(`[chooseConcept] ${first} + ${second}: all ${rawCandidates.length} candidates rejected`, rejected);
+    return;
+  }
 
   const routeFrequency = new Map<string, number>();
   for (const candidate of candidates) routeFrequency.set(candidate.connection, (routeFrequency.get(candidate.connection) || 0) + 1);
@@ -389,7 +437,13 @@ export function chooseConcept(parsed: unknown, first: string, second: string): C
     .sort((a, b) => b.score - a.score || b.dna.chainPotential - a.dna.chainPotential || a.candidate.result.localeCompare(b.candidate.result));
 
   const winner = ranked[0];
-  if (!winner || winner.score < 18) return;
+  if (!winner || winner.score < 18) {
+    console.warn(
+      `[chooseConcept] ${first} + ${second}: best score ${winner ? Math.round(winner.score) : 'n/a'} < 18`,
+      ranked.map(r => ({ result: r.candidate.result, score: Math.round(r.score) })),
+    );
+    return;
+  }
 
   const result = winner.candidate.result.trim();
   const key = normalize(result);
