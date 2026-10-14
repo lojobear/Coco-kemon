@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import express from 'express';
 import { registerEmojiRoute } from '../server/emoji';
 import { emojiKey, renderEmojiDrawing } from '../src/lib/emojiGeometry';
-import { generateGeminiImage } from '../server/gemini';
+import { generateGeminiImage, getGeminiImageModels } from '../server/gemini';
 
 const drawing = { paths: [{ d: 'M12 12L116 12L64 116Z', fill: '#ff9900' }, { d: 'M30 20L90 20L64 70Z', fill: '#ffee99' }] };
 const fakeImage = { data: 'A'.repeat(256), mimeType: 'image/png', model: 'test-image-model' };
@@ -202,4 +202,46 @@ test('client deduplicates, persists normalized high-resolution art, and supports
     Object.defineProperty(globalThis, 'Image', { configurable: true, value: oldImage });
     Object.defineProperty(globalThis, 'document', { configurable: true, value: oldDocument });
   }
+});
+
+test('image quota on the first model fails over to the next model', async () => {
+  const models = getGeminiImageModels();
+  assert.ok(models.length >= 2, 'failover test needs at least two image models');
+  const seen: string[] = [];
+  const quotaError: any = new Error('quota exhausted');
+  quotaError.status = 429;
+  const fakeClient: any = {
+    models: {
+      generateContent: async ({ model }: any) => {
+        seen.push(model);
+        if (model === models[0]) throw quotaError;
+        return {
+          candidates: [{
+            content: {
+              parts: [{ inlineData: { data: fakeImage.data, mimeType: fakeImage.mimeType } }],
+            },
+          }],
+        };
+      },
+    },
+  };
+  const result = await generateGeminiImage('pixel sword', fakeClient);
+  assert.deepEqual(seen, models.slice(0, 2));
+  assert.equal(result.model, models[1]);
+  assert.equal(result.data, fakeImage.data);
+});
+
+test('image quota on every model surfaces the quota error once exhausted', async () => {
+  const quotaError: any = new Error('quota exhausted');
+  quotaError.status = 429;
+  const fakeClient: any = {
+    models: {
+      generateContent: async () => { throw quotaError; },
+    },
+  };
+  await assert.rejects(() => generateGeminiImage('pixel sword', fakeClient), (error: any) => {
+    assert.equal(error?.status, 429);
+    assert.match(String(error?.message || ''), /quota/i);
+    return true;
+  });
 });
