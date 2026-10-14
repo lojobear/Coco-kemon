@@ -303,9 +303,8 @@ export type GeminiImageResult = {
 export function getGeminiImageModels(): string[] {
   return Array.from(new Set([
     sanitizeModel(process.env.GEMINI_IMAGE_MODEL),
-    // Use low-latency generateContent image models by default; allow an explicit override.
+    'gemini-nano-banana-2.1',
     'gemini-3.1-flash-lite-image',
-    'gemini-3.1-flash-image',
   ].filter((model): model is string => Boolean(model)))).slice(0, 2);
 }
 
@@ -322,11 +321,6 @@ function bytesToBase64(bytes: Uint8Array): string {
 
 async function normalizeWorkersImagePayload(payload: any): Promise<{ data: string; mimeType: string } | null> {
   if (!payload) return null;
-
-  if (typeof payload === 'object' && !(payload instanceof ArrayBuffer) && !ArrayBuffer.isView(payload)) {
-    const nested = payload.image ?? payload.data ?? payload.result?.image ?? payload.result?.data ?? payload.output?.image;
-    if (nested && nested !== payload) return normalizeWorkersImagePayload(nested);
-  }
 
   if (typeof payload === 'string') {
     const dataUrl = payload.match(/^data:(image\/[a-z0-9.+-]+);base64,(.+)$/is);
@@ -369,32 +363,6 @@ async function normalizeWorkersImagePayload(payload: any): Promise<{ data: strin
   return null;
 }
 
-/**
- * The premium sprite brief is too long for FLUX.1 Schnell's 2048-character limit.
- * Only Schnell receives this compact fallback; FLUX.2 and Gemini keep full detail.
- */
-export function compactSchnellImagePrompt(prompt: string): string {
-  const firstLine = prompt.split('\n', 1)[0]?.trim() || '';
-  const subject = firstLine.startsWith('Create one premium pixel-art inventory sprite for this exact subject:')
-    ? firstLine.slice(0, 400)
-    : `Create one pixel-art inventory sprite of: ${JSON.stringify(prompt.slice(0, 180))}.`;
-  const rerollToken = prompt.match(/Variation token: ([^\n]+)\./)?.[1]?.slice(0, 100);
-  const concise = [
-    subject,
-    rerollToken ? `Reroll variant ${rerollToken}: change angle, pose or silhouette; preserve subject identity.` : '',
-    'Premium 32-bit RPG inventory pixel art. One recognizable subject, centered and large (75-80%) in a square canvas.',
-    'Subtle 3/4 isometric perspective, a narrow dark CHROMATIC outline in the subject hue (not black/brown), colorful stepped bevels and layered 2.5D volume.',
-    'Bright colorful collectible sprite: 65-75% of visible sprite in vivid subject-appropriate midtones/highlights, with only small colored occlusion shadows. No muddy browns, sepia, charcoal cast, low exposure or dull/desaturated palette.',
-    'Distinct hues for each subject: emerald leaves, azure ice/water, golden flame, vibrant purple magic, clean silver-blue metal; earthy objects may retain real brown material colors but stay well-lit.',
-    'Crisp 96x96 implied pixel grid, square pixel clusters, faceted materials, bright upper-left highlights and readable 4-6 step hue-shifted color ramps.',
-    'Accurate literal form: recognizable creature anatomy or object shape. No unrelated crystal/orb/slime, no extra limbs or faces on inanimate things.',
-    'Absolutely no text, logos, cards, scenery, cast shadow, aura, particles, duplicate subjects or blurry/soft illustration.',
-    'Perfectly flat SOLID #FF00FF magenta background across entire canvas; no gradients or noise, no magenta inside the subject. Leave clear edge padding.',
-    'Output only one detailed pixel-art item, instantly readable at thumbnail size.',
-  ].filter(Boolean).join('\n');
-  return concise.slice(0, 2048);
-}
-
 async function generateWorkersAiImage(prompt: string): Promise<GeminiImageResult | null> {
   const ai = getWorkersAiBinding();
   if (!ai?.run) return null;
@@ -422,38 +390,18 @@ async function generateWorkersAiImage(prompt: string): Promise<GeminiImageResult
           },
         });
       } else {
-        response = await ai.run(model, { prompt: compactSchnellImagePrompt(prompt), steps: 8 });
+        response = await ai.run(model, { prompt, steps: 8 });
       }
 
-      const normalized = await normalizeWorkersImagePayload(response);
+      const candidate = response?.image ?? response?.result?.image ?? response;
+      const normalized = await normalizeWorkersImagePayload(candidate);
       if (normalized?.data && normalized.data.length >= 100 && normalized.data.length <= 16_000_000) {
-        console.info(`Sprite image generated with ${model}.`);
         return { ...normalized, model };
       }
       throw new Error('Workers AI returned no usable image payload.');
     } catch (error) {
       last = error;
       const message = error instanceof Error ? error.message : String(error);
-      if (model.includes('flux-2-klein-4b') && /3030|flagged/i.test(message)) {
-        // A long decorative prompt may trip the image safety filter. Retry with a
-        // compact, neutral inventory-art prompt; never attempt to bypass a filter
-        // on a genuinely disallowed subject.
-        const subject = prompt.match(/exact subject:\s*([^\n]+)/i)?.[1]?.slice(0, 120);
-        if (subject && !/violence|weapon|sexual|nude|gore/i.test(subject)) {
-          try {
-            const form = new FormData();
-            form.append('prompt', `A simple colorful pixel-art inventory icon of ${subject}. Single centered object, plain magenta background, no text.`);
-            form.append('width', '512');
-            form.append('height', '512');
-            const serialized = new Response(form);
-            const retry = await ai.run(model, { multipart: { body: serialized.body, contentType: serialized.headers.get('content-type') } });
-            const normalized = await normalizeWorkersImagePayload(retry);
-            if (normalized?.data && normalized.data.length >= 100 && normalized.data.length <= 16_000_000) return { ...normalized, model };
-          } catch (retryError) {
-            console.warn(`Simplified FLUX image retry failed: ${String(retryError).slice(0, 180)}`);
-          }
-        }
-      }
       console.warn(`Workers AI image model ${model} failed: ${message}. Trying fallback...`);
     }
   }
@@ -479,7 +427,7 @@ export async function generateGeminiImage(
     if (workersImage) return workersImage;
   }
   if (!injectedClient && !process.env.GEMINI_API_KEY) {
-    throw new ApiFailure(503, 'Sprite rendering is unavailable: Cloudflare image models failed and Gemini is not configured.');
+    throw new ApiFailure(503, 'AI image generation is not configured. Add a Gemini API key on the server.');
   }
   const ai = injectedClient ?? (client ??= new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! }));
   const models = getGeminiImageModels();
@@ -526,24 +474,25 @@ export async function generateGeminiImage(
       if (!data || data.length < 100 || data.length > 16_000_000) {
         throw new Error('Image model returned no usable image.');
       }
-      console.info(`Sprite image generated with ${currentModel}.`);
       return { data, mimeType, model: currentModel };
     } catch (error: any) {
       last = error;
       const code = Number(error?.status || error?.code);
       const terminal = terminalGeminiFailure(error);
-      if (terminal) {
-        if (terminal.status === 429 && !injectedClient) {
-          throw new ApiFailure(503, 'Sprite rendering is temporarily unavailable: Cloudflare image generation failed and Gemini image quota is exhausted. Your discovery can still be saved; retry the sprite later.');
-        }
-        throw terminal;
-      }
+      const isQuota = terminal?.status === 429;
+      const hasMoreModels = attempt < models.length - 1;
+      // Quota exhaustion fails over to the next image model instead of aborting
+      // the whole chain: a 429 on one model must not strand the rest. Other
+      // terminal failures (bad key, etc.) still abort immediately, and the
+      // friendly quota error surfaces once every model is exhausted.
+      if (terminal && (!isQuota || !hasMoreModels)) throw terminal;
 
-      if (attempt < models.length - 1) {
-        console.warn(`Image model ${currentModel} failed (${code || error?.message || 'unknown'}). Failing over to ${models[attempt + 1]}...`);
+      if (hasMoreModels) {
+        console.warn(`Image model ${currentModel} failed (${code || error?.message || 'unknown'}${isQuota ? ', quota exhausted' : ''}). Failing over to ${models[attempt + 1]}...`);
         await new Promise(resolve => setTimeout(resolve, 250));
         continue;
       }
+      if (isQuota) throw terminal;
       if (controller.signal.aborted || code === 408 || code === 504) {
         throw new ApiFailure(504, 'AI image generation timed out. Please retry.');
       }
@@ -558,141 +507,9 @@ export async function generateGeminiImage(
 }
 
 
-export function getGroqModels(): string[] {
-  const sanitizeGroqModel = (name?: string): string | null => {
-    if (!name || typeof name !== 'string') return null;
-    const trimmed = name.trim();
-    if (!/^[a-z0-9][a-z0-9._/-]+$/i.test(trimmed)) return null;
-    return trimmed;
-  };
-  return Array.from(new Set([
-    sanitizeGroqModel(process.env.GROQ_MODEL),
-    sanitizeGroqModel(process.env.GROQ_FALLBACK_MODEL),
-    'openai/gpt-oss-120b',
-    'openai/gpt-oss-20b',
-  ].filter((model): model is string => Boolean(model)))).slice(0, 2);
-}
-
-async function callGroqStructured(
-  prompt: string,
-  systemInstruction: string | undefined,
-  temperature: number,
-  schema?: Record<string, unknown>,
-  deadlineMs?: number,
-): Promise<string | null> {
-  const apiKey = process.env.GROQ_API_KEY?.trim();
-  if (!apiKey) return null;
-
-  let last: unknown;
-  for (let attempt = 0; attempt < getGroqModels().length; attempt++) {
-    const model = getGroqModels()[attempt];
-    const remaining = deadlineMs !== undefined ? deadlineMs - Date.now() : 6000;
-    if (remaining <= 0) return null;
-
-    const controller = new AbortController();
-    const timeoutMs = Math.min(attempt === 0 ? 3200 : 2200, Math.max(1, remaining - 7000));
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-
-    try {
-      const body: any = {
-        model,
-        messages: [
-          ...(systemInstruction ? [{ role: 'system', content: systemInstruction }] : []),
-          {
-            role: 'user',
-            content: `${prompt}\n\nRespond with exactly one complete, syntactically valid JSON object. Use double-quoted keys and strings, no trailing commas, no markdown, no explanation. Keep values concise.`,
-          },
-        ],
-        // Keep Groq's TPM request comfortably below the 8k/min free-tier ceiling.
-        // Reserve output for JSON rather than verbose reasoning or prose.
-        temperature: Math.max(0.01, Math.min(0.55, temperature)),
-        max_completion_tokens: schema ? 1800 : 1200,
-        stream: false,
-        // Groq's strict JSON-schema validator can reject otherwise valid generations
-        // for QuarkPop's larger nested discovery schemas. JSON mode is much more reliable
-        // here; we still parse/validate the object locally before accepting it.
-        response_format: { type: 'json_object' },
-      };
-
-      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
-        signal: controller.signal,
-      });
-
-      if (!response.ok) {
-        const detail = await response.text().catch(() => '');
-        // A 429 means this model is out of budget; don't waste tokens retrying it.
-        // The next configured model/provider can still serve the request.
-        if (response.status === 429) {
-          console.warn(`Groq model ${model} rate limited (429); trying next provider.`);
-          continue;
-        }
-        // JSON-mode 400 errors are model-side validation failures, not user errors.
-        // Fall through to another model instead of surfacing them to the client.
-        if (response.status === 400 && detail.includes('json_validate_failed')) {
-          // Groq JSON mode can reject otherwise recoverable model output.
-          // Retry this model once without JSON-mode enforcement, then parse locally.
-          console.warn(`Groq model ${model} rejected JSON generation; retrying without enforced JSON mode.`);
-          const recoveryBody = { ...body, response_format: undefined, temperature: 0.2 };
-          const recovery = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify(recoveryBody),
-            signal: controller.signal,
-          });
-          if (recovery.ok) {
-            const recovered: any = await recovery.json();
-            const recoveredText = recovered?.choices?.[0]?.message?.content;
-            if (typeof recoveredText === 'string') {
-              const jsonStart = recoveredText.indexOf('{');
-              const jsonEnd = recoveredText.lastIndexOf('}');
-              if (jsonStart >= 0 && jsonEnd > jsonStart) {
-                try {
-                  const parsed = JSON.parse(recoveredText.slice(jsonStart, jsonEnd + 1));
-                  if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return JSON.stringify(parsed);
-                } catch { /* Try the next model instead. */ }
-              }
-            }
-          }
-          continue;
-        }
-        throw new Error(`Groq ${response.status}: ${detail.slice(0, 240)}`);
-      }
-
-      const payload: any = await response.json();
-      const raw = payload?.choices?.[0]?.message?.content;
-      if (typeof raw !== 'string' || !raw.trim()) throw new Error('Groq returned an empty response.');
-
-      const cleaned = raw
-        .replace(/^\s*\`\`\`(?:json)?\s*/i, '')
-        .replace(/\s*\`\`\`\s*$/i, '')
-        .trim();
-      const parsed = JSON.parse(cleaned);
-      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-        throw new Error('Groq returned invalid JSON.');
-      }
-      return JSON.stringify(parsed);
-    } catch (error) {
-      last = error;
-      const message = error instanceof Error ? error.message : String(error);
-      console.warn(`Groq model ${model} failed: ${message}.`);
-    } finally {
-      clearTimeout(timer);
-    }
-  }
-
-  console.error('Groq text generation failed; falling through to secondary providers:', last);
-  return null;
-}
-
 const WORKERS_TEXT_MODELS = [
-  '@cf/meta/llama-3.2-3b-instruct',
-  '@cf/meta/llama-3.1-8b-instruct-fp8',
+  '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
+  '@cf/meta/llama-3.1-8b-instruct',
 ];
 
 function workersAiText(response: any): string | undefined {
@@ -716,20 +533,12 @@ async function callWorkersAiStructured(
   systemInstruction: string | undefined,
   temperature: number,
   schema?: Record<string, unknown>,
-  // Absolute timestamp (Date.now() ms) bounding the whole AI phase. When set,
-  // per-model timeouts shrink to fit the remaining budget and the loop bails
-  // early instead of burning quota after the client has given up.
-  deadlineMs?: number,
 ): Promise<string | null> {
   const ai = getWorkersAiBinding();
   if (!ai?.run) return null;
 
   let last: unknown;
   for (let attempt = 0; attempt < WORKERS_TEXT_MODELS.length; attempt++) {
-    if (deadlineMs !== undefined && Date.now() >= deadlineMs) {
-      console.warn('Workers AI phase reached the shared AI deadline; falling through.');
-      return null;
-    }
     const model = WORKERS_TEXT_MODELS[attempt];
     const messages = [
       ...(systemInstruction ? [{ role: 'system', content: systemInstruction }] : []),
@@ -764,15 +573,7 @@ async function callWorkersAiStructured(
         }
 
         const run = ai.run(model, input);
-        const modelTimeoutMs = attempt === 0 ? 5500 : 4000;
-        // Shrink the per-attempt timeout to whatever is left of the shared
-        // deadline, so a slow Workers AI can't eat the Gemini fallback's budget.
-        const remainingMs = deadlineMs !== undefined ? deadlineMs - Date.now() : modelTimeoutMs;
-        if (remainingMs <= 0) {
-          console.warn('Workers AI phase out of shared AI budget; falling through.');
-          return null;
-        }
-        const timeoutMs = Math.min(modelTimeoutMs, Math.max(1, remainingMs - 6500));
+        const timeoutMs = attempt === 0 ? 14000 : 10000;
         const response: any = await Promise.race([
           run,
           new Promise((_, reject) => setTimeout(() => reject(new Error(`Workers AI text request timed out after ${timeoutMs}ms.`)), timeoutMs)),
@@ -815,72 +616,50 @@ export async function callGeminiStructured(
   injectedClient?: Pick<GoogleGenAI, 'models'>,
   drawingOptions?: { timeoutMs: number; schema: Record<string, unknown> }
 ): Promise<string> {
-  // One end-to-end deadline for the whole AI phase (Workers AI + Gemini
-  // fallback). Previously each phase had its own budget, so a degraded
-  // Workers AI could burn ~48s of quota after the 30s client abort and then
-  // still run the full Gemini fallback. Cap normal requests at ~25s so the
-  // client never waits on a dead request; drawing calls keep their own budget.
-  const overallDeadline = Date.now() + (drawingOptions ? Math.min(55000, drawingOptions.timeoutMs) : 23000);
   const discoveryRequest = isDiscoveryInstruction(systemInstruction);
   const foundryRequest = isFoundryPrompt(prompt);
   const effectiveSystemInstruction = discoveryRequest && systemInstruction
     ? enhanceDiscoveryInstruction(systemInstruction)
     : systemInstruction;
 
-  // Provider order for text generation:
-  // 1) Groq (fast primary), 2) Cloudflare Workers AI, 3) Gemini fallback.
-  // Injected Gemini clients used by tests/multimodal paths bypass external text providers.
-  let workersAiAttempted = false;
+  // Prefer Cloudflare Workers AI for production text generation, but never strand the
+  // player if Workers AI is saturated, times out, or returns malformed JSON. Fall through
+  // to the configured Gemini models as a secondary provider.
   if (!injectedClient && typeof prompt === 'string') {
-    const providerPrompt = foundryRequest
+    const workersPrompt = foundryRequest
       ? enhanceFoundryPrompt(prompt, null)
       : discoveryRequest
         ? enrichDiscoveryPrompt(prompt) as string
         : prompt;
-    const providerTemperature = foundryRequest
+    const workersTemperature = foundryRequest
       ? Math.max(0.65, temperature)
       : discoveryRequest
         ? Math.max(0.72, temperature)
         : temperature;
-    const providerSchema = drawingOptions?.schema || (discoveryRequest ? DISCOVERY_RESPONSE_SCHEMA : undefined);
+    const workersSchema = drawingOptions?.schema || (discoveryRequest ? DISCOVERY_RESPONSE_SCHEMA : undefined);
 
-    const groqResult = await callGroqStructured(
-      providerPrompt,
-      effectiveSystemInstruction,
-      providerTemperature,
-      providerSchema,
-      overallDeadline,
-    );
-    if (groqResult) return groqResult;
-
-    workersAiAttempted = true;
     const workersResult = await callWorkersAiStructured(
-      providerPrompt,
+      workersPrompt,
       effectiveSystemInstruction,
-      providerTemperature,
-      providerSchema,
-      overallDeadline,
+      workersTemperature,
+      workersSchema,
     );
     if (workersResult) return workersResult;
 
-    console.warn('Groq and Workers AI unavailable; falling back to Gemini.');
+    // Workers AI was unavailable/busy or returned unusable structured output.
+    // Continue below to Gemini instead of surfacing a 503 to the player.
+    console.warn('Workers AI text generation unavailable; falling back to Gemini.');
   }
 
   if (!injectedClient && !process.env.GEMINI_API_KEY) {
-    throw new ApiFailure(503, 'AI is not configured. Add GROQ_API_KEY for primary text generation or GEMINI_API_KEY for fallback/multimodal generation.');
+    throw new ApiFailure(503, 'AI is not configured. Add a Gemini API key on the server.');
   }
   const ai = injectedClient ?? (client ??= new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! }));
   const models = getGeminiModels();
-  // Reuse the shared phase deadline instead of minting a fresh 29s budget here;
-  // whatever Workers AI consumed comes out of the fallback's time, not on top of it.
-  const deadline = overallDeadline;
+  const deadline = Date.now() + (drawingOptions ? Math.min(55000, drawingOptions.timeoutMs) : 29000);
 
   let foundryIdea: FoundryIdea | null = null;
-  // Skip the idea pre-pass when Workers AI already attempted the request: the
-  // prompt was already enhanced for Workers AI above, so this extra Gemini call
-  // just burns quota re-deriving ideas on the fallback path. (Tests inject a
-  // client, which bypasses Workers AI, so they keep the old behavior.)
-  if (foundryRequest && typeof prompt === 'string' && models[0] && !workersAiAttempted) {
+  if (foundryRequest && typeof prompt === 'string' && models[0]) {
     foundryIdea = await searchFoundryIdeas(ai, models[0], prompt);
   }
 
