@@ -8,6 +8,7 @@ import { generateMaterialSprite } from '../lib/pixelRenderer';
 import { MaterialSprite } from './ElementSprite';
 import { chooseRandomProcess } from '../lib/randomProcess';
 import { EXTRA_PROCESSES } from '../lib/extraProcesses';
+import { FOUNDRY_ACTIONS } from '../lib/foundryActions';
 import { sound } from '../lib/audio';
 import { FoundryFusionOverlay } from './FoundryFusionOverlay';
 
@@ -32,7 +33,7 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
       return { ...material, discoveredAt: item.discoveredAt || 0, customSpriteUrl: item.customSpriteUrl || generateMaterialSprite(material) };
     })];
   }, [foundryMaterials, craftItems]);
-  const availableProcesses = useMemo(() => [...processes, ...EXTRA_PROCESSES.filter(extra => !processes.some(p => p.id === extra.id))].filter(p => p.unlocked), [processes]);
+  const availableProcesses = useMemo(() => [...processes, ...EXTRA_PROCESSES.filter(extra => !processes.some(p => p.id === extra.id)), ...FOUNDRY_ACTIONS.filter(action => ![...processes, ...EXTRA_PROCESSES].some(p => p.id === action.id))].filter(p => p.unlocked), [processes]);
   // Mix is the useful default; all unlocked transformations remain available.
   const process = selectedProcess || availableProcesses.find(p => p.id === 'MIX') || availableProcesses[0];
   const categories = useMemo(() => [...new Set<string>(materials.map(m => m.category))].sort((a,b) => a.localeCompare(b)), [materials]);
