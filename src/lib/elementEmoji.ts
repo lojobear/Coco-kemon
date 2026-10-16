@@ -1,3 +1,4 @@
+import { spriteAssets, trackSpriteSync } from './spriteAssets';
 import { emojiKey } from './emojiGeometry';
 import { requestJson } from './api';
 
@@ -193,6 +194,17 @@ export function getElementEmoji(name: string, upgrade = false, variation = ''): 
       return cached;
     }
 
+    const userId = await spriteAssets?.currentUser();
+    if (!upgrade && userId) {
+      const reference = await spriteAssets!.find(userId, `generated:${key}`) || await spriteAssets!.findByName(userId, name);
+      if (reference) {
+        const data = await spriteAssets!.resolve(reference);
+        memory.set(key, data);
+        await save(ELEMENT_SPRITE_CACHE_PREFIX + key, data);
+        return data;
+      }
+    }
+
     const response = await requestJson<{
       imageBase64: string;
       mimeType: string;
@@ -210,6 +222,8 @@ export function getElementEmoji(name: string, upgrade = false, variation = ''): 
     const data = await normalizeGeneratedImage(response.imageBase64, response.mimeType);
     memory.set(key, data);
     await save(ELEMENT_SPRITE_CACHE_PREFIX + key, data);
+    if (userId) void trackSpriteSync(() => spriteAssets!.put(userId, `generated:${key}`, name, data)).catch(() => undefined);
+    if (typeof window !== 'undefined') window.dispatchEvent(new Event('quarkpop-sprite-ready'));
     return data;
   };
 

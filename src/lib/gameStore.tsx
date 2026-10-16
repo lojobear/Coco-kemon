@@ -1,3 +1,4 @@
+import { type SpriteChange, PROFILE_SPRITES_UPDATED } from './profileSprites';
 /**
  * ODDKIN FOUNDRY - Central Game State & Persistence Store
  * Manages materials, Oddkin species, processes, experiments, habitats,
@@ -10,7 +11,7 @@ import { STARTER_MATERIALS, ALL_PROCESSES, INITIAL_HABITATS, mergeProcesses } fr
 import { generateMaterialSprite, generateOddkinSprite, MATERIAL_SPRITE_RENDERER_VERSION } from './pixelRenderer';
 import { requestJson } from './api';
 import { validMaterial, validOddkin } from './validation';
-import { readFoundrySave, saveFoundry, exportCompleteSave, importCompleteSave } from './saveData';
+import { readFoundrySave, saveFoundry, exportCompleteSave, importCompleteSave, readCraftElements, saveCraftElements } from './saveData';
 import { sound } from './audio';
 import { matchesFoundryRecipe, validSynthesisResult, resolveMaterialDiscovery } from './foundryRecipes';
 import { dailyGoals, discoveryStreak, levelFromXp, nearMissHint, nextStreakMilestone, progressionXp, rollMaterialVariant, setProgress, streakReward } from './progression';
@@ -81,6 +82,7 @@ interface GameState {
   resetGame: () => void;
   exportSaveData: () => string;
   importSaveData: (jsonStr: string) => boolean;
+  applyProfileSpriteChanges: (changes: SpriteChange[]) => void;
 }
 
 const GameContext = createContext<GameState | null>(null);
@@ -725,6 +727,27 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     return exportCompleteSave(payload);
   }, [materials, oddkinCollection, processes, experiments, habitats]);
 
+  const applyProfileSpriteChanges = useCallback((changes: SpriteChange[]) => {
+    const update = <T extends { customSpriteUrl?: string }>(items: T[], type: SpriteChange['type'], id: (item: T) => string): T[] => {
+      let changed = false;
+      const next = items.map(item => {
+        const patch = changes.find(change => change.type === type && change.id === id(item) && change.previous === item.customSpriteUrl);
+        if (!patch) return item;
+        changed = true;
+        return { ...item, customSpriteUrl: patch.reference, ...(type === 'material' ? { spriteRendererVersion: MATERIAL_SPRITE_RENDERER_VERSION } : {}) };
+      });
+      return changed ? next : items;
+    };
+    setMaterials(items => update<Material>(items, 'material', item => item.id));
+    setOddkinCollection(items => update<Oddkin>(items, 'oddkin', item => item.speciesId));
+    const crafting = readCraftElements();
+    const next = update(crafting, 'craft', item => item.id);
+    if (next !== crafting) {
+      saveCraftElements(next);
+      window.dispatchEvent(new Event(PROFILE_SPRITES_UPDATED));
+    }
+  }, []);
+
   const importSaveData = useCallback((jsonStr: string): boolean => {
     try {
       if (isSynthesizing) return false;
@@ -795,6 +818,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     resetGame,
     exportSaveData,
     importSaveData,
+    applyProfileSpriteChanges,
   }), [
     materials,
     oddkinCollection,
@@ -825,6 +849,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     resetGame,
     exportSaveData,
     importSaveData,
+    applyProfileSpriteChanges,
   ]);
 
   return (

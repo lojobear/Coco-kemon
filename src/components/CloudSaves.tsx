@@ -1,11 +1,13 @@
+import { applySpriteChanges, syncProfileSprites } from '../lib/profileSprites';
+import { getSpriteSyncStatus, SPRITE_SYNC_EVENT, trackSpriteSync } from '../lib/spriteAssets';
 import { useEffect, useRef, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { useGame } from '../lib/gameStore';
 import { cloud, readCloudSave, writeCloudSave, validateCloudPayload, downloadBackup, RECOVERY_KEY, type CloudSave } from '../lib/cloudSave';
-import { saveProfileSprites, loadProfileSprites } from '../lib/profileSprites';
+import { loadProfileSprites } from '../lib/profileSprites';
 
 export function CloudSaves({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { exportSaveData, importSaveData, isSynthesizing } = useGame();
+  const { exportSaveData, importSaveData, isSynthesizing, applyProfileSpriteChanges } = useGame();
   const dialog = useRef<HTMLDialogElement>(null);
   const account = useRef<string | null>(null);
   const generation = useRef(0);
@@ -16,9 +18,15 @@ export function CloudSaves({ open, onClose }: { open: boolean; onClose: () => vo
   const [message, setMessage] = useState('');
   const [hasRecovery, setHasRecovery] = useState(false);
   const [spriteStatus, setSpriteStatus] = useState('');
+  const [syncStatus, setSyncStatus] = useState(getSpriteSyncStatus);
+  useEffect(() => {
+    const update = () => setSyncStatus(getSpriteSyncStatus());
+    window.addEventListener(SPRITE_SYNC_EVENT, update);
+    return () => window.removeEventListener(SPRITE_SYNC_EVENT, update);
+  }, []);
   // Always access the latest store callbacks after asynchronous requests.
-  const game = useRef({ exportSaveData, importSaveData, isSynthesizing });
-  game.current = { exportSaveData, importSaveData, isSynthesizing };
+  const game = useRef({ exportSaveData, importSaveData, isSynthesizing, applyProfileSpriteChanges });
+  game.current = { exportSaveData, importSaveData, isSynthesizing, applyProfileSpriteChanges };
 
   useEffect(() => {
     if (open && !dialog.current?.open) dialog.current?.showModal();
@@ -116,12 +124,12 @@ export function CloudSaves({ open, onClose }: { open: boolean; onClose: () => vo
       <p className="text-xs text-slate-400">Device saves are automatic. Cloud saves are manual: save before switching devices, then load on the other device.</p>
       <div className="rounded-lg border border-cyan-800/50 bg-cyan-950/20 p-3 space-y-2">
         <h3 className="font-bold text-sm text-cyan-200">Profile sprite library</h3>
-        <p className="text-xs text-slate-300">Back up your uploaded, upgraded and cached AI-generated sprites to your private Google profile. Restore them on a different device without spending AI credits.</p>
+        <p className="text-xs text-slate-300">Sprites upload automatically while signed in and become available for matching discoveries on your other devices. Game progress still uses Save to cloud and Load from cloud.</p>
         <div className="grid grid-cols-2 gap-2">
           <button className={button} disabled={busy || isSynthesizing} onClick={() => run(async current => {
             const local = game.current.exportSaveData();
-            const count = await saveProfileSprites(user.id, local);
-            if (current()) setSpriteStatus(`${count} sprites saved privately to your profile.`);
+            const result = await trackSpriteSync(() => syncProfileSprites(user.id, local, 'save'));
+            if (current()) { game.current.applyProfileSpriteChanges(result.changes); setSpriteStatus(`${result.count} sprites saved privately to your profile.`); }
           })}>Save sprites</button>
           <button className={button} disabled={busy || isSynthesizing} onClick={() => run(async current => {
             const currentJson = game.current.exportSaveData();
@@ -137,12 +145,21 @@ export function CloudSaves({ open, onClose }: { open: boolean; onClose: () => vo
             setSpriteStatus(`Restored ${restored.count} sprites from your profile.`);
           })}>Restore sprites</button>
         </div>
-        <p role="status" className="text-xs text-cyan-300">{spriteStatus}</p>
+        <p role="status" className="text-xs text-cyan-300">{syncStatus.pending ? 'Syncing sprite artwork…' : syncStatus.error || spriteStatus || 'Sprite sync is automatic while signed in.'}</p>
+        <button className={button} disabled={busy || syncStatus.pending > 0} onClick={() => {
+          window.dispatchEvent(new Event('quarkpop-retry-sprites'));
+          setSpriteStatus('Retrying sprite sync…');
+        }}>Retry sprite sync</button>
       </div>
       <div className="grid grid-cols-2 gap-2">
         <button className={button} disabled={busy || snapshot === undefined || isSynthesizing} onClick={() => run(async current => {
           if (snapshot && !window.confirm(`Replace the cloud collection for ${user.email ?? 'this account'} with this device’s progress?`)) return;
-          const saved = await writeCloudSave(game.current.exportSaveData(), snapshot?.revision ?? 0, user.id);
+          const local = game.current.exportSaveData();
+          const sprites = await trackSpriteSync(() => syncProfileSprites(user.id, local, 'save'));
+          if (!current()) return;
+          game.current.applyProfileSpriteChanges(sprites.changes);
+          const json = JSON.stringify(applySpriteChanges(JSON.parse(local), sprites.changes));
+          const saved = await writeCloudSave(json, snapshot?.revision ?? 0, user.id);
           if (current()) { setSnapshot(saved); setMessage('Saved to your Google account.'); }
         })}>Save to cloud</button>
         <button className={button} disabled={busy || !snapshot || isSynthesizing} onClick={() => run(async current => {

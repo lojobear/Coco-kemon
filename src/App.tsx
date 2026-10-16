@@ -1,3 +1,4 @@
+import { ProfileSpriteSync } from './components/ProfileSpriteSync';
 /**
  * QUARKPOP
  * "DISCOVER MATTER. CREATE LIFE."
@@ -137,6 +138,7 @@ function GameContent() {
 export default function App() {
   return (
     <GameProvider>
+      <ProfileSpriteSync />
       <GameContent />
     </GameProvider>
   );

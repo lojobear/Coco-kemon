@@ -1,3 +1,5 @@
+import { PROFILE_SPRITES_UPDATED } from '../lib/profileSprites';
+import { SpriteImage } from './SpriteImage';
 /**
  * ODDKIN FOUNDRY - The Archive
  * Comprehensive catalog of all discovered materials & Oddkin species
@@ -71,7 +73,12 @@ export function ArchiveView({
 }) {
   const { materials: foundryMaterials, oddkinCollection, setInspectedItem, transformOddkinWithCatalyst } = useGame();
 
-  const [craftItems] = useState(readCraftElements);
+  const [craftItems, setCraftItems] = useState(readCraftElements);
+  useEffect(() => {
+    const update = () => setCraftItems(readCraftElements());
+    window.addEventListener(PROFILE_SPRITES_UPDATED, update);
+    return () => window.removeEventListener(PROFILE_SPRITES_UPDATED, update);
+  }, []);
   const materials = useMemo(() => {
     const names = new Set(foundryMaterials.map(item => item.displayName.trim().toLowerCase()));
     return [...foundryMaterials, ...craftItems.filter(item => !names.has(item.name.trim().toLowerCase())).map(item => ({
@@ -379,7 +386,7 @@ export function ArchiveView({
                     )}
 
                     <div className="w-16 h-16 rounded-lg bg-[#110e18] p-1 mb-2 flex items-center justify-center border border-[#2b243b] group-hover:scale-105 transition-transform">
-                      <img
+                      <SpriteImage
                         src={odd.customSpriteUrl}
                         alt={odd.speciesName}
                         className="w-14 h-14 pixelated drop-shadow"
@@ -472,7 +479,7 @@ export function ArchiveView({
             {/* Header info */}
             <div className="flex items-center gap-4 pb-3 border-b border-[#282f3d]">
               <div className="w-20 h-20 rounded-xl bg-[#111317] border border-[#2f3747] flex items-center justify-center p-1">
-                {activeInspected.type === 'material' ? <MaterialSprite material={activeInspected.item as Material} className="w-16 h-16" /> : <img src={activeInspected.item.customSpriteUrl} alt={(activeInspected.item as Oddkin).speciesName} className="w-16 h-16 pixelated" />}
+                {activeInspected.type === 'material' ? <MaterialSprite material={activeInspected.item as Material} className="w-16 h-16" /> : <SpriteImage src={activeInspected.item.customSpriteUrl} alt={(activeInspected.item as Oddkin).speciesName} className="w-16 h-16 pixelated" />}
               </div>
 
               <div>
