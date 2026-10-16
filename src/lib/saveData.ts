@@ -1,3 +1,4 @@
+import { isSpriteReference } from './spriteReference';
 import { validKitchenRecipe } from './kitchen/engine';
 import { STARTER_ELEMENTS, type InfiniteElement } from './infiniteCraftData';
 import { ALL_PROCESSES, INITIAL_HABITATS } from './starterData';
@@ -5,6 +6,7 @@ import { record, text, strings, finite, color, validMaterial, validOddkin } from
 
 export const SAVE_KEY = 'coco_kemon_save_v2';
 export const SAVE_IMPORTED_EVENT = 'coco-kemon-save-imported';
+export const SAVE_CHANGED_EVENT = 'quarkpop-save-changed';
 export const SAVE_STATUS_EVENT = 'coco-kemon-save-status';
 /** Largest data-URL a sprite may have inside the save. Shared with Sprite Lab so it can shrink images to fit. */
 export const MAX_SPRITE_CHARS = 100000;
@@ -37,7 +39,7 @@ const unique = (items: any[], key: string) => new Set(items.map(x => x[key])).si
 export function validateCraft(v: unknown): v is InfiniteElement[] {
   return Array.isArray(v) && v.every(x => record(x) && (x.kitchenRecipe === undefined || validKitchenRecipe(x.kitchenRecipe)) && text(x.id) && text(x.name) && text(x.emoji) &&
     (['explanation', 'connection', 'variantOf'].every(k => x[k] === undefined || (text(x[k]) && x[k].length <= 280))) &&
-    (x.customSpriteUrl === undefined || (typeof x.customSpriteUrl === 'string' && x.customSpriteUrl.length <= MAX_SPRITE_CHARS && /^data:image\/png;base64,[A-Za-z0-9+/]+={0,2}$/.test(x.customSpriteUrl))) &&
+    (x.customSpriteUrl === undefined || (typeof x.customSpriteUrl === 'string' && x.customSpriteUrl.length <= MAX_SPRITE_CHARS && (/^data:image\/png;base64,[A-Za-z0-9+/]+={0,2}$/.test(x.customSpriteUrl) || isSpriteReference(x.customSpriteUrl)))) &&
     (x.discoveredAt === undefined || finite(x.discoveredAt)) && (x.isNew === undefined || typeof x.isNew === 'boolean') &&
     (x.isShiny === undefined || typeof x.isShiny === 'boolean') &&
     (x.unlockedShiny === undefined || typeof x.unlockedShiny === 'boolean') &&
@@ -95,6 +97,7 @@ function write(foundry: any, crafting: InfiniteElement[], force = false) {
   lastSeenSavedAt = savedAt;
   invalidateStoredEnvelope();
   status(null);
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(SAVE_CHANGED_EVENT));
 }
 export function saveCraftElements(elements: InfiniteElement[]) {
   craftMemory = elements; // Keep export available even when browser storage is full.

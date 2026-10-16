@@ -1,3 +1,4 @@
+import { SpriteImage } from './SpriteImage';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { getElementEmoji } from '../lib/elementEmoji';
 import { emojiKey } from '../lib/emojiGeometry';
@@ -33,8 +34,8 @@ export function ElementSprite({ name, custom, fallback, className = '', alt = ''
   }, [key, custom, retry]);
   const url = custom || (art?.key === key ? art.url : undefined);
   return <span ref={host} className={`element-emoji${idle ? ' sprite-idle' : ''} ${className}`} title={error ? `Emoji unavailable: ${error} Retry in Sprites.` : undefined}>
-    {url ? <img src={url} alt={alt} draggable={false} decoding="async" /> : fallback?.startsWith('data:') || fallback?.startsWith('/')
-      ? <img src={fallback} alt={alt} draggable={false} />
+    {url ? <SpriteImage src={url} alt={alt} draggable={false} decoding="async" /> : fallback?.startsWith('data:') || fallback?.startsWith('/')
+      ? <SpriteImage src={fallback} alt={alt} draggable={false} />
       : <span role={alt ? 'img' : undefined} aria-label={alt || undefined}>{fallback || '◌'}</span>}
   </span>;
 }

@@ -1,3 +1,6 @@
+import { spriteAssets, trackSpriteSync } from '../lib/spriteAssets';
+import { PROFILE_SPRITES_UPDATED } from '../lib/profileSprites';
+import { SpriteImage } from './SpriteImage';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ImagePlus, RefreshCw, RotateCcw, Search, Sparkles, Upload, X } from 'lucide-react';
 import { useGame } from '../lib/gameStore';
@@ -97,7 +100,18 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
     [items, selectedKey]
   );
 
-  const persistSprite = (target: LabItem, sprite?: string) => {
+  useEffect(() => {
+    const update = () => setCraftElements(readCraftElements());
+    window.addEventListener(PROFILE_SPRITES_UPDATED, update);
+    return () => window.removeEventListener(PROFILE_SPRITES_UPDATED, update);
+  }, []);
+
+  const persistSprite = async (target: LabItem, sprite?: string) => {
+    const userId = await spriteAssets?.currentUser();
+    if (userId && sprite === undefined) await trackSpriteSync(() => spriteAssets!.remove(userId, `${target.type}:${target.id}`));
+    if (userId && sprite?.startsWith('data:image/png;base64,')) {
+      sprite = await trackSpriteSync(() => spriteAssets!.put(userId, `${target.type}:${target.id}`, target.name, sprite!));
+    }
     if (target.type === 'craft') {
       const current = readCraftElements();
       if (!current.some(item => item.id === target.id)) throw new Error('Discovery no longer exists.');
@@ -140,7 +154,7 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
       // The generated art must become the selected item's active sprite. Previously
       // it only updated the hidden cache, so any existing custom/procedural sprite
       // kept winning and made both buttons appear broken.
-      persistSprite(target, sprite);
+      await persistSprite(target, sprite);
       setStatus(mode === 'reroll'
         ? `${target.name} rerolled with a new high-quality 2.5D pixel sprite.`
         : `${target.name} upgraded to premium 2.5D pixel art.`);
@@ -153,13 +167,13 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
 
   const reroll = (target: LabItem) => freshPixelSprite(target, 'reroll');
 
-  const restoreDefault = (target: LabItem) => {
+  const restoreDefault = async (target: LabItem) => {
     try {
-      if (target.type === 'craft') { persistSprite(target); setStatus(`${target.name} restored to its saved unique emoji.`); return; }
+      if (target.type === 'craft') { await persistSprite(target); setStatus(`${target.name} restored to its saved unique emoji.`); return; }
       const sprite = target.type === 'material'
         ? generateMaterialSprite(target.item)
         : generateOddkinSprite(target.item, { isChroma: target.item.isChromaActive });
-      persistSprite(target, sprite);
+      await persistSprite(target, sprite);
       setStatus(`${target.name} restored to its default artwork.`);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Could not restore the sprite.');
@@ -171,7 +185,7 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
     setUploading(true);
     try {
       const sprite = await fileToSprite(file);
-      persistSprite(selected, sprite);
+      await persistSprite(selected, sprite);
       setStatus(`${selected.name} now uses your custom sprite.`);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Custom sprite upload failed.');
@@ -266,5 +280,5 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
 function LabSprite({ target, className }: { target: LabItem; className: string }) {
   if (target.type === 'material') return <MaterialSprite material={target.item} className={className} alt={target.name} />;
   if (target.type === 'craft') return <ElementSprite name={target.name} custom={target.sprite} fallback={target.item.emoji} className={className} alt={target.name} />;
-  return <img src={target.sprite} alt={target.name} className={`${className} object-contain pixelated`} />;
+  return <SpriteImage src={target.sprite} alt={target.name} className={`${className} object-contain pixelated`} />;
 }

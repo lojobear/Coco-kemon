@@ -1,3 +1,4 @@
+import { PROFILE_SPRITES_UPDATED } from '../lib/profileSprites';
 import { CraftSprite, CraftSprites } from './CraftSprite';
 import { DiscoveryTrails } from './DiscoveryTrails';
 /**
@@ -134,6 +135,12 @@ export function InfiniteCraftView() {
     };
     window.addEventListener(SAVE_IMPORTED_EVENT, reload);
     return () => window.removeEventListener(SAVE_IMPORTED_EVENT, reload);
+  }, []);
+
+  useEffect(() => {
+    const update = () => setElements(sanitizeElements(readCraftElements()));
+    window.addEventListener(PROFILE_SPRITES_UPDATED, update);
+    return () => window.removeEventListener(PROFILE_SPRITES_UPDATED, update);
   }, []);
 
   const [canvasItems, setCanvasItems] = useState<CanvasItem[]>([
