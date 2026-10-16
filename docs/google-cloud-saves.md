@@ -101,7 +101,7 @@ References: https://supabase.com/docs/guides/auth/social-login/auth-google and h
 
 ## Automatic private sprite storage
 
-Apply `supabase/migrations/20261016004024_automatic_sprite_assets.sql` after the cloud-save migration. It creates the private `sprite_assets` index and the `quarkpop-profile-sprites` bucket policies. It does not modify existing game saves or remove image files.
+Apply `supabase/migrations/20261016004829_automatic_sprite_assets.sql` after the cloud-save migration. It creates the private `sprite_assets` index and the `quarkpop-profile-sprites` bucket policies. It does not modify existing game saves or remove image files.
 
 While signed in, generated artwork is uploaded automatically. Sprite Lab uploads and rerolls publish their PNG before activating its permanent `sprite://<account>/auto/<sha256>.png` reference. Existing device artwork is migrated in the background; matching cloud artwork is restored automatically when the device has no custom override. Local conflicting uploads are preserved until the player explicitly chooses **Save sprites** or **Restore sprites**. **Retry sprite sync** and coming back online retry failed background uploads.
 

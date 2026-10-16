@@ -24,7 +24,7 @@ test('sprite metadata and private storage enforce account ownership for reads an
       grant usage on all sequences in schema storage to anon, authenticated;
       insert into auth.users values ('${alice}'), ('${bob}');
     `);
-    await db.exec(await readFile('supabase/migrations/20261016004024_automatic_sprite_assets.sql', 'utf8'));
+    await db.exec(await readFile('supabase/migrations/20261016004829_automatic_sprite_assets.sql', 'utf8'));
     await db.exec('set role anon');
     await assert.rejects(db.query('select * from public.sprite_assets'), /permission denied/);
     await db.exec('set role authenticated');
