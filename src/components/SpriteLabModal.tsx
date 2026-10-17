@@ -65,7 +65,7 @@ async function fileToSprite(file: File): Promise<string> {
 }
 
 export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => void; embedded?: boolean }) {
-  const { materials, oddkinCollection, exportSaveData, importSaveData } = useGame();
+  const { materials, oddkinCollection, exportSaveData, importSaveData, setActiveTab } = useGame();
   const [craftElements, setCraftElements] = useState(readCraftElements);
   useEffect(() => {
     const reload = () => setCraftElements(readCraftElements());
@@ -96,7 +96,7 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
   }, [materials, oddkinCollection, craftElements, query, filter]);
 
   const selected = useMemo(
-    () => items.find(item => `${item.type}:${item.id}` === selectedKey) || null,
+    () => items.find(item => `${item.type}:${item.id}` === selectedKey) || items[0] || null,
     [items, selectedKey]
   );
 
@@ -196,85 +196,39 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
   };
 
   return (
-    <div className={embedded ? "w-full flex-1 min-h-0 flex p-2 sm:p-4" : "fixed inset-0 z-[80] bg-black/85 backdrop-blur-md p-3 sm:p-5 flex items-center justify-center"} onClick={embedded ? undefined : onClose}>
-      <div className="w-full mx-auto max-w-4xl h-full min-h-0 overflow-hidden rounded-2xl border border-[#343b49] bg-[#11141a] shadow-2xl flex flex-col" onClick={event => event.stopPropagation()}>
-        <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-[#292f3b]">
-          <div>
-            <div className="flex items-center gap-2 text-white font-black"><Sparkles className="w-4 h-4 text-amber-400" /> SPRITE LAB</div>
-            <div className="text-[10px] text-[#8b95a7]">Customize Infinite Craft, materials, and Oddkin. Names, stats, and recipes stay unchanged.</div>
-          </div>
-          {!embedded && <button onClick={onClose} className="p-2 rounded-lg bg-[#1b2029] text-[#9ca3af] hover:text-white" aria-label="Close Sprite Lab"><X className="w-4 h-4" /></button>}
-        </div>
-
-        <div className="p-3 border-b border-[#252b36] flex flex-col sm:flex-row gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-2.5 top-2.5 w-4 h-4 text-[#697386]" />
-            <input value={query} onChange={event => setQuery(event.target.value)} aria-label="Search sprites" placeholder="Search discoveries..." className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#0b0d11] border border-[#2b313d] text-sm text-white outline-none focus:border-amber-500" />
-          </div>
-          <div className="flex gap-1 bg-[#0b0d11] border border-[#2b313d] rounded-xl p-1">
-            {(['all', 'craft', 'material', 'oddkin'] as const).map(value => (
-              <button key={value} onClick={() => setFilter(value)} className={`px-3 py-1.5 rounded-lg text-xs font-bold capitalize ${filter === value ? 'bg-amber-400 text-black' : 'text-[#9ca3af]'}`}>{value}</button>
-            ))}
-          </div>
-        </div>
-
-        <div className="flex-1 min-h-0 overflow-y-auto grid grid-rows-[minmax(160px,1fr)_auto] md:grid-rows-1 md:grid-cols-[1fr_300px]">
-          <div className="overflow-y-auto p-3 grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2 content-start">
-            {items.length === 0 && <p className="col-span-full text-sm text-slate-400 p-3">No matching discoveries. Try another filter or keep crafting.</p>}
-            {items.map(item => {
-              const key = `${item.type}:${item.id}`;
-              const active = key === selectedKey;
-              return (
-                <button key={key} onClick={() => { sound.playClick(); setSelectedKey(key); setStatus(null); }} className={`rounded-xl border p-2 text-center min-w-0 transition ${active ? 'border-amber-400 bg-amber-400/10' : 'border-[#272e39] bg-[#161a21] hover:border-[#4a5568]'}`}>
-                  <div className="aspect-square rounded-lg bg-[#0b0d11] flex items-center justify-center mb-1.5 overflow-hidden">
-                    <LabSprite target={item} className="w-[80%] h-[80%]" />
-                  </div>
-                  <div className="text-[10px] font-bold text-white truncate">{item.name}</div>
-                  <div className="text-[9px] text-[#6b7280] capitalize">{item.type}</div>
-                </button>
-              );
-            })}
-          </div>
-
-          <aside className="border-t md:border-t-0 md:border-l border-[#292f3b] bg-[#0e1116] p-4 overflow-y-auto">
-            {selected ? (
-              <div className="space-y-4">
-                <div className="text-center">
-                  <div className="w-40 h-40 mx-auto rounded-2xl bg-[#07090c] border border-[#303744] flex items-center justify-center overflow-hidden">
-                    <LabSprite target={selected} className="w-32 h-32" />
-                  </div>
-                  <div className="mt-2 font-black text-white">{selected.name}</div>
-                  <div className="text-[10px] uppercase tracking-wider text-[#788397]">{selected.type}</div>
-                </div>
-
-                <button disabled={uploading} onClick={() => void reroll(selected)} className="w-full py-3 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-black text-sm flex items-center justify-center gap-2">
-                  <RefreshCw className="w-4 h-4" /> REROLL HQ 2.5D SPRITE
-                </button>
-                <p className="text-[10px] text-[#80899a] leading-relaxed">New sprites use brighter, subject-matched colors, clean chromatic outlines, readable 2.5D bevels and crisp pixel highlights. Existing sprites stay as they are unless you choose to reroll or upgrade one.</p>
-
-                <button disabled={uploading} className="w-full py-3 rounded-xl border text-xs font-bold" onClick={() => void freshPixelSprite(selected, 'upgrade')}>
-                  UPGRADE TO HQ 2.5D PIXEL ART
-                </button>
-                {selected.type !== 'oddkin' && <button className="w-full py-2 text-xs underline" onClick={() => { retryElementEmoji(selected.name); setStatus('Retrying missing art. Existing saved art is reused.'); }}>Retry missing art</button>}
-                <input ref={uploadRef} type="file" accept="image/png,image/webp,image/jpeg" className="hidden" onChange={event => void uploadCustom(event.target.files?.[0])} />
-                <button disabled={uploading} onClick={() => uploadRef.current?.click()} className="w-full py-2.5 rounded-xl bg-[#18202a] border border-[#344154] text-white text-xs font-bold flex items-center justify-center gap-2">
-                  <Upload className="w-4 h-4" /> USE MY IMAGE
-                </button>
-                <button disabled={uploading} onClick={() => restoreDefault(selected)} className="w-full py-2.5 rounded-xl bg-[#14181f] border border-[#2b323e] text-[#aab2bf] text-xs font-bold flex items-center justify-center gap-2">
-                  <RotateCcw className="w-4 h-4" /> RESTORE DEFAULT
-                </button>
-
-                {status && <div role="status" aria-live="polite" className="rounded-lg border border-[#303846] bg-[#171c24] p-2.5 text-[10px] text-[#cbd5e1]">{status}</div>}
-              </div>
-            ) : (
-              <div className="h-full min-h-48 flex items-center justify-center text-center text-xs text-[#697386] px-4">Choose a discovery to edit its sprite.</div>
-            )}
+    <div className={embedded ? 'boop-sprite-lab' : 'boop-lab-overlay'} onClick={embedded ? undefined : onClose}>
+      <section className="boop-lab-content" onClick={event => event.stopPropagation()} aria-label="Sprite studio">
+        <div className="boop-screen-intro"><div><h1>Make it yours.</h1><p>Bring your own art into your collection.</p></div>{!embedded && <button className="boop-secondary" aria-label="Close Sprite Lab" onClick={onClose}><X size={20} /></button>}</div>
+        <div className="boop-lab-layout">
+          <aside className="boop-sprite-editor">
+            {selected ? <>
+              <div className="boop-sprite-preview"><span className="boop-preview-tag">LIVE PREVIEW</span><LabSprite target={selected} className="boop-editor-sprite" /></div>
+              <div className="boop-sprite-identity"><h2>{selected.name}</h2><span className="boop-category-tag">{selected.type === 'craft' ? 'Discovery' : selected.type === 'oddkin' ? 'Oddkin' : selected.item.rarity.toLowerCase()}</span><span className="boop-category-tag">Your collection</span></div>
+              <div className="boop-sprite-actions"><button className="boop-primary" disabled={uploading} onClick={() => uploadRef.current?.click()}><Upload size={18} />Upload artwork</button><button className="boop-secondary" disabled={uploading} onClick={() => void reroll(selected)}><RefreshCw size={18} />{uploading ? 'Working…' : 'Reroll sprite'}</button></div>
+              <input ref={uploadRef} type="file" accept="image/png,image/webp,image/jpeg" className="hidden" onChange={event => void uploadCustom(event.target.files?.[0])} />
+              <div className="boop-artwork-settings"><div><span>Sprite quality</span><strong>High</strong></div><div><span>Upload formats</span><strong>PNG · WebP · JPG</strong></div><div><span>Collection storage</span><strong>Saved automatically</strong></div></div>
+              <div className="boop-sprite-tools"><button disabled={uploading} onClick={() => void freshPixelSprite(selected, 'upgrade')}><Sparkles size={16} />Upgrade artwork</button><button disabled={uploading} onClick={() => void restoreDefault(selected)}><RotateCcw size={16} />Restore default</button>{selected.type !== 'oddkin' && <button disabled={uploading} onClick={() => { retryElementEmoji(selected.name); setStatus('Retrying missing art. Existing saved art is reused.'); }}>Retry missing art</button>}</div>
+              <p className="boop-library-caption">Uploads and rerolls save as you go. Open your profile to manage cloud backups.</p>
+              {status && <div className="boop-notice" role="status" aria-live="polite">{status}</div>}
+              {embedded && <button className="boop-primary boop-explore" onClick={() => setActiveTab('archive')}>View collection →</button>}
+            </> : <div className="boop-empty"><ImagePlus size={36} /><h2>Your art starts here.</h2><p>Craft a discovery, then give it your own sprite.</p></div>}
           </aside>
+          <div className="boop-sprite-picker">
+            <div className="boop-section-heading"><h2>Choose a discovery</h2><small>{items.length} items</small></div>
+            <label className="boop-search"><Search size={18} /><input value={query} onChange={event => setQuery(event.target.value)} aria-label="Search sprites" placeholder="Search discoveries…" /></label>
+            <div className="boop-pills" aria-label="Sprite category">{(['all', 'craft', 'material', 'oddkin'] as const).map(value => <button key={value} aria-pressed={filter === value} onClick={() => setFilter(value)}>{value === 'all' ? 'All' : value === 'craft' ? 'Craft' : value === 'material' ? 'Matter' : 'Oddkin'}</button>)}</div>
+            <div className="boop-sprite-picker-grid">{items.map(item => {
+              const key = `${item.type}:${item.id}`;
+              return <button key={key} disabled={uploading} aria-pressed={selected?.id === item.id && selected?.type === item.type} onClick={() => { sound.playClick(); setSelectedKey(key); setStatus(null); }}><LabSprite target={item} className="boop-picker-sprite" /><strong>{item.name}</strong><small>{item.type}</small></button>;
+            })}</div>
+            {!items.length && <p className="boop-empty">No matching discoveries. Try another filter.</p>}
+          </div>
         </div>
-      </div>
+      </section>
     </div>
   );
 }
+
 
 
 function LabSprite({ target, className }: { target: LabItem; className: string }) {

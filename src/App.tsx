@@ -1,16 +1,19 @@
 import { ProfileSpriteSync } from './components/ProfileSpriteSync';
 /**
- * QUARKPOP
+ * BOOP
  * "DISCOVER MATTER. CREATE LIFE."
  * Mobile-First AI Crafting & Procedural Genome Sprite Collection Game
  */
 
 import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { GameProvider, useGame } from './lib/gameStore';
+import { CloudSaves } from './components/CloudSaves';
 import { Header } from './components/Header';
 import { DiscoveryModal } from './components/DiscoveryModal';
 import { BottomNav } from './components/BottomNav';
 
+const loadWorkBench = () => import('./components/WorkBench');
+const WorkBench = lazy(() => loadWorkBench().then(module => ({ default: module.WorkBench })));
 const loadKitchenView = () => import('./components/KitchenView');
 const loadInfiniteCraftView = () => import('./components/InfiniteCraftView');
 const loadArchiveView = () => import('./components/ArchiveView');
@@ -32,6 +35,8 @@ import { sound } from './lib/audio';
 function GameContent() {
   const { activeTab, setActiveTab, inspectedItem, setInspectedItem } = useGame();
 
+  const [showCloud, setShowCloud] = useState(false);
+  const [collectionSearch, setCollectionSearch] = useState('');
   const [kitchenOpened, setKitchenOpened] = useState(false);
   useEffect(() => { if (activeTab === 'kitchen') setKitchenOpened(true); }, [activeTab]);
 
@@ -82,17 +87,21 @@ function GameContent() {
   const [showVoiceModal, setShowVoiceModal] = useState<boolean>(false);
 
   return (
-    <div data-theme="quark-light" className="h-[100dvh] max-h-[100dvh] w-full collection-app bg-white text-neutral-900 flex flex-col justify-between overflow-hidden selection:bg-neutral-900 selection:text-white">
+    <div data-theme="quark-light" className="boop-app h-[100dvh] max-h-[100dvh] w-full collection-app bg-white text-neutral-900 flex flex-col justify-between overflow-hidden selection:bg-neutral-900 selection:text-white">
       {/* Top Header */}
       <Header
+        onOpenProfile={() => setShowCloud(true)}
+        onSearchCollection={query => { setCollectionSearch(query); setActiveTab('archive'); }}
         onOpenSeeds={() => setShowSeedsModal(true)}
         onOpenVoice={() => setShowVoiceModal(true)}
       />
 
-      {saveError && <div role="alert" className="bg-red-50 text-red-900 border-b border-red-200 p-3 text-sm">{saveError}</div>}
       {/* Main Viewport Content */}
-      <main className={`flex-1 w-full min-h-0 flex flex-col ${(activeTab === 'infinite-craft' || activeTab === 'sprite-lab' || activeTab === 'foundry') ? 'overflow-hidden' : 'overflow-y-auto'}`}>
+      <main className={`boop-main flex-1 w-full min-h-0 flex flex-col ${(activeTab === 'infinite-craft') ? 'overflow-hidden' : 'overflow-y-auto'}`}>
+        {saveError && <div role="alert" className="boop-save-alert">{saveError}</div>}
         {kitchenOpened && <div hidden={activeTab !== 'kitchen'}><Suspense fallback={<div className="view-loading-card">Opening Kitchen…</div>}><KitchenView visible={activeTab === 'kitchen'} /></Suspense></div>}
+
+        {activeTab === 'foundry' && <Suspense fallback={<div className="view-loading-card">Opening Foundry…</div>}><WorkBench onInspectMaterial={item => setInspectedItem({ type: 'material', item })} /></Suspense>}
 
         {activeTab === 'infinite-craft' && (
           <Suspense fallback={<div className="view-loading-card">Warming the Craft lab…</div>}><InfiniteCraftView /></Suspense>
@@ -101,6 +110,7 @@ function GameContent() {
         {activeTab === 'archive' && (
           <Suspense fallback={<div className="view-loading-card">Opening your collection…</div>}>
             <ArchiveView
+              initialSearch={collectionSearch}
               inspectedItem={inspectedItem}
               onCloseInspect={() => setInspectedItem(null)}
             />
@@ -117,7 +127,8 @@ function GameContent() {
       </main>
 
       {/* Bottom Navigation */}
-      <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} />
+      <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} onOpenProfile={() => setShowCloud(true)} />
+      <CloudSaves open={showCloud} onClose={() => setShowCloud(false)} />
 
       {/* Floating Modals */}
       <DiscoveryModal />

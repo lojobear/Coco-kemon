@@ -65,9 +65,11 @@ function sortArchive<T extends { rarity: Rarity; discoveredAt: number }>(
 }
 
 export function ArchiveView({
+  initialSearch = '',
   inspectedItem,
   onCloseInspect,
 }: {
+  initialSearch?: string;
   inspectedItem: { type: 'material' | 'oddkin'; item: Material | Oddkin } | null;
   onCloseInspect: () => void;
 }) {
@@ -88,7 +90,8 @@ export function ArchiveView({
   }, [foundryMaterials, craftItems]);
   const [activeSubTab, setActiveSubTab] = useState<'all' | 'oddkin' | 'materials'>('all');
   const [selectedRarity, setSelectedRarity] = useState<string>('ALL');
-  const [searchFilter, setSearchFilter] = useState<string>('');
+  const [searchFilter, setSearchFilter] = useState<string>(initialSearch);
+  useEffect(() => { setSearchFilter(initialSearch); }, [initialSearch]);
   const [selectedCatalyst, setSelectedCatalyst] = useState<Material | null>(null);
   const [sortMode, setSortMode] = useState<SortMode>('newest');
   const [favorites, setFavorites] = useState<string[]>(loadFavorites);
@@ -204,7 +207,7 @@ export function ArchiveView({
   };
 
   const skeletonGrid = (count = 8) => (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
+    <div className="boop-archive-grid grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
       {Array.from({ length: count }, (_, i) => (
         <div key={i}><SkeletonCard /></div>
       ))}
@@ -239,16 +242,16 @@ export function ArchiveView({
   }, []);
 
   return (
-    <div className="w-full flex-1 max-w-4xl mx-auto px-3 py-4 space-y-4 font-mono select-none">
+    <div className="boop-archive w-full flex-1 max-w-4xl mx-auto px-3 py-4 space-y-4 select-none">
       {/* Archive Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#282d37]">
         <div>
           <h2 className="text-base sm:text-lg font-bold text-[#f3f4f6] flex items-center gap-2">
             <BookOpen className="w-5 h-5 text-[#f59e0b]" />
-            YOUR COLLECTION
+            Your collection.
           </h2>
           <p className="text-xs text-[#9ca3af]">
-            The things you discovered and the Oddkin you brought to life.
+            A cabinet of curious things, collected by you.
           </p>
         </div>
 
@@ -287,12 +290,14 @@ export function ArchiveView({
         </div>
       </div>
 
+      <div className="boop-collection-stats"><div><strong>{materials.length + oddkinCollection.length}</strong><span>Discoveries</span></div><div><strong>{[...materials, ...oddkinCollection].filter(item => RARITY_RANK[item.rarity] >= 2).length}</strong><span>Rare finds</span></div><div><strong>{favorites.length}</strong><span>Favourites</span></div></div>
+
       {/* Search, Sort & Surprise Controls */}
       <div className="flex flex-col sm:flex-row gap-2">
         <input
           ref={searchInputRef}
           type="text"
-          placeholder="Filter by name, classification, or traits...  (press /)"
+          aria-label="Search your discoveries" placeholder="Search your discoveries…"
           value={searchFilter}
           onChange={e => setSearchFilter(e.target.value)}
           className="flex-1 px-3 py-1.5 rounded-lg bg-[#16181e] border border-[#2a2f3d] text-xs text-[#f3f4f6] placeholder-[#6b7280] focus:outline-none focus:border-[#f59e0b]"
@@ -366,11 +371,13 @@ export function ArchiveView({
             ) : isDebouncing ? (
               skeletonGrid()
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
+              <div className="boop-archive-grid grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
                 {visibleOddkin.map(odd => (
                   <div
                     key={odd.speciesId}
                     data-rarity={odd.rarity}
+                    role="button" tabIndex={0} aria-label={`Inspect ${odd.speciesName}`}
+                    onKeyDown={event => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); setInspectedItem({ type: 'oddkin', item: odd }); } }}
                     onClick={() => {
                       sound.playClick();
                       sound.playOddkinChirp(odd.chirpToneHz, odd.temperament);
@@ -385,11 +392,11 @@ export function ArchiveView({
                       </span>
                     )}
 
-                    <div className="w-16 h-16 rounded-lg bg-[#110e18] p-1 mb-2 flex items-center justify-center border border-[#2b243b] group-hover:scale-105 transition-transform">
+                    <div className="boop-archive-art w-16 h-16 rounded-lg bg-[#110e18] p-1 mb-2 flex items-center justify-center border border-[#2b243b] group-hover:scale-105 transition-transform">
                       <SpriteImage
                         src={odd.customSpriteUrl}
                         alt={odd.speciesName}
-                        className="w-14 h-14 pixelated drop-shadow"
+                        className="boop-archive-sprite pixelated"
                       />
                     </div>
 
@@ -424,11 +431,13 @@ export function ArchiveView({
             {isDebouncing ? (
               skeletonGrid()
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
+              <div className="boop-archive-grid grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
                 {visibleMaterials.map(mat => (
                   <div
                     key={mat.id}
                     data-rarity={mat.rarity}
+                    role="button" tabIndex={0} aria-label={`Inspect ${mat.displayName}`}
+                    onKeyDown={event => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); setInspectedItem({ type: 'material', item: mat }); } }}
                     onClick={() => {
                       sound.playClick();
                       setInspectedItem({ type: 'material', item: mat });
@@ -436,8 +445,8 @@ export function ArchiveView({
                     className="archive-card p-3 rounded-xl bg-[#161920] hover:bg-[#1d222b] border border-[#282f3d] hover:border-[#38bdf8] cursor-pointer transition-all flex flex-col items-center text-center group relative shadow"
                   >
                     {renderFavoriteStar(mat.id)}
-                    <div className="w-14 h-14 rounded-lg bg-[#11141a] p-1 mb-2 flex items-center justify-center border border-[#232936] group-hover:scale-105 transition-transform">
-                      <MaterialSprite material={mat} alt={mat.displayName} className="w-11 h-11" />
+                    <div className="boop-archive-art w-14 h-14 rounded-lg bg-[#11141a] p-1 mb-2 flex items-center justify-center border border-[#232936] group-hover:scale-105 transition-transform">
+                      <MaterialSprite material={mat} alt={mat.displayName} className="boop-archive-sprite" />
                     </div>
 
                     <div className="text-xs font-bold text-white truncate w-full">

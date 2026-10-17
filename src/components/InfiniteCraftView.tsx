@@ -1,3 +1,5 @@
+import { useGame } from '../lib/gameStore';
+import { DiscoveryCard } from './DiscoveryCard';
 import { PROFILE_SPRITES_UPDATED } from '../lib/profileSprites';
 import { CraftSprite, CraftSprites } from './CraftSprite';
 import { DiscoveryTrails } from './DiscoveryTrails';
@@ -71,8 +73,6 @@ interface Particle {
   alpha: number;
 }
 
-const STORAGE_THEME_KEY = 'neal_infinite_craft_theme';
-
 /** Deduplicate, normalize and backfill collection statistics for old saves. */
 export function sanitizeElements(list: InfiniteElement[]): InfiniteElement[] {
   const seenNames = new Set<string>();
@@ -111,6 +111,10 @@ export function sanitizeElements(list: InfiniteElement[]): InfiniteElement[] {
 }
 
 export function InfiniteCraftView() {
+  const { setActiveTab } = useGame();
+  const [showFreeform, setShowFreeform] = useState(false);
+  const [ingredientFilter, setIngredientFilter] = useState<'all' | 'new' | 'shiny'>('all');
+  const [lastResult, setLastResult] = useState<InfiniteElement | null>(null);
   const [elements, setElements] = useState<InfiniteElement[]>(() => {
     try {
       const saved = JSON.stringify(readCraftElements());
@@ -129,6 +133,9 @@ export function InfiniteCraftView() {
       requestRef.current?.abort();
       setElements(sanitizeElements(readCraftElements()));
       setCanvasItems([]);
+      setLastResult(null);
+      setCrucibleSlotA(null);
+      setCrucibleSlotB(null);
       setSelectedCanvasId(null);
       setCombineError(null);
       lastPairRef.current = null;
@@ -152,14 +159,13 @@ export function InfiniteCraftView() {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [sortMode, setSortMode] = useState<'time' | 'alpha' | 'discoveries' | 'shinies' | 'crafted'>('time');
-  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => localStorage.getItem(STORAGE_THEME_KEY) !== 'light');
+  const isDarkMode = false;
   const [selectedCanvasId, setSelectedCanvasId] = useState<string | null>(null);
   const [isSynthesizing, setIsSynthesizing] = useState(false);
   const [activeCombination, setActiveCombination] = useState<ActiveCombination | null>(null);
 
   const [crucibleSlotA, setCrucibleSlotA] = useState<CrucibleSlotItem | null>(null);
   const [crucibleSlotB, setCrucibleSlotB] = useState<CrucibleSlotItem | null>(null);
-  const [isCrucibleCollapsed, setIsCrucibleCollapsed] = useState(false);
   const [isCrucibleHovered, setIsCrucibleHovered] = useState(false);
   const crucibleRef = useRef<HTMLDivElement | null>(null);
 
@@ -193,15 +199,11 @@ export function InfiniteCraftView() {
     catch (e) { console.error('Failed to save infinite craft elements', e); }
   }, [elements]);
 
-  const toggleTheme = () => {
-    const next = !isDarkMode;
-    setIsDarkMode(next);
-    localStorage.setItem(STORAGE_THEME_KEY, next ? 'dark' : 'light');
-  };
-
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (document.querySelector('dialog[open]')) return;
+      const target = e.target as HTMLElement | null;
+      if (target?.matches('input,textarea,select,[contenteditable="true"]')) return;
       if (e.key === 'Escape') {
         if (firstDiscoveryModal) setFirstDiscoveryModal(null);
         else if (inspectedElement) setInspectedElement(null);
@@ -236,7 +238,6 @@ export function InfiniteCraftView() {
     setParticles(prev => [...prev.slice(-40), ...newBatch]);
   };
 
-  const shiniesCount = useMemo(() => elements.filter(el => Boolean(el.unlockedShiny || el.isShiny)).length, [elements]);
   const collectionStats = useMemo(() => getCollectionStats(elements), [elements]);
 
   const filteredElements = useMemo(() => {
@@ -264,10 +265,8 @@ export function InfiniteCraftView() {
   const [combineError, setCombineError] = useState<string | null>(null);
   const lastPairRef = useRef<Parameters<typeof handleCombine> | null>(null);
   const requestRef = useRef<AbortController | null>(null);
-  const progressRef = useRef<ReturnType<typeof setInterval> | null>(null);
   useEffect(() => () => {
     requestRef.current?.abort();
-    if (progressRef.current) clearInterval(progressRef.current);
   }, []);
 
   const handleCombine = async (
@@ -325,6 +324,7 @@ export function InfiniteCraftView() {
         ...initialCraftStats(currentRecipe, isShinyEncounter, craftedAt),
       };
 
+      setLastResult(newElemObj);
       setElements(prev => {
         const existingIdx = prev.findIndex(el => el.id.toLowerCase() === cleanId || el.name.trim().toLowerCase() === normName);
         if (existingIdx >= 0) {
@@ -385,7 +385,7 @@ export function InfiniteCraftView() {
 
       setCanvasItems(prev => {
         const filtered = prev.filter(it => it.instanceId !== itemA.idA && it.instanceId !== itemB.idB);
-        return [...filtered, { instanceId: `inst-${Date.now()}-${Math.random()}`, name: cleanName, emoji: emoji || '✨', x: Math.max(20, Math.min(window.innerWidth - 300, targetX)), y: Math.max(20, Math.min(window.innerHeight - 150, targetY)), isNew, isShiny: isShinyEncounter }];
+        return [...filtered, { instanceId: `inst-${Date.now()}-${Math.random()}`, name: cleanName, emoji: emoji || '✨', x: Math.max(12, Math.min((canvasRef.current?.clientWidth || 400) - 160, targetX)), y: Math.max(12, Math.min((canvasRef.current?.clientHeight || 400) - 64, targetY)), isNew, isShiny: isShinyEncounter }];
       });
       setCrucibleSlotA(null);
       setCrucibleSlotB(null);
@@ -410,9 +410,6 @@ export function InfiniteCraftView() {
     handleCombine({ name: crucibleSlotA.name, emoji: crucibleSlotA.emoji, x: midX - 60, y: midY, idA: crucibleSlotA.id }, { name: crucibleSlotB.name, emoji: crucibleSlotB.emoji, x: midX + 60, y: midY, idB: crucibleSlotB.id });
   };
 
-  const handleClearSlotA = () => { if (crucibleSlotA) { spawnOnCanvas(crucibleSlotA.name, crucibleSlotA.emoji, crucibleSlotA.isShiny); setCrucibleSlotA(null); } };
-  const handleClearSlotB = () => { if (crucibleSlotB) { spawnOnCanvas(crucibleSlotB.name, crucibleSlotB.emoji, crucibleSlotB.isShiny); setCrucibleSlotB(null); } };
-  const handleClearCrucibleAll = () => { if (crucibleSlotA) spawnOnCanvas(crucibleSlotA.name, crucibleSlotA.emoji, crucibleSlotA.isShiny); if (crucibleSlotB) spawnOnCanvas(crucibleSlotB.name, crucibleSlotB.emoji, crucibleSlotB.isShiny); setCrucibleSlotA(null); setCrucibleSlotB(null); };
   const handleSwapCrucible = () => { const temp = crucibleSlotA; setCrucibleSlotA(crucibleSlotB); setCrucibleSlotB(temp); };
 
   const dropIntoCrucible = (item: { name: string; emoji: string; instanceId?: string; isShiny?: boolean }) => {
@@ -464,14 +461,6 @@ export function InfiniteCraftView() {
     spawnOnCanvas(el.name, el.emoji, isShiny);
   };
 
-  const spawnRandomElement = () => {
-    if (!elements.length || isSynthesizing) return;
-    const pool = sanitizeElements(elements);
-    const chosen = pool[Math.floor(Math.random() * pool.length)];
-    if (!chosen) return;
-    spawnFromSidebar(chosen);
-  };
-
   const tidyCanvas = () => {
     sound.playClick();
     if (canvasItems.length === 0) return;
@@ -490,6 +479,8 @@ export function InfiniteCraftView() {
     setActiveDragId(item.instanceId);
   };
 
+  const interactions = useRef({ dropIntoCrucible, handleCombine });
+  interactions.current = { dropIntoCrucible, handleCombine };
   useEffect(() => {
     const processDragFrame = () => {
       rafPendingRef.current = false;
@@ -536,12 +527,12 @@ export function InfiniteCraftView() {
         if (crucibleRef.current) {
           const rect = crucibleRef.current.getBoundingClientRect();
           if (e.clientX >= rect.left - 20 && e.clientX <= rect.right + 20 && e.clientY >= rect.top - 20 && e.clientY <= rect.bottom + 20) {
-            haptics.mediumTap(); dropIntoCrucible(dragged); draggingItemRef.current = null; setActiveDragId(null); setHoverTargetId(null); setIsCrucibleHovered(false); return;
+            haptics.mediumTap(); interactions.current.dropIntoCrucible(dragged); draggingItemRef.current = null; setActiveDragId(null); setHoverTargetId(null); setIsCrucibleHovered(false); return;
           }
         }
         const proximityThreshold = drag.isTouch ? 85 : 70;
         const targetItem = items.find(other => other.instanceId !== drag.instanceId && Math.hypot(other.x - dragged.x, other.y - dragged.y) < proximityThreshold);
-        if (targetItem) { haptics.fusionPulse(); handleCombine({ name: dragged.name, emoji: dragged.emoji, x: dragged.x, y: dragged.y, idA: dragged.instanceId }, { name: targetItem.name, emoji: targetItem.emoji, x: targetItem.x, y: targetItem.y, idB: targetItem.instanceId }); }
+        if (targetItem) { haptics.fusionPulse(); interactions.current.handleCombine({ name: dragged.name, emoji: dragged.emoji, x: dragged.x, y: dragged.y, idA: dragged.instanceId }, { name: targetItem.name, emoji: targetItem.emoji, x: targetItem.x, y: targetItem.y, idB: targetItem.instanceId }); }
       }
       draggingItemRef.current = null; setActiveDragId(null); setHoverTargetId(null); setIsCrucibleHovered(false);
     };
@@ -557,114 +548,61 @@ export function InfiniteCraftView() {
     const sprite = el.customSpriteUrl;
     return sprite ? [[el.name.trim().toLowerCase(), sprite] as const] : [];
   })), [elements]);
-  const firstDiscoveriesCount = elements.filter(el => el.isNew).length;
-  const selectedItemObj = canvasItems.find(it => it.instanceId === selectedCanvasId);
-  const hoverTargetObj = canvasItems.find(it => it.instanceId === hoverTargetId);
-  const activeDragItem = canvasItems.find(it => it.instanceId === activeDragId);
+
+  const selectIngredient = (element: InfiniteElement) => {
+    if (isSynthesizing) return;
+    sound.playClick(); haptics.lightTap();
+    const slot = { name: element.name, emoji: element.emoji, isShiny: element.isShiny };
+    if (!crucibleSlotA) setCrucibleSlotA(slot);
+    else setCrucibleSlotB(slot);
+  };
+  const ingredientList = filteredElements.filter(el => ingredientFilter === 'all' || (ingredientFilter === 'new' ? el.isNew : el.unlockedShiny || el.isShiny));
+  const recent = [...elements].filter(el => el.discoveredAt > 0).sort((a, b) => b.discoveredAt - a.discoveredAt).slice(0, 5);
 
   return (
     <CraftSprites.Provider value={customSprites}>
-    <div className={`w-full h-full flex-1 flex overflow-hidden select-none font-sans relative transition-colors duration-200 ${isDarkMode ? 'bg-[#101216] text-[#e4e4e7]' : 'bg-[#fafafa] text-[#18181b]'}`}>
-      <div ref={canvasRef} className={`relative flex-1 h-full overflow-hidden cursor-crosshair touch-none select-none ${isDarkMode ? 'bg-[radial-gradient(#27272a_1px,transparent_1px)] [background-size:24px_24px]' : 'bg-[radial-gradient(#e4e4e7_1px,transparent_1px)] [background-size:24px_24px]'}`} onClick={() => { if (selectedCanvasId) setSelectedCanvasId(null); }}>
-        <div className="absolute top-3 left-4 z-10 flex items-center gap-2 pointer-events-none">
-          <div className={`px-3 py-1.5 rounded-full text-xs font-mono font-medium backdrop-blur-md shadow-sm border flex items-center gap-2 ${isDarkMode ? 'bg-[#18181b]/85 border-[#27272a] text-[#a1a1aa]' : 'bg-white/85 border-[#e4e4e7] text-[#71717a]'}`}><span className="font-bold text-amber-500">Infinite Craft</span><span className="opacity-30">•</span><span>Drag or drop onto Combine Pad</span></div>
-          {isSynthesizing && <div className="px-3 py-1.5 rounded-full text-xs font-mono font-semibold bg-amber-500/20 text-amber-500 border border-amber-500/40 animate-pulse flex items-center gap-1.5 shadow-sm"><Sparkles className="w-3.5 h-3.5 animate-spin" /><span>Synthesizing...</span></div>}
+    <div className="boop-craft-studio">
+      <section className="boop-craft-workspace">
+        <div className="boop-screen-intro"><h1>What will you discover?</h1><p>Two familiar things. One unexpected result.</p></div>
+        <div className="boop-craft-controls"><div className="boop-pills" aria-label="Crafting mode"><button aria-pressed="true">Classic craft</button><button aria-pressed="false" onClick={() => setActiveTab('foundry')}>Foundry</button></div>
+          <button className="boop-text-button" disabled={isSynthesizing} onClick={() => {
+            const pool = sanitizeElements(elements);
+            if (!pool.length) return;
+            const first = Math.floor(Math.random() * pool.length);
+            const rest = pool.filter((_, index) => index !== first);
+            setCrucibleSlotA(pool[first]); setCrucibleSlotB(rest[Math.floor(Math.random() * rest.length)] || pool[first]);
+          }}><Shuffle size={18} /><span>Surprise me</span></button></div>
+        <div ref={showFreeform ? undefined : canvasRef} className="boop-pad-stage" onDragOver={event => { if (!isSynthesizing) event.preventDefault(); }} onDrop={event => {
+          event.preventDefault(); const name = event.dataTransfer.getData('application/x-boop-ingredient');
+          const item = elements.find(el => el.name === name); if (item) selectIngredient(item);
+        }}>
+          <CraftingCrucible slotA={crucibleSlotA} slotB={crucibleSlotB} onClearSlotA={() => setCrucibleSlotA(null)} onClearSlotB={() => setCrucibleSlotB(null)} onClearAll={() => { setCrucibleSlotA(null); setCrucibleSlotB(null); }} onSwapSlots={handleSwapCrucible} onCombine={handleCrucibleCombine} isSynthesizing={isSynthesizing} isDarkMode={false} isDropTargetActive={isCrucibleHovered} crucibleRef={crucibleRef} />
+          <CombineAnimationOverlay combination={activeCombination} isDarkMode={false} />
         </div>
-
-        {!isSidebarOpen && <button onClick={() => { sound.playClick(); setIsSidebarOpen(true); }} className={`absolute top-3 right-4 z-20 px-3.5 py-1.5 rounded-xl border shadow-lg font-medium text-xs flex items-center gap-2 transition-all hover:scale-105 active:scale-95 ${isDarkMode ? 'bg-[#18181b] hover:bg-[#222329] border-[#2e333d] text-white' : 'bg-white hover:bg-zinc-50 border-[#d4d4d8] text-black'}`} title="Open Discoveries Sidebar (Press /)"><Sparkles className="w-3.5 h-3.5 text-amber-500" /><span className="font-semibold">Elements ({elements.length})</span><ChevronLeft className="w-3.5 h-3.5 text-zinc-400" /></button>}
-
-        {selectedItemObj && <div className="absolute top-12 left-4 z-20 flex items-center gap-2"><div className="px-3 py-1.5 rounded-xl text-xs font-mono font-semibold bg-amber-500 text-black shadow-md flex items-center gap-2 animate-fadeIn"><span>Selected: <CraftSprite name={selectedItemObj.name} emoji={selectedItemObj.emoji} /> {selectedItemObj.name}</span><button onClick={(e) => { e.stopPropagation(); dropIntoCrucible(selectedItemObj); setSelectedCanvasId(null); }} className="px-2 py-0.5 rounded bg-black/20 hover:bg-black/30 text-[11px] font-bold text-black flex items-center gap-1 transition-colors" title="Send to Combine Pad"><Zap className="w-3 h-3" /><span>To Pad</span></button><button onClick={(e) => { e.stopPropagation(); setSelectedCanvasId(null); }} className="p-0.5 rounded hover:bg-black/20 text-black" title="Cancel selection"><X className="w-3.5 h-3.5" /></button></div></div>}
-
-        {hoverTargetObj && activeDragItem && <><svg className="absolute inset-0 pointer-events-none z-20 w-full h-full"><line x1={activeDragItem.x + 50} y1={activeDragItem.y + 18} x2={hoverTargetObj.x + 50} y2={hoverTargetObj.y + 18} stroke="#f59e0b" strokeWidth="3" strokeDasharray="6 4" className="animate-pulse" /></svg><div className="absolute pointer-events-none z-40 -translate-x-1/2 -translate-y-full transition-transform" style={{ left: (activeDragItem.x + hoverTargetObj.x) / 2 + 50, top: Math.min(activeDragItem.y, hoverTargetObj.y) - 14 }}><div className="px-3 py-1 rounded-full text-xs font-mono font-bold bg-amber-500 text-black shadow-[0_4px_16px_rgba(245,158,11,0.5)] border border-amber-300 flex items-center gap-1.5 whitespace-nowrap animate-bounce"><Zap className="w-3.5 h-3.5 fill-black" /><span>Drop to Fuse: <CraftSprite name={activeDragItem.name} emoji={activeDragItem.emoji} /> + <CraftSprite name={hoverTargetObj.name} emoji={hoverTargetObj.emoji} /></span></div></div></>}
-
-        {combineError && <div role="alert" className="absolute top-4 left-4 right-4 z-30 rounded-xl bg-red-950 p-4 text-white border border-red-400"><p>{combineError}</p><button className="mt-2 rounded bg-white px-4 py-2 text-black" onClick={() => { if (lastPairRef.current) void handleCombine(lastPairRef.current[0], lastPairRef.current[1]); }}>Retry combination</button><button className="ml-3 p-2" onClick={() => setCombineError(null)}>Dismiss</button></div>}
-        {spawnToast && <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-30 pointer-events-none"><div className="px-3.5 py-1.5 rounded-full text-xs font-mono font-semibold bg-zinc-900/90 border border-zinc-700 text-white shadow-xl backdrop-blur-md animate-fadeIn flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-emerald-400" /><span>{spawnToast}</span></div></div>}
-
-        <div className="absolute bottom-3 left-4 z-10 flex items-center gap-1.5 sm:gap-2">
-          <button onClick={clearCanvas} className={`p-2 sm:px-3 sm:py-2 rounded-xl border shadow-sm transition-all flex items-center gap-1.5 text-xs font-medium active:scale-95 ${isDarkMode ? 'bg-[#18181b] hover:bg-[#27272a] border-[#27272a] text-[#a1a1aa] hover:text-white' : 'bg-white hover:bg-zinc-100 border-[#e4e4e7] text-[#71717a] hover:text-black'}`} title="Clear Board"><Trash2 className="w-3.5 h-3.5" /><span className="hidden sm:inline">Clear</span></button>
-          <button onClick={tidyCanvas} className={`p-2 sm:px-3 sm:py-2 rounded-xl border shadow-sm transition-all flex items-center gap-1.5 text-xs font-medium active:scale-95 ${isDarkMode ? 'bg-[#18181b] hover:bg-[#27272a] border-[#27272a] text-[#a1a1aa] hover:text-white' : 'bg-white hover:bg-zinc-100 border-[#e4e4e7] text-[#71717a] hover:text-black'}`} title="Align elements into neat grid"><LayoutGrid className="w-3.5 h-3.5" /><span className="hidden sm:inline">Tidy</span></button>
-          <button onClick={spawnRandomElement} disabled={!elements.length || isSynthesizing} className={`p-2 sm:px-3 sm:py-2 rounded-xl border shadow-sm transition-all flex items-center gap-1.5 text-xs font-semibold active:scale-95 disabled:opacity-40 disabled:pointer-events-none ${isDarkMode ? 'bg-[#1d2530] hover:bg-[#273342] border-[#334155] text-cyan-300' : 'bg-cyan-50 hover:bg-cyan-100 border-cyan-200 text-cyan-800'}`} title="Drop a random unlocked element onto the canvas"><Shuffle className="w-3.5 h-3.5" /><span className="hidden sm:inline">Random</span></button>
-          <button onClick={toggleTheme} className={`p-2 sm:p-2.5 rounded-xl border shadow-sm transition-all active:scale-95 ${isDarkMode ? 'bg-[#18181b] hover:bg-[#27272a] border-[#27272a] text-[#a1a1aa] hover:text-white' : 'bg-white hover:bg-zinc-100 border-[#e4e4e7] text-[#71717a] hover:text-black'}`} title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}>{isDarkMode ? <Sun className="w-3.5 h-3.5 text-amber-400" /> : <Moon className="w-3.5 h-3.5 text-indigo-500" />}</button>
-          <button onClick={() => sound.toggleMute()} className={`p-2 sm:p-2.5 rounded-xl border shadow-sm transition-all active:scale-95 ${isDarkMode ? 'bg-[#18181b] hover:bg-[#27272a] border-[#27272a] text-[#a1a1aa] hover:text-white' : 'bg-white hover:bg-zinc-100 border-[#e4e4e7] text-[#71717a] hover:text-black'}`} title="Toggle Sound">{sound.isMuted() ? <VolumeX className="w-3.5 h-3.5 text-rose-400" /> : <Volume2 className="w-3.5 h-3.5 text-emerald-400" />}</button>
-          <div className={`px-2.5 py-1.5 rounded-xl border text-[11px] font-mono font-medium shadow-sm ${isDarkMode ? 'bg-[#18181b] border-[#27272a] text-[#71717a]' : 'bg-white border-[#e4e4e7] text-[#a1a1aa]'}`}>{canvasItems.length} items</div>
-        </div>
-
-        {!isSidebarOpen && <button onClick={() => { sound.playClick(); setIsSidebarOpen(true); }} className="lg:hidden absolute bottom-3 right-4 z-20 px-4 py-2.5 rounded-xl border shadow-xl bg-amber-500 text-black font-bold text-xs flex items-center gap-2 active:scale-95 transition-transform"><Sparkles className="w-4 h-4" /><span>Elements ({elements.length})</span></button>}
-
-        {particles.map(p => <div key={p.id} className="absolute rounded-full pointer-events-none" style={{ left: p.x, top: p.y, width: p.size, height: p.size, backgroundColor: p.color, opacity: p.alpha, boxShadow: `0 0 8px ${p.color}`, transform: 'translate(-50%, -50%)' }} />)}
-        <CombineAnimationOverlay combination={activeCombination} isDarkMode={isDarkMode} />
-
-        {canvasItems.map(item => {
-          const isSelected = selectedCanvasId === item.instanceId;
-          const isHoveredTarget = hoverTargetId === item.instanceId;
-          const isDragging = activeDragId === item.instanceId;
-          return <div key={item.instanceId} onPointerDown={e => handlePointerDown(item, e)} onClick={e => { e.stopPropagation(); handleCanvasItemClick(item); }} onDoubleClick={e => handleDuplicate(item, e)} style={{ transform: `translate3d(${item.x}px, ${item.y}px, 0)`, transition: isDragging ? 'none' : 'transform 0.12s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.15s ease', willChange: 'transform', touchAction: 'none' }} className={`absolute top-0 left-0 cursor-grab active:cursor-grabbing select-none px-3.5 py-2 rounded-xl border flex items-center gap-2 font-medium text-xs shadow-sm group ${item.isShiny ? 'shiny-holographic-pill text-amber-100 font-bold shadow-[0_0_16px_rgba(251,191,36,0.4)]' : isDarkMode ? 'bg-[#18181b] hover:bg-[#202024] border-[#2e2e33] text-[#f4f4f5]' : 'bg-white hover:bg-zinc-50 border-[#d4d4d8] text-[#18181b]'} ${isDragging ? 'ring-2 ring-amber-400 scale-110 shadow-[0_12px_28px_rgba(0,0,0,0.35)] z-40 opacity-95 pointer-events-none' : isSelected ? 'ring-2 ring-amber-500 scale-105 shadow-[0_0_18px_rgba(245,158,11,0.45)] z-30' : isHoveredTarget ? 'ring-2 ring-emerald-500 scale-110 shadow-[0_0_22px_rgba(16,185,129,0.55)] z-30 animate-pulse' : 'z-10 hover:shadow-md'}`}>
-            <span className="text-xl leading-none select-none pointer-events-none"><CraftSprite name={item.name} emoji={item.emoji} /></span><span className="text-xs font-semibold tracking-wide whitespace-nowrap pointer-events-none">{item.name}</span>{item.isShiny && <span className="text-[10px] text-amber-400 font-bold shiny-star-twinkle pointer-events-none" title="Shiny Variant">✨</span>}
-            <div className="hidden sm:group-hover:flex items-center gap-0.5 ml-1"><button onClick={e => { e.stopPropagation(); dropIntoCrucible(item); }} title="Send to Combine Pad" className="p-1 rounded hover:bg-amber-500/20 text-zinc-400 hover:text-amber-400 transition-colors"><Zap className="w-3 h-3" /></button><button onClick={e => handleDuplicate(item, e)} title="Duplicate (+)" className="p-1 rounded hover:bg-zinc-700/30 text-zinc-400 hover:text-zinc-200 transition-colors"><Plus className="w-3 h-3" /></button><button onClick={e => handleRemoveFromCanvas(item.instanceId, e)} title="Remove" className="p-1 rounded hover:bg-rose-500/20 text-zinc-400 hover:text-rose-400 transition-colors"><X className="w-3 h-3" /></button></div>
-          </div>;
-        })}
-
-        <CraftingCrucible slotA={crucibleSlotA} slotB={crucibleSlotB} onClearSlotA={handleClearSlotA} onClearSlotB={handleClearSlotB} onClearAll={handleClearCrucibleAll} onSwapSlots={handleSwapCrucible} onCombine={handleCrucibleCombine} isSynthesizing={isSynthesizing} isDarkMode={isDarkMode} isDropTargetActive={isCrucibleHovered} crucibleRef={crucibleRef} isCollapsed={isCrucibleCollapsed} onToggleCollapse={() => setIsCrucibleCollapsed(prev => !prev)} />
-      </div>
-
-      {isSidebarOpen && <div onClick={() => { sound.playClick(); setIsSidebarOpen(false); }} className="fixed inset-0 bg-black/60 backdrop-blur-xs z-30 lg:hidden transition-opacity animate-fadeIn" aria-label="Close elements tray" />}
-
-      <aside className={`w-80 lg:w-88 xl:w-96 flex flex-col h-full border-l transition-all duration-200 z-40 ${isDarkMode ? 'bg-[#14161a] border-[#27272a]' : 'bg-white border-[#e4e4e7]'} ${isSidebarOpen ? 'fixed inset-y-0 right-0 max-w-[90vw] shadow-2xl flex lg:static lg:max-w-none lg:shadow-none' : 'hidden'}`}>
-        <div className={`p-3.5 border-b flex flex-col gap-2.5 ${isDarkMode ? 'border-[#27272a]' : 'border-[#e4e4e7]'}`}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2"><span className="text-xs font-bold tracking-wider font-mono uppercase text-amber-500">DISCOVERIES</span><span className={`px-2 py-0.5 rounded-full text-[11px] font-mono font-bold ${isDarkMode ? 'bg-[#27272a] text-[#a1a1aa]' : 'bg-zinc-100 text-[#71717a]'}`}>{elements.length}</span>{firstDiscoveriesCount > 0 && <div className="flex items-center gap-1 text-[11px] font-semibold text-amber-500 font-mono bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20"><Sparkles className="w-2.5 h-2.5" /><span>{firstDiscoveriesCount}</span></div>}</div>
-            <button onClick={() => { sound.playClick(); setIsSidebarOpen(false); }} className={`p-1.5 rounded-lg border transition-all flex items-center gap-1 text-xs font-medium ${isDarkMode ? 'border-[#27272a] bg-[#1c1f26] text-zinc-400 hover:text-white hover:border-zinc-600' : 'border-[#e4e4e7] bg-zinc-100 text-zinc-600 hover:text-black hover:border-zinc-300'}`} title="Close Elements (Esc)"><X className="w-4 h-4" /><span className="text-[11px] font-mono pr-0.5">Close</span></button>
-          </div>
-
-          <div className="grid grid-cols-4 gap-1.5">
-            <div className={`rounded-lg border px-2 py-1.5 text-center ${isDarkMode ? 'bg-[#1a1d24] border-[#2a303a]' : 'bg-zinc-50 border-zinc-200'}`}><div className="text-[9px] uppercase text-zinc-500">Crafts</div><div className="text-xs font-black text-cyan-400">{collectionStats.totalCrafts}</div></div>
-            <div className={`rounded-lg border px-2 py-1.5 text-center ${isDarkMode ? 'bg-[#1a1d24] border-[#2a303a]' : 'bg-zinc-50 border-zinc-200'}`}><div className="text-[9px] uppercase text-zinc-500">Shiny</div><div className="text-xs font-black text-amber-400">{collectionStats.totalShinies}</div></div>
-            <div className={`rounded-lg border px-2 py-1.5 text-center ${isDarkMode ? 'bg-[#1a1d24] border-[#2a303a]' : 'bg-zinc-50 border-zinc-200'}`}><div className="text-[9px] uppercase text-zinc-500">Recipes</div><div className="text-xs font-black text-violet-400">{collectionStats.uniqueRecipes}</div></div>
-            <div className={`rounded-lg border px-2 py-1.5 text-center ${isDarkMode ? 'bg-[#1a1d24] border-[#2a303a]' : 'bg-zinc-50 border-zinc-200'}`}><div className="text-[9px] uppercase text-zinc-500">Masters</div><div className="text-xs font-black text-emerald-400">{collectionStats.masteredElements}</div></div>
-          </div>
-
-          <DiscoveryTrails elements={elements} busy={isSynthesizing} onPrepare={(a, b) => { setCrucibleSlotA(a); setCrucibleSlotB(b); setIsCrucibleCollapsed(false); setIsSidebarOpen(false); setSpawnToast('Ingredients ready. Tap Combine to continue your trail.'); setTimeout(() => setSpawnToast(null), 3000); }} />
-          <div className="relative"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" /><input ref={searchInputRef} type="text" placeholder="Search elements, mastery, properties..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className={`w-full pl-9 pr-8 py-2 rounded-xl text-xs border transition-all focus:outline-none focus:ring-2 focus:ring-amber-500 ${isDarkMode ? 'bg-[#1c1f26] border-[#2e333d] text-white placeholder-zinc-500' : 'bg-zinc-50 border-[#d4d4d8] text-black placeholder-zinc-400'}`} />{searchQuery && <button onClick={() => setSearchQuery('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-200"><X className="w-3.5 h-3.5" /></button>}</div>
-
-          <div className="flex items-center gap-1.5 pt-0.5">{STARTER_ELEMENTS.map(pe => <button key={pe.id} onClick={() => spawnFromSidebar(pe)} className={`flex-1 py-1 px-1.5 rounded-lg border text-xs font-semibold flex items-center justify-center gap-1 transition-all active:scale-95 shadow-xs ${isDarkMode ? 'bg-[#1a1c22] hover:bg-[#232732] border-[#282e3c] text-white hover:border-amber-500/40' : 'bg-zinc-50 hover:bg-white border-zinc-200 text-zinc-800 hover:border-amber-400'}`} title={`Spawn ${pe.name}`}><span className="text-sm leading-none"><CraftSprite name={pe.name} emoji={pe.emoji} /></span><span className="text-[10px] font-medium hidden xs:inline">{pe.name}</span></button>)}</div>
-
-          <div className="flex items-center justify-between text-xs pt-1 gap-2">
-            <div className="flex items-center gap-1 overflow-x-auto pb-1">
-              <button onClick={() => setSortMode('time')} className={`px-2.5 py-1 rounded-lg border text-[11px] font-medium flex items-center gap-1 transition-colors whitespace-nowrap ${sortMode === 'time' ? 'bg-amber-500/20 text-amber-500 border-amber-500/40 font-bold' : isDarkMode ? 'bg-[#18181b] border-[#27272a] text-zinc-400 hover:text-white' : 'bg-zinc-100 border-zinc-200 text-zinc-600 hover:text-black'}`} title="Sort by most recently crafted"><Clock className="w-3 h-3" /><span>Recent</span></button>
-              <button onClick={() => setSortMode('crafted')} className={`px-2.5 py-1 rounded-lg border text-[11px] font-medium flex items-center gap-1 transition-colors whitespace-nowrap ${sortMode === 'crafted' ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40 font-bold' : isDarkMode ? 'bg-[#18181b] border-[#27272a] text-zinc-400 hover:text-white' : 'bg-zinc-100 border-zinc-200 text-zinc-600 hover:text-black'}`} title="Sort by times made"><Zap className="w-3 h-3" /><span>Made</span></button>
-              <button onClick={() => setSortMode('alpha')} className={`px-2.5 py-1 rounded-lg border text-[11px] font-medium flex items-center gap-1 transition-colors whitespace-nowrap ${sortMode === 'alpha' ? 'bg-amber-500/20 text-amber-500 border-amber-500/40 font-bold' : isDarkMode ? 'bg-[#18181b] border-[#27272a] text-zinc-400 hover:text-white' : 'bg-zinc-100 border-zinc-200 text-zinc-600 hover:text-black'}`} title="Sort alphabetically"><ArrowDownAZ className="w-3 h-3" /><span>A-Z</span></button>
-              {firstDiscoveriesCount > 0 && <button onClick={() => setSortMode('discoveries')} className={`px-2.5 py-1 rounded-lg border text-[11px] font-medium flex items-center gap-1 transition-colors whitespace-nowrap ${sortMode === 'discoveries' ? 'bg-amber-500/20 text-amber-500 border-amber-500/40 font-bold' : isDarkMode ? 'bg-[#18181b] border-[#27272a] text-zinc-400 hover:text-white' : 'bg-zinc-100 border-zinc-200 text-zinc-600 hover:text-black'}`} title="First discoveries only"><Sparkles className="w-3 h-3 text-amber-500" /><span>Starred</span></button>}
-              {shiniesCount > 0 && <button onClick={() => setSortMode(sortMode === 'shinies' ? 'time' : 'shinies')} className={`px-2 py-1 rounded-lg border text-[11px] font-medium flex items-center gap-1 transition-all whitespace-nowrap ${sortMode === 'shinies' ? 'bg-gradient-to-r from-amber-400 to-pink-500 text-slate-950 font-bold border-amber-300 shadow-sm' : isDarkMode ? 'bg-[#18181b] border-[#27272a] text-amber-300 hover:text-amber-200' : 'bg-zinc-100 border-zinc-200 text-amber-700 hover:text-amber-900'}`} title="Filter shiny variants"><span className="shiny-star-twinkle">✨</span><span>Shinies ({shiniesCount})</span></button>}
-            </div>
-            <span className="text-[11px] text-zinc-400 font-mono shrink-0">{filteredElements.length}</span>
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-3 flex flex-wrap content-start gap-1.5 select-none">
-          {filteredElements.map(raw => {
-            const el = normalizeElementStats(raw);
-            const mastery = getElementMastery(el.craftCount || 0);
-            const isShinyUnlocked = Boolean(el.unlockedShiny || el.isShiny);
-            const isDisplayShiny = Boolean(el.isShiny || (sortMode === 'shinies' && isShinyUnlocked));
-            const foilName = isShinyUnlocked ? getShinyFoilStyle(el.name).name : '';
-            return <div key={el.id} onClick={() => spawnFromSidebar(el)} title={`${el.name} • ${el.craftCount || 0} made • ${mastery.label}${isShinyUnlocked ? ` • ${foilName} shiny unlocked` : ''}`} className={`group flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border cursor-pointer select-none transition-all duration-100 shadow-sm hover:scale-[1.02] active:scale-95 ${isDisplayShiny ? 'shiny-holographic-pill text-amber-100 font-semibold' : isDarkMode ? 'bg-[#1c1f26] hover:bg-[#252a34] border-[#2e333d] text-[#f4f4f5]' : 'bg-zinc-50 hover:bg-white border-[#d4d4d8] text-[#18181b]'}`}>
-              <span className="text-base leading-none select-none"><CraftSprite name={el.name} emoji={el.emoji} /></span>
-              <span className="text-xs font-semibold tracking-wide">{el.name}</span>
-              {(el.craftCount || 0) > 0 && <span className="text-[9px] font-mono font-bold text-cyan-400" title="Times made">×{el.craftCount}</span>}
-              {(el.shinyCraftCount || 0) > 0 && <span className="text-[9px] font-mono font-bold text-amber-300 shiny-star-twinkle" title={`${foilName} shiny encounters`}>✨{el.shinyCraftCount}</span>}
-              {mastery.level >= 4 && <Trophy className="w-3 h-3 text-emerald-400" aria-label={`${mastery.label} mastery`} />}
-              {el.variantOf && <span title={`Rare variant of ${el.variantOf}`} className="text-[10px] font-bold text-violet-400">✦ Rare</span>}
-              {el.isNew && <span className="text-[10px] text-amber-500 font-bold" title="First Discovery">★</span>}
-              {isShinyUnlocked && !(el.shinyCraftCount || 0) && <span className="text-[10px] text-amber-400 shiny-star-twinkle" title={`${foilName} shiny form unlocked!`}>✨</span>}
-              <button onClick={e => { e.stopPropagation(); sound.playClick(); setInspectedElement(el); }} className="opacity-70 sm:opacity-0 sm:group-hover:opacity-100 text-zinc-400 hover:text-cyan-400 transition-opacity ml-0.5 p-0.5" title="Inspect Physical Properties & Shiny Codex"><Info className="w-3.5 h-3.5" /></button>
-            </div>;
-          })}
-          {filteredElements.length === 0 && <div className="w-full text-center py-12 text-zinc-400 text-xs font-mono">No matching elements discovered.</div>}
-        </div>
-
-        <div className={`p-3 border-t flex items-center justify-between lg:hidden ${isDarkMode ? 'bg-[#101216] border-[#27272a]' : 'bg-zinc-50 border-[#e4e4e7]'}`}><span className="text-[11px] text-zinc-400 font-mono">Tap an element to spawn • ℹ for dossier</span><button onClick={() => { sound.playClick(); setIsSidebarOpen(false); }} className="px-4 py-1.5 rounded-xl bg-amber-500 text-black font-bold text-xs shadow-md active:scale-95 transition-transform">Return to Canvas</button></div>
+        {combineError && <div role="alert" className="boop-error"><p>{combineError}</p><button onClick={() => { if (lastPairRef.current) void handleCombine(lastPairRef.current[0], lastPairRef.current[1]); }}>Retry combination</button><button onClick={() => setCombineError(null)}>Dismiss</button></div>}
+        {lastResult && <div className="boop-result" role="status"><CraftSprite name={lastResult.name} emoji={lastResult.emoji} className="boop-result-sprite" /><div><small>ADDED TO YOUR COLLECTION</small><strong>{lastResult.name}</strong><p>{lastResult.explanation || 'Your next ingredient is ready.'}</p></div><button className="boop-secondary" disabled={isSynthesizing} onClick={() => selectIngredient(lastResult)}>Use it</button></div>}
+        {spawnToast && <p className="boop-notice" role="status">{spawnToast}</p>}
+        <div className="boop-section-heading"><h2>Recently discovered</h2><button className="boop-text-button" onClick={() => setActiveTab('archive')}>View collection ↗</button></div>
+        <div className="boop-recent-grid">{(recent.length ? recent : elements.slice(0, 4)).map(el => <DiscoveryCard key={el.id} name={el.name} emoji={el.emoji} detail={el.isNew ? 'First discovery' : el.isShiny ? 'Shiny' : 'Discovery'} compact disabled={isSynthesizing} onSelect={() => selectIngredient(el)} onInspect={() => setInspectedElement(el)} />)}</div>
+        <p className="boop-hint"><Sparkles size={18} />Try a place, an animal, or an idea. There’s always another combination.</p>
+        <div className="boop-secondary-tools"><DiscoveryTrails elements={elements} busy={isSynthesizing} onPrepare={(a, b) => { setCrucibleSlotA(a); setCrucibleSlotB(b); }} />
+          <button className="boop-secondary" aria-expanded={showFreeform} onClick={() => setShowFreeform(value => !value)}>{showFreeform ? 'Close freeform board' : 'Open freeform board'}</button></div>
+        {showFreeform && <section className="boop-freeform"><div className="boop-section-heading"><h2>Freeform board</h2><button onClick={clearCanvas}>Clear</button><button onClick={tidyCanvas}>Tidy</button></div><p>Tap two items to combine, or drag one onto another.</p>
+          <div ref={canvasRef} className="boop-freeform-canvas">{canvasItems.map(item => <div key={item.instanceId} className={`boop-board-item ${selectedCanvasId === item.instanceId ? 'is-selected' : ''}`} onPointerDown={e => handlePointerDown(item, e)} onClick={e => { e.stopPropagation(); handleCanvasItemClick(item); }} onDoubleClick={e => handleDuplicate(item, e)} style={{ transform: `translate3d(${item.x}px, ${item.y}px, 0)` }}><CraftSprite name={item.name} emoji={item.emoji} /><span>{item.name}</span><button aria-label={`Remove ${item.name} from board`} onClick={e => handleRemoveFromCanvas(item.instanceId, e)}><X size={14} /></button></div>)}</div>
+        </section>}
+      </section>
+      <aside className="boop-ingredient-library" aria-label="Ingredient library">
+        <div className="boop-section-heading"><h2>Your ingredients</h2><small>{elements.length} discoveries</small></div>
+        <p className="boop-library-caption">Every discovery can become the next ingredient.</p>
+        <label className="boop-search"><Search size={18} /><input ref={searchInputRef} aria-label="Find an ingredient" placeholder="Find an ingredient…" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} /><span className="boop-key-hint">/</span></label>
+        <div className="boop-library-filters"><div className="boop-pills" aria-label="Filter ingredients">{(['all', 'new', 'shiny'] as const).map(filter => <button key={filter} aria-pressed={ingredientFilter === filter} onClick={() => setIngredientFilter(filter)}>{filter === 'all' ? 'All' : filter === 'new' ? 'First finds' : 'Shiny'}</button>)}</div>
+          <select aria-label="Sort ingredients" value={sortMode} onChange={e => setSortMode(e.target.value as typeof sortMode)}><option value="time">Recent</option><option value="alpha">A–Z</option><option value="crafted">Most crafted</option></select></div>
+        <div className="boop-ingredient-grid">{ingredientList.map(el => <DiscoveryCard key={el.id} name={el.name} emoji={el.emoji} detail={el.isShiny ? 'Shiny' : el.isNew ? 'First discovery' : `${el.craftCount || 0} crafts`} selected={crucibleSlotA?.name === el.name || crucibleSlotB?.name === el.name} disabled={isSynthesizing} onSelect={() => showFreeform ? spawnFromSidebar(el) : selectIngredient(el)} onInspect={() => setInspectedElement(el)} />)}</div>
+        {!ingredientList.length && <div className="boop-empty"><Search size={24} /><h3>No matching discoveries</h3><p>Try a different name or filter.</p><button className="boop-secondary" onClick={() => { setSearchQuery(''); setIngredientFilter('all'); }}>Clear filters</button></div>}
+        <button className="boop-secondary boop-explore" onClick={() => setActiveTab('archive')}>Explore your collection →</button>
+        <div className="boop-hint boop-library-hint"><div><strong>A world of possibilities.</strong><p>Select two discoveries, or drag them into the pad. Your next favourite might be one mix away.</p></div></div>
+        <div className="boop-mini-stats"><span><b>{collectionStats.totalCrafts}</b> crafts</span><span><b>{collectionStats.totalShinies}</b> shinies</span><span><b>{collectionStats.uniqueRecipes}</b> recipes</span></div>
       </aside>
-
       {firstDiscoveryModal && <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn" onClick={() => setFirstDiscoveryModal(null)}><div onClick={e => e.stopPropagation()} className={`w-full max-w-sm rounded-2xl p-6 border shadow-2xl text-center relative overflow-hidden ${isDarkMode ? 'bg-[#18181b] border-amber-500/40 text-white' : 'bg-white border-amber-400 text-black'}`}><div className="absolute -top-12 -left-12 w-32 h-32 bg-amber-500/20 rounded-full blur-2xl pointer-events-none" /><div className="absolute -bottom-12 -right-12 w-32 h-32 bg-amber-500/20 rounded-full blur-2xl pointer-events-none" /><div className="text-5xl mb-3 animate-bounce"><CraftSprite name={firstDiscoveryModal.name} emoji={firstDiscoveryModal.emoji} /></div><div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40 text-xs font-mono font-bold tracking-widest uppercase mb-2"><Sparkles className="w-3.5 h-3.5" />FIRST DISCOVERY!</div><h3 className="text-2xl font-black tracking-tight mb-1">{firstDiscoveryModal.name}</h3><p className="text-xs text-zinc-400 mb-5 leading-relaxed">You are the very first crafter to unlock this combination in the global matrix!</p>{firstDiscoveryModal.recipe && <div className={`p-3 rounded-xl border text-xs font-mono mb-5 ${isDarkMode ? 'bg-black/30 border-zinc-800 text-zinc-300' : 'bg-zinc-100 border-zinc-200 text-zinc-700'}`}>{firstDiscoveryModal.recipe.first} + {firstDiscoveryModal.recipe.second} = {firstDiscoveryModal.name}</div>}<button onClick={() => { sound.playClick(); setFirstDiscoveryModal(null); }} className="w-full py-2.5 rounded-xl font-bold text-sm bg-gradient-to-r from-amber-500 to-amber-600 text-black hover:brightness-110 shadow-lg transition-all active:scale-95">Continue Crafting</button></div></div>}
 
       {inspectedElement && <ElementDossierModal element={normalizeElementStats(inspectedElement)} onClose={() => setInspectedElement(null)} onSpawnOnCanvas={(name, emoji, isShiny) => spawnOnCanvas(name, emoji, isShiny)} isDarkMode={isDarkMode} />}
