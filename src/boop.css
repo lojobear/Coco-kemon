@@ -30,27 +30,27 @@
 .boop-app :is(button,input,select) { font-family:inherit; }
 .boop-app button { transition:background .15s,border-color .15s,transform .15s; }
 .boop-app button:not(:disabled):active { transform:translateY(1px); }
-.boop-app .collection-header { grid-area:header; padding:16px 24px; background:white!important; border-bottom:1px solid var(--boop-line)!important; box-shadow:none!important; }
+.boop-app .collection-header { grid-area:header; padding:16px 24px!important; background:white!important; border-bottom:1px solid var(--boop-line)!important; box-shadow:none!important; }
 .boop-app .collection-header-inner { max-width:none; min-height:40px; gap:16px; }
 .boop-app .collection-brand { flex-shrink:0; gap:10px; min-height:36px; }
-.boop-app .collection-brand img { width:36px; height:36px; padding:0; background:var(--boop-forest)!important; border:0; border-radius:10px; image-rendering:pixelated; }
+.boop-app .collection-brand img { width:36px!important; height:36px!important; padding:0; background:var(--boop-forest)!important; border:0; border-radius:10px; image-rendering:pixelated; }
 .boop-app .collection-brand > span { display:flex; align-items:center; gap:16px; }
-.boop-app .collection-brand strong { font-size:24px; font-weight:800; letter-spacing:-.7px; text-transform:none; }
+.boop-app .collection-brand strong { font-size:24px!important; font-weight:800; letter-spacing:-.7px; text-transform:none; }
 .boop-app .collection-brand small { margin:0; font-size:9px; letter-spacing:.6px; }
 .boop-app .header-actions { gap:6px; }
-.boop-app .header-actions button { display:grid; place-items:center; width:36px; height:36px; min-height:36px; border:0; box-shadow:none; border-radius:50%; }
+.boop-app .header-actions button { display:grid; place-items:center; width:36px!important; height:36px!important; min-width:36px!important; min-height:36px!important; border:0; box-shadow:none; border-radius:50%!important; }
 .boop-app .header-actions .boop-avatar { color:var(--boop-ink)!important; background:var(--boop-lavender)!important; }
 .boop-header-search { margin-left:auto; max-width:300px; }
 .boop-header-search button { flex-shrink:0; }
 .boop-level-tag { white-space:nowrap; background:var(--boop-sage); border-radius:99px; padding:7px 16px; font-size:12px; }
 .boop-main { grid-area:main; }
-.boop-app .boop-navigation { grid-area:nav; padding:10px 20px max(10px,env(safe-area-inset-bottom)); box-shadow:none!important; background:white!important; }
+.boop-app .boop-navigation { grid-area:nav; padding:10px 20px max(10px,env(safe-area-inset-bottom))!important; box-shadow:none!important; background:white!important; }
 .boop-app .boop-navigation .boop-nav-items { width:100%; display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); max-width:480px; gap:4px; }
-.boop-app .boop-navigation .boop-nav-items button { display:flex; align-items:center; justify-content:center; flex-direction:column; gap:4px; min-height:52px; padding:8px 4px; border:0; border-radius:16px; color:var(--boop-muted)!important; }
+.boop-app .boop-navigation .boop-nav-items button { display:flex; align-items:center; justify-content:center; flex-direction:column; gap:4px!important; min-height:52px!important; height:auto!important; padding:8px 4px!important; border:0; border-radius:16px!important; color:var(--boop-muted)!important; }
 .boop-app .boop-navigation .boop-nav-items button[aria-current="page"] { background:var(--boop-forest)!important; color:white!important; box-shadow:none; }
 .boop-app .boop-navigation .boop-nav-items button[aria-current="page"] svg { color:white!important; }
-.boop-app .boop-navigation .boop-nav-items button span { font-size:11px; font-weight:500; }
-.boop-nav-label,.boop-profile-card { display:none; }
+.boop-app .boop-navigation .boop-nav-items button span { font-size:11px!important; font-weight:500; }
+.boop-nav-label,.boop-app .boop-navigation .boop-profile-card { display:none; }
 .boop-search { width:100%; min-width:0; min-height:46px; display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid var(--boop-line); border-radius:12px; background:white; color:var(--boop-muted); }
 .boop-search input { border:0; outline:0; min-width:0; width:100%; font-size:13px; color:var(--boop-ink); background:transparent; }
 .boop-search input::placeholder { color:var(--boop-muted); }
@@ -184,7 +184,7 @@
 .boop-lab-overlay { position:fixed; inset:0; background:#10241acc; z-index:80; display:grid; place-items:center; padding:20px; }
 .boop-lab-overlay .boop-lab-content { max-width:1000px; background:var(--boop-canvas); padding:24px; border-radius:24px; max-height:92dvh; overflow:auto; }
 /* The Foundry keeps its process engine, with the same prominent combination surface. */
-.boop-app .collection-workbench { display:flex; flex-direction:column; gap:20px; max-width:1000px!important; padding:28px 24px; overflow:visible; }
+.boop-app .collection-workbench { display:flex; flex-direction:column; gap:20px!important; max-width:1000px!important; padding:28px 24px!important; overflow:visible!important; }
 .boop-app .workbench-intro { order:-4; margin:0; display:block; }
 .boop-app .craft-switch { margin-top:16px; width:max-content; background:transparent!important; border:0; padding:0; box-shadow:none; gap:8px; }
 .boop-app .craft-switch button { border-radius:99px; background:white!important; padding:8px 16px; }
@@ -218,10 +218,10 @@
 .boop-pad-stage .craft-fusion-loader > span { background:var(--boop-lime); }
 @media (min-width:1100px) {
   .boop-app[data-theme="quark-light"] { grid-template-columns:208px minmax(0,1fr); grid-template-rows:80px minmax(0,1fr); grid-template-areas:'header header' 'nav main'; }
-  .boop-app .boop-navigation { border:0; border-right:1px solid var(--boop-line); padding:24px 16px; min-height:0; display:flex; flex-direction:column; gap:20px; }
+  .boop-app .boop-navigation { border:0; border-right:1px solid var(--boop-line); padding:24px 16px!important; min-height:0; display:flex; flex-direction:column; gap:20px; }
   .boop-app .boop-navigation .boop-nav-items { display:flex; flex-direction:column; gap:10px; margin:0; max-width:none; }
-  .boop-app .boop-navigation .boop-nav-items button { flex-direction:row; justify-content:flex-start; padding:12px; gap:12px; border-radius:12px; min-height:48px; }
-  .boop-app .boop-navigation .boop-nav-items button span { font-size:14px; }
+  .boop-app .boop-navigation .boop-nav-items button { flex-direction:row; justify-content:flex-start; padding:12px!important; gap:12px!important; border-radius:12px!important; min-height:48px!important; }
+  .boop-app .boop-navigation .boop-nav-items button span { font-size:14px!important; }
   .boop-app .boop-navigation .boop-nav-items button svg { width:20px; height:20px; }
   .boop-nav-label { display:block; font-size:10px; letter-spacing:1px; color:var(--boop-muted); margin:0; }
   .boop-app .boop-profile-card { display:flex; flex-direction:column; align-items:flex-start; gap:10px; padding:16px; border-radius:16px; background:var(--boop-sage); margin:auto 0 0; width:100%; }
@@ -231,7 +231,7 @@
 }
 @media (min-width:1400px) { .boop-craft-studio { grid-template-columns:minmax(0,1fr) 420px; } .boop-craft-workspace { padding:28px 32px; } }
 @media (max-width:1099px) {
-  .boop-app .collection-header { padding:12px 20px; }
+  .boop-app .collection-header { padding:12px 20px!important; }
   .boop-app .collection-brand small { display:none; }
   .boop-header-search { max-width:280px; }
   .boop-craft-studio { grid-template-columns:minmax(0,1fr) 320px; }
@@ -240,13 +240,13 @@
   .boop-pad-slot { width:128px; }
 }
 @media (max-width:760px) {
-  .boop-app .collection-header { padding:max(12px,env(safe-area-inset-top)) 20px 12px; }
+  .boop-app .collection-header { padding:max(12px,env(safe-area-inset-top)) 20px 12px!important; }
   .boop-app .collection-header-inner { gap:10px; }
-  .boop-app .collection-brand img { width:32px; height:32px; border-radius:9px; }
-  .boop-app .collection-brand strong { font-size:23px; }
+  .boop-app .collection-brand img { width:32px!important; height:32px!important; border-radius:9px!important; }
+  .boop-app .collection-brand strong { font-size:23px!important; }
   .boop-header-search,.boop-level-tag { display:none; }
   .boop-app .header-actions { margin-left:auto; }
-  .boop-app .header-actions button { width:32px; height:32px; min-height:32px; }
+  .boop-app .header-actions button { width:32px!important; height:32px!important; min-width:32px!important; min-height:32px!important; }
   .boop-craft-studio { display:block; overflow:auto; height:100%; }
   .boop-craft-workspace { padding:24px 20px 16px; overflow:visible; gap:16px; }
   .boop-screen-intro h1,.boop-app .workbench-intro h1 { font-size:28px; }
@@ -288,7 +288,7 @@
   .boop-lab-layout { display:flex; flex-direction:column; gap:24px; }
   .boop-sprite-editor,.boop-sprite-picker { width:100%; }
   .boop-sprite-actions > button { padding:10px 12px; font-size:12px; }
-  .boop-app .collection-workbench { padding:24px 20px; }
+  .boop-app .collection-workbench { padding:24px 20px!important; }
   .boop-app .collection-workbench .combine-dock { padding:16px; }
   .boop-app .combine-dock .combine-inputs { flex-wrap:wrap; }
   .boop-app .combine-dock .ingredient { flex-basis:100px; }
@@ -310,3 +310,6 @@
 
 .boop-save-alert { background:#fff0eb; color:#913a2e; border-bottom:1px solid #e8b0a7; padding:12px 20px; font-size:13px; flex-shrink:0; }
 @media(min-width:1100px) { .boop-nav-items button:nth-child(1){order:2} .boop-nav-items button:nth-child(2){order:0} .boop-nav-items button:nth-child(3){order:1} .boop-nav-items button:nth-child(4){order:3} }
+
+.boop-app .workbench-intro h1 { display:block!important; }
+.boop-app .collection-brand { gap:10px!important; }
