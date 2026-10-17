@@ -1,4 +1,4 @@
-# Coco-kemon / QuarkPop
+# Boop
 
 Concept crafting, material synthesis, and a collectible discovery encyclopedia built with React, Vite, Express, Groq, Cloudflare Workers AI, and Gemini.
 

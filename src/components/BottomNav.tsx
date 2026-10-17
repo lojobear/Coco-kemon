@@ -1,13 +1,13 @@
 import { memo, startTransition, useCallback, useEffect, useRef, useState } from 'react';
 import { sound } from '../lib/audio';
 import { haptics } from '../lib/haptics';
-import { Hammer, LayoutGrid, Cat, ChefHat } from 'lucide-react';
+import { FlaskConical, LayoutGrid, Cat, ChefHat, Cloud } from 'lucide-react';
 
 export type BottomTab = 'foundry' | 'kitchen' | 'infinite-craft' | 'archive' | 'sprite-lab';
 
 const TABS = [
   { id: 'kitchen', label: 'Kitchen', icon: ChefHat },
-  { id: 'infinite-craft', label: 'Craft', icon: Hammer },
+  { id: 'infinite-craft', label: 'Craft', icon: FlaskConical },
   { id: 'archive', label: 'Collection', icon: LayoutGrid },
   { id: 'sprite-lab', label: 'Sprites', icon: Cat },
 ] as const;
@@ -15,9 +15,11 @@ const TABS = [
 function BottomNavInner({
   activeTab,
   setActiveTab,
+  onOpenProfile,
 }: {
   activeTab: BottomTab | 'notebook' | 'seeds';
   setActiveTab: (tab: BottomTab) => void;
+  onOpenProfile: () => void;
 }) {
   const [visualTab, setVisualTab] = useState(activeTab);
   const frame = useRef<number | null>(null);
@@ -48,10 +50,11 @@ function BottomNavInner({
   }, [activeTab, setActiveTab]);
 
   return (
-    <nav className="collection-nav" aria-label="Main navigation">
-      <div>
+    <nav className="collection-nav boop-navigation" aria-label="Main navigation">
+      <p className="boop-nav-label">YOUR STUDIO</p>
+      <div className="boop-nav-items">
         {TABS.map(tab => {
-          const current = visualTab === tab.id;
+          const current = visualTab === tab.id || (visualTab === 'foundry' && tab.id === 'infinite-craft');
           return (
             <button
               key={tab.id}
@@ -65,6 +68,7 @@ function BottomNavInner({
           );
         })}
       </div>
+      <div className="boop-profile-card"><Cloud size={22} /><strong>Your collection, kept.</strong><p>Back up your discoveries and artwork to your profile.</p><button onClick={onOpenProfile}>Your profile</button></div>
     </nav>
   );
 }

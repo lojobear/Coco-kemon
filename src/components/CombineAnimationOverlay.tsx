@@ -72,7 +72,7 @@ export function CombineAnimationOverlay({ combination }: CombineAnimationOverlay
       </div>
 
       <div className="craft-fusion-copy">
-        <div><Sparkles size={16} /><strong>QUARKPOP REACTION</strong><span>{elapsed}s</span></div>
+        <div><Sparkles size={16} /><strong>BOOP REACTION</strong><span>{elapsed}s</span></div>
         <p>{line}</p>
         <div className="craft-fusion-loader"><span /></div>
       </div>

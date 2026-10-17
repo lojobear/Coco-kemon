@@ -71,7 +71,7 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
 
   return <section className="collection-workbench" aria-label="Foundry workspace"><FoundryFusionOverlay />
     <div className="workbench-intro">
-      <h1>Small things.<br />Endless possibilities.</h1>
+      <div><h1>Follow your curiosity.</h1><p>Give your discoveries a new process. See what happens.</p></div>
       <div className="craft-switch" aria-label="Crafting mode">
         <button type="button" aria-pressed="true"><FlaskConical size={19} /> Foundry</button>
         <button type="button" aria-pressed="false" onClick={() => setActiveTab('infinite-craft')}><Hammer size={19} /> Craft</button>
@@ -115,6 +115,7 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
       {!filtered.length && <p className="collection-empty">No discoveries match these filters. <button onClick={() => { setSearch(''); setCategory('all'); }}>Clear filters</button></p>}
     </div>
     <div className={`combine-dock ${isSynthesizing ? 'is-combining' : ''}`}>
+      <div className="boop-pad-heading"><span>FOUNDRY PAD</span><span className="boop-ready-tag">{slotA ? 'Ready to experiment' : 'Choose an ingredient'}</span></div>
       <div className="combine-inputs">
         {(['A', 'B'] as const).map((key, index) => {
           const item = key === 'A' ? slotA : slotB;
