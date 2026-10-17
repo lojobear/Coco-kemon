@@ -910,10 +910,10 @@ body {
 .element-emoji { display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; vertical-align:middle; }
 .element-emoji > img { display:block; width:100%; height:100%; object-fit:contain; image-rendering:pixelated; image-rendering:-moz-crisp-edges; image-rendering:crisp-edges; pointer-events:none; }
 .element-emoji > span { font-size:inherit; }
-.craft-emoji { width:1.65em; height:1.65em; pointer-events:none; }
-.discovery-pick .discovery-emoji { width:56px; height:56px; max-width:none; overflow:visible; }
+.craft-emoji { width:1.9em; height:1.9em; pointer-events:none; }
+.discovery-pick .discovery-emoji { width:64px; height:64px; max-width:none; overflow:visible; }
 .discovery-pick .element-emoji img, .discovery-pick:hover .element-emoji img { width:100%; height:100%; transform:none; }
-.ingredient-pick .ingredient-emoji { width:46px; height:46px; }
+.ingredient-pick .ingredient-emoji { width:52px; height:52px; }
 .ingredient-pick .element-emoji img { width:100%; height:100%; transform:none; }
 .element-emoji.reveal-art { display:flex; width:112px; height:112px; margin:24px auto; }
 
@@ -1448,9 +1448,9 @@ body:has(.collection-app[data-theme="midnight"]) {
 .fusion-material-a { left:10%; animation:fusion-left-orbit 2.8s ease-in-out infinite; }
 .fusion-material-b { right:10%; animation:fusion-right-orbit 2.8s ease-in-out infinite; }
 .fusion-material-art {
-  width:82px; height:82px; object-fit:contain; filter:drop-shadow(0 8px 14px rgba(0,0,0,.35));
+  width:94px; height:94px; object-fit:contain; filter:drop-shadow(0 8px 14px rgba(0,0,0,.35));
 }
-.fusion-material span {
+.fusion-material > span:not(.element-emoji) {
   max-width:105px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
   font-size:10px; font-weight:700; color:#e9e4d4; padding:3px 6px; border-radius:999px; background:rgba(15,12,23,.7);
 }
@@ -1513,7 +1513,7 @@ body:has(.collection-app[data-theme="midnight"]) {
   .fusion-reactor { height:68dvh; min-height:390px; }
   .fusion-material-a { left:5%; }
   .fusion-material-b { right:5%; }
-  .fusion-material-art { width:68px; height:68px; }
+  .fusion-material-art { width:78px; height:78px; }
   .fusion-ring-one { width:225px; height:225px; }
   .fusion-ring-two { width:165px; height:165px; }
 }
@@ -1565,7 +1565,7 @@ body:has(.collection-app[data-theme="midnight"]) {
   border:1px solid rgba(255,255,255,.14); background:rgba(20,16,32,.76);
   filter:drop-shadow(0 10px 18px rgba(0,0,0,.38));
 }
-.craft-fusion-item span {
+.craft-fusion-item > span {
   max-width:118px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:#f2ead9;
   font-size:11px; font-weight:800; padding:4px 7px; border-radius:999px; background:rgba(13,10,20,.72);
 }
@@ -2691,12 +2691,12 @@ html, body, #root {
   }
 
   .discovery-pick .discovery-emoji {
-    width: 49px !important;
-    height: 49px !important;
+    width: 56px !important;
+    height: 56px !important;
   }
 
   .discovery-pick img {
-    height: 49px !important;
+    height: 56px !important;
   }
 
   .discovery-pick span {
@@ -2735,13 +2735,13 @@ html, body, #root {
   }
 
   .ingredient-pick .ingredient-emoji {
-    width: 43px !important;
-    height: 43px !important;
+    width: 48px !important;
+    height: 48px !important;
   }
 
   .ingredient-pick img {
-    width: 43px !important;
-    height: 43px !important;
+    width: 48px !important;
+    height: 48px !important;
   }
 
   .ingredient > span {
@@ -2876,8 +2876,8 @@ html, body, #root {
 
   .discovery-pick .discovery-emoji,
   .discovery-pick img {
-    width: 44px !important;
-    height: 44px !important;
+    width: 50px !important;
+    height: 50px !important;
   }
 }
 
@@ -2932,7 +2932,8 @@ html, body, #root {
 .craft-fusion-item { width: 32%; max-width: 110px; }
 .craft-fusion-item.item-a { left: 5%; animation: craft-item-left-soft 3.4s ease-in-out infinite; }
 .craft-fusion-item.item-b { right: 5%; animation: craft-item-right-soft 3.4s ease-in-out infinite; }
-.craft-fusion-emoji { width: clamp(42px, 12vw, 68px); height: clamp(42px, 12vw, 68px); font-size: clamp(26px, 7vw, 42px); border-radius: 16px; }
+.craft-fusion-emoji { width: clamp(48px, 14vw, 78px); height: clamp(48px, 14vw, 78px); font-size: clamp(26px, 7vw, 42px); border-radius: 16px; }
+.craft-fusion-emoji .craft-fusion-sprite { width:100%; height:100%; }
 .craft-fusion-center { width: 96px; height: 96px; }
 .craft-fusion-core { animation-duration: 2.2s; }
 .craft-fusion-orbit.orbit-a { width: 55%; height: 42%; }
