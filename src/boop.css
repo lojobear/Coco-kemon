@@ -50,7 +50,7 @@
 .boop-app .boop-navigation .boop-nav-items button[aria-current="page"] { background:var(--boop-forest)!important; color:white!important; box-shadow:none; }
 .boop-app .boop-navigation .boop-nav-items button[aria-current="page"] svg { color:white!important; }
 .boop-app .boop-navigation .boop-nav-items button span { font-size:11px!important; font-weight:500; }
-.boop-nav-label,.boop-app .boop-navigation .boop-profile-card { display:none; }
+.boop-nav-label,.boop-navigation .boop-profile-card { display:none; }
 .boop-search { width:100%; min-width:0; min-height:46px; display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid var(--boop-line); border-radius:12px; background:white; color:var(--boop-muted); }
 .boop-search input { border:0; outline:0; min-width:0; width:100%; font-size:13px; color:var(--boop-ink); background:transparent; }
 .boop-search input::placeholder { color:var(--boop-muted); }
