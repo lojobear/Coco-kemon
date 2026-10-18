@@ -165,6 +165,21 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
     }
   };
 
+  const retryMissingArt = async (target: LabItem) => {
+    if (uploading) return;
+    setUploading(true);
+    setStatus(`Checking cached artwork and requesting an AI sprite for ${target.name}…`);
+    try {
+      const art = await retryElementEmoji(target.name);
+      if (!art) throw new Error('No sprite was returned. Please try again later.');
+      setStatus(`${target.name} artwork is ready and saved to your sprite cache.`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'The AI image service is unavailable right now.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const reroll = (target: LabItem) => freshPixelSprite(target, 'reroll');
 
   const restoreDefault = async (target: LabItem) => {
@@ -207,7 +222,7 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
               <div className="boop-sprite-actions"><button className="boop-primary" disabled={uploading} onClick={() => uploadRef.current?.click()}><Upload size={18} />Upload artwork</button><button className="boop-secondary" disabled={uploading} onClick={() => void reroll(selected)}><RefreshCw size={18} />{uploading ? 'Working…' : 'Reroll sprite'}</button></div>
               <input ref={uploadRef} type="file" accept="image/png,image/webp,image/jpeg" className="hidden" onChange={event => void uploadCustom(event.target.files?.[0])} />
               <div className="boop-artwork-settings"><div><span>Sprite quality</span><strong>High</strong></div><div><span>Upload formats</span><strong>PNG · WebP · JPG</strong></div><div><span>Collection storage</span><strong>Saved automatically</strong></div></div>
-              <div className="boop-sprite-tools"><button disabled={uploading} onClick={() => void freshPixelSprite(selected, 'upgrade')}><Sparkles size={16} />Upgrade artwork</button><button disabled={uploading} onClick={() => void restoreDefault(selected)}><RotateCcw size={16} />Restore default</button>{selected.type !== 'oddkin' && <button disabled={uploading} onClick={() => { retryElementEmoji(selected.name); setStatus('Retrying missing art. Existing saved art is reused.'); }}>Retry missing art</button>}</div>
+              <div className="boop-sprite-tools"><button disabled={uploading} onClick={() => void freshPixelSprite(selected, 'upgrade')}><Sparkles size={16} />Upgrade artwork</button><button disabled={uploading} onClick={() => void restoreDefault(selected)}><RotateCcw size={16} />Restore default</button>{selected.type !== 'oddkin' && <button disabled={uploading} onClick={() => void retryMissingArt(selected)}>Retry missing art</button>}</div>
               <p className="boop-library-caption">Uploads and rerolls save as you go. Open your profile to manage cloud backups.</p>
               {status && <div className="boop-notice" role="status" aria-live="polite">{status}</div>}
               {embedded && <button className="boop-primary boop-explore" onClick={() => setActiveTab('archive')}>View collection →</button>}
