@@ -77,39 +77,6 @@ class SoundSystem {
     osc.stop(t + 0.045);
   }
 
-  // Short, layered magnetic latch: dry contact tick + rounded low-frequency body.
-  // Played once when dragged elements cross the snap threshold.
-  public playMagneticClick() {
-    if (this.muted) return;
-    this.init();
-    if (!this.ctx) return;
-    const t = this.ctx.currentTime;
-    const contact = this.ctx.createOscillator();
-    const contactGain = this.ctx.createGain();
-    contact.type = 'square';
-    contact.frequency.setValueAtTime(1250, t);
-    contact.frequency.exponentialRampToValueAtTime(480, t + 0.022);
-    contactGain.gain.setValueAtTime(0.001, t);
-    contactGain.gain.linearRampToValueAtTime(0.11, t + 0.003);
-    contactGain.gain.exponentialRampToValueAtTime(0.001, t + 0.035);
-    contact.connect(contactGain);
-    contactGain.connect(this.ctx.destination);
-    contact.start(t);
-    contact.stop(t + 0.04);
-
-    const body = this.ctx.createOscillator();
-    const bodyGain = this.ctx.createGain();
-    body.type = 'sine';
-    body.frequency.setValueAtTime(220, t);
-    body.frequency.exponentialRampToValueAtTime(92, t + 0.075);
-    bodyGain.gain.setValueAtTime(0.16, t);
-    bodyGain.gain.exponentialRampToValueAtTime(0.001, t + 0.085);
-    body.connect(bodyGain);
-    bodyGain.connect(this.ctx.destination);
-    body.start(t);
-    body.stop(t + 0.09);
-  }
-
   // Mechanical clunk when slotting ingredients or engaging heavy levers
   public playClunk() {
     if (this.muted) return;
