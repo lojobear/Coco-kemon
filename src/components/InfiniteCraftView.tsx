@@ -17,10 +17,12 @@ import {
 } from '../lib/infiniteCraftData';
 import { requestJson } from '../lib/api';
 import { getElementEmoji } from '../lib/elementEmoji';
+import { CANONICAL_INFINITE_CRAFT_RECIPES, makePairKey } from '../lib/infiniteCraftData';
+import { findCraftDropTarget } from '../lib/craftCollision';
 import { saveCraftElements, readCraftElements, SAVE_IMPORTED_EVENT } from '../lib/saveData';
 import { sound } from '../lib/audio';
 import { haptics } from '../lib/haptics';
-import { CombineAnimationOverlay, ActiveCombination } from './CombineAnimationOverlay';
+import type { ActiveCombination } from './CombineAnimationOverlay';
 import { CraftingCrucible, CrucibleSlotItem } from './CraftingCrucible';
 import { ElementDossierModal } from './ElementDossierModal';
 import { generateConceptSprite } from '../lib/pixelRenderer';
@@ -190,10 +192,14 @@ export function InfiniteCraftView() {
     startY: number;
     currentX: number;
     currentY: number;
-    isTouch: boolean;
+    originX: number;
+    originY: number;
+    pointerId: number;
+    node: HTMLDivElement;
     moved: boolean;
   } | null>(null);
   const [hoverTargetId, setHoverTargetId] = useState<string | null>(null);
+  const suppressCanvasClickRef = useRef(false);
 
   useEffect(() => {
     try { saveCraftElements(sanitizeElements(elements)); }
@@ -279,23 +285,28 @@ export function InfiniteCraftView() {
     requestRef.current = controller;
     lastPairRef.current = [itemA, itemB];
     setCombineError(null);
+    const localRecipe = CANONICAL_INFINITE_CRAFT_RECIPES[makePairKey(itemA.name, itemB.name)];
     setIsSynthesizing(true);
     sound.playCombineChime();
-    haptics.fusionPulse();
 
     const targetX = (itemA.x + itemB.x) / 2;
     const targetY = (itemA.y + itemB.y) / 2;
     setActiveCombination({ idA: itemA.idA || 'a', idB: itemB.idB || 'b', nameA: itemA.name, emojiA: itemA.emoji || '✨', x1: itemA.x, y1: itemA.y, nameB: itemB.name, emojiB: itemB.emoji || '✨', x2: itemB.x, y2: itemB.y, midX: targetX, midY: targetY });
 
     try {
-      const apiPromise = requestJson<InfiniteCraftPairResponse>(`/api/infinite-craft/pair?first=${encodeURIComponent(itemA.name)}&second=${encodeURIComponent(itemB.name)}`, { signal: controller.signal });
-      const [apiData] = await Promise.all([apiPromise, new Promise(r => setTimeout(r, 260))]);
+      // Known combinations never need the network. All others use the server's
+      // persistent cache before the AI fallback, without an artificial delay.
+      const apiData: InfiniteCraftPairResponse = localRecipe
+        ? { ...localRecipe, isNew: false }
+        : await requestJson<InfiniteCraftPairResponse>(
+          `/api/infinite-craft/pair?first=${encodeURIComponent(itemA.name)}&second=${encodeURIComponent(itemB.name)}`,
+          { signal: controller.signal },
+        );
       if (typeof apiData.result !== 'string' || !apiData.result.trim() || typeof apiData.emoji !== 'string' || typeof apiData.isNew !== 'boolean') throw new Error('The server returned an invalid combination. Please retry.');
       if (controller.signal.aborted) return;
 
       const isShinyEncounter = rollIsShiny(apiData.result, itemA.name, itemB.name);
       if (isShinyEncounter) setActiveCombination(prev => prev ? { ...prev, isShiny: true } : null);
-      await new Promise(r => setTimeout(r, 80));
       if (controller.signal.aborted) return;
 
       const { result, emoji, isNew } = apiData;
@@ -316,7 +327,7 @@ export function InfiniteCraftView() {
         name: cleanName,
         emoji: emoji || '✨',
         discoveredAt: craftedAt,
-        isNew: Boolean(isNew),
+        isNew: firstInCollection,
         explanation: apiData.explanation,
         connection: apiData.connection,
         recipe: currentRecipe,
@@ -379,13 +390,14 @@ export function InfiniteCraftView() {
         haptics.shinySparkle();
         if (!bonus) setSpawnToast(`✨ ${foil.name.toUpperCase()} SHINY ${cleanName.toUpperCase()}!`);
         setTimeout(() => setSpawnToast(null), 3000);
-      } else if (isNew) {
+      } else if (firstInCollection) {
         sound.playFirstDiscoveryChime();
         haptics.firstDiscovery();
-        setFirstDiscoveryModal(newElemObj);
+        setSpawnToast(`✦ New discovery: ${cleanName}`);
+        setTimeout(() => setSpawnToast(null), 2200);
       } else {
         sound.playCraftPop();
-        haptics.discovery();
+        haptics.lightTap();
       }
 
       setCanvasItems(prev => {
@@ -424,6 +436,7 @@ export function InfiniteCraftView() {
   };
 
   const handleCanvasItemClick = (item: CanvasItem) => {
+    if (suppressCanvasClickRef.current || requestRef.current) return;
     sound.playClick(); haptics.lightTap();
     if (!selectedCanvasId) setSelectedCanvasId(item.instanceId);
     else if (selectedCanvasId === item.instanceId) setSelectedCanvasId(null);
@@ -475,77 +488,119 @@ export function InfiniteCraftView() {
     setCanvasItems(prev => prev.map((item, idx) => ({ ...item, x: startX + (idx % cols) * itemWidth, y: startY + Math.floor(idx / cols) * itemHeight })));
   };
 
-  const handlePointerDown = (item: CanvasItem, e: React.PointerEvent) => {
-    if (e.button !== 0) return;
-    e.preventDefault(); e.stopPropagation();
-    const isTouch = e.pointerType === 'touch';
-    const touchLift = isTouch ? 36 : 0;
-    draggingItemRef.current = { instanceId: item.instanceId, offsetX: e.clientX - item.x, offsetY: e.clientY - item.y + touchLift, startX: e.clientX, startY: e.clientY, currentX: e.clientX, currentY: e.clientY, isTouch, moved: false };
+  const handlePointerDown = (item: CanvasItem, e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0 || (e.target as HTMLElement).closest('button')) return;
+    e.preventDefault();
+    e.stopPropagation();
+    sound.unlock();
+    suppressCanvasClickRef.current = false;
+    draggingItemRef.current = {
+      instanceId: item.instanceId,
+      startX: e.clientX, startY: e.clientY,
+      currentX: e.clientX, currentY: e.clientY,
+      originX: item.x, originY: item.y,
+      pointerId: e.pointerId, node: e.currentTarget,
+      moved: false,
+    };
     setActiveDragId(item.instanceId);
   };
 
   const interactions = useRef({ dropIntoCrucible, handleCombine });
   interactions.current = { dropIntoCrucible, handleCombine };
   useEffect(() => {
+    const position = (drag: NonNullable<typeof draggingItemRef.current>) => ({
+      x: drag.originX + drag.currentX - drag.startX,
+      y: drag.originY + drag.currentY - drag.startY,
+    });
+    const applyDragPosition = (drag: NonNullable<typeof draggingItemRef.current>) => {
+      const { x, y } = position(drag);
+      // Directly move the active pill; rerendering an entire collection each
+      // pointer frame produces visible stutter on mid-range Android devices.
+      drag.node.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+    };
+    const hitTarget = (drag: NonNullable<typeof draggingItemRef.current>) => {
+      const root = canvasRef.current;
+      if (!root) return null;
+      const movingRect = drag.node.getBoundingClientRect();
+      const candidates = (Array.from(root.querySelectorAll('[data-craft-instance]')) as HTMLDivElement[])
+        .filter(node => node.dataset.craftInstance !== drag.instanceId)
+        .map(node => ({
+          item: node.dataset.craftInstance!,
+          rect: node.getBoundingClientRect(),
+        }));
+      return findCraftDropTarget(movingRect, candidates, { x: drag.currentX, y: drag.currentY });
+    };
     const processDragFrame = () => {
       rafPendingRef.current = false;
       const drag = draggingItemRef.current;
-      if (!drag) return;
-      const newX = drag.currentX - drag.offsetX;
-      const newY = drag.currentY - drag.offsetY;
-      setCanvasItems(prev => prev.map(it => it.instanceId === drag.instanceId ? { ...it, x: newX, y: newY } : it));
-      let overCrucible = false;
-      if (crucibleRef.current) {
-        const rect = crucibleRef.current.getBoundingClientRect();
-        overCrucible = drag.currentX >= rect.left - 15 && drag.currentX <= rect.right + 15 && drag.currentY >= rect.top - 15 && drag.currentY <= rect.bottom + 15;
-      }
-      setIsCrucibleHovered(overCrucible);
-      if (overCrucible) setHoverTargetId(null);
-      else {
-        let nearestId: string | null = null;
-        const proximityThreshold = drag.isTouch ? 85 : 70;
-        for (const other of canvasItemsRef.current) {
-          if (other.instanceId === drag.instanceId) continue;
-          if (Math.hypot(other.x - newX, other.y - newY) < proximityThreshold) { nearestId = other.instanceId; break; }
-        }
-        setHoverTargetId(prev => { if (nearestId && nearestId !== prev) haptics.proximityTick(); return nearestId; });
-      }
+      if (!drag || !drag.moved) return;
+      applyDragPosition(drag);
+      const target = hitTarget(drag);
+      setHoverTargetId(prev => prev === target ? prev : target);
+      const rect = crucibleRef.current?.getBoundingClientRect();
+      const over = Boolean(rect && drag.currentX >= rect.left && drag.currentX <= rect.right
+        && drag.currentY >= rect.top && drag.currentY <= rect.bottom);
+      setIsCrucibleHovered(prev => prev === over ? prev : over);
     };
 
     const handlePointerMove = (e: PointerEvent) => {
       const drag = draggingItemRef.current;
-      if (!drag) return;
-      drag.currentX = e.clientX; drag.currentY = e.clientY;
+      if (!drag || drag.pointerId !== e.pointerId) return;
+      drag.currentX = e.clientX;
+      drag.currentY = e.clientY;
       if (!drag.moved) {
-        if (Math.hypot(drag.currentX - drag.startX, drag.currentY - drag.startY) >= 4) { drag.moved = true; haptics.lightTap(); }
-        else return;
+        if (Math.hypot(drag.currentX - drag.startX, drag.currentY - drag.startY) < 5) return;
+        drag.moved = true;
+        suppressCanvasClickRef.current = true;
       }
-      if (!rafPendingRef.current) { rafPendingRef.current = true; requestAnimationFrame(processDragFrame); }
+      if (!rafPendingRef.current) {
+        rafPendingRef.current = true;
+        requestAnimationFrame(processDragFrame);
+      }
     };
 
     const handlePointerUp = (e: PointerEvent) => {
       const drag = draggingItemRef.current;
-      if (!drag) return;
-      const items = canvasItemsRef.current;
-      const dragged = items.find(it => it.instanceId === drag.instanceId);
-      if (dragged && drag.moved) {
-        if (crucibleRef.current) {
-          const rect = crucibleRef.current.getBoundingClientRect();
-          if (e.clientX >= rect.left - 20 && e.clientX <= rect.right + 20 && e.clientY >= rect.top - 20 && e.clientY <= rect.bottom + 20) {
-            haptics.mediumTap(); interactions.current.dropIntoCrucible(dragged); draggingItemRef.current = null; setActiveDragId(null); setHoverTargetId(null); setIsCrucibleHovered(false); return;
-          }
+      if (!drag || drag.pointerId !== e.pointerId) return;
+      drag.currentX = e.clientX;
+      drag.currentY = e.clientY;
+      const moved = drag.moved && e.type !== 'pointercancel';
+      if (moved) {
+        applyDragPosition(drag); // Read accurate position even between animation frames.
+        const { x, y } = position(drag);
+        const item = canvasItemsRef.current.find(it => it.instanceId === drag.instanceId);
+        const targetId = hitTarget(drag);
+        const other = canvasItemsRef.current.find(it => it.instanceId === targetId);
+        const crucibleRect = crucibleRef.current?.getBoundingClientRect();
+        const overCrucible = Boolean(crucibleRect && e.clientX >= crucibleRect.left && e.clientX <= crucibleRect.right
+          && e.clientY >= crucibleRect.top && e.clientY <= crucibleRect.bottom);
+        if (item) {
+          // Preserve normal dragging even if a combination request is still loading.
+          setCanvasItems(prev => prev.map(it => it.instanceId === item.instanceId ? { ...it, x, y } : it));
+          if (overCrucible) interactions.current.dropIntoCrucible({ ...item, x, y });
+          else if (other) interactions.current.handleCombine(
+            { name: item.name, emoji: item.emoji, x, y, idA: item.instanceId },
+            { name: other.name, emoji: other.emoji, x: other.x, y: other.y, idB: other.instanceId },
+          );
         }
-        const proximityThreshold = drag.isTouch ? 85 : 70;
-        const targetItem = items.find(other => other.instanceId !== drag.instanceId && Math.hypot(other.x - dragged.x, other.y - dragged.y) < proximityThreshold);
-        if (targetItem) { haptics.fusionPulse(); interactions.current.handleCombine({ name: dragged.name, emoji: dragged.emoji, x: dragged.x, y: dragged.y, idA: dragged.instanceId }, { name: targetItem.name, emoji: targetItem.emoji, x: targetItem.x, y: targetItem.y, idB: targetItem.instanceId }); }
+      } else if (e.type === 'pointercancel') {
+        drag.node.style.transform = `translate3d(${drag.originX}px, ${drag.originY}px, 0)`;
       }
-      draggingItemRef.current = null; setActiveDragId(null); setHoverTargetId(null); setIsCrucibleHovered(false);
+      draggingItemRef.current = null;
+      setActiveDragId(null);
+      setHoverTargetId(null);
+      setIsCrucibleHovered(false);
+      if (suppressCanvasClickRef.current) window.setTimeout(() => { suppressCanvasClickRef.current = false; }, 80);
     };
 
     window.addEventListener('pointermove', handlePointerMove, { passive: true });
     window.addEventListener('pointerup', handlePointerUp);
     window.addEventListener('pointercancel', handlePointerUp);
-    return () => { window.removeEventListener('pointermove', handlePointerMove); window.removeEventListener('pointerup', handlePointerUp); window.removeEventListener('pointercancel', handlePointerUp); };
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', handlePointerUp);
+    };
   }, []);
 
   const clearCanvas = () => { sound.playClick(); haptics.heavyTap(); setCanvasItems([]); setSelectedCanvasId(null); };
@@ -582,10 +637,10 @@ export function InfiniteCraftView() {
           const item = elements.find(el => el.name === name); if (item) selectIngredient(item);
         }}>
           <CraftingCrucible slotA={crucibleSlotA} slotB={crucibleSlotB} onClearSlotA={() => setCrucibleSlotA(null)} onClearSlotB={() => setCrucibleSlotB(null)} onClearAll={() => { setCrucibleSlotA(null); setCrucibleSlotB(null); }} onSwapSlots={handleSwapCrucible} onCombine={handleCrucibleCombine} isSynthesizing={isSynthesizing} isDarkMode={false} isDropTargetActive={isCrucibleHovered} crucibleRef={crucibleRef} />
-          <CombineAnimationOverlay combination={activeCombination} isDarkMode={false} />
+          {activeCombination && <div className="boop-inline-reaction" role="status" aria-live="polite"><span className="boop-inline-spinner" aria-hidden="true" />Making {activeCombination.nameA} + {activeCombination.nameB}… You can keep moving items.</div>}
         </div>
         {combineError && <div role="alert" className="boop-error"><p>{combineError}</p><button onClick={() => { if (lastPairRef.current) void handleCombine(lastPairRef.current[0], lastPairRef.current[1]); }}>Retry combination</button><button onClick={() => setCombineError(null)}>Dismiss</button></div>}
-        {lastResult && <div className="boop-result" role="status"><CraftSprite name={lastResult.name} emoji={lastResult.emoji} className="boop-result-sprite" /><div><small>ADDED TO YOUR COLLECTION</small><strong>{lastResult.name}</strong><p>{lastResult.explanation || 'Your next ingredient is ready.'}</p></div><button className="boop-secondary" disabled={isSynthesizing} onClick={() => selectIngredient(lastResult)}>Use it</button></div>}
+        {lastResult && <div className="boop-result" role="status"><CraftSprite name={lastResult.name} emoji={lastResult.emoji} className="boop-result-sprite" /><div><small>{lastResult.isNew ? '✦ NEW DISCOVERY' : 'CRAFTED'}</small><strong>{lastResult.name}</strong><p>{lastResult.explanation || 'Your next ingredient is ready.'}</p><div className="boop-next-ideas"><span>Try next:</span>{STARTER_ELEMENTS.filter(el => el.name.toLowerCase() !== lastResult.name.toLowerCase()).slice(0, 3).map(el => <button key={el.name} disabled={isSynthesizing} onClick={() => void handleCombine({ name: lastResult.name, emoji: lastResult.emoji, x: 75, y: 90 }, { name: el.name, emoji: el.emoji, x: 180, y: 90 })}>{el.emoji} {el.name}</button>)}</div></div><button className="boop-secondary" disabled={isSynthesizing} onClick={() => selectIngredient(lastResult)}>Use it</button></div>}
         {spawnToast && <p className="boop-notice" role="status">{spawnToast}</p>}
         <div className="boop-section-heading"><h2>Recently discovered</h2><button className="boop-text-button" onClick={() => setActiveTab('archive')}>View collection ↗</button></div>
         <div className="boop-recent-grid">{(recent.length ? recent : elements.slice(0, 4)).map(el => <DiscoveryCard key={el.id} name={el.name} emoji={el.emoji} detail={el.isNew ? 'First discovery' : el.isShiny ? 'Shiny' : 'Discovery'} compact disabled={isSynthesizing} onSelect={() => selectIngredient(el)} onInspect={() => setInspectedElement(el)} />)}</div>
@@ -593,7 +648,7 @@ export function InfiniteCraftView() {
         <div className="boop-secondary-tools"><DiscoveryTrails elements={elements} busy={isSynthesizing} onPrepare={(a, b) => { setCrucibleSlotA(a); setCrucibleSlotB(b); }} />
           <button className="boop-secondary" aria-expanded={showFreeform} onClick={() => setShowFreeform(value => !value)}>{showFreeform ? 'Close freeform board' : 'Open freeform board'}</button></div>
         {showFreeform && <section className="boop-freeform"><div className="boop-section-heading"><h2>Freeform board</h2><button onClick={clearCanvas}>Clear</button><button onClick={tidyCanvas}>Tidy</button></div><p>Tap two items to combine, or drag one onto another.</p>
-          <div ref={canvasRef} className="boop-freeform-canvas">{canvasItems.map(item => <div key={item.instanceId} className={`boop-board-item ${selectedCanvasId === item.instanceId ? 'is-selected' : ''}`} onPointerDown={e => handlePointerDown(item, e)} onClick={e => { e.stopPropagation(); handleCanvasItemClick(item); }} onDoubleClick={e => handleDuplicate(item, e)} style={{ transform: `translate3d(${item.x}px, ${item.y}px, 0)` }}><CraftSprite name={item.name} emoji={item.emoji} /><span>{item.name}</span><button aria-label={`Remove ${item.name} from board`} onClick={e => handleRemoveFromCanvas(item.instanceId, e)}><X size={14} /></button></div>)}</div>
+          <div ref={canvasRef} className="boop-freeform-canvas">{canvasItems.map(item => <div key={item.instanceId} data-craft-instance={item.instanceId} className={`boop-board-item ${selectedCanvasId === item.instanceId ? 'is-selected' : ''} ${activeDragId === item.instanceId ? 'is-dragging' : ''} ${hoverTargetId === item.instanceId ? 'is-drop-target' : ''}`} onPointerDown={e => handlePointerDown(item, e)} onClick={e => { e.stopPropagation(); handleCanvasItemClick(item); }} onDoubleClick={e => handleDuplicate(item, e)} style={{ transform: `translate3d(${item.x}px, ${item.y}px, 0)` }}><CraftSprite name={item.name} emoji={item.emoji} /><span>{item.name}</span><button aria-label={`Remove ${item.name} from board`} onClick={e => handleRemoveFromCanvas(item.instanceId, e)}><X size={14} /></button></div>)}</div>
         </section>}
       </section>
       <aside className="boop-ingredient-library" aria-label="Ingredient library">
@@ -602,7 +657,7 @@ export function InfiniteCraftView() {
         <label className="boop-search"><Search size={18} /><input ref={searchInputRef} aria-label="Find an ingredient" placeholder="Find an ingredient…" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} /><span className="boop-key-hint">/</span></label>
         <div className="boop-library-filters"><div className="boop-pills" aria-label="Filter ingredients">{(['all', 'new', 'shiny'] as const).map(filter => <button key={filter} aria-pressed={ingredientFilter === filter} onClick={() => setIngredientFilter(filter)}>{filter === 'all' ? 'All' : filter === 'new' ? 'First finds' : 'Shiny'}</button>)}</div>
           <select aria-label="Sort ingredients" value={sortMode} onChange={e => setSortMode(e.target.value as typeof sortMode)}><option value="time">Recent</option><option value="alpha">A–Z</option><option value="crafted">Most crafted</option></select></div>
-        <div className="boop-ingredient-grid">{ingredientList.map(el => <DiscoveryCard key={el.id} name={el.name} emoji={el.emoji} detail={el.isShiny ? 'Shiny' : el.isNew ? 'First discovery' : `${el.craftCount || 0} crafts`} selected={crucibleSlotA?.name === el.name || crucibleSlotB?.name === el.name} disabled={isSynthesizing} onSelect={() => showFreeform ? spawnFromSidebar(el) : selectIngredient(el)} onInspect={() => setInspectedElement(el)} />)}</div>
+        <div className="boop-ingredient-grid">{ingredientList.map(el => <DiscoveryCard key={el.id} name={el.name} emoji={el.emoji} detail={el.isShiny ? 'Shiny' : el.isNew ? 'First discovery' : `${el.craftCount || 0} crafts`} selected={crucibleSlotA?.name === el.name || crucibleSlotB?.name === el.name} disabled={isSynthesizing && !showFreeform} onSelect={() => showFreeform ? spawnFromSidebar(el) : selectIngredient(el)} onInspect={() => setInspectedElement(el)} />)}</div>
         {!ingredientList.length && <div className="boop-empty"><Search size={24} /><h3>No matching discoveries</h3><p>Try a different name or filter.</p><button className="boop-secondary" onClick={() => { setSearchQuery(''); setIngredientFilter('all'); }}>Clear filters</button></div>}
         <button className="boop-secondary boop-explore" onClick={() => setActiveTab('archive')}>Explore your collection →</button>
         <div className="boop-hint boop-library-hint"><div><strong>A world of possibilities.</strong><p>Select two discoveries, or drag them into the pad. Your next favourite might be one mix away.</p></div></div>

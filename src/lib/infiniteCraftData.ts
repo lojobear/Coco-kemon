@@ -104,7 +104,8 @@ export const CANONICAL_INFINITE_CRAFT_RECIPES: Record<string, { result: string; 
   [makePairKey('City', 'City')]: { result: 'Metropolis', emoji: '🏙️' },
 
   // Botanical & Life
-  [makePairKey('Earth', 'Water')]: { result: 'Plant', emoji: '🌱' },
+  // Water + Earth is Mud (defined above). Give Plant its own reachable recipe.
+  [makePairKey('Mud', 'Water')]: { result: 'Plant', emoji: '🌱' },
   [makePairKey('Plant', 'Water')]: { result: 'Swamp', emoji: '🐊' },
   [makePairKey('Plant', 'Plant')]: { result: 'Tree', emoji: '🌲' },
   [makePairKey('Tree', 'Tree')]: { result: 'Forest', emoji: '🌲' },
