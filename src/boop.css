@@ -123,6 +123,10 @@
 .boop-result small { color:var(--boop-forest); font-size:9px; letter-spacing:1px; }
 .boop-result strong { display:block; font-size:18px; }
 .boop-result p { color:var(--boop-muted); font-size:12px; margin-top:3px; }
+.boop-sprite-warning { padding:14px; border:1px solid #e5c98a; background:#fff9e8; color:#6b5227; border-radius:12px; font-size:12px; line-height:1.5; }
+.boop-sprite-warning strong { display:block; font-size:13px; }
+.boop-sprite-warning p { margin:5px 0 9px; }
+.boop-sprite-warning button { width:auto; padding:7px 11px; min-height:32px; margin:0 7px 0 0; border:1px solid #d1b575; font-size:12px; }
 .boop-error { padding:16px; border:1px solid #e8b0a7; background:#fff0eb; color:#913a2e; border-radius:16px; font-size:13px; }
 .boop-error button { background:white; border:1px solid #e8b0a7; border-radius:8px; padding:8px 12px; margin:10px 8px 0 0; }
 .boop-notice { background:var(--boop-sage); border:1px solid var(--boop-line); border-radius:12px; padding:12px; font-size:12px; color:var(--boop-forest); }
