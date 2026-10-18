@@ -167,9 +167,10 @@ export async function storeProfileElementSprite(name: string, data: string): Pro
   if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('oddkin-emoji-retry', { detail: key }));
 }
 
-export function getElementEmoji(name: string, upgrade = false, variation = ''): Promise<string> {
+export function getElementEmoji(name: string, upgrade = false, variation = '', generateIfMissing = true): Promise<string> {
   const key = emojiKey(name);
-  const jobKey = upgrade ? `${key}:upgrade:${variation || 'fresh'}` : key;
+  // Collection previews may read cached/local/profile art but cannot trigger AI.
+  const jobKey = upgrade ? `${key}:upgrade:${variation || 'fresh'}` : generateIfMissing ? key : `${key}:cache-only`;
 
   if (!upgrade && memory.has(key)) return Promise.resolve(memory.get(key)!);
   if (jobs.has(jobKey)) return jobs.get(jobKey)!;
@@ -205,6 +206,10 @@ export function getElementEmoji(name: string, upgrade = false, variation = ''): 
       }
     }
 
+    // Viewing a collection must not exhaust the daily Workers AI image allocation.
+    // Only a new discovery or an explicit Sprite Lab action requests new artwork.
+    if (!generateIfMissing) return '';
+
     const response = await requestJson<{
       imageBase64: string;
       mimeType: string;
@@ -223,16 +228,28 @@ export function getElementEmoji(name: string, upgrade = false, variation = ''): 
     memory.set(key, data);
     await save(ELEMENT_SPRITE_CACHE_PREFIX + key, data);
     if (userId) void trackSpriteSync(() => spriteAssets!.put(userId, `generated:${key}`, name, data)).catch(() => undefined);
-    if (typeof window !== 'undefined') window.dispatchEvent(new Event('quarkpop-sprite-ready'));
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('quarkpop-sprite-ready'));
+      window.dispatchEvent(new CustomEvent('oddkin-emoji-retry', { detail: key }));
+    }
     return data;
   };
 
-  const job = queue.then(() => navigator.locks
+  // If a new-discovery generation is already running, reuse it in collection previews.
+  if (!upgrade && !generateIfMissing && jobs.has(key)) return jobs.get(key)!;
+
+  const job = queue.then(() => typeof navigator !== 'undefined' && navigator.locks
     ? navigator.locks.request(`oddkin-emoji:${jobKey}`, work)
     : work());
 
   queue = job.catch(() => undefined);
   jobs.set(jobKey, job);
+  // Never permanently cache rejected or completed promises: the player can retry
+  // after quota resets without refreshing the page.
+  void job.then(
+    () => { if (jobs.get(jobKey) === job) jobs.delete(jobKey); },
+    () => { if (jobs.get(jobKey) === job) jobs.delete(jobKey); },
+  );
   return job;
 }
 
@@ -241,6 +258,8 @@ export function retryElementEmoji(name: string) {
   jobs.delete(key);
   for (const jobKey of [...jobs.keys()]) if (jobKey.startsWith(`${key}:upgrade:`)) jobs.delete(jobKey);
   if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('oddkin-emoji-retry', { detail: key }));
+  // Explicit "Retry missing art" must still be able to generate a sprite.
+  void getElementEmoji(name).catch(() => undefined);
 }
 
 /** Explicit upgrade/reroll bypasses old art and asks the native image model for a fresh sprite. */

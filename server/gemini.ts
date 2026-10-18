@@ -565,11 +565,14 @@ export function getGroqModels(): string[] {
     if (!/^[a-z0-9][a-z0-9._/-]+$/i.test(trimmed)) return null;
     return trimmed;
   };
+  // The 20B model answers lightweight combinations faster and leaves more room for
+  // the fallback. GROQ_FAST_MODEL optionally overrides that first choice.
   return Array.from(new Set([
+    sanitizeGroqModel(process.env.GROQ_FAST_MODEL),
+    'openai/gpt-oss-20b',
     sanitizeGroqModel(process.env.GROQ_MODEL),
     sanitizeGroqModel(process.env.GROQ_FALLBACK_MODEL),
     'openai/gpt-oss-120b',
-    'openai/gpt-oss-20b',
   ].filter((model): model is string => Boolean(model)))).slice(0, 2);
 }
 
@@ -586,16 +589,21 @@ async function callGroqStructured(
   let last: unknown;
   for (let attempt = 0; attempt < getGroqModels().length; attempt++) {
     const model = getGroqModels()[attempt];
-    const remaining = deadlineMs !== undefined ? deadlineMs - Date.now() : 6000;
+    const remaining = deadlineMs !== undefined ? deadlineMs - Date.now() : 20000;
     if (remaining <= 0) return null;
 
     const controller = new AbortController();
-    const timeoutMs = Math.min(attempt === 0 ? 3200 : 2200, Math.max(1, remaining - 7000));
+    // The old 3.2s/2.2s aborts forced nearly every request through exhausted
+    // Cloudflare/Gemini fallbacks. Give Groq time while preserving the overall deadline.
+    const timeoutMs = Math.min(attempt === 0 ? 10000 : 7000, Math.max(1, remaining - 4500));
     const timer = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
       const body: any = {
         model,
+        // GPT-OSS defaults to medium reasoning; low is much faster for short
+        // crafting results and avoids spending the timeout on hidden reasoning.
+        ...(model.startsWith('openai/gpt-oss-') ? { reasoning_effort: 'low' } : {}),
         messages: [
           ...(systemInstruction ? [{ role: 'system', content: systemInstruction }] : []),
           {
@@ -758,9 +766,9 @@ async function callWorkersAiStructured(
           max_tokens: 1400,
         };
         if (!recovery) {
-          input.response_format = schema
-            ? { type: 'json_schema', json_schema: schema }
-            : { type: 'json_object' };
+          // These Workers AI text models do not reliably support JSON Schema (5025).
+          // Use JSON object mode, then validate the result in the app instead.
+          input.response_format = { type: 'json_object' };
         }
 
         const run = ai.run(model, input);
@@ -820,7 +828,7 @@ export async function callGeminiStructured(
   // Workers AI could burn ~48s of quota after the 30s client abort and then
   // still run the full Gemini fallback. Cap normal requests at ~25s so the
   // client never waits on a dead request; drawing calls keep their own budget.
-  const overallDeadline = Date.now() + (drawingOptions ? Math.min(55000, drawingOptions.timeoutMs) : 23000);
+  const overallDeadline = Date.now() + (drawingOptions ? Math.min(55000, drawingOptions.timeoutMs) : 27000);
   const discoveryRequest = isDiscoveryInstruction(systemInstruction);
   const foundryRequest = isFoundryPrompt(prompt);
   const effectiveSystemInstruction = discoveryRequest && systemInstruction
@@ -863,7 +871,7 @@ export async function callGeminiStructured(
     );
     if (workersResult) return workersResult;
 
-    console.warn('Groq and Workers AI unavailable; falling back to Gemini.');
+    console.warn('Groq and Workers AI unavailable; attempting the final Gemini fallback.');
   }
 
   if (!injectedClient && !process.env.GEMINI_API_KEY) {
@@ -934,7 +942,12 @@ export async function callGeminiStructured(
       last = error;
       const code = Number(error?.status || error?.code);
       const terminal = terminalGeminiFailure(error);
-      if (terminal) throw terminal;
+      if (terminal) {
+        if (!injectedClient && typeof prompt === 'string' && Boolean(process.env.GROQ_API_KEY) && terminal.status === 429) {
+          throw new ApiFailure(503, 'Combination AI is temporarily unavailable: Groq and Cloudflare could not respond, and Gemini has reached its quota. Try again later.');
+        }
+        throw terminal;
+      }
 
       if (attempt < models.length - 1) {
         console.warn(`Model ${currentModel} failed (${code || error?.message || 'unknown'}). Failing over to ${models[attempt + 1]}...`);
