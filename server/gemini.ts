@@ -1,6 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import { conceptDNAFor } from './discovery.js';
 import { getWorkersAiBinding } from './workersAi.js';
+import { generateRunwareSprite } from './runware.js';
 
 export class ApiFailure extends Error {
   status: number;
@@ -485,13 +486,19 @@ export async function generateGeminiImage(
   if (!injectedClient) {
     const workersImage = await generateWorkersAiImage(prompt);
     if (workersImage) return workersImage;
+    // Prefer Runware's low-cost FLUX.2 Klein when Cloudflare free neurons run out.
+    // Only uses credits if RUNWARE_API_KEY is configured; returns the existing
+    // image payload shape, so all sprite caching and client logic still work.
+    const runwareImage = await generateRunwareSprite(prompt);
+    if (runwareImage) return runwareImage;
   }
   if (!injectedClient && !process.env.GEMINI_API_KEY) {
-    throw new ApiFailure(503, 'Sprite rendering is unavailable: Cloudflare image models failed and Gemini is not configured.');
+    throw new ApiFailure(503, 'Sprite rendering is unavailable: Cloudflare and Runware image providers failed, and Gemini is not configured.');
   }
   const ai = injectedClient ?? (client ??= new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! }));
   const models = getGeminiImageModels();
-  const deadline = Date.now() + 55000;
+  // Leave enough of the client's 60s timeout for Runware + a final Gemini attempt.
+  const deadline = Date.now() + (!injectedClient && process.env.RUNWARE_API_KEY ? 35_000 : 55_000);
   let last: unknown;
 
   for (let attempt = 0; attempt < models.length; attempt++) {
@@ -542,7 +549,7 @@ export async function generateGeminiImage(
       const terminal = terminalGeminiFailure(error);
       if (terminal) {
         if (terminal.status === 429 && !injectedClient) {
-          throw new ApiFailure(503, 'Sprite rendering is temporarily unavailable: Cloudflare image generation failed and Gemini image quota is exhausted. Your discovery can still be saved; retry the sprite later.');
+          throw new ApiFailure(503, 'Sprite rendering is temporarily unavailable: Cloudflare and Runware could not produce an image, and Gemini image quota is exhausted. Your discovery is saved; retry its artwork later.');
         }
         throw terminal;
       }
