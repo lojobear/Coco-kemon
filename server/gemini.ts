@@ -497,7 +497,7 @@ export async function generateGeminiImage(
   }
   const ai = injectedClient ?? (client ??= new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! }));
   const models = getGeminiImageModels();
-  const deadline = Date.now() + 55000;
+  // Leave enough of the client\'s 60s timeout for Runware + a final Gemini attempt.\n  const deadline = Date.now() + (!injectedClient && process.env.RUNWARE_API_KEY ? 35_000 : 55_000);
   let last: unknown;
 
   for (let attempt = 0; attempt < models.length; attempt++) {
