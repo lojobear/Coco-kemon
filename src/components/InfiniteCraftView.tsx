@@ -492,7 +492,7 @@ export function InfiniteCraftView() {
     suppressCanvasClickRef.current = false;
     const isTouch = e.pointerType === 'touch';
     const touchLift = isTouch ? 36 : 0;
-    draggingItemRef.current = { instanceId: item.instanceId, offsetX: e.clientX - item.x, offsetY: e.clientY - item.y + touchLift, startX: e.clientX, startY: e.clientY, initialX: item.x, initialY: item.y, currentX: e.clientX, currentY: e.clientY, isTouch, moved: false };
+    draggingItemRef.current = { instanceId: item.instanceId, offsetX: e.clientX - item.x, offsetY: e.clientY - item.y + touchLift, startX: e.clientX, startY: e.clientY, initialX: item.x, initialY: item.y - touchLift, currentX: e.clientX, currentY: e.clientY, isTouch, moved: false };
     setSelectedCanvasId(null);
     setActiveDragId(item.instanceId);
   };
@@ -548,6 +548,7 @@ export function InfiniteCraftView() {
         snapTimerRef.current = window.setTimeout(() => {
           snapTimerRef.current = null;
           setSnappingPair(null);
+          window.setTimeout(() => { suppressCanvasClickRef.current = false; }, 200);
           snapLockRef.current = false;
           interactions.current.handleCombine(
             { name: moving.name, emoji: moving.emoji, x: snappedX, y: snappedY, idA: moving.instanceId },
@@ -599,7 +600,7 @@ export function InfiniteCraftView() {
         // A physical release does not trigger combination; only proximity does.
       }
       resetDrag();
-      if (suppressCanvasClickRef.current) window.setTimeout(() => { suppressCanvasClickRef.current = false; }, 80);
+      if (suppressCanvasClickRef.current) window.setTimeout(() => { suppressCanvasClickRef.current = false; }, 180);
     };
 
     window.addEventListener('pointermove', handlePointerMove, { passive: true });
