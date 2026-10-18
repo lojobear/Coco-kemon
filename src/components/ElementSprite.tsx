@@ -23,8 +23,10 @@ export function ElementSprite({ name, custom, fallback, className = '', alt = ''
     if (custom) return;
     let cancelled = false;
     setError('');
-    const load = () => { void getElementEmoji(name).then(url => {
-      if (!cancelled) setArt({ key, url });
+    // Scrolling through an inventory should retrieve saved artwork, not queue
+    // hundreds of new AI image requests just because the item is visible.
+    const load = () => { void getElementEmoji(name, false, '', false).then(url => {
+      if (!cancelled && url) setArt({ key, url });
     }).catch(e => { if (!cancelled) setError(e.message); }); };
     const observer = new IntersectionObserver(entries => {
       if (entries.some(entry => entry.isIntersecting)) { observer.disconnect(); load(); }
