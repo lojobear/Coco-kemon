@@ -40,7 +40,16 @@ export function ElementSprite({ name, custom, fallback, className = '', alt = ''
           // Browsers without a canvas can still display the item's emoji.
         }
       }
-    }).catch(e => { if (!cancelled) setError(e instanceof Error ? e.message : String(e)); }); };
+    }).catch(e => {
+      if (cancelled) return;
+      setError(e instanceof Error ? e.message : String(e));
+      try {
+        const preview = generateConceptSprite(name);
+        if (preview) setTemporary({ key, url: preview });
+      } catch {
+        // Browser canvas unavailable: keep the original emoji as last resort.
+      }
+    }); };
     const observer = new IntersectionObserver(entries => {
       if (entries.some(entry => entry.isIntersecting)) { observer.disconnect(); load(); }
     });
