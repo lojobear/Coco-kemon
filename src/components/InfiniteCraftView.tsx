@@ -16,6 +16,7 @@ import {
   InfiniteCraftPairResponse,
 } from '../lib/infiniteCraftData';
 import { requestJson } from '../lib/api';
+import { getElementEmoji } from '../lib/elementEmoji';
 import { saveCraftElements, readCraftElements, SAVE_IMPORTED_EVENT } from '../lib/saveData';
 import { sound } from '../lib/audio';
 import { haptics } from '../lib/haptics';
@@ -300,6 +301,9 @@ export function InfiniteCraftView() {
       const { result, emoji, isNew } = apiData;
       const cleanName = result.trim();
       const normName = cleanName.toLowerCase();
+      // Request artwork only for a discovery newly added to this player's collection,
+      // not whenever a library grid happens to render a saved item.
+      const firstInCollection = !elements.some(el => el.name.trim().toLowerCase() === normName);
       const cleanId = normName.replace(/[^a-z0-9]/g, '_');
       const craftedAt = Date.now();
       const currentRecipe = { first: itemA.name, second: itemB.name };
@@ -325,6 +329,7 @@ export function InfiniteCraftView() {
       };
 
       setLastResult(newElemObj);
+      if (firstInCollection) void getElementEmoji(cleanName).catch(() => undefined);
       setElements(prev => {
         const existingIdx = prev.findIndex(el => el.id.toLowerCase() === cleanId || el.name.trim().toLowerCase() === normName);
         if (existingIdx >= 0) {
