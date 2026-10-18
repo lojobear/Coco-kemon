@@ -69,14 +69,6 @@ class HapticsEngine {
     } catch {}
   }
 
-  // Distinct two-stage latch feel at the exact moment elements snap together.
-  public magneticSnap() {
-    if (!this.isEnabled()) return;
-    try {
-      navigator.vibrate([12, 18, 25]);
-    } catch {}
-  }
-
   // Synthesis matter fusion pulse
   public fusionPulse() {
     if (!this.isEnabled()) return;
