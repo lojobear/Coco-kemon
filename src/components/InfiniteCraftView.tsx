@@ -22,7 +22,7 @@ import { findCraftDropTarget } from '../lib/craftCollision';
 import { saveCraftElements, readCraftElements, SAVE_IMPORTED_EVENT } from '../lib/saveData';
 import { sound } from '../lib/audio';
 import { haptics } from '../lib/haptics';
-import { CombineAnimationOverlay, ActiveCombination } from './CombineAnimationOverlay';
+import type { ActiveCombination } from './CombineAnimationOverlay';
 import { CraftingCrucible, CrucibleSlotItem } from './CraftingCrucible';
 import { ElementDossierModal } from './ElementDossierModal';
 import { generateConceptSprite } from '../lib/pixelRenderer';
@@ -327,7 +327,7 @@ export function InfiniteCraftView() {
         name: cleanName,
         emoji: emoji || '✨',
         discoveredAt: craftedAt,
-        isNew: Boolean(isNew || firstInCollection),
+        isNew: firstInCollection,
         explanation: apiData.explanation,
         connection: apiData.connection,
         recipe: currentRecipe,
