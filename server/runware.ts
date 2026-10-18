@@ -23,7 +23,7 @@ export async function generateRunwareSprite(
 
   const taskUUID = crypto.randomUUID();
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 28_000);
+  const timeout = setTimeout(() => controller.abort(), 16_000);
   try {
     const response = await (options.fetcher || fetch)('https://api.runware.ai/v1', {
       method: 'POST',
