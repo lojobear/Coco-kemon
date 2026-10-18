@@ -10,6 +10,7 @@ import { Material, Oddkin, Process, ExperimentLog, Habitat, SynthesisResult, Pho
 import { STARTER_MATERIALS, ALL_PROCESSES, INITIAL_HABITATS, mergeProcesses } from './starterData';
 import { generateMaterialSprite, generateOddkinSprite, MATERIAL_SPRITE_RENDERER_VERSION } from './pixelRenderer';
 import { requestJson } from './api';
+import { getElementEmoji } from './elementEmoji';
 import { validMaterial, validOddkin } from './validation';
 import { readFoundrySave, saveFoundry, exportCompleteSave, importCompleteSave, readCraftElements, saveCraftElements } from './saveData';
 import { sound } from './audio';
@@ -429,6 +430,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
         sound.playDiscoveryChime(newMat.rarity);
         setMaterials(prev => deduplicateMaterials([newMat, ...prev]));
+        // Only genuinely new Foundry material discoveries spend image AI quota.
+        if (discovery.isNew) void getElementEmoji(newMat.displayName).catch(() => undefined);
 
         // Unlock processes based on discoveries (e.g. Glass unlocks POLISH, Spark unlocks CHARGE, etc.)
         if (newMat.canonicalName.includes('GLASS') || newMat.canonicalName.includes('CERAMIC')) {
