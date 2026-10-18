@@ -17,6 +17,7 @@ import {
 } from '../lib/infiniteCraftData';
 import { requestJson } from '../lib/api';
 import { getElementEmoji } from '../lib/elementEmoji';
+import { nearestMagneticItem, shouldMagnetSnap, MAGNET_PREVIEW_RADIUS, MAGNET_SNAP_RADIUS_MOUSE, MAGNET_SNAP_RADIUS_TOUCH } from '../lib/magneticCraft';
 import { saveCraftElements, readCraftElements, SAVE_IMPORTED_EVENT } from '../lib/saveData';
 import { sound } from '../lib/audio';
 import { haptics } from '../lib/haptics';
@@ -113,7 +114,7 @@ export function sanitizeElements(list: InfiniteElement[]): InfiniteElement[] {
 
 export function InfiniteCraftView() {
   const { setActiveTab } = useGame();
-  const [showFreeform, setShowFreeform] = useState(false);
+  const [showFreeform, setShowFreeform] = useState(true);
   const [ingredientFilter, setIngredientFilter] = useState<'all' | 'new' | 'shiny'>('all');
   const [lastResult, setLastResult] = useState<InfiniteElement | null>(null);
   const [elements, setElements] = useState<InfiniteElement[]>(() => {
@@ -182,12 +183,18 @@ export function InfiniteCraftView() {
   canvasItemsRef.current = canvasItems;
   const rafPendingRef = useRef(false);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  const [snappingPair, setSnappingPair] = useState<{ moving: string; target: string } | null>(null);
+  const snapLockRef = useRef(false);
+  const snapTimerRef = useRef<number | null>(null);
+  const suppressCanvasClickRef = useRef(false);
   const draggingItemRef = useRef<{
     instanceId: string;
     offsetX: number;
     offsetY: number;
     startX: number;
     startY: number;
+    initialX: number;
+    initialY: number;
     currentX: number;
     currentY: number;
     isTouch: boolean;
@@ -424,6 +431,8 @@ export function InfiniteCraftView() {
   };
 
   const handleCanvasItemClick = (item: CanvasItem) => {
+    // Drag release also fires click on some touch browsers; don't count it as a tap.
+    if (suppressCanvasClickRef.current || snapLockRef.current || requestRef.current) return;
     sound.playClick(); haptics.lightTap();
     if (!selectedCanvasId) setSelectedCanvasId(item.instanceId);
     else if (selectedCanvasId === item.instanceId) setSelectedCanvasId(null);
@@ -476,76 +485,132 @@ export function InfiniteCraftView() {
   };
 
   const handlePointerDown = (item: CanvasItem, e: React.PointerEvent) => {
-    if (e.button !== 0) return;
+    if (e.button !== 0 || snapLockRef.current || requestRef.current || (e.target as HTMLElement).closest('button')) return;
     e.preventDefault(); e.stopPropagation();
+    // Unlock AudioContext from the actual user gesture, not the later animation frame.
+    sound.unlock();
+    suppressCanvasClickRef.current = false;
     const isTouch = e.pointerType === 'touch';
     const touchLift = isTouch ? 36 : 0;
-    draggingItemRef.current = { instanceId: item.instanceId, offsetX: e.clientX - item.x, offsetY: e.clientY - item.y + touchLift, startX: e.clientX, startY: e.clientY, currentX: e.clientX, currentY: e.clientY, isTouch, moved: false };
+    draggingItemRef.current = { instanceId: item.instanceId, offsetX: e.clientX - item.x, offsetY: e.clientY - item.y + touchLift, startX: e.clientX, startY: e.clientY, initialX: item.x, initialY: item.y, currentX: e.clientX, currentY: e.clientY, isTouch, moved: false };
+    setSelectedCanvasId(null);
     setActiveDragId(item.instanceId);
   };
 
   const interactions = useRef({ dropIntoCrucible, handleCombine });
   interactions.current = { dropIntoCrucible, handleCombine };
   useEffect(() => {
+    const resetDrag = () => {
+      draggingItemRef.current = null;
+      setActiveDragId(null);
+      setHoverTargetId(null);
+      setIsCrucibleHovered(false);
+    };
+
     const processDragFrame = () => {
       rafPendingRef.current = false;
       const drag = draggingItemRef.current;
-      if (!drag) return;
+      if (!drag || snapLockRef.current) return;
       const newX = drag.currentX - drag.offsetX;
       const newY = drag.currentY - drag.offsetY;
-      setCanvasItems(prev => prev.map(it => it.instanceId === drag.instanceId ? { ...it, x: newX, y: newY } : it));
+      const items = canvasItemsRef.current;
+      const moving = items.find(it => it.instanceId === drag.instanceId);
+      if (!moving) { resetDrag(); return; }
+
       let overCrucible = false;
       if (crucibleRef.current) {
         const rect = crucibleRef.current.getBoundingClientRect();
         overCrucible = drag.currentX >= rect.left - 15 && drag.currentX <= rect.right + 15 && drag.currentY >= rect.top - 15 && drag.currentY <= rect.bottom + 15;
       }
       setIsCrucibleHovered(overCrucible);
-      if (overCrucible) setHoverTargetId(null);
-      else {
-        let nearestId: string | null = null;
-        const proximityThreshold = drag.isTouch ? 85 : 70;
-        for (const other of canvasItemsRef.current) {
-          if (other.instanceId === drag.instanceId) continue;
-          if (Math.hypot(other.x - newX, other.y - newY) < proximityThreshold) { nearestId = other.instanceId; break; }
-        }
-        setHoverTargetId(prev => { if (nearestId && nearestId !== prev) haptics.proximityTick(); return nearestId; });
+      const travel = Math.hypot(drag.currentX - drag.startX, drag.currentY - drag.startY);
+      const candidate = overCrucible ? null : nearestMagneticItem(items, drag.instanceId, newX, newY, MAGNET_PREVIEW_RADIUS);
+      const radius = drag.isTouch ? MAGNET_SNAP_RADIUS_TOUCH : MAGNET_SNAP_RADIUS_MOUSE;
+      const startingDistance = candidate ? Math.hypot(candidate.item.x - drag.initialX, candidate.item.y - drag.initialY) : Infinity;
+
+      if (candidate && shouldMagnetSnap(travel, candidate.distance, startingDistance, radius)) {
+        // Trigger on proximity DURING the drag: no pointer release required.
+        snapLockRef.current = true;
+        suppressCanvasClickRef.current = true;
+        const target = candidate.item;
+        const snappedX = target.x + 7;
+        const snappedY = target.y - 6;
+        sound.playMagneticClick();
+        haptics.magneticSnap();
+        setSnappingPair({ moving: moving.instanceId, target: target.instanceId });
+        setCanvasItems(prev => prev.map(it => it.instanceId === moving.instanceId ? { ...it, x: snappedX, y: snappedY } : it));
+        draggingItemRef.current = null;
+        setActiveDragId(null);
+        setHoverTargetId(null);
+        setIsCrucibleHovered(false);
+
+        // Let the items visibly latch before displaying the fusion overlay.
+        snapTimerRef.current = window.setTimeout(() => {
+          snapTimerRef.current = null;
+          setSnappingPair(null);
+          snapLockRef.current = false;
+          interactions.current.handleCombine(
+            { name: moving.name, emoji: moving.emoji, x: snappedX, y: snappedY, idA: moving.instanceId },
+            { name: target.name, emoji: target.emoji, x: target.x, y: target.y, idB: target.instanceId },
+          );
+        }, 155);
+        return;
       }
+
+      setCanvasItems(prev => prev.map(it => it.instanceId === drag.instanceId ? { ...it, x: newX, y: newY } : it));
+      setHoverTargetId(prev => {
+        const nearestId = candidate?.item.instanceId || null;
+        if (nearestId && nearestId !== prev) haptics.proximityTick();
+        return nearestId;
+      });
     };
 
     const handlePointerMove = (e: PointerEvent) => {
       const drag = draggingItemRef.current;
-      if (!drag) return;
+      if (!drag || snapLockRef.current) return;
       drag.currentX = e.clientX; drag.currentY = e.clientY;
       if (!drag.moved) {
-        if (Math.hypot(drag.currentX - drag.startX, drag.currentY - drag.startY) >= 4) { drag.moved = true; haptics.lightTap(); }
-        else return;
+        if (Math.hypot(drag.currentX - drag.startX, drag.currentY - drag.startY) >= 4) {
+          drag.moved = true;
+          suppressCanvasClickRef.current = true;
+          haptics.lightTap();
+        } else return;
       }
       if (!rafPendingRef.current) { rafPendingRef.current = true; requestAnimationFrame(processDragFrame); }
     };
 
     const handlePointerUp = (e: PointerEvent) => {
       const drag = draggingItemRef.current;
-      if (!drag) return;
-      const items = canvasItemsRef.current;
-      const dragged = items.find(it => it.instanceId === drag.instanceId);
-      if (dragged && drag.moved) {
-        if (crucibleRef.current) {
+      if (!drag || snapLockRef.current) return;
+      if (e.type === 'pointercancel') { resetDrag(); return; }
+      if (drag.moved) {
+        drag.currentX = e.clientX; drag.currentY = e.clientY;
+        // Use the final pointer position even if the last RAF hasn't painted yet.
+        processDragFrame();
+        if (snapLockRef.current) return;
+        const dragged = canvasItemsRef.current.find(it => it.instanceId === drag.instanceId);
+        if (dragged && crucibleRef.current) {
           const rect = crucibleRef.current.getBoundingClientRect();
           if (e.clientX >= rect.left - 20 && e.clientX <= rect.right + 20 && e.clientY >= rect.top - 20 && e.clientY <= rect.bottom + 20) {
-            haptics.mediumTap(); interactions.current.dropIntoCrucible(dragged); draggingItemRef.current = null; setActiveDragId(null); setHoverTargetId(null); setIsCrucibleHovered(false); return;
+            haptics.mediumTap();
+            interactions.current.dropIntoCrucible(dragged);
           }
         }
-        const proximityThreshold = drag.isTouch ? 85 : 70;
-        const targetItem = items.find(other => other.instanceId !== drag.instanceId && Math.hypot(other.x - dragged.x, other.y - dragged.y) < proximityThreshold);
-        if (targetItem) { haptics.fusionPulse(); interactions.current.handleCombine({ name: dragged.name, emoji: dragged.emoji, x: dragged.x, y: dragged.y, idA: dragged.instanceId }, { name: targetItem.name, emoji: targetItem.emoji, x: targetItem.x, y: targetItem.y, idB: targetItem.instanceId }); }
+        // A physical release does not trigger combination; only proximity does.
       }
-      draggingItemRef.current = null; setActiveDragId(null); setHoverTargetId(null); setIsCrucibleHovered(false);
+      resetDrag();
+      if (suppressCanvasClickRef.current) window.setTimeout(() => { suppressCanvasClickRef.current = false; }, 80);
     };
 
     window.addEventListener('pointermove', handlePointerMove, { passive: true });
     window.addEventListener('pointerup', handlePointerUp);
     window.addEventListener('pointercancel', handlePointerUp);
-    return () => { window.removeEventListener('pointermove', handlePointerMove); window.removeEventListener('pointerup', handlePointerUp); window.removeEventListener('pointercancel', handlePointerUp); };
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', handlePointerUp);
+      if (snapTimerRef.current !== null) window.clearTimeout(snapTimerRef.current);
+    };
   }, []);
 
   const clearCanvas = () => { sound.playClick(); haptics.heavyTap(); setCanvasItems([]); setSelectedCanvasId(null); };
@@ -577,6 +642,9 @@ export function InfiniteCraftView() {
             const rest = pool.filter((_, index) => index !== first);
             setCrucibleSlotA(pool[first]); setCrucibleSlotB(rest[Math.floor(Math.random() * rest.length)] || pool[first]);
           }}><Shuffle size={18} /><span>Surprise me</span></button></div>
+        {showFreeform && <section className="boop-freeform"><div className="boop-section-heading"><h2>Freeform board</h2><button onClick={clearCanvas}>Clear</button><button onClick={tidyCanvas}>Tidy</button></div><p>Drag two discoveries close together until they magnetically click. Tap two as an alternative.</p>
+          <div ref={canvasRef} className="boop-freeform-canvas">{canvasItems.map(item => <div key={item.instanceId} className={`boop-board-item ${selectedCanvasId === item.instanceId ? 'is-selected' : ''} ${activeDragId === item.instanceId ? 'is-dragging' : ''} ${hoverTargetId === item.instanceId ? 'is-magnet-target' : ''} ${snappingPair?.moving === item.instanceId || snappingPair?.target === item.instanceId ? 'is-snapping' : ''}`} onPointerDown={e => handlePointerDown(item, e)} onClick={e => { e.stopPropagation(); handleCanvasItemClick(item); }} onDoubleClick={e => handleDuplicate(item, e)} style={{ transform: `translate3d(${item.x}px, ${item.y}px, 0)` }}><CraftSprite name={item.name} emoji={item.emoji} /><span>{item.name}</span><button aria-label={`Remove ${item.name} from board`} onClick={e => handleRemoveFromCanvas(item.instanceId, e)}><X size={14} /></button></div>)}</div>
+        </section>}
         <div ref={showFreeform ? undefined : canvasRef} className="boop-pad-stage" onDragOver={event => { if (!isSynthesizing) event.preventDefault(); }} onDrop={event => {
           event.preventDefault(); const name = event.dataTransfer.getData('application/x-boop-ingredient');
           const item = elements.find(el => el.name === name); if (item) selectIngredient(item);
@@ -591,10 +659,8 @@ export function InfiniteCraftView() {
         <div className="boop-recent-grid">{(recent.length ? recent : elements.slice(0, 4)).map(el => <DiscoveryCard key={el.id} name={el.name} emoji={el.emoji} detail={el.isNew ? 'First discovery' : el.isShiny ? 'Shiny' : 'Discovery'} compact disabled={isSynthesizing} onSelect={() => selectIngredient(el)} onInspect={() => setInspectedElement(el)} />)}</div>
         <p className="boop-hint"><Sparkles size={18} />Try a place, an animal, or an idea. There’s always another combination.</p>
         <div className="boop-secondary-tools"><DiscoveryTrails elements={elements} busy={isSynthesizing} onPrepare={(a, b) => { setCrucibleSlotA(a); setCrucibleSlotB(b); }} />
-          <button className="boop-secondary" aria-expanded={showFreeform} onClick={() => setShowFreeform(value => !value)}>{showFreeform ? 'Close freeform board' : 'Open freeform board'}</button></div>
-        {showFreeform && <section className="boop-freeform"><div className="boop-section-heading"><h2>Freeform board</h2><button onClick={clearCanvas}>Clear</button><button onClick={tidyCanvas}>Tidy</button></div><p>Tap two items to combine, or drag one onto another.</p>
-          <div ref={canvasRef} className="boop-freeform-canvas">{canvasItems.map(item => <div key={item.instanceId} className={`boop-board-item ${selectedCanvasId === item.instanceId ? 'is-selected' : ''}`} onPointerDown={e => handlePointerDown(item, e)} onClick={e => { e.stopPropagation(); handleCanvasItemClick(item); }} onDoubleClick={e => handleDuplicate(item, e)} style={{ transform: `translate3d(${item.x}px, ${item.y}px, 0)` }}><CraftSprite name={item.name} emoji={item.emoji} /><span>{item.name}</span><button aria-label={`Remove ${item.name} from board`} onClick={e => handleRemoveFromCanvas(item.instanceId, e)}><X size={14} /></button></div>)}</div>
-        </section>}
+          <button className="boop-secondary" aria-expanded={showFreeform} onClick={() => setShowFreeform(value => !value)}>{showFreeform ? 'Hide freeform board' : 'Show freeform board'}</button></div>
+        
       </section>
       <aside className="boop-ingredient-library" aria-label="Ingredient library">
         <div className="boop-section-heading"><h2>Your ingredients</h2><small>{elements.length} discoveries</small></div>
