@@ -524,7 +524,7 @@ export function InfiniteCraftView() {
       }
       setIsCrucibleHovered(overCrucible);
       const travel = Math.hypot(drag.currentX - drag.startX, drag.currentY - drag.startY);
-      const candidate = overCrucible ? null : nearestMagneticItem(items, drag.instanceId, newX, newY, MAGNET_PREVIEW_RADIUS);
+      const candidate = overCrucible ? null : nearestMagneticItem<CanvasItem>(items, drag.instanceId, newX, newY, MAGNET_PREVIEW_RADIUS);
       const radius = drag.isTouch ? MAGNET_SNAP_RADIUS_TOUCH : MAGNET_SNAP_RADIUS_MOUSE;
       const startingDistance = candidate ? Math.hypot(candidate.item.x - drag.initialX, candidate.item.y - drag.initialY) : Infinity;
 
