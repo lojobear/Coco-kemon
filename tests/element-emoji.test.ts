@@ -180,6 +180,9 @@ test('client deduplicates, persists normalized high-resolution art, and supports
 
   try {
     const first = await import('../src/lib/elementEmoji.ts' + '?native-first');
+    // Rendering ungenerated inventory entries is free: no request to image AI.
+    assert.equal(await first.getElementEmoji('Not Yet Discovered', false, '', false), '');
+    assert.equal(calls, 0);
     const [a, b] = await Promise.all([
       first.getElementEmoji('Moon Rock'),
       first.getElementEmoji(' MOON  ROCK '),
@@ -196,6 +199,24 @@ test('client deduplicates, persists normalized high-resolution art, and supports
     assert.equal(calls, 2);
     await reloaded.upgradeElementEmoji('moon rock', 'reroll-b');
     assert.equal(calls, 3);
+
+    // A transient quota failure must not poison the job map forever.
+    let failOnce = true;
+    globalThis.fetch = async () => {
+      calls++;
+      if (failOnce) {
+        failOnce = false;
+        return new Response(JSON.stringify({ error: 'Sprite quota reached' }), {
+          status: 503, headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response(JSON.stringify({ imageBase64: fakeImage.data, mimeType: fakeImage.mimeType }), {
+        status: 200, headers: { 'Content-Type': 'application/json' },
+      });
+    };
+    await assert.rejects(first.getElementEmoji('Retry Moon'), /Sprite quota reached/);
+    assert.equal(await first.getElementEmoji('Retry Moon'), a);
+    assert.equal(calls, 5, 'a failed sprite request should be retried successfully');
   } finally {
     Object.defineProperty(globalThis, 'indexedDB', { configurable: true, value: oldIndexedDB });
     globalThis.fetch = oldFetch;
