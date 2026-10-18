@@ -522,7 +522,7 @@ export function InfiniteCraftView() {
       const root = canvasRef.current;
       if (!root) return null;
       const movingRect = drag.node.getBoundingClientRect();
-      const candidates = Array.from(root.querySelectorAll<HTMLDivElement>('[data-craft-instance]'))
+      const candidates = (Array.from(root.querySelectorAll('[data-craft-instance]')) as HTMLDivElement[])
         .filter(node => node.dataset.craftInstance !== drag.instanceId)
         .map(node => ({
           item: node.dataset.craftInstance!,
