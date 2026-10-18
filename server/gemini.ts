@@ -601,6 +601,9 @@ async function callGroqStructured(
     try {
       const body: any = {
         model,
+        // GPT-OSS defaults to medium reasoning; low is much faster for short
+        // crafting results and avoids spending the timeout on hidden reasoning.
+        ...(model.startsWith('openai/gpt-oss-') ? { reasoning_effort: 'low' } : {}),
         messages: [
           ...(systemInstruction ? [{ role: 'system', content: systemInstruction }] : []),
           {
@@ -940,7 +943,7 @@ export async function callGeminiStructured(
       const code = Number(error?.status || error?.code);
       const terminal = terminalGeminiFailure(error);
       if (terminal) {
-        if (!injectedClient && typeof prompt === 'string' && terminal.status === 429) {
+        if (!injectedClient && typeof prompt === 'string' && Boolean(process.env.GROQ_API_KEY) && terminal.status === 429) {
           throw new ApiFailure(503, 'Combination AI is temporarily unavailable: Groq and Cloudflare could not respond, and Gemini has reached its quota. Try again later.');
         }
         throw terminal;
