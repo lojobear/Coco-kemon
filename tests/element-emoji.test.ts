@@ -217,6 +217,29 @@ test('client deduplicates, persists normalized high-resolution art, and supports
     await assert.rejects(first.getElementEmoji('Retry Moon'), /Sprite quota reached/);
     assert.equal(await first.getElementEmoji('Retry Moon'), a);
     assert.equal(calls, 5, 'a failed sprite request should be retried successfully');
+
+    // A stalled AI request cannot block local cached-art lookups in the
+    // collection. They must be independent of the image-generation queue.
+    records.set('pixelimage-v9-2p5d:cached sprite', a);
+    let releaseSlow!: () => void;
+    const slowGate = new Promise<void>(resolve => { releaseSlow = resolve; });
+    globalThis.fetch = async () => {
+      await slowGate;
+      return new Response(JSON.stringify({ imageBase64: fakeImage.data, mimeType: fakeImage.mimeType }), {
+        status: 200, headers: { 'Content-Type': 'application/json' },
+      });
+    };
+    const slow = first.getElementEmoji('Slow Generation');
+    try {
+      const restored = await Promise.race([
+        first.getElementEmoji('Cached Sprite', false, '', false),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Cached sprite blocked behind image generation')), 250)),
+      ]);
+      assert.equal(restored, a);
+    } finally {
+      releaseSlow();
+      await slow;
+    }
   } finally {
     Object.defineProperty(globalThis, 'indexedDB', { configurable: true, value: oldIndexedDB });
     globalThis.fetch = oldFetch;

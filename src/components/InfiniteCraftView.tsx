@@ -16,7 +16,7 @@ import {
   InfiniteCraftPairResponse,
 } from '../lib/infiniteCraftData';
 import { requestJson } from '../lib/api';
-import { getElementEmoji } from '../lib/elementEmoji';
+import { getElementEmoji, retryElementEmoji } from '../lib/elementEmoji';
 import { CANONICAL_INFINITE_CRAFT_RECIPES, makePairKey } from '../lib/infiniteCraftData';
 import { findCraftDropTarget } from '../lib/craftCollision';
 import { saveCraftElements, readCraftElements, SAVE_IMPORTED_EVENT } from '../lib/saveData';
@@ -118,6 +118,8 @@ export function InfiniteCraftView() {
   const [showFreeform, setShowFreeform] = useState(false);
   const [ingredientFilter, setIngredientFilter] = useState<'all' | 'new' | 'shiny'>('all');
   const [lastResult, setLastResult] = useState<InfiniteElement | null>(null);
+  const [spriteIssue, setSpriteIssue] = useState<{ name: string; message: string } | null>(null);
+  const [spriteRetrying, setSpriteRetrying] = useState(false);
   const [elements, setElements] = useState<InfiniteElement[]>(() => {
     try {
       const saved = JSON.stringify(readCraftElements());
@@ -137,6 +139,7 @@ export function InfiniteCraftView() {
       setElements(sanitizeElements(readCraftElements()));
       setCanvasItems([]);
       setLastResult(null);
+      setSpriteIssue(null);
       setCrucibleSlotA(null);
       setCrucibleSlotB(null);
       setSelectedCanvasId(null);
@@ -340,7 +343,18 @@ export function InfiniteCraftView() {
       };
 
       setLastResult(newElemObj);
-      if (firstInCollection) void getElementEmoji(cleanName).catch(() => undefined);
+      if (firstInCollection) {
+        // Missing artwork must not silently fail after the item was collected.
+        // Keep the discovery; the gallery renders a temporary local pixel preview.
+        void getElementEmoji(cleanName).then(() => {
+          setSpriteIssue(prev => prev?.name === cleanName ? null : prev);
+        }).catch(error => {
+          setSpriteIssue({
+            name: cleanName,
+            message: error instanceof Error ? error.message : 'AI sprite generation is unavailable right now.',
+          });
+        });
+      }
       setElements(prev => {
         const existingIdx = prev.findIndex(el => el.id.toLowerCase() === cleanId || el.name.trim().toLowerCase() === normName);
         if (existingIdx >= 0) {
@@ -416,6 +430,23 @@ export function InfiniteCraftView() {
       setSelectedCanvasId(null);
       setHoverTargetId(null);
       setIsCrucibleHovered(false);
+    }
+  };
+
+  const retryMissingSprite = async () => {
+    const target = spriteIssue?.name;
+    if (!target || spriteRetrying) return;
+    setSpriteRetrying(true);
+    try {
+      await retryElementEmoji(target);
+      setSpriteIssue(prev => prev?.name === target ? null : prev);
+    } catch (error) {
+      setSpriteIssue({
+        name: target,
+        message: error instanceof Error ? error.message : 'The image service is still unavailable.',
+      });
+    } finally {
+      setSpriteRetrying(false);
     }
   };
 
@@ -639,6 +670,12 @@ export function InfiniteCraftView() {
           <CraftingCrucible slotA={crucibleSlotA} slotB={crucibleSlotB} onClearSlotA={() => setCrucibleSlotA(null)} onClearSlotB={() => setCrucibleSlotB(null)} onClearAll={() => { setCrucibleSlotA(null); setCrucibleSlotB(null); }} onSwapSlots={handleSwapCrucible} onCombine={handleCrucibleCombine} isSynthesizing={isSynthesizing} isDarkMode={false} isDropTargetActive={isCrucibleHovered} crucibleRef={crucibleRef} />
           {activeCombination && <div className="boop-inline-reaction" role="status" aria-live="polite"><span className="boop-inline-spinner" aria-hidden="true" />Making {activeCombination.nameA} + {activeCombination.nameB}… You can keep moving items.</div>}
         </div>
+        {spriteIssue && <div className="boop-sprite-warning" role="status" aria-live="polite">
+          <strong>AI artwork pending: {spriteIssue.name}</strong>
+          <p>{spriteIssue.message} Your discovery is saved and temporary pixel art is available.</p>
+          <button className="boop-secondary" disabled={spriteRetrying} onClick={() => void retryMissingSprite()}>{spriteRetrying ? 'Trying…' : 'Retry AI sprite'}</button>
+          <button className="boop-secondary" disabled={spriteRetrying} onClick={() => setSpriteIssue(null)}>Dismiss</button>
+        </div>}
         {combineError && <div role="alert" className="boop-error"><p>{combineError}</p><button onClick={() => { if (lastPairRef.current) void handleCombine(lastPairRef.current[0], lastPairRef.current[1]); }}>Retry combination</button><button onClick={() => setCombineError(null)}>Dismiss</button></div>}
         {lastResult && <div className="boop-result" role="status"><CraftSprite name={lastResult.name} emoji={lastResult.emoji} className="boop-result-sprite" /><div><small>{lastResult.isNew ? '✦ NEW DISCOVERY' : 'CRAFTED'}</small><strong>{lastResult.name}</strong><p>{lastResult.explanation || 'Your next ingredient is ready.'}</p><div className="boop-next-ideas"><span>Try next:</span>{STARTER_ELEMENTS.filter(el => el.name.toLowerCase() !== lastResult.name.toLowerCase()).slice(0, 3).map(el => <button key={el.name} disabled={isSynthesizing} onClick={() => void handleCombine({ name: lastResult.name, emoji: lastResult.emoji, x: 75, y: 90 }, { name: el.name, emoji: el.emoji, x: 180, y: 90 })}>{el.emoji} {el.name}</button>)}</div></div><button className="boop-secondary" disabled={isSynthesizing} onClick={() => selectIngredient(lastResult)}>Use it</button></div>}
         {spawnToast && <p className="boop-notice" role="status">{spawnToast}</p>}

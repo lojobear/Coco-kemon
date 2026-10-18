@@ -395,9 +395,12 @@ export function compactSchnellImagePrompt(prompt: string): string {
   return concise.slice(0, 2048);
 }
 
+// Once Cloudflare's free neuron allowance is depleted, both FLUX models share
+// that exhausted pool. Avoid hammering them on every requested sprite.
+let workersImageQuotaBackoffUntil = 0;
 async function generateWorkersAiImage(prompt: string): Promise<GeminiImageResult | null> {
   const ai = getWorkersAiBinding();
-  if (!ai?.run) return null;
+  if (!ai?.run || Date.now() < workersImageQuotaBackoffUntil) return null;
 
   const models = [
     '@cf/black-forest-labs/flux-2-klein-4b',
@@ -434,6 +437,11 @@ async function generateWorkersAiImage(prompt: string): Promise<GeminiImageResult
     } catch (error) {
       last = error;
       const message = error instanceof Error ? error.message : String(error);
+      if (/4006.*(?:daily free allocation|neurons)|used up your daily free allocation/i.test(message)) {
+        workersImageQuotaBackoffUntil = Date.now() + 5 * 60_000;
+        console.warn('Cloudflare image quota exhausted; use the Gemini fallback without retrying another FLUX model.');
+        break;
+      }
       if (model.includes('flux-2-klein-4b') && /3030|flagged/i.test(message)) {
         // A long decorative prompt may trip the image safety filter. Retry with a
         // compact, neutral inventory-art prompt; never attempt to bypass a filter
