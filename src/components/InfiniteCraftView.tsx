@@ -65,17 +65,6 @@ interface CanvasItem {
   isShiny?: boolean;
 }
 
-interface Particle {
-  id: string;
-  x: number;
-  y: number;
-  vx: number;
-  vy: number;
-  color: string;
-  size: number;
-  alpha: number;
-}
-
 /** Deduplicate, normalize and backfill collection statistics for old saves. */
 export function sanitizeElements(list: InfiniteElement[]): InfiniteElement[] {
   const seenNames = new Set<string>();
@@ -177,7 +166,8 @@ export function InfiniteCraftView() {
 
   const [firstDiscoveryModal, setFirstDiscoveryModal] = useState<InfiniteElement | null>(null);
   const [inspectedElement, setInspectedElement] = useState<InfiniteElement | null>(null);
-  const [particles, setParticles] = useState<Particle[]>([]);
+  const [revealBurst, setRevealBurst] = useState<{ id: number; isRare: boolean } | null>(null);
+  const burstTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(() => typeof window !== 'undefined' ? window.innerWidth >= 1024 : true);
   const [spawnToast, setSpawnToast] = useState<string | null>(null);
 
@@ -199,9 +189,11 @@ export function InfiniteCraftView() {
     originY: number;
     pointerId: number;
     node: HTMLDivElement;
+    startRect: DOMRect;
+    targets: Array<{ item: HTMLDivElement; rect: DOMRect }>;
     moved: boolean;
   } | null>(null);
-  const [hoverTargetId, setHoverTargetId] = useState<string | null>(null);
+  const hoveredNodeRef = useRef<HTMLDivElement | null>(null);
   const suppressCanvasClickRef = useRef(false);
 
   useEffect(() => {
@@ -229,23 +221,17 @@ export function InfiniteCraftView() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [firstDiscoveryModal, inspectedElement, selectedCanvasId, isSidebarOpen]);
 
-  useEffect(() => {
-    if (particles.length === 0) return;
-    const interval = setInterval(() => {
-      setParticles(prev => prev.map(p => ({ ...p, x: p.x + p.vx, y: p.y + p.vy, alpha: p.alpha - 0.04, size: p.size * 0.96 })).filter(p => p.alpha > 0.05));
-    }, 24);
-    return () => clearInterval(interval);
-  }, [particles.length]);
+  // One DOM burst per reveal; CSS handles the motion on the compositor.
+  // The previous 24ms particle setInterval rerendered the entire craft view
+  // throughout each burst, stuttering when many collection cards were visible.
+  useEffect(() => () => {
+    if (burstTimerRef.current) clearTimeout(burstTimerRef.current);
+  }, []);
 
-  const spawnParticles = (x: number, y: number, isGold = false) => {
-    const colors = isGold ? ['#fbbf24', '#f59e0b', '#d97706', '#fef08a', '#ffffff'] : ['#60a5fa', '#93c5fd', '#38bdf8', '#c084fc', '#f472b6'];
-    const newBatch: Particle[] = [];
-    for (let i = 0; i < 20; i++) {
-      const angle = (Math.PI * 2 * i) / 20 + (Math.random() - 0.5);
-      const speed = Math.random() * 4 + 2;
-      newBatch.push({ id: `part-${Date.now()}-${i}-${Math.random()}`, x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, color: colors[Math.floor(Math.random() * colors.length)], size: Math.random() * 5 + 3, alpha: 1 });
-    }
-    setParticles(prev => [...prev.slice(-40), ...newBatch]);
+  const spawnRevealBurst = (isRare: boolean) => {
+    if (burstTimerRef.current) clearTimeout(burstTimerRef.current);
+    setRevealBurst({ id: Date.now(), isRare });
+    burstTimerRef.current = setTimeout(() => setRevealBurst(null), 800);
   };
 
   const collectionStats = useMemo(() => getCollectionStats(elements), [elements]);
@@ -323,7 +309,7 @@ export function InfiniteCraftView() {
       const currentRecipe = { first: itemA.name, second: itemB.name };
       const standardPhysicalData = generatePhysicalData(cleanName, emoji || '✨', false);
       const shinyPhysicalData = isShinyEncounter ? generatePhysicalData(cleanName, emoji || '✨', true) : undefined;
-      spawnParticles(targetX, targetY, isShinyEncounter || isNew);
+      spawnRevealBurst(isShinyEncounter || firstInCollection);
 
       const newElemObj: InfiniteElement = {
         id: cleanId,
@@ -428,7 +414,8 @@ export function InfiniteCraftView() {
       setActiveCombination(null);
       setIsSynthesizing(false);
       setSelectedCanvasId(null);
-      setHoverTargetId(null);
+      if (hoveredNodeRef.current) hoveredNodeRef.current.classList.remove('is-drop-target');
+      hoveredNodeRef.current = null;
       setIsCrucibleHovered(false);
     }
   };
@@ -531,6 +518,10 @@ export function InfiniteCraftView() {
       currentX: e.clientX, currentY: e.clientY,
       originX: item.x, originY: item.y,
       pointerId: e.pointerId, node: e.currentTarget,
+      startRect: e.currentTarget.getBoundingClientRect(),
+      targets: (Array.from(canvasRef.current?.querySelectorAll('[data-craft-instance]') || []) as HTMLDivElement[])
+        .filter(node => node !== e.currentTarget)
+        .map(node => ({ item: node, rect: node.getBoundingClientRect() })),
       moved: false,
     };
     setActiveDragId(item.instanceId);
@@ -550,16 +541,15 @@ export function InfiniteCraftView() {
       drag.node.style.transform = `translate3d(${x}px, ${y}px, 0)`;
     };
     const hitTarget = (drag: NonNullable<typeof draggingItemRef.current>) => {
-      const root = canvasRef.current;
-      if (!root) return null;
-      const movingRect = drag.node.getBoundingClientRect();
-      const candidates = (Array.from(root.querySelectorAll('[data-craft-instance]')) as HTMLDivElement[])
-        .filter(node => node.dataset.craftInstance !== drag.instanceId)
-        .map(node => ({
-          item: node.dataset.craftInstance!,
-          rect: node.getBoundingClientRect(),
-        }));
-      return findCraftDropTarget(movingRect, candidates, { x: drag.currentX, y: drag.currentY });
+      const dx = drag.currentX - drag.startX;
+      const dy = drag.currentY - drag.startY;
+      // Geometry is captured once when dragging begins. Avoid DOM reads and React
+      // state updates every frame so the pill stays under the finger at 60fps.
+      const moving = {
+        left: drag.startRect.left + dx, top: drag.startRect.top + dy,
+        width: drag.startRect.width, height: drag.startRect.height,
+      };
+      return findCraftDropTarget<HTMLDivElement>(moving, drag.targets, { x: drag.currentX, y: drag.currentY });
     };
     const processDragFrame = () => {
       rafPendingRef.current = false;
@@ -567,7 +557,11 @@ export function InfiniteCraftView() {
       if (!drag || !drag.moved) return;
       applyDragPosition(drag);
       const target = hitTarget(drag);
-      setHoverTargetId(prev => prev === target ? prev : target);
+      if (hoveredNodeRef.current !== target) {
+        hoveredNodeRef.current?.classList.remove('is-drop-target');
+        if (target) target.classList.add('is-drop-target');
+        hoveredNodeRef.current = target;
+      }
       const rect = crucibleRef.current?.getBoundingClientRect();
       const over = Boolean(rect && drag.currentX >= rect.left && drag.currentX <= rect.right
         && drag.currentY >= rect.top && drag.currentY <= rect.bottom);
@@ -600,8 +594,8 @@ export function InfiniteCraftView() {
         applyDragPosition(drag); // Read accurate position even between animation frames.
         const { x, y } = position(drag);
         const item = canvasItemsRef.current.find(it => it.instanceId === drag.instanceId);
-        const targetId = hitTarget(drag);
-        const other = canvasItemsRef.current.find(it => it.instanceId === targetId);
+        const targetNode = hitTarget(drag);
+        const other = canvasItemsRef.current.find(it => it.instanceId === targetNode?.dataset.craftInstance);
         const crucibleRect = crucibleRef.current?.getBoundingClientRect();
         const overCrucible = Boolean(crucibleRect && e.clientX >= crucibleRect.left && e.clientX <= crucibleRect.right
           && e.clientY >= crucibleRect.top && e.clientY <= crucibleRect.bottom);
@@ -619,7 +613,8 @@ export function InfiniteCraftView() {
       }
       draggingItemRef.current = null;
       setActiveDragId(null);
-      setHoverTargetId(null);
+      hoveredNodeRef.current?.classList.remove('is-drop-target');
+      hoveredNodeRef.current = null;
       setIsCrucibleHovered(false);
       if (suppressCanvasClickRef.current) window.setTimeout(() => { suppressCanvasClickRef.current = false; }, 80);
     };
@@ -631,6 +626,8 @@ export function InfiniteCraftView() {
       window.removeEventListener('pointermove', handlePointerMove);
       window.removeEventListener('pointerup', handlePointerUp);
       window.removeEventListener('pointercancel', handlePointerUp);
+      hoveredNodeRef.current?.classList.remove('is-drop-target');
+      hoveredNodeRef.current = null;
     };
   }, []);
 
@@ -663,12 +660,15 @@ export function InfiniteCraftView() {
             const rest = pool.filter((_, index) => index !== first);
             setCrucibleSlotA(pool[first]); setCrucibleSlotB(rest[Math.floor(Math.random() * rest.length)] || pool[first]);
           }}><Shuffle size={18} /><span>Surprise me</span></button></div>
-        <div ref={showFreeform ? undefined : canvasRef} className="boop-pad-stage" onDragOver={event => { if (!isSynthesizing) event.preventDefault(); }} onDrop={event => {
+        <div ref={showFreeform ? undefined : canvasRef} className={`boop-pad-stage ${isSynthesizing ? 'is-discovering' : ''}`} onDragOver={event => { if (!isSynthesizing) event.preventDefault(); }} onDrop={event => {
           event.preventDefault(); const name = event.dataTransfer.getData('application/x-boop-ingredient');
           const item = elements.find(el => el.name === name); if (item) selectIngredient(item);
         }}>
           <CraftingCrucible slotA={crucibleSlotA} slotB={crucibleSlotB} onClearSlotA={() => setCrucibleSlotA(null)} onClearSlotB={() => setCrucibleSlotB(null)} onClearAll={() => { setCrucibleSlotA(null); setCrucibleSlotB(null); }} onSwapSlots={handleSwapCrucible} onCombine={handleCrucibleCombine} isSynthesizing={isSynthesizing} isDarkMode={false} isDropTargetActive={isCrucibleHovered} crucibleRef={crucibleRef} />
-          {activeCombination && <div className="boop-inline-reaction" role="status" aria-live="polite"><span className="boop-inline-spinner" aria-hidden="true" />Making {activeCombination.nameA} + {activeCombination.nameB}… You can keep moving items.</div>}
+          {revealBurst && <div key={revealBurst.id} className={`boop-reveal-burst ${revealBurst.isRare ? 'is-special' : ''}`} aria-hidden="true">
+            {Array.from({ length: 8 }, (_, i) => <i key={i} style={{ '--direction': `${i * 45}deg` } as React.CSSProperties} />)}
+          </div>}
+          {activeCombination && <div className="boop-inline-reaction" role="status" aria-live="polite"><span className="boop-inline-spinner" aria-hidden="true" /><span>Mixing <strong>{activeCombination.nameA}</strong> + <strong>{activeCombination.nameB}</strong>…</span></div>}
         </div>
         {spriteIssue && <div className="boop-sprite-warning" role="status" aria-live="polite">
           <strong>AI artwork pending: {spriteIssue.name}</strong>
@@ -677,7 +677,15 @@ export function InfiniteCraftView() {
           <button className="boop-secondary" disabled={spriteRetrying} onClick={() => setSpriteIssue(null)}>Dismiss</button>
         </div>}
         {combineError && <div role="alert" className="boop-error"><p>{combineError}</p><button onClick={() => { if (lastPairRef.current) void handleCombine(lastPairRef.current[0], lastPairRef.current[1]); }}>Retry combination</button><button onClick={() => setCombineError(null)}>Dismiss</button></div>}
-        {lastResult && <div className="boop-result" role="status"><CraftSprite name={lastResult.name} emoji={lastResult.emoji} className="boop-result-sprite" /><div><small>{lastResult.isNew ? '✦ NEW DISCOVERY' : 'CRAFTED'}</small><strong>{lastResult.name}</strong><p>{lastResult.explanation || 'Your next ingredient is ready.'}</p><div className="boop-next-ideas"><span>Try next:</span>{STARTER_ELEMENTS.filter(el => el.name.toLowerCase() !== lastResult.name.toLowerCase()).slice(0, 3).map(el => <button key={el.name} disabled={isSynthesizing} onClick={() => void handleCombine({ name: lastResult.name, emoji: lastResult.emoji, x: 75, y: 90 }, { name: el.name, emoji: el.emoji, x: 180, y: 90 })}>{el.emoji} {el.name}</button>)}</div></div><button className="boop-secondary" disabled={isSynthesizing} onClick={() => selectIngredient(lastResult)}>Use it</button></div>}
+        <div className={`boop-result-shell ${lastResult ? 'is-visible' : ''}`} aria-live="polite" aria-atomic="true">
+          <div className="boop-result-shell-inner">{lastResult && <div key={lastResult.discoveredAt} className={`boop-result ${lastResult.isNew ? 'is-first-find' : ''}`}>
+            <span className="boop-result-art"><CraftSprite name={lastResult.name} emoji={lastResult.emoji} className="boop-result-sprite" /></span>
+            <div className="boop-result-copy"><small>{lastResult.isNew ? '✦ NEW DISCOVERY' : 'CRAFTED'}</small><strong>{lastResult.name}</strong><p>{lastResult.explanation || 'Your next ingredient is ready.'}</p>
+              <div className="boop-next-ideas"><span>Try next:</span>{STARTER_ELEMENTS.filter(el => el.name.toLowerCase() !== lastResult.name.toLowerCase()).slice(0, 3).map(el => <button key={el.name} disabled={isSynthesizing} onClick={() => void handleCombine({ name: lastResult.name, emoji: lastResult.emoji, x: 75, y: 90 }, { name: el.name, emoji: el.emoji, x: 180, y: 90 })}>{el.emoji} {el.name}</button>)}</div>
+            </div>
+            <button className="boop-secondary" disabled={isSynthesizing} onClick={() => selectIngredient(lastResult)}>Use it <span aria-hidden="true">↗</span></button>
+          </div>}</div>
+        </div>
         {spawnToast && <p className="boop-notice" role="status">{spawnToast}</p>}
         <div className="boop-section-heading"><h2>Recently discovered</h2><button className="boop-text-button" onClick={() => setActiveTab('archive')}>View collection ↗</button></div>
         <div className="boop-recent-grid">{(recent.length ? recent : elements.slice(0, 4)).map(el => <DiscoveryCard key={el.id} name={el.name} emoji={el.emoji} detail={el.isNew ? 'First discovery' : el.isShiny ? 'Shiny' : 'Discovery'} compact disabled={isSynthesizing} onSelect={() => selectIngredient(el)} onInspect={() => setInspectedElement(el)} />)}</div>
@@ -685,7 +693,7 @@ export function InfiniteCraftView() {
         <div className="boop-secondary-tools"><DiscoveryTrails elements={elements} busy={isSynthesizing} onPrepare={(a, b) => { setCrucibleSlotA(a); setCrucibleSlotB(b); }} />
           <button className="boop-secondary" aria-expanded={showFreeform} onClick={() => setShowFreeform(value => !value)}>{showFreeform ? 'Close freeform board' : 'Open freeform board'}</button></div>
         {showFreeform && <section className="boop-freeform"><div className="boop-section-heading"><h2>Freeform board</h2><button onClick={clearCanvas}>Clear</button><button onClick={tidyCanvas}>Tidy</button></div><p>Tap two items to combine, or drag one onto another.</p>
-          <div ref={canvasRef} className="boop-freeform-canvas">{canvasItems.map(item => <div key={item.instanceId} data-craft-instance={item.instanceId} className={`boop-board-item ${selectedCanvasId === item.instanceId ? 'is-selected' : ''} ${activeDragId === item.instanceId ? 'is-dragging' : ''} ${hoverTargetId === item.instanceId ? 'is-drop-target' : ''}`} onPointerDown={e => handlePointerDown(item, e)} onClick={e => { e.stopPropagation(); handleCanvasItemClick(item); }} onDoubleClick={e => handleDuplicate(item, e)} style={{ transform: `translate3d(${item.x}px, ${item.y}px, 0)` }}><CraftSprite name={item.name} emoji={item.emoji} /><span>{item.name}</span><button aria-label={`Remove ${item.name} from board`} onClick={e => handleRemoveFromCanvas(item.instanceId, e)}><X size={14} /></button></div>)}</div>
+          <div ref={canvasRef} className="boop-freeform-canvas">{canvasItems.map(item => <div key={item.instanceId} data-craft-instance={item.instanceId} className={`boop-board-item ${selectedCanvasId === item.instanceId ? 'is-selected' : ''} ${activeDragId === item.instanceId ? 'is-dragging' : ''}`} onPointerDown={e => handlePointerDown(item, e)} onClick={e => { e.stopPropagation(); handleCanvasItemClick(item); }} onDoubleClick={e => handleDuplicate(item, e)} style={{ transform: `translate3d(${item.x}px, ${item.y}px, 0)` }}><CraftSprite name={item.name} emoji={item.emoji} /><span>{item.name}</span><button aria-label={`Remove ${item.name} from board`} onClick={e => handleRemoveFromCanvas(item.instanceId, e)}><X size={14} /></button></div>)}</div>
         </section>}
       </section>
       <aside className="boop-ingredient-library" aria-label="Ingredient library">

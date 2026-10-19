@@ -12,7 +12,7 @@ interface CraftingCrucibleProps {
 }
 export function CraftingCrucible({ slotA, slotB, onClearSlotA, onClearSlotB, onClearAll, onSwapSlots, onCombine, isSynthesizing, isDropTargetActive, crucibleRef }: CraftingCrucibleProps) {
   const ready = Boolean(slotA && slotB);
-  return <div ref={crucibleRef} id="crafting-crucible-dock" className={`boop-combination-pad ${isDropTargetActive ? 'is-drop-target' : ''}`} aria-label="Combination pad">
+  return <div ref={crucibleRef} id="crafting-crucible-dock" className={`boop-combination-pad ${isDropTargetActive ? 'is-drop-target' : ''} ${ready ? 'is-ready' : ''} ${isSynthesizing ? 'is-synthesizing' : ''}`} aria-label="Combination pad">
     <div className="boop-pad-heading"><span>COMBINATION PAD</span><span className="boop-ready-tag">{ready ? 'Ready to discover' : `${Number(!!slotA) + Number(!!slotB)} selected`}</span></div>
     <div className="boop-pad-slots">
       {(['a', 'b'] as const).map((key, index) => {
