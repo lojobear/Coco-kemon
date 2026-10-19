@@ -519,7 +519,7 @@ export function InfiniteCraftView() {
       originX: item.x, originY: item.y,
       pointerId: e.pointerId, node: e.currentTarget,
       startRect: e.currentTarget.getBoundingClientRect(),
-      targets: (Array.from(canvasRef.current?.querySelectorAll<HTMLDivElement>('[data-craft-instance]') || []))
+      targets: (Array.from(canvasRef.current?.querySelectorAll('[data-craft-instance]') || []) as HTMLDivElement[])
         .filter(node => node !== e.currentTarget)
         .map(node => ({ item: node, rect: node.getBoundingClientRect() })),
       moved: false,
@@ -666,7 +666,7 @@ export function InfiniteCraftView() {
         }}>
           <CraftingCrucible slotA={crucibleSlotA} slotB={crucibleSlotB} onClearSlotA={() => setCrucibleSlotA(null)} onClearSlotB={() => setCrucibleSlotB(null)} onClearAll={() => { setCrucibleSlotA(null); setCrucibleSlotB(null); }} onSwapSlots={handleSwapCrucible} onCombine={handleCrucibleCombine} isSynthesizing={isSynthesizing} isDarkMode={false} isDropTargetActive={isCrucibleHovered} crucibleRef={crucibleRef} />
           {revealBurst && <div key={revealBurst.id} className={`boop-reveal-burst ${revealBurst.isRare ? 'is-special' : ''}`} aria-hidden="true">
-            {Array.from({ length: 8 }, (_, i) => <i key={i} style={{ '--ray': i } as React.CSSProperties} />)}
+            {Array.from({ length: 8 }, (_, i) => <i key={i} style={{ '--direction': `${i * 45}deg` } as React.CSSProperties} />)}
           </div>}
           {activeCombination && <div className="boop-inline-reaction" role="status" aria-live="polite"><span className="boop-inline-spinner" aria-hidden="true" /><span>Mixing <strong>{activeCombination.nameA}</strong> + <strong>{activeCombination.nameB}</strong>…</span></div>}
         </div>
