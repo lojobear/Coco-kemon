@@ -549,7 +549,7 @@ export function InfiniteCraftView() {
         left: drag.startRect.left + dx, top: drag.startRect.top + dy,
         width: drag.startRect.width, height: drag.startRect.height,
       };
-      return findCraftDropTarget(moving, drag.targets, { x: drag.currentX, y: drag.currentY });
+      return findCraftDropTarget<HTMLDivElement>(moving, drag.targets, { x: drag.currentX, y: drag.currentY });
     };
     const processDragFrame = () => {
       rafPendingRef.current = false;
