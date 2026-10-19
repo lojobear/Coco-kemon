@@ -401,7 +401,6 @@
   box-shadow:0 0 10px #d7f8797a;
   animation:boop-reveal-ray 670ms cubic-bezier(.14,.7,.25,1) both;
   transform-origin:4px 4px;
-  --direction:calc(var(--ray) * 45deg);
 }
 .boop-reveal-burst i:nth-child(2n) { width:5px; height:5px; background:#a1eed0; }
 .boop-reveal-burst.is-special i { background:#ffd876; box-shadow:0 0 10px #ffd8769a; }
