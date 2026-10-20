@@ -190,8 +190,9 @@ export function lowValueConceptReason(result: string, first: string, second: str
   // Block raw combination plus a generic intensifier, but not normal
   // compound nouns with new semantic identities.
   const resultWords = meaningfulTokens(clean);
-  if (resultWords.length >= 2 && resultWords.length <= 4 &&
-      resultWords.filter(token => !parents.some(parent => parent.includes(token))).every(token =>
+  const newWords = resultWords.filter(token => !parents.some(parent => parent.includes(token)));
+  if (resultWords.length >= 2 && resultWords.length <= 4 && newWords.length > 0 &&
+      newWords.every(token =>
         ['giant','tiny','little','magic','mystic','super','mega','ultra','cosmic','quantum','shiny','special','new','hybrid','fusion'].includes(token)
       ) &&
       resultWords.some(token => parents.some(parent => parent.includes(token)))) {
