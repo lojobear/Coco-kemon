@@ -456,3 +456,128 @@
   .boop-board-item,.boop-discovery-pick { animation:none!important; transition:none!important; scroll-behavior:auto!important; }
   .boop-reveal-burst { display:none; }
 }
+
+/* Discover quick interaction polish. Keep tap feedback in CSS, not React timers. */
+.boop-app :is(button,select) { touch-action:manipulation; -webkit-tap-highlight-color:transparent; }
+.boop-app button:not(:disabled):active { transform:translate3d(0,2px,0) scale(.985); }
+.boop-app .boop-pills button {
+  transition:background-color 110ms ease, color 110ms ease,box-shadow 110ms ease,transform 90ms ease;
+}
+.boop-app .boop-pills button[aria-pressed="true"] {
+  box-shadow:inset 0 0 0 1px #ffffff22,0 2px 5px #153d321a;
+}
+.boop-app .boop-pills button:not(:disabled):active {
+  transform:translate3d(0,2px,0) scale(.955);
+}
+.boop-app .boop-nav-items button {
+  transition:background-color 100ms ease,color 100ms ease,transform 90ms cubic-bezier(.2,.75,.25,1);
+}
+.boop-app .boop-nav-items button:not(:disabled):active {
+  transform:translate3d(0,2px,0) scale(.94);
+}
+.boop-app .boop-discovery-pick:not(:disabled):active {
+  transform:translate3d(0,2px,0) scale(.975);
+}
+.boop-app .boop-secondary:not(:disabled):active,
+.boop-app .boop-primary:not(:disabled):active {
+  transform:translate3d(0,2px,0) scale(.98);
+}
+
+/* Real push-button depth: the randomizer visually depresses as the finger lands. */
+.boop-app .boop-random-button {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:9px;
+  flex:0 0 auto;
+  min-height:43px;
+  padding:6px 15px 8px 9px;
+  border-radius:15px;
+  border:1px solid #85b74b;
+  background:linear-gradient(135deg,#e9ffb7 0%,#d7f879 40%,#b5ec69 100%);
+  color:#153d32;
+  font-size:13px;
+  font-weight:800;
+  letter-spacing:-.15px;
+  box-shadow:0 4px 0 #719c44,0 8px 14px #153d321e;
+  position:relative;
+  overflow:hidden;
+  isolation:isolate;
+  transform:translate3d(0,0,0);
+  transition:transform 85ms ease-out,box-shadow 85ms ease-out,background-color 100ms ease-out;
+  user-select:none;
+  -webkit-user-select:none;
+  white-space:nowrap;
+}
+.boop-app .boop-random-button::before {
+  content:"";
+  position:absolute;
+  z-index:-1;
+  top:-30px;right:0;
+  width:68px;height:72px;
+  background:radial-gradient(circle,#ffffff88,transparent 67%);
+  pointer-events:none;
+}
+.boop-random-icon {
+  display:grid;
+  place-items:center;
+  width:29px;
+  height:29px;
+  border-radius:10px;
+  flex-shrink:0;
+  color:#eaffca;
+  background:var(--boop-forest);
+  box-shadow:inset 0 1px 0 #ffffff3b;
+}
+.boop-random-label { display:inline!important; }
+.boop-random-glint { font-size:15px; color:#497a2a; pointer-events:none; }
+.boop-random-icon svg { display:block; animation:boop-quick-shuffle 220ms cubic-bezier(.2,.75,.35,1) both; }
+.boop-app .boop-random-button:not(:disabled):active {
+  transform:translate3d(0,4px,0) scale(.985);
+  box-shadow:0 0 0 #719c44,0 2px 5px #153d3215;
+  background:linear-gradient(135deg,#d7f879 0%,#b8e86d 100%);
+}
+.boop-app .boop-random-button:not(:disabled):focus-visible {
+  outline:3px solid #44865f;
+  outline-offset:4px;
+}
+.boop-app .boop-random-button:disabled { box-shadow:0 2px 0 #719c44; }
+/* Quick-pick slots have a short entrance instead of waiting for the normal 280ms bloom. */
+.boop-pad-slot.is-quick-picked { animation:boop-quick-slot-in 100ms ease-out both; }
+.boop-pad-slot.is-quick-picked .boop-pad-sprite { animation:boop-quick-art-in 125ms cubic-bezier(.15,.8,.25,1) both; }
+@keyframes boop-quick-shuffle {
+  from { transform:rotate(-70deg) scale(.86); }
+  to { transform:rotate(0deg) scale(1); }
+}
+@keyframes boop-quick-slot-in {
+  from { opacity:.82; transform:scale(.96); }
+  to { opacity:1; transform:scale(1); }
+}
+@keyframes boop-quick-art-in {
+  from { opacity:.6; transform:translateY(3px) scale(.93); }
+  to { opacity:1; transform:translateY(0) scale(1); }
+}
+@media (hover:hover) and (pointer:fine) {
+  .boop-app .boop-random-button:not(:disabled):hover {
+    filter:brightness(1.025);
+  }
+}
+@media (max-width:760px) {
+  .boop-craft-controls { flex-wrap:nowrap; gap:7px; }
+  .boop-craft-controls > .boop-pills { flex-wrap:nowrap; gap:5px; min-width:0; }
+  .boop-craft-controls > .boop-pills button { padding:8px 10px; font-size:11px; }
+  .boop-app .boop-random-button { min-height:42px; padding:5px 11px 7px 6px; gap:6px; border-radius:12px; font-size:12px; }
+  .boop-random-icon { width:27px; height:27px; border-radius:9px; }
+  .boop-random-glint { font-size:13px; }
+}
+@media (max-width:360px) {
+  .boop-craft-controls > .boop-pills button { padding:7px 8px; font-size:10px; }
+  .boop-app .boop-random-button { padding-right:7px; gap:5px; font-size:11px; }
+  .boop-random-glint { display:none; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .boop-app .boop-random-button,.boop-app .boop-nav-items button,
+  .boop-app .boop-pills button,.boop-app .boop-discovery-pick { transition:none!important; }
+  .boop-random-icon svg,.boop-pad-slot.is-quick-picked,
+  .boop-pad-slot.is-quick-picked .boop-pad-sprite { animation:none!important; }
+}
