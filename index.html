@@ -40,7 +40,7 @@
     <script>
       (function () {
         var params = new URLSearchParams(location.search);
-        if (params.get('boop_android') === '1' && /BoopAndroid\\/\\d+/i.test(navigator.userAgent)) {
+        if (params.get('boop_android') === '1' && /BoopAndroid\/\d+/i.test(navigator.userAgent)) {
           document.documentElement.classList.add('boop-native-shell');
         }
         // After Google's browser-based consent, Supabase returns a PKCE code
