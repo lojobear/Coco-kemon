@@ -38,7 +38,7 @@ test('native tab changes reach React and the website does not display a duplicat
   assert.match(app, /boop-native-tab/);
   assert.match(app, /boop-native-profile/);
   assert.match(app, /!nativeShell && <BottomNav/);
-  assert.match(css, /html\.boop-native-shell \.boop-app \[?\.boop-navigation/);
+  assert.match(css, /html\.boop-native-shell \.boop-app \.boop-navigation/);
 });
 
 test('native Google PKCE OAuth uses Chrome and returns its code to the same WebView origin', () => {
