@@ -1,7 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import { conceptDNAFor } from './discovery.js';
 import { getWorkersAiBinding } from './workersAi.js';
-import { generateRunwareSprite } from './runware.js';
+import { generateRunwareSprite, isRunwareAuthenticationRejected } from './runware.js';
 
 export class ApiFailure extends Error {
   status: number;
@@ -442,7 +442,7 @@ async function generateWorkersAiImage(prompt: string): Promise<GeminiImageResult
       const message = error instanceof Error ? error.message : String(error);
       if (/4006.*(?:daily free allocation|neurons)|used up your daily free allocation/i.test(message)) {
         workersImageQuotaBackoffUntil = Date.now() + 5 * 60_000;
-        console.warn('Cloudflare image quota exhausted; use the Gemini fallback without retrying another FLUX model.');
+        console.warn('Cloudflare image quota exhausted; attempting Runware before Gemini.');
         break;
       }
       if (model.includes('flux-2-klein-4b') && /3030|flagged/i.test(message)) {
@@ -472,7 +472,7 @@ async function generateWorkersAiImage(prompt: string): Promise<GeminiImageResult
   // Crucially, do not strand every sprite when Workers AI changes response shape or a model is
   // temporarily unavailable. Returning null lets generateGeminiImage use the configured Gemini
   // image model as the secondary provider.
-  console.error('Workers AI image generation failed; falling back to Gemini:', last);
+  console.warn('Workers AI image generation unavailable; trying next image provider.', last instanceof Error ? last.name : 'unknown');
   return null;
 }
 
@@ -495,7 +495,9 @@ export async function generateGeminiImage(
     if (runwareImage) return runwareImage;
   }
   if (!injectedClient && !process.env.GEMINI_API_KEY) {
-    throw new ApiFailure(503, 'Sprite rendering is unavailable: Cloudflare and Runware image providers failed, and Gemini is not configured.');
+    throw new ApiFailure(503, isRunwareAuthenticationRejected()
+      ? 'Runware rejected its configured API key (HTTP 401/403). Update RUNWARE_API_KEY in Cloudflare. Other image providers are unavailable.'
+      : 'Sprite image providers are temporarily unavailable. Try again later.');
   }
   const ai = injectedClient ?? (client ??= new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! }));
   const models = getGeminiImageModels();
@@ -551,7 +553,9 @@ export async function generateGeminiImage(
       const terminal = terminalGeminiFailure(error);
       if (terminal) {
         if (terminal.status === 429 && !injectedClient) {
-          throw new ApiFailure(503, 'Sprite rendering is temporarily unavailable: Cloudflare and Runware could not produce an image, and Gemini image quota is exhausted. Your discovery is saved; retry its artwork later.');
+          throw new ApiFailure(503, isRunwareAuthenticationRejected()
+            ? 'Runware rejected its configured API key (HTTP 401/403). Update RUNWARE_API_KEY in Cloudflare. Cloudflare is unavailable and Gemini has exhausted its quota.'
+            : 'Image generation is temporarily unavailable. Cloudflare and Runware could not generate art and Gemini has exhausted its quota.');
         }
         throw terminal;
       }
