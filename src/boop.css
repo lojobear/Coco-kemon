@@ -581,3 +581,84 @@
   .boop-random-icon svg,.boop-pad-slot.is-quick-picked,
   .boop-pad-slot.is-quick-picked .boop-pad-sprite { animation:none!important; }
 }
+
+/* Cloud saves is a native <dialog> in the top layer. It previously inherited a
+   dark palette while Boop's global light-theme overrides turned its background
+   white and darkened white button labels, making controls unreadable.
+   Keep this surface semantically styled so future theme changes cannot split
+   its foreground/background colors again. */
+.boop-app .boop-cloud-dialog {
+  color-scheme:light;
+  background:#fff !important;
+  color:var(--boop-ink) !important;
+  border-color:var(--boop-line);
+  box-shadow:0 24px 70px #0c201f44;
+  overscroll-behavior:contain;
+  scrollbar-width:thin;
+  scrollbar-color:#b4c7b9 transparent;
+  padding-bottom:max(20px,env(safe-area-inset-bottom));
+}
+.boop-app .boop-cloud-dialog::backdrop { background:#071512b8; }
+.boop-app .boop-cloud-dialog .boop-cloud-heading {
+  position:sticky;
+  top:-20px;
+  z-index:2;
+  margin-top:-4px;
+  padding:5px 0 10px;
+  background:#fff;
+  border-bottom:1px solid var(--boop-line);
+}
+.boop-app .boop-cloud-dialog h2 { color:var(--boop-ink); }
+.boop-app .boop-cloud-dialog .boop-cloud-muted { color:#49655a; line-height:1.6; }
+.boop-app .boop-cloud-dialog .boop-cloud-secondary { color:#5e736b; line-height:1.55; }
+.boop-app .boop-cloud-dialog .boop-cloud-notice,
+.boop-app .boop-cloud-dialog .boop-cloud-status { color:#92521a; }
+.boop-app .boop-cloud-dialog .boop-cloud-sprite-library {
+  background:#edf8f4;
+  border-color:#b8dacf;
+}
+.boop-app .boop-cloud-dialog .boop-cloud-section-title { color:#145446; }
+.boop-app .boop-cloud-dialog .boop-cloud-sync { color:#176652; line-height:1.5; }
+.boop-app .boop-cloud-dialog .boop-cloud-button-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.boop-app .boop-cloud-dialog .boop-cloud-button {
+  background:var(--boop-forest) !important;
+  color:#fff !important;
+  border:1px solid var(--boop-forest-soft);
+  border-radius:12px;
+  min-height:44px;
+  font-weight:700;
+  line-height:1.25;
+  text-align:center;
+  white-space:normal;
+  box-shadow:0 2px 0 #0a291f;
+  transition:transform 100ms ease,box-shadow 100ms ease,background-color 100ms ease;
+  -webkit-tap-highlight-color:transparent;
+  touch-action:manipulation;
+}
+.boop-app .boop-cloud-dialog .boop-cloud-button:not(:disabled):hover {
+  background:#27624e !important;
+}
+.boop-app .boop-cloud-dialog .boop-cloud-button:not(:disabled):active {
+  transform:translateY(2px) scale(.99);
+  box-shadow:0 0 0 transparent;
+}
+.boop-app .boop-cloud-dialog .boop-cloud-button:disabled {
+  opacity:1 !important;
+  background:#e8eeea !important;
+  border-color:#d4e0d8;
+  box-shadow:none;
+  color:#50645a !important;
+  cursor:not-allowed;
+}
+.boop-app .boop-cloud-dialog .boop-cloud-button:focus-visible {
+  outline:3px solid #77b991;
+  outline-offset:3px;
+}
+@media (max-width:390px) {
+  .boop-app .boop-cloud-dialog { padding:16px; }
+  .boop-app .boop-cloud-dialog .boop-cloud-heading { top:-16px; }
+  .boop-app .boop-cloud-dialog .boop-cloud-button { font-size:12px; padding:10px 8px; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .boop-app .boop-cloud-dialog .boop-cloud-button { transition:none; }
+}
