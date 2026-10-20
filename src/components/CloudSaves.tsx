@@ -2,6 +2,7 @@ import { applySpriteChanges, syncProfileSprites } from '../lib/profileSprites';
 import { getSpriteSyncStatus, SPRITE_SYNC_EVENT, trackSpriteSync } from '../lib/spriteAssets';
 import { useEffect, useRef, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
+import { isAndroidNativeShell, nativeOAuthRedirect, sendToAndroid } from '../lib/nativeShell';
 import { useGame } from '../lib/gameStore';
 import { cloud, readCloudSave, writeCloudSave, validateCloudPayload, downloadBackup, RECOVERY_KEY, type CloudSave } from '../lib/cloudSave';
 import { loadProfileSprites } from '../lib/profileSprites';
@@ -112,10 +113,18 @@ export function CloudSaves({ open, onClose }: { open: boolean; onClose: () => vo
     <p className="mb-4 text-sm boop-cloud-muted">Keep both your crafting discoveries and Foundry collection with your Google account.</p>
     {!cloud ? <p className="text-sm boop-cloud-notice">Cloud saves are coming soon. You can keep playing and export a backup from Save Management.</p> : !ready ? <p role="status">Checking your account…</p> : !user ? <>
       <button className={button} disabled={busy} onClick={() => run(async () => {
-        const { error } = await cloud!.auth.signInWithOAuth({ provider: 'google', options: {
-          redirectTo: window.location.origin + '/', queryParams: { prompt: 'select_account' },
+        // Google's OAuth disallows sign-in inside an embedded Android WebView.
+        // Open the consent flow in Chrome, then return the PKCE code to Boop.
+        const native = isAndroidNativeShell();
+        const { data, error } = await cloud!.auth.signInWithOAuth({ provider: 'google', options: {
+          redirectTo: native ? nativeOAuthRedirect() : window.location.origin + '/',
+          skipBrowserRedirect: native,
+          queryParams: { prompt: 'select_account' },
         } });
         if (error) throw new Error('Google sign-in could not start. Please try again.');
+        if (native && (!data.url || !sendToAndroid({ type: 'oauth', url: data.url }))) {
+          throw new Error('The Android sign-in bridge is unavailable. Install the latest Boop APK and try again.');
+        }
       })}>Sign in with Google</button>
       <p className="mt-3 text-xs boop-cloud-secondary">Signing in leaves your current collection in place. Choose Save to cloud or Load from cloud afterward.</p>
     </> : <div className="space-y-3">

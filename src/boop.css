@@ -703,3 +703,33 @@
 @media (prefers-reduced-motion:reduce) {
   .boop-shiny-sprite::after { animation:none!important; }
 }
+
+/* Android native shell owns the header and five bottom tabs.
+   The same online game views, live sprites, and Cloudflare API stay intact.
+   Apply class synchronously in index.html to prevent double-navigation flash. */
+html.boop-native-shell,
+html.boop-native-shell body,
+html.boop-native-shell #root { width:100%;height:100%;overflow:hidden; }
+html.boop-native-shell .boop-app[data-theme="quark-light"] {
+  grid-template-columns:minmax(0,1fr)!important;
+  grid-template-rows:minmax(0,1fr)!important;
+  grid-template-areas:"main"!important;
+  padding:0!important;
+  height:100dvh!important;
+  max-height:100dvh!important;
+}
+html.boop-native-shell .boop-app .collection-header,
+html.boop-native-shell .boop-app .boop-navigation,
+html.boop-native-shell .boop-app .collection-nav { display:none!important; }
+html.boop-native-shell .boop-app .boop-main {
+  grid-area:main!important;
+  height:100%!important;
+  min-height:0!important;
+  padding-bottom:0!important;
+}
+html.boop-native-shell .boop-app .boop-craft-workspace {
+  padding-bottom:max(10px,env(safe-area-inset-bottom,0px))!important;
+}
+html.boop-native-shell .boop-app .boop-cloud-dialog {
+  max-height:min(90dvh,720px)!important;
+}

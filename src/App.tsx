@@ -31,9 +31,11 @@ const SeedsModal = lazy(() => loadSeedsModal().then(module => ({ default: module
 const VoiceLabModal = lazy(() => loadVoiceLabModal().then(module => ({ default: module.VoiceLabModal })));
 import { SAVE_STATUS_EVENT, getSaveError } from './lib/saveData';
 import { sound } from './lib/audio';
+import { isAndroidNativeShell, isNativeTab, sendToAndroid } from './lib/nativeShell';
 
 function GameContent() {
   const { activeTab, setActiveTab, inspectedItem, setInspectedItem } = useGame();
+  const nativeShell = isAndroidNativeShell();
 
   const [showCloud, setShowCloud] = useState(false);
   const [collectionSearch, setCollectionSearch] = useState('');
@@ -86,15 +88,44 @@ function GameContent() {
   const [showSeedsModal, setShowSeedsModal] = useState<boolean>(false);
   const [showVoiceModal, setShowVoiceModal] = useState<boolean>(false);
 
+  // Android owns the visible toolbar and navigation while the app continues
+  // to render the *same live* Cloudflare-backed game and sprite components.
+  useEffect(() => {
+    if (!nativeShell) return;
+    const navigate = (event: Event) => {
+      const requested = (event as CustomEvent<string>).detail;
+      if (typeof requested === 'string' && isNativeTab(requested)) setActiveTab(requested);
+    };
+    const openCloud = () => setShowCloud(true);
+    const handleBack = () => {
+      if (showCloud) setShowCloud(false);
+      else if (showSeedsModal) setShowSeedsModal(false);
+      else if (showVoiceModal) setShowVoiceModal(false);
+      else if (inspectedItem) setInspectedItem(null);
+    };
+    window.addEventListener('boop-native-tab', navigate);
+    window.addEventListener('boop-native-profile', openCloud);
+    window.addEventListener('boop-native-back', handleBack);
+    return () => {
+      window.removeEventListener('boop-native-tab', navigate);
+      window.removeEventListener('boop-native-profile', openCloud);
+      window.removeEventListener('boop-native-back', handleBack);
+    };
+  }, [nativeShell, setActiveTab, showCloud, showSeedsModal, showVoiceModal, inspectedItem, setInspectedItem]);
+
+  useEffect(() => {
+    if (nativeShell) sendToAndroid({ type: 'tab', tab: activeTab === 'seeds' ? 'foundry' : activeTab });
+  }, [nativeShell, activeTab]);
+
   return (
     <div data-theme="quark-light" className="boop-app h-[100dvh] max-h-[100dvh] w-full collection-app bg-white text-neutral-900 flex flex-col justify-between overflow-hidden selection:bg-neutral-900 selection:text-white">
       {/* Top Header */}
-      <Header
+      {!nativeShell && <Header
         onOpenProfile={() => setShowCloud(true)}
         onSearchCollection={query => { setCollectionSearch(query); setActiveTab('archive'); }}
         onOpenSeeds={() => setShowSeedsModal(true)}
         onOpenVoice={() => setShowVoiceModal(true)}
-      />
+      />}
 
       {/* Main Viewport Content */}
       <main className={`boop-main flex-1 w-full min-h-0 flex flex-col ${(activeTab === 'infinite-craft') ? 'overflow-hidden' : 'overflow-y-auto'}`}>
@@ -127,7 +158,7 @@ function GameContent() {
       </main>
 
       {/* Bottom Navigation */}
-      <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} onOpenProfile={() => setShowCloud(true)} />
+      {!nativeShell && <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} onOpenProfile={() => setShowCloud(true)} />}
       <CloudSaves open={showCloud} onClose={() => setShowCloud(false)} />
 
       {/* Floating Modals */}
