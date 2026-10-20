@@ -9,7 +9,7 @@ import { DiscoveryTrails } from './DiscoveryTrails';
  * AI generation, persistent collection statistics, shiny variants, and recipe history.
  */
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   STARTER_ELEMENTS,
   InfiniteElement,
@@ -19,6 +19,7 @@ import { requestJson } from '../lib/api';
 import { getElementEmoji, retryElementEmoji } from '../lib/elementEmoji';
 import { CANONICAL_INFINITE_CRAFT_RECIPES, makePairKey } from '../lib/infiniteCraftData';
 import { findCraftDropTarget } from '../lib/craftCollision';
+import { pickRandomPair } from '../lib/randomPair';
 import { saveCraftElements, readCraftElements, SAVE_IMPORTED_EVENT } from '../lib/saveData';
 import { sound } from '../lib/audio';
 import { haptics } from '../lib/haptics';
@@ -64,6 +65,30 @@ interface CanvasItem {
   isNew?: boolean;
   isShiny?: boolean;
 }
+
+/**
+ * Stable card props keep the ingredient gallery from rerendering on random taps.
+ * With hundreds of discovered items this is the biggest perceived latency win.
+ */
+const IngredientLibraryCard = React.memo(function IngredientLibraryCard({
+  item, selected, disabled, onPick, onInspect,
+}: {
+  item: InfiniteElement;
+  selected: boolean;
+  disabled: boolean;
+  onPick: (item: InfiniteElement) => void;
+  onInspect: (item: InfiniteElement) => void;
+}) {
+  return <DiscoveryCard
+    name={item.name}
+    emoji={item.emoji}
+    detail={item.isShiny ? 'Shiny' : item.isNew ? 'First discovery' : `${item.craftCount || 0} crafts`}
+    selected={selected}
+    disabled={disabled}
+    onSelect={() => onPick(item)}
+    onInspect={() => onInspect(item)}
+  />;
+});
 
 /** Deduplicate, normalize and backfill collection statistics for old saves. */
 export function sanitizeElements(list: InfiniteElement[]): InfiniteElement[] {
@@ -161,6 +186,8 @@ export function InfiniteCraftView() {
 
   const [crucibleSlotA, setCrucibleSlotA] = useState<CrucibleSlotItem | null>(null);
   const [crucibleSlotB, setCrucibleSlotB] = useState<CrucibleSlotItem | null>(null);
+  const [randomVersion, setRandomVersion] = useState(0);
+  const lastRandomPairRef = useRef<readonly [InfiniteElement, InfiniteElement] | null>(null);
   const [isCrucibleHovered, setIsCrucibleHovered] = useState(false);
   const crucibleRef = useRef<HTMLDivElement | null>(null);
 
@@ -644,27 +671,54 @@ export function InfiniteCraftView() {
     if (!crucibleSlotA) setCrucibleSlotA(slot);
     else setCrucibleSlotB(slot);
   };
-  const ingredientList = filteredElements.filter(el => ingredientFilter === 'all' || (ingredientFilter === 'new' ? el.isNew : el.unlockedShiny || el.isShiny));
-  const recent = [...elements].filter(el => el.discoveredAt > 0).sort((a, b) => b.discoveredAt - a.discoveredAt).slice(0, 5);
+  const ingredientList = useMemo(() =>
+    filteredElements.filter(el => ingredientFilter === 'all' || (ingredientFilter === 'new' ? el.isNew : el.unlockedShiny || el.isShiny)),
+    [filteredElements, ingredientFilter],
+  );
+  const recent = useMemo(() =>
+    [...elements].filter(el => el.discoveredAt > 0).sort((a, b) => b.discoveredAt - a.discoveredAt).slice(0, 5),
+    [elements],
+  );
+
+  const randomizeIngredients = () => {
+    if (isSynthesizing) return;
+    // State already contains normalized ingredients. Re-running sanitizeElements
+    // and filtering a second array on every press slowed down large collections.
+    const pair = pickRandomPair(elements, lastRandomPairRef.current);
+    if (!pair) return;
+    const [a, b] = pair;
+    lastRandomPairRef.current = pair;
+    haptics.mediumTap();
+    sound.playClick();
+    setCrucibleSlotA({ name: a.name, emoji: a.emoji, isShiny: a.isShiny });
+    setCrucibleSlotB({ name: b.name, emoji: b.emoji, isShiny: b.isShiny });
+    setRandomVersion(v => v + 1);
+  };
+
+  // Reuse callback references so memoized discovery cards are skipped entirely
+  // when only the slot contents or the random-button animation changes.
+  const ingredientPickRef = useRef<(item: InfiniteElement) => void>(() => undefined);
+  ingredientPickRef.current = (item: InfiniteElement) => {
+    if (showFreeform) spawnFromSidebar(item);
+    else selectIngredient(item);
+  };
+  const handleIngredientPick = useCallback((item: InfiniteElement) => ingredientPickRef.current(item), []);
+  const handleIngredientInspect = useCallback((item: InfiniteElement) => setInspectedElement(item), []);
 
   return (
     <CraftSprites.Provider value={customSprites}>
     <div className="boop-craft-studio">
       <section className="boop-craft-workspace">
         <div className="boop-screen-intro"><h1>What will you discover?</h1><p>Two familiar things. One unexpected result.</p></div>
-        <div className="boop-craft-controls"><div className="boop-pills" aria-label="Crafting mode"><button aria-pressed="true">Classic craft</button><button aria-pressed="false" onClick={() => setActiveTab('foundry')}>Foundry</button></div>
-          <button className="boop-text-button" disabled={isSynthesizing} onClick={() => {
-            const pool = sanitizeElements(elements);
-            if (!pool.length) return;
-            const first = Math.floor(Math.random() * pool.length);
-            const rest = pool.filter((_, index) => index !== first);
-            setCrucibleSlotA(pool[first]); setCrucibleSlotB(rest[Math.floor(Math.random() * rest.length)] || pool[first]);
-          }}><Shuffle size={18} /><span>Surprise me</span></button></div>
+        <div className="boop-craft-controls"><div className="boop-pills" aria-label="Crafting mode"><button type="button" aria-pressed="true">Classic craft</button><button type="button" aria-pressed="false" onClick={() => { haptics.lightTap(); setActiveTab('foundry'); }}>Foundry</button></div>
+          <button type="button" className="boop-random-button" disabled={isSynthesizing || elements.length === 0} onClick={randomizeIngredients} aria-label="Surprise me with two random ingredients">
+            <span className="boop-random-icon" aria-hidden="true"><Shuffle key={randomVersion} size={19} strokeWidth={2.5} /></span><span className="boop-random-label">Surprise me</span><span className="boop-random-glint" aria-hidden="true">✦</span>
+          </button></div>
         <div ref={showFreeform ? undefined : canvasRef} className={`boop-pad-stage ${isSynthesizing ? 'is-discovering' : ''}`} onDragOver={event => { if (!isSynthesizing) event.preventDefault(); }} onDrop={event => {
           event.preventDefault(); const name = event.dataTransfer.getData('application/x-boop-ingredient');
           const item = elements.find(el => el.name === name); if (item) selectIngredient(item);
         }}>
-          <CraftingCrucible slotA={crucibleSlotA} slotB={crucibleSlotB} onClearSlotA={() => setCrucibleSlotA(null)} onClearSlotB={() => setCrucibleSlotB(null)} onClearAll={() => { setCrucibleSlotA(null); setCrucibleSlotB(null); }} onSwapSlots={handleSwapCrucible} onCombine={handleCrucibleCombine} isSynthesizing={isSynthesizing} isDarkMode={false} isDropTargetActive={isCrucibleHovered} crucibleRef={crucibleRef} />
+          <CraftingCrucible slotA={crucibleSlotA} slotB={crucibleSlotB} onClearSlotA={() => setCrucibleSlotA(null)} onClearSlotB={() => setCrucibleSlotB(null)} onClearAll={() => { setCrucibleSlotA(null); setCrucibleSlotB(null); }} onSwapSlots={handleSwapCrucible} onCombine={handleCrucibleCombine} isSynthesizing={isSynthesizing} isDarkMode={false} isDropTargetActive={isCrucibleHovered} crucibleRef={crucibleRef} quickPickVersion={randomVersion} />
           {revealBurst && <div key={revealBurst.id} className={`boop-reveal-burst ${revealBurst.isRare ? 'is-special' : ''}`} aria-hidden="true">
             {Array.from({ length: 8 }, (_, i) => <i key={i} style={{ '--direction': `${i * 45}deg` } as React.CSSProperties} />)}
           </div>}
@@ -702,7 +756,7 @@ export function InfiniteCraftView() {
         <label className="boop-search"><Search size={18} /><input ref={searchInputRef} aria-label="Find an ingredient" placeholder="Find an ingredient…" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} /><span className="boop-key-hint">/</span></label>
         <div className="boop-library-filters"><div className="boop-pills" aria-label="Filter ingredients">{(['all', 'new', 'shiny'] as const).map(filter => <button key={filter} aria-pressed={ingredientFilter === filter} onClick={() => setIngredientFilter(filter)}>{filter === 'all' ? 'All' : filter === 'new' ? 'First finds' : 'Shiny'}</button>)}</div>
           <select aria-label="Sort ingredients" value={sortMode} onChange={e => setSortMode(e.target.value as typeof sortMode)}><option value="time">Recent</option><option value="alpha">A–Z</option><option value="crafted">Most crafted</option></select></div>
-        <div className="boop-ingredient-grid">{ingredientList.map(el => <DiscoveryCard key={el.id} name={el.name} emoji={el.emoji} detail={el.isShiny ? 'Shiny' : el.isNew ? 'First discovery' : `${el.craftCount || 0} crafts`} selected={crucibleSlotA?.name === el.name || crucibleSlotB?.name === el.name} disabled={isSynthesizing && !showFreeform} onSelect={() => showFreeform ? spawnFromSidebar(el) : selectIngredient(el)} onInspect={() => setInspectedElement(el)} />)}</div>
+        <div className="boop-ingredient-grid">{ingredientList.map(el => <IngredientLibraryCard key={el.id} item={el} selected={crucibleSlotA?.name === el.name || crucibleSlotB?.name === el.name} disabled={isSynthesizing && !showFreeform} onPick={handleIngredientPick} onInspect={handleIngredientInspect} />)}</div>
         {!ingredientList.length && <div className="boop-empty"><Search size={24} /><h3>No matching discoveries</h3><p>Try a different name or filter.</p><button className="boop-secondary" onClick={() => { setSearchQuery(''); setIngredientFilter('all'); }}>Clear filters</button></div>}
         <button className="boop-secondary boop-explore" onClick={() => setActiveTab('archive')}>Explore your collection →</button>
         <div className="boop-hint boop-library-hint"><div><strong>A world of possibilities.</strong><p>Select two discoveries, or drag them into the pad. Your next favourite might be one mix away.</p></div></div>
