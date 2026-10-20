@@ -142,6 +142,65 @@ function lexicalOverlap(result: string, ingredient: string): boolean {
   return meaningfulTokens(ingredient).some(token => resultTokens.has(token));
 }
 
+/**
+ * Independent quality gate for both freshly generated results and cache migration.
+ * Rejects cosmetic recipes and single-parent renames before the scoring model
+ * can reward them for repeating familiar ingredient tokens.
+ *
+ * This is intentionally narrow: real composite nouns such as "Sea Lion",
+ * "Snow Globe" or "Fire Truck" are allowed when they are genuinely distinct.
+ */
+const DIRECT_SYNONYM_FAMILIES = [
+  ['bbq', 'barbecue', 'barbeque', 'grill', 'grilling'],
+  ['tv', 'television'],
+  ['car', 'automobile'],
+  ['bike', 'bicycle'],
+  ['sofa', 'couch'],
+  ['phone', 'telephone', 'cellphone', 'cell phone'],
+  ['soda', 'soft drink', 'pop'],
+  ['tornado', 'twister'],
+  ['movie', 'film'],
+  ['photo', 'photograph'],
+];
+
+export function lowValueConceptReason(result: string, first: string, second: string): string | null {
+  const clean = result.trim().replace(/[‐‑–—-]/g, ' ').replace(/\s+/g, ' ').toLowerCase();
+  const resultKey = normalize(clean);
+  const parents = [first, second].map(normalize);
+  if (!resultKey) return 'empty concept';
+  if (parents.includes(resultKey)) return 'result only repeats an ingredient';
+
+  // E.g. BBQ + Rain => "Grill", or Television + Fire => "TV".
+  // Only an actual synonym of a parent is rejected, never a related object
+  // with additional functionality (BBQ + Electricity => "Electric Grill").
+  for (const family of DIRECT_SYNONYM_FAMILIES) {
+    const aliases = family.map(normalize);
+    if (aliases.includes(resultKey) && parents.some(parent => aliases.includes(parent))) {
+      return 'result only renames one ingredient';
+    }
+  }
+
+  // "Worm-Shaped Cloud" and "Cloud-Inspired Worm" do not create a
+  // new useful discovery: they merely visually decorate an input.
+  if (/\b(?:shaped|themed|inspired|like|styled|style|flavored|flavoured|infused|coated)\b/i.test(clean) &&
+      (lexicalOverlap(clean, first) || lexicalOverlap(clean, second))) {
+    return 'result is a cosmetic description of an ingredient';
+  }
+
+  // Block raw combination plus a generic intensifier, but not normal
+  // compound nouns with new semantic identities.
+  const resultWords = meaningfulTokens(clean);
+  const newWords = resultWords.filter(token => !parents.some(parent => parent.includes(token)));
+  if (resultWords.length >= 2 && resultWords.length <= 4 && newWords.length > 0 &&
+      newWords.every(token =>
+        ['giant','tiny','little','magic','mystic','super','mega','ultra','cosmic','quantum','shiny','special','new','hybrid','fusion'].includes(token)
+      ) &&
+      resultWords.some(token => parents.some(parent => parent.includes(token)))) {
+    return 'result is an ingredient mashup with a generic modifier';
+  }
+  return null;
+}
+
 function lexicalSimilarity(a: string, b: string): number {
   const aa = new Set(meaningfulTokens(a));
   const bb = new Set(meaningfulTokens(b));
@@ -283,6 +342,7 @@ function candidateIsValid(c: unknown, first: string, second: string): c is Candi
   ]);
   if (!normalizedResult || literal.has(normalizedResult)) return false;
   if (normalizedResult === normalizedFirst || normalizedResult === normalizedSecond) return false;
+  if (lowValueConceptReason(c.result, first, second)) return false;
   return true;
 }
 
@@ -312,7 +372,7 @@ export function candidateRejectionReason(c: unknown, first: string, second: stri
   ]);
   if (literal.has(normalizedResult)) return 'result is a literal mashup of the inputs';
   if (normalizedResult === normalize(first) || normalizedResult === normalize(second)) return 'result repeats an input';
-  return null;
+  return lowValueConceptReason(c.result, first, second);
 }
 
 function scoreCandidate(candidate: Candidate, first: string, second: string, routeFrequency: Map<string, number>): { score: number; dna: ConceptDNA } {
@@ -329,8 +389,10 @@ function scoreCandidate(candidate: Candidate, first: string, second: string, rou
   // Ingredient contribution is the highest-value signal.
   if (mentionsFirst) score += 18;
   if (mentionsSecond) score += 18;
-  if (overlapsFirst) score += 4;
-  if (overlapsSecond) score += 4;
+  // Naming an ingredient is not proof of a good two-parent transformation.
+  // Ingredient references belong in the explanation, not necessarily the noun.
+  if (overlapsFirst) score -= 2;
+  if (overlapsSecond) score -= 2;
   if (!mentionsFirst && !mentionsSecond && !overlapsFirst && !overlapsSecond) score -= 32;
   if ((mentionsFirst || overlapsFirst) !== (mentionsSecond || overlapsSecond)) score -= 8;
 
@@ -339,7 +401,8 @@ function scoreCandidate(candidate: Candidate, first: string, second: string, rou
   if (candidate.recognizability) score += candidate.recognizability * 1.5;
   if (candidate.chainPotential) score += candidate.chainPotential * 2;
   if (candidate.novelty) score += candidate.novelty;
-  if (candidate.coherence) score += candidate.coherence;
+  if (candidate.coherence) score += candidate.coherence * 2;
+  if (candidate.surprise) score += candidate.surprise * 1.5;
 
   // Reward results that are easy to recognize and useful in later recipes.
   if (resultWords.length >= 1 && resultWords.length <= 3) score += 10;
@@ -353,6 +416,9 @@ function scoreCandidate(candidate: Candidate, first: string, second: string, rou
 
   // Explanation quality matters, but verbosity does not.
   if (candidate.explanation.length >= 35 && candidate.explanation.length <= 220) score += 5;
+  // A sentence that explicitly grounds both input names beats an invented
+  // justification for what is essentially a renamed or decorated parent.
+  if (mentionsFirst && mentionsSecond && !overlapsFirst && !overlapsSecond) score += 10;
   if (candidate.explanation.length < 18) score -= 5;
 
   // Penalize dead-end generic mashups and odd formatting.

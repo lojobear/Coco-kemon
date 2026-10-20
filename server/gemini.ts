@@ -55,8 +55,8 @@ const DISCOVERY_RESPONSE_SCHEMA = {
   properties: {
     candidates: {
       type: 'array',
-      minItems: 6,
-      maxItems: 8,
+      minItems: 3,
+      maxItems: 5,
       items: {
         type: 'object',
         properties: {
@@ -257,20 +257,22 @@ function enhanceFoundryPrompt(prompt: string, selectedIdea?: FoundryIdea | null)
 }
 
 function enhanceDiscoveryInstruction(systemInstruction: string): string {
-  let enhanced = systemInstruction
-    .replace(
-      'Consider up to three DISTINCT possible results using different connections: science, function,\nappearance, mythology or wordplay.',
-      'Consider EIGHT DISTINCT possible results when possible. Start from the meanings and affordances of BOTH inputs, then explore genuinely different causal bridges. The connection label is only metadata and must not constrain the result domain.'
-    )
-    .replace('Return JSON with a candidates array (1–3 items)', 'Return JSON with a candidates array (6–8 items)')
-    .replace(
-      'result, emoji, connection (science/function/appearance/mythology/wordplay),',
-      'result, emoji, connection (science/function/appearance/mythology/wordplay/chemistry/physics/biology/ecology/technology/history/geography/food/pop-culture/brand/character/comedy/language),'
-    );
+  return `${systemInstruction}
 
-  enhanced += `\n\nINFINITE DISCOVERY PRINCIPLES:\n- This is an effectively unbounded semantic graph, not a finite recipe catalog. Do not choose from a hidden taxonomy of allowed answers. Any recognizable or coherent concept can become a node if the pair truly earns it.\n- Meaning first, domain second. NEVER decide “this should be science/pop culture/food” and force the ingredients into that genre. First ask what relationship between BOTH inputs naturally produces or evokes something else.\n- Generate 6–8 genuinely different candidate bridges, not cosmetic synonyms. Examples of bridge types include physical transformation, shared function, cultural association, linguistic relation, category progression, scale change, composition, tool-use, mythology, history, geography, food, technology, character/reference, visual resemblance, and emergent behavior—but this list is illustrative, not exhaustive.\n- Both inputs should matter. Silently reject candidates that could have been generated just as well from only one parent. For wordplay or cultural references, the explanation must make the two-parent bridge immediately understandable.\n- Prefer specific names people actually recognize: “Snow Globe”, “Arcade”, “Sushi”, “Batman”, “Saturn”, “Wi‑Fi”, “Treasure Map”, or a crisp original concept when appropriate. Avoid pseudo-scientific filler such as Quantum-X, Cosmic-X, Neo-X, Matrix-X, Core-X, or vague adjective+noun sludge unless the pair genuinely demands it.\n- Pop culture, brands, characters, memes, games, films, TV, anime, comics, music, places, historical figures/objects, foods, everyday items, technologies, living things, abstract ideas, and jokes are all valid outcomes when the semantic bridge is strong. Do not force recognizable references merely for novelty.\n- Reward the “ohhh, of course” feeling over raw weirdness. Surprise is good only after coherence.\n- Favor concepts with strong future-chain potential: things that have functions, properties, cultural associations, parts, opposites, habitats, materials, categories, or transformations that can combine again. Avoid dead-end flavor phrases.\n- Identical input pairs are deterministic at the game layer once discovered; your job is therefore to make the first selected concept worth keeping.\n- Treat coherence, inputFit, recognizability, chainPotential, novelty, and surprise as honest self-assessments. Do not inflate them. The server independently ranks candidates.\n- Preserve useful semantic inheritance from parent metadata when available, but descendants are allowed to cross domains naturally.\n- Return only the required JSON candidates; never reveal hidden comparison or chain-of-thought.`;
-
-  return enhanced;
+QUALITY CHECK:
+- Produce four genuinely DIFFERENT semantic bridges, not trivial variations
+  of one noun. Keep output concise and parseable, especially on small models.
+- Use actual functions, material interactions, biology, myths, idioms, culture,
+  place names or history where both inputs meaningfully contribute.
+- Reject results that merely name one input's synonym ("BBQ" => "Grill"), give
+  a parent a costume ("Worm-Shaped Cloud"), or join the parent words together.
+- Name an independent, recognizable thing—not an adjective plus the parent.
+- The result may be everyday, strange, fictional or funny; always prioritize
+  a satisfying two-parent connection over weirdness for its own sake.
+- Explain each outcome in ONE short, player-facing sentence mentioning BOTH
+  inputs by name. Do not provide private reasoning.
+- Scores must reflect real two-parent fit, not self-congratulation.
+- Return a JSON object with exactly four concise candidates.`;
 }
 
 function enrichDiscoveryPrompt(prompt: string | { parts: any[] }): string | { parts: any[] } {
