@@ -684,7 +684,7 @@ export function InfiniteCraftView() {
     if (isSynthesizing) return;
     // State already contains normalized ingredients. Re-running sanitizeElements
     // and filtering a second array on every press slowed down large collections.
-    const pair = pickRandomPair(elements, lastRandomPairRef.current);
+    const pair = pickRandomPair<InfiniteElement>(elements, lastRandomPairRef.current);
     if (!pair) return;
     const [a, b] = pair;
     lastRandomPairRef.current = pair;
