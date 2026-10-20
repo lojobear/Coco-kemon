@@ -1,34 +1,41 @@
 import { SpriteImage } from './SpriteImage';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { getElementEmoji } from '../lib/elementEmoji';
-import { emojiKey } from '../lib/emojiGeometry';
+import { spriteVariantKey } from '../lib/spriteVariant';
 import { generateConceptSprite, generateMaterialSprite } from '../lib/pixelRenderer';
 import type { Material } from '../types';
 
 /** Uploaded/rerolled art always wins. Generated defaults share one durable cache. */
-export function ElementSprite({ name, custom, fallback, className = '', alt = '', idle = true }: {
-  name: string; custom?: string; fallback?: string; className?: string; alt?: string; idle?: boolean;
+export function ElementSprite({ name, custom, fallback, className = '', alt = '', idle = true, isShiny = false }: {
+  name: string; custom?: string; fallback?: string; className?: string; alt?: string; idle?: boolean; isShiny?: boolean;
 }) {
   const [art, setArt] = useState<{ key: string; url: string }>();
   const [error, setError] = useState('');
   const [temporary, setTemporary] = useState<{ key: string; url: string }>();
   const [retry, setRetry] = useState(0);
   const host = useRef<HTMLSpanElement>(null);
-  const key = emojiKey(name);
+  const key = spriteVariantKey(name, isShiny);
+  const normalKey = spriteVariantKey(name);
   useEffect(() => {
     const listener = (event: Event) => { if ((event as CustomEvent).detail === key) setRetry(n => n + 1); };
     window.addEventListener('oddkin-emoji-retry', listener);
     return () => window.removeEventListener('oddkin-emoji-retry', listener);
   }, [key]);
   useEffect(() => {
-    if (custom) return;
+    if (custom && !isShiny) return;
     let cancelled = false;
     setError('');
     // Scrolling through an inventory should retrieve saved artwork, not queue
     // hundreds of new AI image requests just because the item is visible.
-    const load = () => { void getElementEmoji(name, false, '', false).then(url => {
+    const load = () => { void getElementEmoji(name, false, '', false, isShiny).then(async shinyUrl => {
+      // Older collections have normal artwork but no separate shiny art yet.
+      // Reuse it only as the base for a clearly recolored preview. Never save
+      // that preview in the shiny cache or mislabel normal art as native shiny.
+      const normalUrl = !shinyUrl && isShiny
+        ? await getElementEmoji(name, false, '', false).catch(() => '') : '';
       if (cancelled) return;
-      if (url) setArt({ key, url });
+      if (shinyUrl) setArt({ key, url: shinyUrl });
+      else if (normalUrl) setArt({ key: normalKey, url: normalUrl });
       else {
         // The AI image service can exhaust its daily quota. Render an unmistakable
         // local pixel preview instead of leaving every ungenerated item as an emoji.
@@ -55,10 +62,13 @@ export function ElementSprite({ name, custom, fallback, className = '', alt = ''
     });
     if (host.current) observer.observe(host.current);
     return () => { cancelled = true; observer.disconnect(); };
-  }, [key, custom, retry]);
-  const url = custom || (art?.key === key ? art.url : undefined)
+  }, [key, custom, retry, isShiny, normalKey]);
+  const ownShiny = isShiny && art?.key === key && Boolean(art.url);
+  const url = (isShiny && ownShiny ? art?.url : undefined)
+    || custom
+    || (art?.key === key || (isShiny && art?.key === normalKey) ? art?.url : undefined)
     || (temporary?.key === key ? temporary.url : undefined);
-  return <span ref={host} className={`element-emoji${idle ? ' sprite-idle' : ''} ${className}`} title={error ? `Emoji unavailable: ${error} Retry in Sprites.` : undefined}>
+  return <span ref={host} className={`element-emoji${idle ? ' sprite-idle' : ''}${isShiny ? ' boop-shiny-sprite' : ''}${ownShiny ? ' boop-shiny-authored' : ''} ${className}`} title={error ? `Sprite unavailable: ${error} Retry in Sprites.` : isShiny ? `Shiny variant of ${name}` : undefined}>
     {url ? <SpriteImage src={url} alt={alt} draggable={false} decoding="async" /> : fallback?.startsWith('data:') || fallback?.startsWith('/')
       ? <SpriteImage src={fallback} alt={alt} draggable={false} />
       : <span role={alt ? 'img' : undefined} aria-label={alt || undefined}>{fallback || '◌'}</span>}
