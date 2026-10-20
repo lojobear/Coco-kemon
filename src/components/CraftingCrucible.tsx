@@ -21,7 +21,7 @@ export function CraftingCrucible({ slotA, slotB, onClearSlotA, onClearSlotB, onC
         return <React.Fragment key={key}>
           {index === 1 && <span className="boop-pad-plus"><Plus size={24} /></span>}
           <div key={`${key}:${slot?.name || 'empty'}:${quickPickVersion}`} id={`crucible-slot-${key}`} className={`boop-pad-slot ${slot ? 'is-filled' : ''} ${quickPickVersion && slot ? 'is-quick-picked' : ''}`}>
-            {slot ? <><CraftSprite name={slot.name} emoji={slot.emoji} className="boop-pad-sprite" /><strong>{slot.name}{slot.isShiny ? ' ✦' : ''}</strong>
+            {slot ? <><CraftSprite name={slot.name} emoji={slot.emoji} isShiny={slot.isShiny} className="boop-pad-sprite" /><strong>{slot.name}{slot.isShiny ? ' ✦' : ''}</strong>
               <button disabled={isSynthesizing} aria-label={`Remove ${slot.name} from slot ${key.toUpperCase()}`} onClick={index === 0 ? onClearSlotA : onClearSlotB}><X size={16} /></button></>
               : <><span className="boop-empty-pixel" aria-hidden="true"><Plus size={28} /></span><span>Pick {index === 0 ? 'first' : 'second'} ingredient</span></>}
           </div>

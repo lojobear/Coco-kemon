@@ -66,7 +66,7 @@ export function ElementDossierModal({
         <div className="p-5 space-y-4">
           <div className="flex flex-col items-center text-center gap-3">
             <div className={`relative w-28 h-28 rounded-2xl flex items-center justify-center bg-slate-900/80 border ${viewingShiny && isShinyUnlocked ? 'border-amber-300 shadow-[0_0_28px_rgba(251,191,36,0.22)]' : 'border-slate-800'}`}>
-              <CraftSprite name={element.name} emoji={element.emoji} />
+              <CraftSprite name={element.name} emoji={element.emoji} isShiny={viewingShiny && isShinyUnlocked} />
               {viewingShiny && isShinyUnlocked && (
                 <span className="absolute -top-2 -right-2 px-2 py-1 rounded-full bg-gradient-to-r from-amber-400 to-pink-500 text-black font-black text-[9px] flex items-center gap-1">
                   <Sparkles className="w-3 h-3" /> SHINY

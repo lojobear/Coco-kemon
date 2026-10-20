@@ -8,9 +8,20 @@ const SPRITE_ENGINE_VERSION = 'v9-hq-2p5d-pixel';
 
 type ImageGenerator = (prompt: string) => Promise<GeminiImageResult>;
 
-export function buildSpritePrompt(key: string, variation = ''): string {
+export function buildSpritePrompt(key: string, variation = '', shiny = false): string {
   return [
     `Create one premium pixel-art inventory sprite for this exact subject: ${JSON.stringify(key)}.`,
+    shiny
+      ? [
+        'SHINY / ALTERNATE COLORWAY: This is a RARE SHINY variant of the SAME item, not a different subject.',
+        'Change the primary and secondary pigment colors substantially from its ordinary real-world palette.',
+        'Use an unmistakable alternative colorway: luminous violet/cyan/rose/gold accents selected for contrast and collector appeal.',
+        'Keep the characteristic silhouette and recognizable object parts intact. Do not just add glitter or a golden border.',
+        'Draw the changed pigments across the actual subject surfaces; it must look distinctly different at 48px.',
+        'Use a few sharp iridescent pixel highlights only within the subject, with NO external glow or particles.',
+        'Never write SHINY or any words.',
+      ].join('\n')
+      : '',
     variation
       ? `This is a reroll. Variation token: ${JSON.stringify(variation)}. Keep the exact subject identity and the same art direction, but change the pose, orientation, silhouette emphasis, or secondary pixel details enough to be visibly different.`
       : '',
@@ -101,8 +112,11 @@ export function registerEmojiRoute(app: Express, generateImage: ImageGenerator =
       const client = clientId(req);
       const key = emojiKey(req.body.name);
       const regenerate = req.body?.regenerate === true;
+      const shiny = req.body?.shiny === true;
       const variation = typeof req.body?.variation === 'string' ? req.body.variation.trim().slice(0, 64) : '';
-      const cacheKey = `${SPRITE_ENGINE_VERSION}:${key}`;
+      // Different identity at *all* cache layers, so a shiny cannot reuse or
+      // overwrite the normal sprite even if both are generated concurrently.
+      const cacheKey = `${SPRITE_ENGINE_VERSION}:${shiny ? 'shiny:' : ''}${key}`;
       const pendingKey = regenerate ? `${cacheKey}:regenerate:${variation || 'fresh'}` : cacheKey;
 
       let image = regenerate ? undefined : completed.get(cacheKey);
@@ -110,13 +124,13 @@ export function registerEmojiRoute(app: Express, generateImage: ImageGenerator =
         if (!regenerate) {
           // Default art is generated once per engine version and then reused from Cloudflare's
           // persistent edge cache. This removes repeat image-model calls without changing art quality.
-          const resolved = await cachedWork<GeminiImageResult>('element-sprite-v9', cacheKey, () => generate(buildSpritePrompt(key), client));
+          const resolved = await cachedWork<GeminiImageResult>('element-sprite-v9', cacheKey, () => generate(buildSpritePrompt(key, '', shiny), client));
           image = validBase64Image(resolved.value);
         } else {
           // Explicit rerolls stay fresh by design. Same simultaneous reroll is still deduplicated.
           let job = pending.get(pendingKey);
           if (!job) {
-            job = generate(buildSpritePrompt(key, variation), client);
+            job = generate(buildSpritePrompt(key, variation, shiny), client);
             pending.set(pendingKey, job);
           }
           try {
@@ -144,6 +158,7 @@ export function registerEmojiRoute(app: Express, generateImage: ImageGenerator =
             : 'gemini-native-image-pixel-art',
         model: image.model,
         engineVersion: SPRITE_ENGINE_VERSION,
+        shiny,
       });
     } catch (error) {
       const failure = publicFailure(error);
