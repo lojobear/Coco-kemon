@@ -1,5 +1,6 @@
 import { spriteAssets, trackSpriteSync } from './spriteAssets';
 import { emojiKey } from './emojiGeometry';
+import { spriteVariantKey, spriteProfileKey } from './spriteVariant';
 import { requestJson } from './api';
 
 const ELEMENT_SPRITE_CACHE_PREFIX = 'pixelimage-v9-2p5d:';
@@ -149,8 +150,8 @@ async function normalizeGeneratedImage(imageBase64: string, mimeType: string): P
 }
 
 /** Return locally cached native artwork without generating or spending AI quota. */
-export async function getCachedElementSprite(name: string): Promise<string | undefined> {
-  const key = emojiKey(name);
+export async function getCachedElementSprite(name: string, shiny = false): Promise<string | undefined> {
+  const key = spriteVariantKey(name, shiny);
   if (memory.has(key)) return memory.get(key);
   try {
     return await stored(ELEMENT_SPRITE_CACHE_PREFIX + key);
@@ -160,15 +161,15 @@ export async function getCachedElementSprite(name: string): Promise<string | und
 }
 
 /** Restore a downloaded profile image to the local cache for other collection views. */
-export async function storeProfileElementSprite(name: string, data: string): Promise<void> {
-  const key = emojiKey(name);
+export async function storeProfileElementSprite(name: string, data: string, shiny = false): Promise<void> {
+  const key = spriteVariantKey(name, shiny);
   memory.set(key, data);
   await save(ELEMENT_SPRITE_CACHE_PREFIX + key, data);
   if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('oddkin-emoji-retry', { detail: key }));
 }
 
-export function getElementEmoji(name: string, upgrade = false, variation = '', generateIfMissing = true): Promise<string> {
-  const key = emojiKey(name);
+export function getElementEmoji(name: string, upgrade = false, variation = '', generateIfMissing = true, isShiny = false): Promise<string> {
+  const key = spriteVariantKey(name, isShiny);
   // Collection previews may read cached/local/profile art but cannot trigger AI.
   const jobKey = upgrade ? `${key}:upgrade:${variation || 'fresh'}` : generateIfMissing ? key : `${key}:cache-only`;
 
@@ -181,14 +182,16 @@ export function getElementEmoji(name: string, upgrade = false, variation = '', g
     const cached = upgrade
       ? undefined
       : (await stored(ELEMENT_SPRITE_CACHE_PREFIX + key))
-        || (await stored(LEGACY_NATIVE_IMAGE_V8_CACHE_PREFIX + key))
-        || (await stored(LEGACY_NATIVE_IMAGE_V7_CACHE_PREFIX + key))
-        || (await stored(LEGACY_PIXEL_INVENTORY_CACHE_PREFIX + key))
-        || (await stored(LEGACY_HD_CACHE_PREFIX + key))
-        || (await stored(LEGACY_3D_CACHE_PREFIX + key))
-        || (await stored(LEGACY_RECOGNIZABLE_CACHE_PREFIX + key))
-        || (await stored(LEGACY_PIXEL_CACHE_PREFIX + key))
-        || (await stored(key));
+        // Old sprite versions contain normal artwork only. Never resolve those
+        // as shiny art: it would make normal and shiny visually identical.
+        || (isShiny ? undefined : await stored(LEGACY_NATIVE_IMAGE_V8_CACHE_PREFIX + key))
+        || (isShiny ? undefined : await stored(LEGACY_NATIVE_IMAGE_V7_CACHE_PREFIX + key))
+        || (isShiny ? undefined : await stored(LEGACY_PIXEL_INVENTORY_CACHE_PREFIX + key))
+        || (isShiny ? undefined : await stored(LEGACY_HD_CACHE_PREFIX + key))
+        || (isShiny ? undefined : await stored(LEGACY_3D_CACHE_PREFIX + key))
+        || (isShiny ? undefined : await stored(LEGACY_RECOGNIZABLE_CACHE_PREFIX + key))
+        || (isShiny ? undefined : await stored(LEGACY_PIXEL_CACHE_PREFIX + key))
+        || (isShiny ? undefined : await stored(key));
 
     if (cached) {
       memory.set(key, cached);
@@ -200,7 +203,8 @@ export function getElementEmoji(name: string, upgrade = false, variation = '', g
     const userId = await spriteAssets?.currentUser().catch(() => undefined);
     if (!upgrade && userId) {
       try {
-        const reference = await spriteAssets!.find(userId, `generated:${key}`) || await spriteAssets!.findByName(userId, name);
+        const reference = await spriteAssets!.find(userId, spriteProfileKey(name, isShiny))
+          || (!isShiny ? await spriteAssets!.findByName(userId, name) : undefined);
         if (reference) {
           const data = await spriteAssets!.resolve(reference);
           memory.set(key, data);
@@ -223,7 +227,7 @@ export function getElementEmoji(name: string, upgrade = false, variation = '', g
     }>('/api/element-emoji', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: key, regenerate: upgrade, variation: upgrade ? variation : undefined }),
+      body: JSON.stringify({ name, regenerate: upgrade, variation: upgrade ? variation : undefined, shiny: isShiny }),
     }, 60000);
 
     if (typeof response.imageBase64 !== 'string' || typeof response.mimeType !== 'string') {
@@ -233,7 +237,7 @@ export function getElementEmoji(name: string, upgrade = false, variation = '', g
     const data = await normalizeGeneratedImage(response.imageBase64, response.mimeType);
     memory.set(key, data);
     await save(ELEMENT_SPRITE_CACHE_PREFIX + key, data);
-    if (userId) void trackSpriteSync(() => spriteAssets!.put(userId, `generated:${key}`, name, data)).catch(() => undefined);
+    if (userId) void trackSpriteSync(() => spriteAssets!.put(userId, spriteProfileKey(name, isShiny), name, data)).catch(() => undefined);
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new Event('quarkpop-sprite-ready'));
       window.dispatchEvent(new CustomEvent('oddkin-emoji-retry', { detail: key }));
@@ -264,14 +268,14 @@ export function getElementEmoji(name: string, upgrade = false, variation = '', g
   return job;
 }
 
-export function retryElementEmoji(name: string): Promise<string> {
-  const key = emojiKey(name);
+export function retryElementEmoji(name: string, shiny = false): Promise<string> {
+  const key = spriteVariantKey(name, shiny);
   // An in-flight generation remains deduplicated; deleting its job could send
   // two expensive requests for the same name while the first is still running.
   if (jobs.has(key)) return jobs.get(key)!;
   if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('oddkin-emoji-retry', { detail: key }));
   // Let the Sprite Lab display the actual API error instead of claiming success.
-  return getElementEmoji(name);
+  return getElementEmoji(name, false, '', true, shiny);
 }
 
 /** Explicit upgrade/reroll bypasses old art and asks the native image model for a fresh sprite. */
