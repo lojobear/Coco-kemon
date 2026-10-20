@@ -1,4 +1,4 @@
-import { memo, startTransition, useCallback, useEffect, useRef, useState } from 'react';
+import { memo, startTransition, useCallback, useEffect, useState } from 'react';
 import { sound } from '../lib/audio';
 import { haptics } from '../lib/haptics';
 import { FlaskConical, LayoutGrid, Cat, ChefHat, Cloud } from 'lucide-react';
@@ -22,31 +22,20 @@ function BottomNavInner({
   onOpenProfile: () => void;
 }) {
   const [visualTab, setVisualTab] = useState(activeTab);
-  const frame = useRef<number | null>(null);
-
   useEffect(() => {
     setVisualTab(activeTab);
   }, [activeTab]);
 
-  useEffect(() => () => {
-    if (frame.current !== null) cancelAnimationFrame(frame.current);
-  }, []);
-
   const selectTab = useCallback((tab: BottomTab) => {
     if (tab === activeTab) return;
 
-    // Paint the active state first so taps always feel instant, then mount the
-    // heavier destination view on the next frame at transition priority.
+    // Give immediate audible and tactile feedback on the original tap.
+    // Deferring navigation to requestAnimationFrame made the app feel sluggish.
+    // The destination still mounts at transition priority so touch feedback paints.
+    haptics.lightTap();
+    sound.playClick();
     setVisualTab(tab);
-    if (frame.current !== null) cancelAnimationFrame(frame.current);
-    frame.current = requestAnimationFrame(() => {
-      startTransition(() => setActiveTab(tab));
-      frame.current = null;
-      queueMicrotask(() => {
-        sound.playClick();
-        haptics.lightTap();
-      });
-    });
+    startTransition(() => setActiveTab(tab));
   }, [activeTab, setActiveTab]);
 
   return (

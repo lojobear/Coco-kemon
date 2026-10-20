@@ -9,8 +9,9 @@ interface CraftingCrucibleProps {
   onSwapSlots: () => void; onCombine: () => void; isSynthesizing: boolean;
   isDarkMode: boolean; isDropTargetActive: boolean; crucibleRef: React.RefObject<HTMLDivElement | null>;
   isCollapsed?: boolean; onToggleCollapse?: () => void;
+  quickPickVersion?: number;
 }
-export function CraftingCrucible({ slotA, slotB, onClearSlotA, onClearSlotB, onClearAll, onSwapSlots, onCombine, isSynthesizing, isDropTargetActive, crucibleRef }: CraftingCrucibleProps) {
+export function CraftingCrucible({ slotA, slotB, onClearSlotA, onClearSlotB, onClearAll, onSwapSlots, onCombine, isSynthesizing, isDropTargetActive, crucibleRef, quickPickVersion = 0 }: CraftingCrucibleProps) {
   const ready = Boolean(slotA && slotB);
   return <div ref={crucibleRef} id="crafting-crucible-dock" className={`boop-combination-pad ${isDropTargetActive ? 'is-drop-target' : ''} ${ready ? 'is-ready' : ''} ${isSynthesizing ? 'is-synthesizing' : ''}`} aria-label="Combination pad">
     <div className="boop-pad-heading"><span>COMBINATION PAD</span><span className="boop-ready-tag">{ready ? 'Ready to discover' : `${Number(!!slotA) + Number(!!slotB)} selected`}</span></div>
@@ -19,7 +20,7 @@ export function CraftingCrucible({ slotA, slotB, onClearSlotA, onClearSlotB, onC
         const slot = index === 0 ? slotA : slotB;
         return <React.Fragment key={key}>
           {index === 1 && <span className="boop-pad-plus"><Plus size={24} /></span>}
-          <div id={`crucible-slot-${key}`} className={`boop-pad-slot ${slot ? 'is-filled' : ''}`}>
+          <div key={`${key}:${slot?.name || 'empty'}:${quickPickVersion}`} id={`crucible-slot-${key}`} className={`boop-pad-slot ${slot ? 'is-filled' : ''} ${quickPickVersion && slot ? 'is-quick-picked' : ''}`}>
             {slot ? <><CraftSprite name={slot.name} emoji={slot.emoji} className="boop-pad-sprite" /><strong>{slot.name}{slot.isShiny ? ' ✦' : ''}</strong>
               <button disabled={isSynthesizing} aria-label={`Remove ${slot.name} from slot ${key.toUpperCase()}`} onClick={index === 0 ? onClearSlotA : onClearSlotB}><X size={16} /></button></>
               : <><span className="boop-empty-pixel" aria-hidden="true"><Plus size={28} /></span><span>Pick {index === 0 ? 'first' : 'second'} ingredient</span></>}
