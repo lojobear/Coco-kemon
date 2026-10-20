@@ -135,6 +135,16 @@ export function InfiniteCraftView() {
   const [lastResult, setLastResult] = useState<InfiniteElement | null>(null);
   const [spriteIssue, setSpriteIssue] = useState<{ name: string; message: string } | null>(null);
   const [spriteRetrying, setSpriteRetrying] = useState(false);
+  const latestSpriteRequestRef = useRef('');
+  const lastSpriteNoticeAtRef = useRef(0);
+
+  // A failed image request must not leave an old discovery warning permanently
+  // occupying the play area. Artwork is still saved/retryable via Sprite Lab.
+  useEffect(() => {
+    if (!spriteIssue) return;
+    const timer = window.setTimeout(() => setSpriteIssue(null), 12_000);
+    return () => window.clearTimeout(timer);
+  }, [spriteIssue]);
   const [elements, setElements] = useState<InfiniteElement[]>(() => {
     try {
       const saved = JSON.stringify(readCraftElements());
@@ -357,12 +367,21 @@ export function InfiniteCraftView() {
       };
 
       setLastResult(newElemObj);
+      setSpriteIssue(null);
+      latestSpriteRequestRef.current = cleanName;
       if (firstInCollection || isShinyEncounter) {
         // Missing artwork must not silently fail after the item was collected.
         // Keep the discovery; the gallery renders a temporary local pixel preview.
         void getElementEmoji(cleanName, false, '', true, isShinyEncounter).then(() => {
-          setSpriteIssue(prev => prev?.name === cleanName ? null : prev);
+          if (latestSpriteRequestRef.current === cleanName) {
+            setSpriteIssue(prev => prev?.name === cleanName ? null : prev);
+          }
         }).catch(error => {
+          if (latestSpriteRequestRef.current !== cleanName) return;
+          // Warn once per brief gameplay window, not after every new element
+          // while the account's image-provider credentials remain broken.
+          if (Date.now() - lastSpriteNoticeAtRef.current < 90_000) return;
+          lastSpriteNoticeAtRef.current = Date.now();
           setSpriteIssue({
             name: cleanName,
             message: error instanceof Error ? error.message : 'AI sprite generation is unavailable right now.',
@@ -726,10 +745,12 @@ export function InfiniteCraftView() {
           {activeCombination && <div className="boop-inline-reaction" role="status" aria-live="polite"><span className="boop-inline-spinner" aria-hidden="true" /><span>Mixing <strong>{activeCombination.nameA}</strong> + <strong>{activeCombination.nameB}</strong>…</span></div>}
         </div>
         {spriteIssue && <div className="boop-sprite-warning" role="status" aria-live="polite">
-          <strong>AI artwork pending: {spriteIssue.name}</strong>
-          <p>{spriteIssue.message} Your discovery is saved and temporary pixel art is available.</p>
-          <button className="boop-secondary" disabled={spriteRetrying} onClick={() => void retryMissingSprite()}>{spriteRetrying ? 'Trying…' : 'Retry AI sprite'}</button>
-          <button className="boop-secondary" disabled={spriteRetrying} onClick={() => setSpriteIssue(null)}>Dismiss</button>
+          <strong>{spriteIssue.name} saved · AI artwork pending</strong>
+          <p>{/Runware rejected/i.test(spriteIssue.message)
+            ? 'Runware needs a valid API key in Cloudflare. The discovery is safe; temporary pixel art is shown until you can retry.'
+            : 'The image service is temporarily unavailable. Your discovery is safe and temporary pixel art is shown.'}</p>
+          {!/Runware rejected/i.test(spriteIssue.message) && <button className="boop-secondary" disabled={spriteRetrying} onClick={() => void retryMissingSprite()}>{spriteRetrying ? 'Trying…' : 'Retry artwork'}</button>}
+          <button className="boop-secondary" onClick={() => setSpriteIssue(null)}>Got it</button>
         </div>}
         {combineError && <div role="alert" className="boop-error"><p>{combineError}</p><button onClick={() => { if (lastPairRef.current) void handleCombine(lastPairRef.current[0], lastPairRef.current[1]); }}>Retry combination</button><button onClick={() => setCombineError(null)}>Dismiss</button></div>}
         <div className={`boop-result-shell ${lastResult ? 'is-visible' : ''}`} aria-live="polite" aria-atomic="true">

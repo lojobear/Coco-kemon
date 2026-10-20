@@ -8,6 +8,15 @@ import type { GeminiImageResult } from './gemini.js';
 
 export const RUNWARE_SPRITE_MODEL = 'runware:400@4';
 
+// A rejected key is not transient. Never send one failing API call for each
+// shiny/normal discovery while the owner is correcting Cloudflare secrets.
+// Cloudflare creates new isolates on deployment when the key is replaced.
+let rejectedKey: string | null = null;
+let authenticationRetryAfter = 0;
+export function isRunwareAuthenticationRejected() {
+  return !!rejectedKey && authenticationRetryAfter > Date.now();
+}
+
 type RunwareResponse = {
   data?: Array<{ taskType?: string; taskUUID?: string; imageBase64Data?: string; imageDataURI?: string }>;
   errors?: Array<{ message?: string }>;
@@ -20,6 +29,13 @@ export async function generateRunwareSprite(
 ): Promise<GeminiImageResult | null> {
   const apiKey = (options.apiKey ?? process.env.RUNWARE_API_KEY ?? '').trim();
   if (!apiKey) return null;
+  if (rejectedKey && rejectedKey !== apiKey) {
+    // A hot-reloaded secret should work immediately rather than inheriting
+    // the old key's cooldown.
+    rejectedKey = null;
+    authenticationRetryAfter = 0;
+  }
+  if (rejectedKey === apiKey && Date.now() < authenticationRetryAfter) return null;
 
   const taskUUID = crypto.randomUUID();
   const controller = new AbortController();
@@ -46,11 +62,19 @@ export async function generateRunwareSprite(
     });
 
     const payload = await response.json().catch(() => null) as RunwareResponse | null;
+    if (response.status === 401 || response.status === 403) {
+      rejectedKey = apiKey;
+      authenticationRetryAfter = Date.now() + 5 * 60_000;
+      console.warn(`Runware image API rejected its configured key (HTTP ${response.status}); pausing requests for five minutes.`);
+      return null;
+    }
     if (!response.ok || !payload?.data?.length) {
       // Never log response bodies or credentials, even on provider errors.
       console.warn(`Runware sprite fallback unavailable (HTTP ${response.status}).`);
       return null;
     }
+    rejectedKey = null;
+    authenticationRetryAfter = 0;
 
     const result = payload.data.find(item => item.taskUUID === taskUUID && item.taskType === 'imageInference');
     if (!result) {
