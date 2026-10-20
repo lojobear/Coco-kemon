@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { once } from 'node:events';
+import { readFileSync } from 'node:fs';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import express from 'express';
@@ -19,7 +20,6 @@ test('shiny artwork is visibly recolored even before the model supplies dedicate
   const shiny = renderToStaticMarkup(React.createElement(CraftSprite, { name: 'Cloud', emoji: '☁️', isShiny: true }));
   assert.doesNotMatch(ordinary, /boop-shiny-sprite/);
   assert.match(shiny, /boop-shiny-sprite/);
-  const { readFileSync } = await import('node:fs');
   const css = readFileSync(new URL('../src/boop.css', import.meta.url), 'utf8');
   assert.match(css, /\.boop-shiny-sprite:not\(\.boop-shiny-authored\) img\s*\{\s*filter:sepia/);
 });
