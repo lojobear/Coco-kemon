@@ -662,3 +662,44 @@
 @media (prefers-reduced-motion:reduce) {
   .boop-app .boop-cloud-dialog .boop-cloud-button { transition:none; }
 }
+
+/* Shiny is a separate art variant, never the normal sprite with a text label.
+   Native shiny art has its own image cache; older/missing variants get a strong
+   alternate colorway immediately without consuming any additional AI quota. */
+.boop-shiny-sprite {
+  position:relative;
+  isolation:isolate;
+}
+.boop-shiny-sprite:not(.boop-shiny-authored) img {
+  filter:sepia(.8) saturate(2.5) hue-rotate(162deg) contrast(1.12) brightness(1.08);
+}
+.boop-shiny-sprite:not(.boop-shiny-authored) > span {
+  filter:sepia(.8) saturate(2.5) hue-rotate(162deg) contrast(1.12);
+}
+.boop-shiny-sprite::after {
+  content:"✦";
+  pointer-events:none;
+  position:absolute;
+  top:2%; right:2%;
+  font-size:clamp(11px,18%,22px);
+  line-height:1;
+  font-weight:900;
+  color:#fff3ad;
+  text-shadow:0 0 3px #a46ecb,0 0 7px #7f56c8;
+  transform:rotate(-14deg);
+  animation:boop-shiny-glint 2600ms ease-in-out infinite;
+}
+.boop-discovery-card.is-shiny {
+  border-color:#b89aec;
+  background:linear-gradient(135deg,#fff 55%,#f6f0ff);
+}
+.boop-discovery-card.is-shiny .boop-discovery-pick:focus-visible {
+  outline-color:#8a5cda;
+}
+@keyframes boop-shiny-glint {
+  0%,100% { opacity:.85; scale:.92; }
+  50% { opacity:1; scale:1.15; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .boop-shiny-sprite::after { animation:none!important; }
+}
