@@ -26,7 +26,10 @@ jobs:
           gradle-version: '8.9'
       - name: Install Android platform
         run: |
-          sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          SDK_TOOL="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager | head -n 1)"
+          test -n "$SDK_TOOL"
+          "$SDK_TOOL" 'platforms;android-35' 'build-tools;35.0.0'
       - name: Package Boop icon
         run: |
           mkdir -p android-shell/app/src/main/res/drawable-nodpi
