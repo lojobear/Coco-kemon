@@ -29,6 +29,12 @@ export async function generateRunwareSprite(
 ): Promise<GeminiImageResult | null> {
   const apiKey = (options.apiKey ?? process.env.RUNWARE_API_KEY ?? '').trim();
   if (!apiKey) return null;
+  if (rejectedKey && rejectedKey !== apiKey) {
+    // A hot-reloaded secret should work immediately rather than inheriting
+    // the old key's cooldown.
+    rejectedKey = null;
+    authenticationRetryAfter = 0;
+  }
   if (rejectedKey === apiKey && Date.now() < authenticationRetryAfter) return null;
 
   const taskUUID = crypto.randomUUID();
