@@ -158,7 +158,7 @@ function GameContent() {
       </main>
 
       {/* Bottom Navigation */}
-      {!nativeShell && <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} onOpenProfile={() => setShowCloud(true)} />
+      {!nativeShell && <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} onOpenProfile={() => setShowCloud(true)} />}
       <CloudSaves open={showCloud} onClose={() => setShowCloud(false)} />
 
       {/* Floating Modals */}
