@@ -37,6 +37,29 @@
         }, true);
       })();
     </script>
+    <script>
+      (function () {
+        var params = new URLSearchParams(location.search);
+        if (params.get('boop_android') === '1' && /BoopAndroid\\/\\d+/i.test(navigator.userAgent)) {
+          document.documentElement.classList.add('boop-native-shell');
+        }
+        // After Google's browser-based consent, Supabase returns a PKCE code
+        // to this SAME trusted HTTPS origin. Hand it to the Android shell before
+        // the SPA runs; otherwise Chrome would consume the WebView's auth code.
+        if (params.get('boop_native_oauth') === '1' && params.has('code')) {
+          window.__boopNativeAuthReturn = true;
+          var destination = 'boop://oauth-callback?code=' + encodeURIComponent(params.get('code'));
+          document.addEventListener('DOMContentLoaded', function() {
+            document.body.style.cssText = 'margin:0;background:#f4f8f2;color:#173f32;font:16px system-ui,sans-serif';
+            document.body.innerHTML = '<main style="padding:48px 24px;max-width:420px;margin:auto;text-align:center"><h1>Return to Boop</h1><p>Google sign-in is complete. Continue in the Boop app to finish connecting your cloud saves.</p><a id="return-to-boop" style="display:inline-block;padding:14px 22px;background:#174132;color:#fff;border-radius:14px;font-weight:bold;text-decoration:none" href="#">Open Boop</a></main>';
+            document.getElementById('return-to-boop').setAttribute('href', destination);
+          });
+          // Chrome may request a user tap for custom-scheme handoff. Keep a
+          // visible Return to Boop button in case automatic handoff is blocked.
+          location.replace(destination);
+        }
+      }());
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#f3f2ec" />
     <meta name="theme-color" content="#f3f2ec" media="(prefers-color-scheme: dark)" />
