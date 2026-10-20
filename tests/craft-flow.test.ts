@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { findCraftDropTarget, intersectionArea } from '../src/lib/craftCollision';
+import { pickRandomPair } from '../src/lib/randomPair';
 import { CANONICAL_INFINITE_CRAFT_RECIPES, makePairKey } from '../src/lib/infiniteCraftData';
 
 test('craft overlap uses visible rectangle area, not proximity', () => {
@@ -39,4 +40,29 @@ test('canonical recipes have no duplicate unordered ingredient pairs', () => {
   assert.equal(CANONICAL_INFINITE_CRAFT_RECIPES[makePairKey('Water', 'Earth')].result, 'Mud');
   assert.equal(CANONICAL_INFINITE_CRAFT_RECIPES[makePairKey('Mud', 'Water')].result, 'Plant');
   assert.equal(CANONICAL_INFINITE_CRAFT_RECIPES[makePairKey('Fire', 'Water')].result, 'Steam');
+});
+
+test('Surprise me chooses distinct ingredients in constant-time without changing the pool', () => {
+  const pool = ['Water', 'Earth', 'Fire', 'Wind', 'Tea'];
+  const original = [...pool];
+  let draws = 0;
+  const random = () => { draws++; return 0.52; };
+  const pair = pickRandomPair(pool, null, random);
+  assert.ok(pair);
+  assert.equal(pair[0], 'Fire');
+  assert.notEqual(pair[0], pair[1]);
+  assert.deepEqual(pool, original, 'the saved collection must never be reordered or filtered');
+  assert.equal(draws, 2, 'even a huge collection should require only two random draws');
+});
+
+test('Surprise me handles small collections and avoids identical consecutive pairs', () => {
+  assert.equal(pickRandomPair([]), null);
+  assert.deepEqual(pickRandomPair(['Water']), ['Water', 'Water']);
+  assert.deepEqual(pickRandomPair(['Water', 'Fire'], null, () => 0), ['Water', 'Fire']);
+  const pool = ['Water', 'Fire', 'Earth'];
+  const first = pickRandomPair(pool, null, () => 0)!;
+  const second = pickRandomPair(pool, first, () => 0)!;
+  assert.equal(second[0], first[0]);
+  assert.notEqual(second[1], first[1]);
+  assert.notEqual(second[0], second[1]);
 });
