@@ -3,15 +3,18 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 const file=(p:string)=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
 
-test('Boop keeps the white and charcoal palette while switching to Pixelify Sans',()=>{
+test('Boop keeps white and charcoal colors while using readable Outfit typography',()=>{
   const boop=file('src/boop.css');
   const css=file('src/index.css');
   const html=file('index.html');
   assert.match(boop,/--boop-canvas: #ffffff/);
   assert.match(boop,/--boop-forest: #242a31/);
-  assert.match(boop,/--font-sans: "Pixelify Sans"/);
-  assert.match(css,/--font-pixel: "Pixelify Sans"/);
-  assert.match(html,/family=Pixelify\+Sans/);
+  assert.match(boop,/--font-sans: "Outfit"/);
+  assert.match(css,/--font-sans: "Outfit"/);
+  assert.match(html,/family=Outfit/);
+  assert.doesNotMatch(boop,/Pixelify Sans/);
+  assert.doesNotMatch(css,/Pixelify Sans/);
+  assert.doesNotMatch(html,/Pixelify\+Sans/);
 });
 
 test('logo is the sprouting orbit planet, not the prior green creature',()=>{
