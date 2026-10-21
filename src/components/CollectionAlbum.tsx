@@ -61,6 +61,12 @@ export function CollectionAlbum({
   },[]);
   useEffect(()=>{
     const open=()=>{setTab('room');setSlotPicker(null);};
+    // The archive is lazily loaded. Remember profile-navigation requests until
+    // the Collection screen has actually mounted, not just for 80ms.
+    if(sessionStorage.getItem('boop-open-trophy-room')==='1'){
+      sessionStorage.removeItem('boop-open-trophy-room');
+      open();
+    }
     window.addEventListener('boop-open-trophy-room',open);
     return()=>window.removeEventListener('boop-open-trophy-room',open);
   },[]);
