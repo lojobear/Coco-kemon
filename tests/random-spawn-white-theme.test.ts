@@ -45,7 +45,7 @@ test('spawn positions keep tiles near viewport center and inside the world',()=>
   }
 });
 
-test('Discover menu has accessible choices and doesn't trigger AI calls or unlock items',()=>{
+test("Discover menu has accessible choices and does not trigger AI calls or unlock items",()=>{
   const component=readFileSync(new URL('../src/components/InfiniteCraftView.tsx',import.meta.url),'utf8');
   assert.match(component,/aria-label="Random spawn options"/);
   assert.match(component,/aria-expanded=\{spawnMenuOpen\}/);
