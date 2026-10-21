@@ -111,7 +111,7 @@ export function PlayerProfile({ onOpenCloud }: { onOpenCloud: () => void }) {
         </div>
       </div>
       <div className="boop-profile-account"><Trophy size={20}/><div><strong>Your trophy room</strong><p>Curate twelve favourite discoveries, choose frames, and export your personal collectible gallery.</p></div>
-        <button onClick={() => { setActiveTab('archive'); window.setTimeout(() => window.dispatchEvent(new Event('boop-open-trophy-room')), 80); }}>Open room</button></div>
+        <button onClick={() => { sessionStorage.setItem('boop-open-trophy-room','1'); setActiveTab('archive'); window.dispatchEvent(new Event('boop-open-trophy-room')); }}>Open room</button></div>
       <div className="boop-profile-account"><Cloud size={20}/><div><strong>{user ? 'Cloud account connected' : 'Connect your profile'}</strong><p>{user ? 'Stats reflect this device’s current collection. Use cloud saves to move progress between devices.' : 'Sign in with Google to save a profile nickname and back up discoveries.'}</p></div><button onClick={onOpenCloud}>{user?'Cloud saves':'Sign in'}</button></div>
     </section>
   </CraftSprites.Provider>;
