@@ -27,6 +27,7 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
@@ -121,12 +122,10 @@ public final class MainActivity extends Activity {
         toolbar.setPadding(dp(16), 0, dp(12), 0);
         toolbar.setBackgroundColor(Color.WHITE);
 
-        TextView icon = new TextView(this);
-        icon.setText("✿");
-        icon.setTextSize(25);
-        icon.setTextColor(PALE);
-        icon.setGravity(Gravity.CENTER);
-        icon.setBackground(roundRect(FOREST, 13, 0));
+        ImageView icon = new ImageView(this);
+        icon.setImageResource(R.drawable.ic_boop_planet);
+        icon.setContentDescription("Boop planet logo");
+        icon.setScaleType(ImageView.ScaleType.FIT_CENTER);
         toolbar.addView(icon, new LinearLayout.LayoutParams(dp(39), dp(39)));
 
         TextView title = new TextView(this);
