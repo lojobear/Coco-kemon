@@ -25,6 +25,8 @@ export interface InfiniteElement {
   unlockedShiny?: boolean;
   shinyDiscoveredAt?: number;
   shinyTitle?: string;
+  unlockedCelestial?: boolean;
+  celestialDiscoveredAt?: number;
   // Physical properties telemetry
   physicalData?: any;
 }

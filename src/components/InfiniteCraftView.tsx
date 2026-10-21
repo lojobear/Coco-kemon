@@ -30,6 +30,7 @@ import { CraftingCrucible, CrucibleSlotItem } from './CraftingCrucible';
 import { ElementDossierModal } from './ElementDossierModal';
 import { generateConceptSprite } from '../lib/pixelRenderer';
 import { rollIsShiny, generatePhysicalData, getShinyFoilStyle } from '../lib/physicalDataEngine';
+import { rollCelestial } from '../lib/collectorData';
 import {
   normalizeElementStats,
   initialCraftStats,
@@ -397,6 +398,7 @@ export function InfiniteCraftView() {
       if (controller.signal.aborted) return;
 
       const isShinyEncounter = rollIsShiny(apiData.result, itemA.name, itemB.name);
+      const isCelestialEncounter = rollCelestial();
       if (isShinyEncounter) setActiveCombination(prev => prev ? { ...prev, isShiny: true } : null);
       if (controller.signal.aborted) return;
 
@@ -426,6 +428,8 @@ export function InfiniteCraftView() {
         unlockedShiny: isShinyEncounter,
         shinyDiscoveredAt: isShinyEncounter ? craftedAt : undefined,
         shinyTitle: shinyPhysicalData?.shinyTitle,
+        unlockedCelestial: isCelestialEncounter,
+        celestialDiscoveredAt: isCelestialEncounter ? craftedAt : undefined,
         physicalData: standardPhysicalData,
         ...initialCraftStats(currentRecipe, isShinyEncounter, craftedAt),
       };
@@ -467,6 +471,8 @@ export function InfiniteCraftView() {
             isShiny: isShinyEncounter ? true : existing.isShiny,
             shinyDiscoveredAt: existing.shinyDiscoveredAt || (isShinyEncounter ? craftedAt : undefined),
             shinyTitle: existing.shinyTitle || shinyPhysicalData?.shinyTitle,
+            unlockedCelestial: Boolean(existing.unlockedCelestial || isCelestialEncounter),
+            celestialDiscoveredAt: existing.celestialDiscoveredAt || (isCelestialEncounter ? craftedAt : undefined),
             physicalData: existing.physicalData || standardPhysicalData,
           };
           return updated;
@@ -495,7 +501,11 @@ export function InfiniteCraftView() {
         setTimeout(() => setSpawnToast(null), 4500);
       }
 
-      if (isShinyEncounter) {
+      if (isCelestialEncounter) {
+        sound.playShiny();
+        haptics.shinySparkle();
+        setSpawnToast(`✶ CELESTIAL ${cleanName.toUpperCase()}! Ultra-rare variant unlocked.`);
+      } else if (isShinyEncounter) {
         const foil = getShinyFoilStyle(cleanName);
         sound.playShiny();
         haptics.shinySparkle();

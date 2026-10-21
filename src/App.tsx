@@ -16,7 +16,7 @@ const loadWorkBench = () => import('./components/WorkBench');
 const WorkBench = lazy(() => loadWorkBench().then(module => ({ default: module.WorkBench })));
 const loadKitchenView = () => import('./components/KitchenView');
 const loadInfiniteCraftView = () => import('./components/InfiniteCraftView');
-const loadArchiveView = () => import('./components/ArchiveView');
+const loadArchiveView = () => import('./components/CollectionAlbum');
 const loadSpriteLabModal = () => import('./components/SpriteLabModal');
 const loadNotebookView = () => import('./components/NotebookView');
 const loadSeedsModal = () => import('./components/SeedsModal');
@@ -24,7 +24,7 @@ const loadVoiceLabModal = () => import('./components/VoiceLabModal');
 
 const KitchenView = lazy(() => loadKitchenView().then(module => ({ default: module.KitchenView })));
 const InfiniteCraftView = lazy(() => loadInfiniteCraftView().then(module => ({ default: module.InfiniteCraftView })));
-const ArchiveView = lazy(() => loadArchiveView().then(module => ({ default: module.ArchiveView })));
+const CollectionAlbum = lazy(() => loadArchiveView().then(module => ({ default: module.CollectionAlbum })));
 const SpriteLabModal = lazy(() => loadSpriteLabModal().then(module => ({ default: module.SpriteLabModal })));
 const NotebookView = lazy(() => loadNotebookView().then(module => ({ default: module.NotebookView })));
 const SeedsModal = lazy(() => loadSeedsModal().then(module => ({ default: module.SeedsModal })));
@@ -141,7 +141,7 @@ function GameContent() {
 
         {activeTab === 'archive' && (
           <Suspense fallback={<div className="view-loading-card">Opening your collection…</div>}>
-            <ArchiveView
+            <CollectionAlbum
               initialSearch={collectionSearch}
               inspectedItem={inspectedItem}
               onCloseInspect={() => setInspectedItem(null)}
