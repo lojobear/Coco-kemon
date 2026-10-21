@@ -1,23 +1,23 @@
 /* Boop: native implementation of the Pocket Discovery Studio Figma design.
    Saved data and generated artwork remain dynamic; these tokens style the studio. */
 :root {
-  --boop-canvas: #f3f2ec;
+  --boop-canvas: #ffffff;
   --boop-surface: #fff;
-  --boop-ink: #172e27;
-  --boop-muted: #63756d;
-  --boop-line: #dce4da;
-  --boop-forest: #153d32;
-  --boop-forest-soft: #245141;
-  --boop-lime: #d7f879;
-  --boop-sage: #eaf0e5;
-  --boop-lavender: #e9e4ff;
+  --boop-ink: #20242a;
+  --boop-muted: #68717a;
+  --boop-line: #e4e7eb;
+  --boop-forest: #242a31;
+  --boop-forest-soft: #4d5865;
+  --boop-lime: #f1f4f7;
+  --boop-sage: #f6f7f8;
+  --boop-lavender: #f2f3f6;
   --basic-bg: var(--boop-canvas);
   --basic-panel: var(--boop-surface);
   --basic-panel-raised: var(--boop-sage);
   --basic-text: var(--boop-ink);
   --basic-muted: var(--boop-muted);
   --basic-line: var(--boop-line);
-  --basic-line-strong: #becbbf;
+  --basic-line-strong: #cdd2d8;
   --basic-accent: var(--boop-forest);
   --basic-focus: var(--boop-forest);
   --surface-shadow: 0 8px 24px #0f241a0f;
@@ -1082,4 +1082,176 @@ html.boop-native-shell .boop-app .boop-cloud-dialog {
 @media (prefers-reduced-motion:reduce) {
   .boop-board-layout *, .boop-board-layout *::after,.boop-board-layout *::before,
   .boop-player-profile * {animation:none!important;transition:none!important;}
+}
+
+/* Boop White — neutral white surfaces and precise graphite contrast.
+   Sprite artwork and shiny palettes keep their real colors. */
+.boop-app[data-theme="quark-light"],
+.boop-app .boop-main,
+.boop-app .boop-craft-studio,
+.boop-app .boop-board-layout,
+.boop-app .boop-player-profile {
+  background:#fff!important;
+  color:var(--boop-ink)!important;
+}
+.boop-app .boop-board-toolbar {
+  background:#fff!important;
+  border-color:#e6e8ec;
+  color:#222831;
+  backdrop-filter:none;
+}
+.boop-app .boop-board-heading strong,
+.boop-app .boop-profile-hero-text h1,
+.boop-app .boop-board-drawer-head h2 { color:#20242a; }
+.boop-app .boop-board-heading small,
+.boop-app .boop-board-drawer-head small,
+.boop-app .boop-profile-hero-text p { color:#65707d; }
+.boop-app .boop-board-viewport { background:#fff!important; }
+.boop-app .boop-board-world {
+  background-color:#fff!important;
+  background-image:radial-gradient(circle,#e5e8ec 1px,transparent 1.08px)!important;
+  background-size:26px 26px;
+}
+.boop-app .boop-board-origin-hint { color:#b5bbc3; }
+.boop-app .boop-board-actions > button:not(.boop-random-button) {
+  background:#fff;
+  color:#343d47;
+  border-color:#e1e5e9;
+}
+.boop-app .boop-board-library-toggle,
+.boop-app .boop-board-mobile-library {
+  background:#fff!important;
+  color:#2c343d!important;
+  border-color:#dce0e5!important;
+  box-shadow:0 2px 8px #222f3b0b!important;
+}
+.boop-app .boop-board-library-toggle b { background:#f2f4f6;color:#495461; }
+.boop-app .boop-board-layout .boop-board-item {
+  background:#fff;
+  color:#28323c;
+  border-color:#dce1e6;
+  box-shadow:0 2px 0 #eff1f4,0 5px 15px #2027350c;
+}
+.boop-app .boop-board-layout .boop-board-item.is-selected {
+  border-color:#555f6b;
+  box-shadow:0 0 0 2px #d4d9df,0 2px 0 #dee2e6;
+}
+.boop-app .boop-board-layout .boop-board-item.is-drop-target {
+  background:#f5f8fa;
+  border-color:#697582;
+  box-shadow:0 0 0 3px #dce3eb;
+}
+.boop-app .boop-board-drawer { background:#fff;box-shadow:-12px 0 40px #27313d19; }
+.boop-app .boop-board-drawer-head button,
+.boop-app .boop-board-library-item { background:#f9fafb; color:#323c47; border-color:#e8ebef; }
+.boop-app .boop-board-library-item > button:first-child,
+.boop-app .boop-board-drawer-footer button { color:#303a45; }
+.boop-app .boop-board-library-item button:active { background:#edf0f3; }
+.boop-app .boop-board-drawer-footer { border-color:#e5e9ed;color:#65717e; }
+.boop-app .boop-board-status,.boop-app .boop-board-result,
+.boop-app .boop-board-alert,.boop-app .boop-board-toast {
+  background:#fff!important;
+  color:#303a45!important;
+  border-color:#e0e5ea;
+  box-shadow:0 6px 25px #28354415;
+}
+.boop-app .boop-board-result button { background:#f2f4f6;color:#303a45; }
+.boop-app .boop-merge-piece { background:#fff;color:#28323c;border-color:#cad0d7; }
+.boop-app .boop-board-fusion i { border-color:#b8c0ca; }
+.boop-app .boop-profile-hero { background:#fff;border-color:#e2e6ea; }
+.boop-app .boop-profile-avatar {background:#303741;color:#fff;}
+.boop-app .boop-profile-inline span,.boop-app .boop-profile-progress,
+.boop-app .boop-profile-stat-card,.boop-app .boop-profile-panel,
+.boop-app .boop-profile-account {background:#fff;border-color:#e4e7eb;}
+.boop-app .boop-profile-inline span {background:#f4f5f7;color:#3f4954;}
+.boop-app .boop-profile-progress-track,.boop-app .boop-profile-bar {background:#edf0f3;}
+.boop-app .boop-profile-progress-track i,.boop-app .boop-profile-bar span {background:#747f8b;}
+.boop-app .boop-profile-account button,.boop-app .boop-profile-edit button:first-of-type {background:#303741;color:#fff;}
+.boop-app .boop-profile-edit,.boop-app .boop-profile-note {background:#f7f8f9;color:#36414c;}
+.boop-app .boop-navigation .boop-nav-items button[aria-current="page"] { background:#272e36!important;color:#fff!important; }
+.boop-app .boop-navigation { border-top:1px solid #eceff1;background:#fff!important; }
+.boop-app .boop-header-search,.boop-app .boop-search {background:#fff;}
+.boop-app .boop-pills button[aria-pressed="true"] { background:#303741;color:#fff; }
+.boop-app .boop-cloud-dialog .boop-cloud-sprite-library {background:#f8f9fa;border-color:#dde2e6;}
+.boop-app .boop-cloud-dialog .boop-cloud-section-title,
+.boop-app .boop-cloud-dialog .boop-cloud-sync {color:#303b47;}
+.boop-app .boop-cloud-dialog .boop-cloud-button {background:#303741!important;border-color:#303741;color:#fff!important;box-shadow:0 2px 0 #1e252d;}
+.boop-app .boop-cloud-dialog .boop-cloud-button:not(:disabled):hover {background:#454f5a!important;}
+
+/* Random spawning: compact, tactile white split-dropdown for desktop/Android. */
+.boop-spawn-control {position:relative;z-index:13;flex:0 0 auto;}
+.boop-app .boop-spawn-control > .boop-random-button {
+  min-height:41px;min-width:95px;
+  display:inline-flex;align-items:center;gap:7px;
+  padding:5px 11px 6px 7px;
+  border:1px solid #c9cfd6;
+  border-radius:13px;
+  background:#fff!important;
+  color:#242b34!important;
+  box-shadow:0 3px 0 #d7dce2,0 5px 10px #2d37470b;
+  font-size:12px;font-weight:800;
+  transform:translateY(0);
+  transition:transform 85ms ease,box-shadow 85ms ease;
+}
+.boop-spawn-control > .boop-random-button .boop-random-icon {
+  background:#303741;
+  color:#fff;
+  border-radius:9px;
+}
+.boop-spawn-control > .boop-random-button .is-rotated {transform:rotate(180deg);}
+.boop-app .boop-spawn-control > .boop-random-button:not(:disabled):active {
+  transform:translateY(3px) scale(.98)!important;
+  box-shadow:0 0 0 #d7dce2,0 1px 3px #2d374713!important;
+}
+.boop-spawn-menu {
+  position:absolute;right:0;top:calc(100% + 10px);
+  width:min(338px,calc(100vw - 20px));
+  padding:15px;display:flex;flex-direction:column;gap:10px;
+  border:1px solid #e0e4e9;border-radius:18px;
+  background:#fff;color:#28323d;
+  box-shadow:0 14px 42px #1f29371e,0 3px 8px #1f29370d;
+  animation:boop-spawn-menu-in 140ms ease-out both;
+}
+@keyframes boop-spawn-menu-in {from{opacity:0;transform:translateY(-5px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
+.boop-spawn-menu-heading {display:flex;flex-direction:column;gap:3px;}
+.boop-spawn-menu-heading strong {font-weight:850;font-size:15px;}
+.boop-spawn-menu-heading small {font-size:11px;color:#6c7681;}
+.boop-spawn-options-label {font-size:10px;color:#808994;font-weight:800;letter-spacing:1px;margin-top:3px;}
+.boop-spawn-count-grid {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;}
+.boop-spawn-count-grid button {
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  min-height:64px;padding:9px 3px;
+  background:#f8f9fa;color:#27313c;
+  border:1px solid #e5e8ec;border-radius:12px;
+  box-shadow:0 2px 0 #e4e8ed;
+  transition:transform 90ms ease,background-color 90ms ease,box-shadow 90ms ease;
+}
+.boop-spawn-count-grid button:not(:disabled):active {transform:translateY(2px);box-shadow:none;background:#eef0f2;}
+.boop-spawn-count-grid button:disabled {opacity:.4;}
+.boop-spawn-count-number {font-size:20px;font-weight:900;line-height:1;}
+.boop-spawn-count-grid small {font-size:10px;color:#7a838f;}
+.boop-spawn-filter-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;}
+.boop-spawn-filter-grid button {
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  min-height:42px;padding:9px 11px;
+  background:#fff;color:#4a5561;
+  border:1px solid #e1e5ea;border-radius:10px;
+  font-size:12px;font-weight:750;
+  transition:background 90ms ease,border-color 90ms ease,transform 90ms ease;
+}
+.boop-spawn-filter-grid button[aria-pressed="true"] {color:#20252c;background:#f2f4f6;border-color:#89939e;box-shadow:inset 0 0 0 1px #89939e;}
+.boop-spawn-filter-grid button:disabled {opacity:.42;}
+.boop-spawn-filter-grid button:active {transform:scale(.98);}
+.boop-spawn-filter-grid small {color:#7f8893;font-size:10px;}
+.boop-spawn-note {font-size:10px;line-height:1.5;color:#808994;margin:0;}
+.boop-board-layout .boop-board-item.is-random-spawn {animation:boop-random-tile-pop 155ms cubic-bezier(.19,.82,.35,1) both;}
+@keyframes boop-random-tile-pop {from{opacity:.35;scale:.88}to{opacity:1;scale:1}}
+@media(max-width:760px) {
+  .boop-spawn-menu {position:fixed;top:auto;bottom:max(96px,env(safe-area-inset-bottom) + 95px);right:10px;left:10px;width:auto;max-width:440px;margin-left:auto;}
+  .boop-app .boop-spawn-control > .boop-random-button {min-width:41px;min-height:40px;padding:5px 7px;gap:3px;border-radius:11px;}
+  .boop-spawn-control > .boop-random-button .boop-random-icon {width:26px;height:26px;}
+  .boop-spawn-control > .boop-random-button .boop-random-label {display:none!important;}
+}
+@media(prefers-reduced-motion:reduce) {
+  .boop-spawn-menu,.boop-board-layout .boop-board-item.is-random-spawn {animation:none!important;}
 }
