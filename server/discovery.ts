@@ -214,7 +214,7 @@ export function lowValueConceptReason(result: string, first: string, second: str
   const firstWords = new Set(meaningfulTokens(first));
   const secondWords = new Set(meaningfulTokens(second));
   const outputWords = meaningfulTokens(clean);
-  const compoundName = clean.replace(/\\s+/g, ' ').trim();
+  const compoundName = clean.replace(/\s+/g, ' ').trim();
   const borrowsFirst = outputWords.some(word => firstWords.has(word));
   const borrowsSecond = outputWords.some(word => secondWords.has(word));
   const allBorrowed = outputWords.length >= 2 && outputWords.every(word => firstWords.has(word) || secondWords.has(word));
