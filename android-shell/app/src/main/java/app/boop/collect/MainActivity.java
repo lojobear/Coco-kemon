@@ -52,10 +52,10 @@ public final class MainActivity extends Activity {
     private static final String START_URL = ORIGIN + "/?boop_android=1";
     private static final String AUTH_SCHEME = "boop";
     private static final String AUTH_HOST = "oauth-callback";
-    private static final int FOREST = Color.rgb(23, 65, 50);
-    private static final int INK = Color.rgb(24, 45, 37);
-    private static final int MUTED = Color.rgb(111, 129, 118);
-    private static final int PALE = Color.rgb(225, 247, 209);
+    private static final int FOREST = Color.rgb(42, 48, 56);
+    private static final int INK = Color.rgb(30, 35, 42);
+    private static final int MUTED = Color.rgb(112, 120, 129);
+    private static final int PALE = Color.rgb(249, 250, 252);
     private static final String[][] TABS = {
         {"kitchen", "Kitchen", "♨"},
         {"infinite-craft", "Craft", "⚗"},
@@ -77,7 +77,7 @@ public final class MainActivity extends Activity {
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
-        getWindow().setStatusBarColor(Color.rgb(249, 249, 245));
+        getWindow().setStatusBarColor(Color.WHITE);
         getWindow().setNavigationBarColor(Color.rgb(255, 255, 255));
         getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
         Uri incoming = getIntent() == null ? null : getIntent().getData();
@@ -119,7 +119,7 @@ public final class MainActivity extends Activity {
         LinearLayout toolbar = new LinearLayout(this);
         toolbar.setGravity(Gravity.CENTER_VERTICAL);
         toolbar.setPadding(dp(16), 0, dp(12), 0);
-        toolbar.setBackgroundColor(Color.rgb(249, 250, 246));
+        toolbar.setBackgroundColor(Color.WHITE);
 
         TextView icon = new TextView(this);
         icon.setText("✿");
@@ -166,7 +166,7 @@ public final class MainActivity extends Activity {
         button.setContentDescription(contentDescription);
         button.setClickable(true);
         button.setFocusable(true);
-        button.setBackground(roundRect(Color.rgb(238, 244, 238), 13, 0));
+        button.setBackground(roundRect(Color.rgb(246, 247, 249), 13, 0));
         return button;
     }
 
@@ -215,7 +215,7 @@ public final class MainActivity extends Activity {
 
     private void createWebView() {
         webView = new WebView(this);
-        webView.setBackgroundColor(Color.rgb(245, 247, 243));
+        webView.setBackgroundColor(Color.WHITE);
         webView.setOverScrollMode(View.OVER_SCROLL_NEVER);
         webView.setVerticalScrollBarEnabled(false);
         webView.setHorizontalScrollBarEnabled(false);
