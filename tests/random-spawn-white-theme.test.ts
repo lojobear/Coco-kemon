@@ -51,7 +51,7 @@ test("Discover menu has accessible choices and does not trigger AI calls or unlo
   assert.match(component,/aria-expanded=\{spawnMenuOpen\}/);
   assert.match(component,/SPAWN_COUNTS\.map/);
   assert.match(component,/SPAWN_SOURCES\.map/);
-  assert.match(component,/chooseSpawnElements\(pool, count\)/);
+  assert.match(component,/chooseSpawnElements<InfiniteElement>\(pool, count\)/);
   assert.match(component,/setSpawnMenuOpen\(false\)/);
   assert.match(component,/setCanvasItems\(previous =>/);
   assert.match(component,/setTimeout\(\(\) => setSpawnToast\(null\), 2400\)/);
