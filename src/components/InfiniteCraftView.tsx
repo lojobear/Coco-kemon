@@ -776,7 +776,7 @@ export function InfiniteCraftView() {
       setSpawnToast('Board is full. Clear or remove tiles to spawn more.');
       return;
     }
-    const picked = chooseSpawnElements(pool, count).slice(0, remaining);
+    const picked = chooseSpawnElements<InfiniteElement>(pool, count).slice(0, remaining);
     const spots = spawnPositions(picked.length, viewportRef.current);
     const batchId = ++spawnSequenceRef.current;
     const tiles: CanvasItem[] = picked.map((item, index) => ({
