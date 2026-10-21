@@ -19,6 +19,7 @@ import { requestJson } from '../lib/api';
 import { getElementEmoji, retryElementEmoji } from '../lib/elementEmoji';
 import { CANONICAL_INFINITE_CRAFT_RECIPES, makePairKey } from '../lib/infiniteCraftData';
 import { findCraftDropTarget } from '../lib/craftCollision';
+import { BOARD_WIDTH, BOARD_HEIGHT, BOARD_START_X, BOARD_START_Y, boardCenter, clampBoardTile } from '../lib/boardGeometry';
 import { pickRandomPair } from '../lib/randomPair';
 import { saveCraftElements, readCraftElements, SAVE_IMPORTED_EVENT } from '../lib/saveData';
 import { sound } from '../lib/audio';
@@ -130,7 +131,7 @@ export function sanitizeElements(list: InfiniteElement[]): InfiniteElement[] {
 
 export function InfiniteCraftView() {
   const { setActiveTab } = useGame();
-  const [showFreeform, setShowFreeform] = useState(false);
+  const showFreeform = true;
   const [ingredientFilter, setIngredientFilter] = useState<'all' | 'new' | 'shiny'>('all');
   const [lastResult, setLastResult] = useState<InfiniteElement | null>(null);
   const [spriteIssue, setSpriteIssue] = useState<{ name: string; message: string } | null>(null);
@@ -182,10 +183,10 @@ export function InfiniteCraftView() {
   }, []);
 
   const [canvasItems, setCanvasItems] = useState<CanvasItem[]>([
-    { instanceId: 'init-1', name: 'Water', emoji: '💧', x: 60, y: 100 },
-    { instanceId: 'init-2', name: 'Fire', emoji: '🔥', x: 190, y: 100 },
-    { instanceId: 'init-3', name: 'Wind', emoji: '💨', x: 60, y: 170 },
-    { instanceId: 'init-4', name: 'Earth', emoji: '🌍', x: 190, y: 170 },
+    { instanceId: 'init-1', name: 'Water', emoji: '💧', x: BOARD_START_X, y: BOARD_START_Y },
+    { instanceId: 'init-2', name: 'Fire', emoji: '🔥', x: BOARD_START_X + 166, y: BOARD_START_Y },
+    { instanceId: 'init-3', name: 'Wind', emoji: '💨', x: BOARD_START_X, y: BOARD_START_Y + 96 },
+    { instanceId: 'init-4', name: 'Earth', emoji: '🌍', x: BOARD_START_X + 166, y: BOARD_START_Y + 96 },
   ]);
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -206,7 +207,37 @@ export function InfiniteCraftView() {
   const [inspectedElement, setInspectedElement] = useState<InfiniteElement | null>(null);
   const [revealBurst, setRevealBurst] = useState<{ id: number; isRare: boolean } | null>(null);
   const burstTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(() => typeof window !== 'undefined' ? window.innerWidth >= 1024 : true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const panningRef = useRef<{ id: number; startX: number; startY: number; scrollX: number; scrollY: number } | null>(null);
+  const [mergeFx, setMergeFx] = useState<{ id: number; x: number; y: number; dxA: number; dyA: number; dxB: number; dyB: number; a: string; b: string } | null>(null);
+  const mergeFxTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    viewport.scrollLeft = BOARD_START_X - Math.min(220, viewport.clientWidth / 4);
+    viewport.scrollTop = BOARD_START_Y - Math.min(160, viewport.clientHeight / 3);
+  }, []);
+  useEffect(() => () => { if (mergeFxTimerRef.current) clearTimeout(mergeFxTimerRef.current); }, []);
+
+  // A bare-area drag pans on desktop. Touch uses the browser's native kinetic
+  // scrolling for silky, low-latency movement on Android.
+  const startPan = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType === 'touch' || e.button !== 0 || (e.target as HTMLElement).closest('[data-craft-instance],button')) return;
+    panningRef.current = { id:e.pointerId, startX:e.clientX, startY:e.clientY,
+      scrollX:e.currentTarget.scrollLeft, scrollY:e.currentTarget.scrollTop };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+  const movePan = (e: React.PointerEvent<HTMLDivElement>) => {
+    const pan = panningRef.current;
+    if (!pan || pan.id !== e.pointerId) return;
+    e.currentTarget.scrollLeft = pan.scrollX + pan.startX - e.clientX;
+    e.currentTarget.scrollTop = pan.scrollY + pan.startY - e.clientY;
+  };
+  const endPan = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (panningRef.current?.id === e.pointerId) panningRef.current = null;
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+  };
   const [spawnToast, setSpawnToast] = useState<string | null>(null);
 
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -319,6 +350,11 @@ export function InfiniteCraftView() {
     const targetX = (itemA.x + itemB.x) / 2;
     const targetY = (itemA.y + itemB.y) / 2;
     setActiveCombination({ idA: itemA.idA || 'a', idB: itemB.idB || 'b', nameA: itemA.name, emojiA: itemA.emoji || '✨', x1: itemA.x, y1: itemA.y, nameB: itemB.name, emojiB: itemB.emoji || '✨', x2: itemB.x, y2: itemB.y, midX: targetX, midY: targetY });
+    if (mergeFxTimerRef.current) clearTimeout(mergeFxTimerRef.current);
+    setMergeFx({ id: Date.now(), x: targetX, y: targetY,
+      dxA:itemA.x-targetX, dyA:itemA.y-targetY, dxB:itemB.x-targetX, dyB:itemB.y-targetY,
+      a:itemA.name, b:itemB.name });
+    mergeFxTimerRef.current = setTimeout(() => setMergeFx(null), 330);
 
     try {
       // Known combinations never need the network. All others use the server's
@@ -449,7 +485,7 @@ export function InfiniteCraftView() {
 
       setCanvasItems(prev => {
         const filtered = prev.filter(it => it.instanceId !== itemA.idA && it.instanceId !== itemB.idB);
-        return [...filtered, { instanceId: `inst-${Date.now()}-${Math.random()}`, name: cleanName, emoji: emoji || '✨', x: Math.max(12, Math.min((canvasRef.current?.clientWidth || 400) - 160, targetX)), y: Math.max(12, Math.min((canvasRef.current?.clientHeight || 400) - 64, targetY)), isNew, isShiny: isShinyEncounter }];
+        return [...filtered, { instanceId: `fusion-${Date.now()}-${Math.random()}`, name: cleanName, emoji: emoji || '✨', ...clampBoardTile(targetX, targetY), isNew, isShiny: isShinyEncounter }];
       });
       setCrucibleSlotA(null);
       setCrucibleSlotB(null);
@@ -522,19 +558,15 @@ export function InfiniteCraftView() {
 
   const spawnOnCanvas = (name: string, emoji: string, isShiny = false) => {
     sound.playClick(); haptics.lightTap();
-    const canvasBounds = canvasRef.current?.getBoundingClientRect();
-    const width = canvasBounds ? canvasBounds.width : 500;
-    const height = canvasBounds ? canvasBounds.height : 400;
-    const x = Math.max(30, width / 2 - 100 + (Math.random() * 140 - 70));
-    const y = Math.max(30, height / 2 - 60 + (Math.random() * 120 - 60));
+    const viewport = viewportRef.current;
+    const center = viewport ? boardCenter(viewport.scrollLeft, viewport.scrollTop, viewport.clientWidth, viewport.clientHeight) : { x: BOARD_START_X, y: BOARD_START_Y };
+    const {x,y} = clampBoardTile(center.x - 65 + (Math.random() * 120 - 60), center.y - 22 + (Math.random() * 95 - 48));
     const newItem: CanvasItem = { instanceId: `spawn-${Date.now()}-${Math.random()}`, name, emoji, x, y, isShiny };
     setCanvasItems(prev => [...prev, newItem]);
     setSpawnToast(`${emoji} ${isShiny ? '✨ ' : ''}${name} added`);
     setTimeout(() => setSpawnToast(null), 1800);
-    if (selectedCanvasId) {
-      const selected = canvasItems.find(it => it.instanceId === selectedCanvasId);
-      if (selected) handleCombine({ name: selected.name, x: selected.x, y: selected.y, idA: selected.instanceId }, { name, x, y, idB: newItem.instanceId });
-    }
+    // Picking from the library adds a tile; it must not unexpectedly fuse
+    // with a board selection. Players intentionally tap two tiles to combine.
   };
 
   const spawnFromSidebar = (raw: InfiniteElement) => {
@@ -547,9 +579,8 @@ export function InfiniteCraftView() {
   const tidyCanvas = () => {
     sound.playClick();
     if (canvasItems.length === 0) return;
-    const startX = 40, startY = 70, itemWidth = 145, itemHeight = 52;
-    const canvasWidth = canvasRef.current?.clientWidth || 600;
-    const cols = Math.max(1, Math.floor((canvasWidth - 80) / itemWidth));
+    const startX = BOARD_START_X - 40, startY = BOARD_START_Y - 35, itemWidth = 154, itemHeight = 66;
+    const cols = 5;
     setCanvasItems(prev => prev.map((item, idx) => ({ ...item, x: startX + (idx % cols) * itemWidth, y: startY + Math.floor(idx / cols) * itemHeight })));
   };
 
@@ -685,11 +716,7 @@ export function InfiniteCraftView() {
   })), [elements]);
 
   const selectIngredient = (element: InfiniteElement) => {
-    if (isSynthesizing) return;
-    sound.playClick(); haptics.lightTap();
-    const slot = { name: element.name, emoji: element.emoji, isShiny: element.isShiny };
-    if (!crucibleSlotA) setCrucibleSlotA(slot);
-    else setCrucibleSlotB(slot);
+    spawnOnCanvas(element.name, element.emoji, Boolean(element.isShiny));
   };
   const ingredientList = useMemo(() =>
     filteredElements.filter(el => ingredientFilter === 'all' || (ingredientFilter === 'new' ? el.isNew : el.unlockedShiny || el.isShiny)),
@@ -710,8 +737,14 @@ export function InfiniteCraftView() {
     lastRandomPairRef.current = pair;
     haptics.mediumTap();
     sound.playClick();
-    setCrucibleSlotA({ name: a.name, emoji: a.emoji, isShiny: a.isShiny });
-    setCrucibleSlotB({ name: b.name, emoji: b.emoji, isShiny: b.isShiny });
+    const viewport = viewportRef.current;
+    const center = viewport ? boardCenter(viewport.scrollLeft, viewport.scrollTop, viewport.clientWidth, viewport.clientHeight) : {x:BOARD_START_X,y:BOARD_START_Y};
+    const first = clampBoardTile(center.x-162,center.y-30);
+    const second = clampBoardTile(center.x+14,center.y-30);
+    setCanvasItems(prev=>[...prev,
+      {instanceId:`random-a-${Date.now()}`,name:a.name,emoji:a.emoji,isShiny:a.isShiny,...first},
+      {instanceId:`random-b-${Date.now()}`,name:b.name,emoji:b.emoji,isShiny:b.isShiny,...second},
+    ]);
     setRandomVersion(v => v + 1);
   };
 
