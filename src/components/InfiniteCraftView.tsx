@@ -260,6 +260,13 @@ export function InfiniteCraftView() {
     if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
   };
   const [spawnToast, setSpawnToast] = useState<string | null>(null);
+  // Toasts should never cover the board permanently, including full-board
+  // and empty-source messages from the random spawn menu.
+  useEffect(() => {
+    if (!spawnToast) return;
+    const timer = window.setTimeout(() => setSpawnToast(null), 2400);
+    return () => window.clearTimeout(timer);
+  }, [spawnToast]);
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
