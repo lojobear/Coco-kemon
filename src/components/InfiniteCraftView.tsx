@@ -14,6 +14,7 @@ import {
   STARTER_ELEMENTS,
   InfiniteElement,
   InfiniteCraftPairResponse,
+  validNewElementName,
 } from '../lib/infiniteCraftData';
 import { requestJson } from '../lib/api';
 import { getElementEmoji, retryElementEmoji } from '../lib/elementEmoji';
@@ -394,7 +395,7 @@ export function InfiniteCraftView() {
           `/api/infinite-craft/pair?first=${encodeURIComponent(itemA.name)}&second=${encodeURIComponent(itemB.name)}`,
           { signal: controller.signal },
         );
-      if (typeof apiData.result !== 'string' || !apiData.result.trim() || typeof apiData.emoji !== 'string' || typeof apiData.isNew !== 'boolean') throw new Error('The server returned an invalid combination. Please retry.');
+      if (typeof apiData.result !== 'string' || !validNewElementName(apiData.result) || typeof apiData.emoji !== 'string' || typeof apiData.isNew !== 'boolean') throw new Error('The AI produced an invalid or overlong element name. Please retry.');
       if (controller.signal.aborted) return;
 
       const isShinyEncounter = rollIsShiny(apiData.result, itemA.name, itemB.name);
@@ -481,7 +482,7 @@ export function InfiniteCraftView() {
       });
 
       const bonus = apiData.bonus;
-      if (bonus && typeof bonus.result === 'string' && bonus.result.trim() && bonus.result.length <= 160 && typeof bonus.emoji === 'string' && bonus.emoji.trim() && bonus.emoji.length <= 32 && bonus.variantOf === cleanName && typeof bonus.explanation === 'string' && bonus.explanation.length <= 280) {
+      if (bonus && typeof bonus.result === 'string' && validNewElementName(bonus.result) && typeof bonus.emoji === 'string' && bonus.emoji.trim() && bonus.emoji.length <= 32 && bonus.variantOf === cleanName && typeof bonus.explanation === 'string' && bonus.explanation.length <= 280) {
         const bonusAt = Date.now();
         const bonusRecipe = { first: itemA.name, second: itemB.name };
         const bonusElement: InfiniteElement = {
