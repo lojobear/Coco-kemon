@@ -1255,3 +1255,164 @@ html.boop-native-shell .boop-app .boop-cloud-dialog {
 @media(prefers-reduced-motion:reduce) {
   .boop-spawn-menu,.boop-board-layout .boop-board-item.is-random-spawn {animation:none!important;}
 }
+
+/* Collectible album: white pixel-art sticker book, deliberately consistent with
+   Boop's current white/graphite system. Sprites keep their native colors. */
+.boop-album-page { width:100%;max-width:1120px;margin:0 auto;padding:24px 19px 95px;color:#27323e;background:#fff;display:flex;flex-direction:column;gap:20px; }
+.boop-album-header,.boop-album-title,.boop-album-summary,.boop-album-tabs,.boop-album-controls,.boop-album-set-header,.boop-room-toolbar {display:flex;align-items:center;gap:12px;}
+.boop-album-header,.boop-room-toolbar {justify-content:space-between;flex-wrap:wrap;}
+.boop-album-mark {display:grid;place-items:center;flex-shrink:0;width:55px;height:55px;border:1px solid #dce2e7;background:#f7f8fa;color:#34404d;border-radius:17px;}
+.boop-album-title small,.boop-album-kicker {font-size:9px;letter-spacing:1.6px;font-weight:850;color:#85909b;}
+.boop-album-title h1 {font-size:30px;letter-spacing:-1.1px;font-weight:900;line-height:1.15;margin:2px 0;}
+.boop-album-title p,.boop-room-toolbar p {font-size:12px;color:#707c89;line-height:1.5;margin:0;}
+.boop-album-outline-button {display:inline-flex;justify-content:center;align-items:center;gap:7px;min-height:42px;padding:10px 14px;border:1px solid #dce1e7;background:#fff;color:#303c48;border-radius:12px;font-size:12px;font-weight:780;box-shadow:0 2px 0 #f0f2f4;}
+.boop-album-page button {touch-action:manipulation;}
+.boop-album-page button:not(:disabled):active {transform:translateY(2px) scale(.985);}
+.boop-album-summary {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;}
+.boop-album-summary>div {padding:14px;background:#fcfcfd;border:1px solid #e6e9ed;border-radius:14px;display:flex;flex-direction:column;gap:3px;}
+.boop-album-summary strong {font-size:25px;font-weight:900;color:#2b3640;letter-spacing:-.6px;}
+.boop-album-summary small {font-size:11px;color:#87919b;}
+.boop-album-tabs {gap:5px;border-bottom:1px solid #e9edf0;padding-bottom:0;overflow-x:auto;scrollbar-width:none;}
+.boop-album-tabs button {flex-shrink:0;display:flex;align-items:center;gap:7px;padding:11px 13px;border-radius:11px 11px 0 0;color:#74818d;font-size:12px;font-weight:760;border-bottom:3px solid transparent;}
+.boop-album-tabs button[aria-current="page"] {background:#f6f7f9;color:#2c3640;border-bottom-color:#303b46;}
+.boop-album-controls {gap:9px;}
+.boop-album-search {display:flex;align-items:center;gap:9px;padding:11px 12px;border:1px solid #e0e5ea;border-radius:12px;flex:1;min-width:0;color:#9aa4ae;}
+.boop-album-search input {min-width:0;width:100%;outline:0;border:0;color:#26313c;background:transparent;font-size:13px;}
+.boop-album-controls>select {padding:12px 9px;min-height:44px;border:1px solid #e0e5ea;border-radius:12px;background:#fff;color:#384450;font-size:12px;}
+.boop-album-filter-row {display:flex;align-items:center;gap:7px;overflow-x:auto;}
+.boop-album-filter-row button,.boop-room-themes button,.boop-picker-options button {white-space:nowrap;padding:9px 12px;border:1px solid #e4e7eb;border-radius:11px;background:#fff;color:#697681;font-size:12px;font-weight:750;}
+.boop-album-filter-row button[aria-pressed="true"],.boop-room-themes button[aria-pressed="true"],.boop-picker-options button[aria-pressed="true"] {background:#2f3944;color:#fff;border-color:#2f3944;}
+.boop-album-section-label {display:flex;align-items:center;justify-content:space-between;gap:9px;}
+.boop-album-section-label>span {font-size:10px;font-weight:850;letter-spacing:1.6px;color:#7c8994;}
+.boop-album-section-label small {font-size:11px;color:#8a96a1;}
+.boop-sticker-grid {display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;}
+.boop-sticker-card {position:relative;min-width:0;min-height:205px;padding:10px 9px;background:#fff;border:1px solid #e1e5ea;border-radius:17px;box-shadow:0 3px 0 #f1f3f5,0 5px 16px #1d2f3d08;display:flex;flex-direction:column;gap:5px;align-items:center;text-align:center;color:#27313b;transition:border-color 120ms ease,transform 110ms ease,box-shadow 110ms ease;}
+.boop-sticker-card:hover:not(.boop-sticker-locked) {border-color:#b2beca;box-shadow:0 4px 0 #edf1f4,0 7px 20px #26344411;}
+.boop-sticker-index {align-self:flex-start;color:#b2bbc4;letter-spacing:1px;font-size:9px;font-weight:800;}
+.boop-album-art {position:relative;display:grid;place-items:center;width:min(100%,110px);height:110px;flex-shrink:0;border:1px solid #edf0f3;border-radius:14px;background:radial-gradient(circle at 47% 44%,#fff 28%,#f7f8fa 100%);}
+.boop-album-art .element-emoji,.boop-album-art .craft-emoji {display:grid;place-items:center;width:89%!important;height:89%!important;min-height:0!important;font-size:65px;}
+.boop-album-art img {display:block;width:100%;height:100%;object-fit:contain;image-rendering:pixelated;}
+.boop-album-art--shiny {background:linear-gradient(135deg,#fff 34%,#f4eaff 100%);border-color:#e4d5fa;}
+.boop-album-art--celestial {background:radial-gradient(circle at 48% 45%,#fffbe8 20%,#ede7ff 100%);border-color:#e8d5a3;}
+.boop-album-art--celestial img {filter:sepia(.75) saturate(2.3) hue-rotate(193deg) contrast(1.08) brightness(1.12);}
+.boop-album-art--celestial .element-emoji>span {filter:sepia(.4) saturate(1.7) hue-rotate(182deg);}
+.boop-album-art i {position:absolute;top:3px;right:5px;font-style:normal;color:#9d72ce;text-shadow:0 0 9px #d2bbf8;font-size:20px;}
+.boop-album-art--celestial i {color:#dca949;text-shadow:0 0 10px #ffe3aa;font-size:25px;}
+.boop-sticker-name {display:block;max-width:100%;margin-top:auto;font-size:12px;font-weight:850;overflow-wrap:anywhere;line-height:1.3;}
+.boop-sticker-footer {display:flex;align-items:center;justify-content:center;gap:5px;min-height:18px;font-size:9px;color:#768391;}
+.boop-sticker-footer b {font-size:8px;font-weight:850;letter-spacing:.5px;color:#8b56c0;}
+.boop-sticker-card.is-celestial {border-color:#e1c78b;box-shadow:0 3px 0 #f9f1df,0 5px 16px #baa06a10;}
+.boop-sticker-card.is-celestial .boop-sticker-footer b {color:#b17c28;}
+.boop-album-empty {border:1px dashed #d9e0e5;border-radius:16px;padding:37px 20px;text-align:center;color:#7c8895;font-size:13px;}
+.boop-album-load {display:flex;align-items:center;justify-content:center;gap:5px;align-self:center;padding:11px 17px;border:1px solid #dce2e7;border-radius:12px;color:#45515d;font-weight:800;font-size:12px;}
+.boop-album-intro,.boop-album-footnote {font-size:12px;color:#7a8591;line-height:1.6;margin:0;}
+.boop-album-set-list {display:flex;flex-direction:column;gap:19px;}
+.boop-album-set {padding:16px;border:1px solid #e7eaee;border-radius:20px;background:#fff;display:flex;flex-direction:column;gap:13px;}
+.boop-album-set-header {gap:12px;}
+.boop-album-set-header>div {flex:1;}
+.boop-album-set-header h2 {margin:0;font-size:17px;font-weight:850;line-height:1.2;}
+.boop-album-set-header small {font-size:11px;color:#85909c;}
+.boop-album-set-header>b {font-size:14px;color:#4f5d6a;}
+.boop-set-icon {width:41px;height:41px;display:grid;place-items:center;background:#f8f9fa;border:1px solid #e8ebee;border-radius:12px;font-size:23px;}
+.boop-album-set-meter {height:7px;background:#eceff2;border-radius:99px;overflow:hidden;}
+.boop-album-set-meter>i {display:block;height:100%;background:linear-gradient(90deg,#9caab6,#626f7c);border-radius:99px;transition:width 200ms ease;}
+.boop-sticker-grid--set {grid-template-columns:repeat(4,minmax(0,1fr));}
+.boop-sticker-locked {border-style:dashed;background:#fafbfc;box-shadow:none;color:#a2aeb8;}
+.boop-sticker-locked .boop-sticker-missing {width:100%;height:110px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:4px;color:#c6cdd4;}
+.boop-sticker-missing span {font-size:36px;font-weight:900;line-height:1;}
+.boop-sticker-locked .boop-sticker-name {color:#939da8;}
+.boop-set-completed {display:flex;align-items:center;gap:8px;color:#8a6a2f;background:#fffaf0;border:1px solid #f3dfb2;padding:11px;border-radius:11px;font-size:12px;font-weight:800;}
+.boop-album-modal-backdrop {position:fixed;inset:0;z-index:80;background:#111923b9;backdrop-filter:blur(4px);padding:14px;display:grid;place-items:center;overflow-y:auto;}
+.boop-album-detail,.boop-trophy-picker {position:relative;width:min(100%,640px);max-height:min(94dvh,880px);overflow-y:auto;background:#fff;color:#26323d;border-radius:22px;border:1px solid #eceff2;box-shadow:0 20px 80px #0004;padding:22px;display:flex;flex-direction:column;gap:17px;}
+.boop-album-close {position:absolute;top:14px;right:14px;background:#f2f4f6;padding:9px;border-radius:10px;color:#5c6874;}
+.boop-album-detail-hero {display:flex;align-items:center;gap:19px;padding-right:18px;}
+.boop-album-detail-hero .boop-album-art {width:155px;height:155px;max-width:none;flex:0 0 155px;}
+.boop-album-detail-hero .boop-album-art .craft-emoji {font-size:87px;}
+.boop-album-detail-hero h2 {font-size:23px;line-height:1.2;margin:5px 0 7px;font-weight:900;overflow-wrap:anywhere;}
+.boop-album-detail-hero p {font-size:12px;color:#697683;line-height:1.55;}
+.boop-album-detail-tabs {display:flex;gap:6px;}
+.boop-album-detail-tabs button {display:inline-flex;justify-content:center;gap:5px;align-items:center;flex:1;min-width:0;padding:10px 7px;border:1px solid #e0e5e9;color:#6d7884;border-radius:10px;font-size:11px;font-weight:760;}
+.boop-album-detail-tabs button[aria-pressed="true"] {background:#303a45;color:#fff;border-color:#303a45;}
+.boop-album-detail-tabs button:disabled {opacity:.4;}
+.boop-album-detail-metadata {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;}
+.boop-album-detail-metadata span {display:flex;flex-direction:column;gap:5px;padding:10px;border:1px solid #e9edf0;border-radius:11px;font-size:11px;color:#3f4b56;overflow-wrap:anywhere;}
+.boop-album-detail-metadata b {font-size:9px;color:#8c97a2;text-transform:uppercase;}
+.boop-album-evolution {border:1px solid #e3e7eb;border-radius:15px;padding:13px;display:flex;flex-direction:column;gap:10px;}
+.boop-evolution-milestones {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;}
+.boop-evolution-milestones span {font-size:10px;text-align:center;padding:7px 2px;border-radius:8px;color:#aab1ba;background:#f6f7f8;}
+.boop-evolution-milestones span.is-unlocked {background:#e8f0e9;color:#326042;font-weight:800;}
+.boop-album-evolution>small {font-size:10px;color:#74818e;}
+.boop-album-detail-section {border-top:1px solid #eceff2;padding-top:13px;display:flex;flex-direction:column;gap:7px;}
+.boop-album-detail-section h3 {margin:0 0 3px;font-size:13px;font-weight:850;display:flex;align-items:center;gap:7px;}
+.boop-album-detail-section p {font-size:11px;color:#8a95a0;}
+.boop-recipe-chip {display:flex;align-items:center;flex-wrap:wrap;gap:6px;border:1px solid #e7ebef;border-radius:10px;padding:8px;color:#7a8490;font-size:11px;}
+.boop-recipe-chip>span {padding:4px 6px;background:#f4f6f7;color:#43505d;border-radius:6px;}
+.boop-recipe-chip>b {color:#44515e;}
+.boop-recipe-chip>small {margin-left:auto;}
+.boop-descendant-row {display:flex;gap:6px;flex-wrap:wrap;}
+.boop-descendant-row button {padding:7px 9px;border:1px solid #e1e7eb;border-radius:10px;color:#45515c;font-size:11px;}
+.boop-album-odds {background:#f7f8fa;border-radius:11px;padding:10px;display:flex;gap:8px;align-items:start;color:#72808a;font-size:10px;line-height:1.5;}
+.boop-album-primary {display:flex;align-items:center;justify-content:center;gap:7px;background:#343d47;color:#fff;border-radius:12px;padding:12px;font-size:12px;font-weight:850;}
+.boop-room-toolbar h2 {margin:0 0 3px;font-size:21px;font-weight:850;letter-spacing:-.5px;}
+.boop-room-themes,.boop-picker-options {display:flex;align-items:center;gap:7px;flex-wrap:wrap;}
+.boop-trophy-room {background:#faf9f6;border:1px solid #e7e4de;border-radius:23px;padding:22px;display:flex;flex-direction:column;gap:23px;box-shadow:inset 0 15px 35px #87806c0a;}
+.boop-trophy-room.theme-studio {background:linear-gradient(140deg,#eaf2ef,#f8fbfa);}
+.boop-trophy-room.theme-night {background:radial-gradient(ellipse at 50% 0,#343c51,#171d2b);border-color:#48546a;color:#fff;}
+.boop-room-plaque {display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center;font-size:16px;font-weight:900;letter-spacing:2px;}
+.boop-room-plaque small {font-size:9px;letter-spacing:1.5px;color:#96a2ae;}
+.boop-room-shelves {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;position:relative;}
+.boop-trophy-slot {min-width:0;position:relative;display:flex;aspect-ratio:4/5;border:3px solid #dfe3e6;border-radius:15px;background:#fff;box-shadow:0 4px 0 #d0d0ce,0 10px 17px #262c340e;overflow:hidden;touch-action:manipulation;}
+.boop-trophy-slot.frame-gold {border-color:#ccae6a;box-shadow:0 4px 0 #a98947,0 7px 17px #ad865a24;}
+.boop-trophy-slot.frame-holo {border-color:#ae99d6;box-shadow:0 4px 0 #d6c2f1,0 9px 19px #ba9bc52b;}
+.boop-trophy-pick {flex:1;min-width:0;padding:7px;display:flex;align-items:center;flex-direction:column;justify-content:center;gap:5px;color:#9aa4ae;font-size:11px;}
+.boop-trophy-pick strong {font-size:11px;color:#3f4b57;max-width:100%;text-overflow:ellipsis;overflow:hidden;white-space:nowrap;}
+.boop-trophy-pick small {font-size:9px;color:#909ba5;text-transform:capitalize;}
+.boop-trophy-pick .boop-album-art {width:100%;height:auto;max-width:115px;aspect-ratio:1/1;}
+.boop-trophy-pick .boop-album-art .craft-emoji {font-size:45px;}
+.boop-trophy-remove {position:absolute;z-index:2;top:3px;right:3px;background:#f2f4f6e6;border-radius:8px;padding:3px;color:#65717c;}
+.boop-room-themes button[aria-pressed="true"] {background:#303b45;color:#fff;}
+.boop-gallery-notice {font-size:12px;color:#456b4f;background:#f1f8f1;border-radius:10px;padding:10px;}
+.boop-trophy-picker {width:min(100%,580px);}
+.boop-trophy-picker-head {display:flex;justify-content:space-between;gap:7px;align-items:center;}
+.boop-trophy-picker-head small {font-size:9px;letter-spacing:1px;color:#85929f;}
+.boop-trophy-picker-head h2 {font-size:21px;font-weight:850;}
+.boop-trophy-picker-head>button {padding:8px;border-radius:9px;background:#f3f5f7;}
+.boop-picker-options>span {color:#86919c;font-size:11px;margin-right:5px;}
+.boop-trophy-picker-grid {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;max-height:48dvh;overflow-y:auto;}
+.boop-picker-item {padding:9px 5px;border:1px solid #e4e8eb;border-radius:12px;display:flex;align-items:center;flex-direction:column;gap:5px;}
+.boop-picker-item .boop-album-art {width:70px;height:70px;}
+.boop-picker-item .boop-album-art .craft-emoji {font-size:44px;}
+.boop-picker-item strong {font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
+.boop-picker-item>div {display:flex;flex-wrap:wrap;justify-content:center;gap:4px;}
+.boop-picker-item button {font-size:9px;padding:5px 6px;border:1px solid #dfe4e8;border-radius:7px;color:#394756;}
+@media(max-width:760px){
+  .boop-album-page {padding:13px 11px 88px;gap:15px;}
+  .boop-album-title h1 {font-size:25px;}
+  .boop-album-mark {width:44px;height:44px;}
+  .boop-album-summary>div {padding:9px 7px;}
+  .boop-album-summary strong {font-size:19px;}
+  .boop-album-summary small {font-size:9px;}
+  .boop-album-tabs button {font-size:10px;padding:10px 9px;gap:4px;}
+  .boop-sticker-grid {grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;}
+  .boop-sticker-card {min-height:158px;padding:8px 5px;border-radius:12px;}
+  .boop-album-art {height:78px;}
+  .boop-album-art .element-emoji,.boop-album-art .craft-emoji {font-size:48px;}
+  .boop-sticker-name {font-size:10px;}
+  .boop-sticker-footer {font-size:8px;}
+  .boop-sticker-footer b {font-size:7px;}
+  .boop-sticker-locked .boop-sticker-missing {height:78px;}
+  .boop-album-set {padding:10px;gap:10px;}
+  .boop-sticker-grid--set {grid-template-columns:repeat(3,minmax(0,1fr));}
+  .boop-room-shelves {grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;}
+  .boop-trophy-room {padding:12px;}
+  .boop-trophy-pick strong {font-size:9px;}
+  .boop-album-detail,.boop-trophy-picker {padding:13px;gap:12px;}
+  .boop-album-detail-hero {gap:11px;}
+  .boop-album-detail-hero .boop-album-art {width:95px;height:95px;flex-basis:95px;}
+  .boop-album-detail-hero h2 {font-size:18px;}
+  .boop-album-detail-metadata span {padding:7px;font-size:9px;}
+  .boop-album-detail-tabs button {font-size:10px;}
+  .boop-trophy-picker-grid {grid-template-columns:repeat(2,minmax(0,1fr));}
+}
+@media(max-width:360px) {.boop-sticker-grid {grid-template-columns:repeat(2,minmax(0,1fr));}.boop-album-summary {grid-template-columns:repeat(2,minmax(0,1fr));}}
+@media(prefers-reduced-motion:reduce){.boop-sticker-card,.boop-album-page button,.boop-album-set-meter>i {animation:none!important;transition:none!important;}}
