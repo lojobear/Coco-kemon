@@ -28,7 +28,9 @@ test('complete backup round trip retains both collections and recipe history', (
   const exported = JSON.parse(exportCompleteSave(restored));
   assert.deepEqual(exported.foundry.materials, STARTER_MATERIALS);
   assert.deepEqual(exported.crafting, crafting);
-  assert.deepEqual(parseSave(JSON.stringify(exported)), { foundry, crafting });
+  assert.deepEqual(parseSave(JSON.stringify(exported)), {
+    foundry, crafting, collectorRoom: { theme: 'gallery', slots: Array(12).fill(null) },
+  });
 });
 
 test('legacy backup preserves the current crafting collection', () => {
