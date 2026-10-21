@@ -1,5 +1,6 @@
 import type { Material, Oddkin, Process } from '../src/types.js';
 import { record, text, color } from '../src/lib/validation.js';
+import { validNewElementName } from '../src/lib/infiniteCraftData.js';
 
 export type ConceptConnection =
   | 'science'
@@ -163,11 +164,30 @@ const DIRECT_SYNONYM_FAMILIES = [
   ['photo', 'photograph'],
 ];
 
+/**
+ * The server cannot independently look up whether an arbitrary phrase is an
+ * established compound noun, so allow a small, explicit set of known real
+ * concepts instead of automatically trusting ALL vocabulary from the inputs.
+ * Server-side canonical recipes bypass the AI heuristic.
+ */
+const ESTABLISHED_COMPOUNDS = new Set([
+  'fire truck', 'sea lion', 'snow globe', 'ice cream', 'peanut butter',
+  'hot dog', 'french toast', 'apple pie', 'solar system', 'pot of gold',
+  'electric grill', 'cloud nine', 'dark web', 'turkish delight',
+  'coffee cake', 'rain forest', 'sand castle', 'salt water', 'blue moon',
+  'flying fish', 'black hole', 'sea horse', 'coffee table', 'rain bow',
+]);
+const GENERIC_RENAME_TERMS = new Set([
+  'delight','treat','special','surprise','dream','magic','mystery','wonder',
+  'creation','fusion','mix','blend','hybrid','style','version','twist','combo',
+]);
+
 export function lowValueConceptReason(result: string, first: string, second: string): string | null {
   const clean = result.trim().replace(/[‐‑–—-]/g, ' ').replace(/\s+/g, ' ').toLowerCase();
   const resultKey = normalize(clean);
   const parents = [first, second].map(normalize);
   if (!resultKey) return 'empty concept';
+  if (!validNewElementName(result)) return 'element name must contain one to three words';
   if (parents.includes(resultKey)) return 'result only repeats an ingredient';
 
   // E.g. BBQ + Rain => "Grill", or Television + Fire => "TV".
@@ -185,6 +205,29 @@ export function lowValueConceptReason(result: string, first: string, second: str
   if (/\b(?:shaped|themed|inspired|like|styled|style|flavored|flavoured|infused|coated)\b/i.test(clean) &&
       (lexicalOverlap(clean, first) || lexicalOverlap(clean, second))) {
     return 'result is a cosmetic description of an ingredient';
+  }
+
+  // "Breakfast Food" + "Turkish Delight" -> "Breakfast Delight".
+  // It borrows the nouns from different parents but creates no distinct object.
+  // This was escaping the old validator because the words were not adjacent
+  // within either original ingredient name.
+  const firstWords = new Set(meaningfulTokens(first));
+  const secondWords = new Set(meaningfulTokens(second));
+  const outputWords = meaningfulTokens(clean);
+  const compoundName = clean.replace(/\s+/g, ' ').trim();
+  const borrowsFirst = outputWords.some(word => firstWords.has(word));
+  const borrowsSecond = outputWords.some(word => secondWords.has(word));
+  const allBorrowed = outputWords.length >= 2 && outputWords.every(word => firstWords.has(word) || secondWords.has(word));
+  if (borrowsFirst && borrowsSecond && allBorrowed && !ESTABLISHED_COMPOUNDS.has(compoundName)) {
+    return 'result stitches ingredient words without a distinct concept';
+  }
+
+  // Adding a generic advertising/rarity suffix to a borrowed ingredient name
+  // is not a discovery (Breakfast Treat, Turkish Surprise, Cloud Dream).
+  if (outputWords.length >= 2 && (borrowsFirst || borrowsSecond) &&
+      outputWords.some(word => GENERIC_RENAME_TERMS.has(word)) &&
+      outputWords.every(word => firstWords.has(word) || secondWords.has(word) || GENERIC_RENAME_TERMS.has(word))) {
+    return 'result decorates an ingredient with a generic label';
   }
 
   // Block raw combination plus a generic intensifier, but not normal
@@ -326,7 +369,7 @@ function validOptionalScore(value: unknown): boolean {
 }
 
 function candidateIsValid(c: unknown, first: string, second: string): c is Candidate {
-  if (!record(c) || !text(c.result) || c.result.length > 160 || !text(c.emoji) || c.emoji.length > 32) return false;
+  if (!record(c) || !text(c.result) || !validNewElementName(c.result) || !text(c.emoji) || c.emoji.length > 32) return false;
   if (!text(c.explanation) || c.explanation.length > 280 || !text(c.connection) || !CONNECTIONS.has(c.connection as ConceptConnection)) return false;
   if (![c.coherence, c.surprise, c.inputFit, c.recognizability, c.chainPotential, c.novelty].every(validOptionalScore)) return false;
   // Model scores are advisory, but very low fit is enough to reject a candidate early.
@@ -355,6 +398,7 @@ export function candidateRejectionReason(c: unknown, first: string, second: stri
   if (!record(c)) return 'not an object';
   if (!text(c.result)) return 'missing result';
   if (c.result.length > 160) return `result too long (${c.result.length} chars)`;
+  if (!validNewElementName(c.result)) return 'element name must contain one to three words';
   if (!text(c.emoji)) return 'missing emoji';
   if (c.emoji.length > 32) return 'emoji too long';
   if (!text(c.explanation)) return 'missing explanation';
@@ -497,7 +541,7 @@ export function chooseConcept(parsed: unknown, first: string, second: string): C
 
   // Older model responses remain compatible.
   if (!Array.isArray(parsed.candidates)) {
-    if (!text(parsed.result) || parsed.result.length > 160 || !text(parsed.emoji) || parsed.emoji.length > 32) return;
+    if (!text(parsed.result) || !validNewElementName(parsed.result) || !text(parsed.emoji) || parsed.emoji.length > 32) return;
     const fallback: Candidate = {
       result: parsed.result.trim(),
       emoji: parsed.emoji.trim(),

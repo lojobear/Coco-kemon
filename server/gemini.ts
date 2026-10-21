@@ -60,7 +60,7 @@ const DISCOVERY_RESPONSE_SCHEMA = {
       items: {
         type: 'object',
         properties: {
-          result: { type: 'string', description: 'Concise discovery name, usually one to three words.' },
+          result: { type: 'string', description: 'Recognizable independent concept. HARD LIMIT 1, 2 or 3 words; hyphens count as word separators. Never splice parent words.' },
           emoji: { type: 'string', description: 'One expressive emoji for the discovery.' },
           connection: { type: 'string', enum: DISCOVERY_CONNECTIONS, description: 'Best descriptive route label only; this label must never limit what the actual result can be.' },
           explanation: { type: 'string', description: 'One concise player-facing sentence explaining the causal bridge from both inputs to the result.' },
@@ -266,6 +266,15 @@ QUALITY CHECK:
   place names or history where both inputs meaningfully contribute.
 - Reject results that merely name one input's synonym ("BBQ" => "Grill"), give
   a parent a costume ("Worm-Shaped Cloud"), or join the parent words together.
+- Reject NEW phrases assembled by borrowing one word from EACH input:
+  "Breakfast Food" + "Turkish Delight" must NOT become "Breakfast Delight".
+  Think of what they DO together instead (e.g., the established morning
+  ritual of serving Turkish delight with Turkish coffee).
+- Every result name MUST be 1–3 words. Hyphenated words count separately.
+  Do not shorten four-word phrases into awkward three-word hybrids.
+- Privately evaluate at least four distinct semantic connections before naming
+  a candidate. Prefer real outcomes with a specific use, process, context or
+  cultural meaning. Do not present internal deliberation.
 - Name an independent, recognizable thing—not an adjective plus the parent.
 - The result may be everyday, strange, fictional or funny; always prioritize
   a satisfying two-parent connection over weirdness for its own sake.
@@ -646,9 +655,11 @@ async function callGroqStructured(
     try {
       const body: any = {
         model,
-        // GPT-OSS defaults to medium reasoning; low is much faster for short
-        // crafting results and avoids spending the timeout on hidden reasoning.
-        ...(model.startsWith('openai/gpt-oss-') ? { reasoning_effort: 'low' } : {}),
+        // Spend more of the FIRST GPT-OSS attempt understanding both inputs.
+        // The second fallback remains fast if that attempt does not complete.
+        ...(model.startsWith('openai/gpt-oss-') ? {
+          reasoning_effort: isDiscoveryInstruction(systemInstruction) && attempt === 0 ? 'medium' : 'low'
+        } : {}),
         messages: [
           ...(systemInstruction ? [{ role: 'system', content: systemInstruction }] : []),
           {
@@ -659,7 +670,7 @@ async function callGroqStructured(
         // Keep Groq's TPM request comfortably below the 8k/min free-tier ceiling.
         // Reserve output for JSON rather than verbose reasoning or prose.
         temperature: Math.max(0.01, Math.min(0.55, temperature)),
-        max_completion_tokens: schema ? 1800 : 1200,
+        max_completion_tokens: schema && isDiscoveryInstruction(systemInstruction) ? 2200 : schema ? 1800 : 1200,
         stream: false,
         // Groq's strict JSON-schema validator can reject otherwise valid generations
         // for QuarkPop's larger nested discovery schemas. JSON mode is much more reliable
