@@ -52,6 +52,21 @@ export const STARTER_ELEMENTS: InfiniteElement[] = [
 // (and one AI call). Plain single-spaced names produce the same keys as before.
 const normalizeName = (value: string) => value.normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase();
 
+/**
+ * A single game element can have at most three spoken/display words.
+ * Hyphenated inventions ("Worm-Shaped") are counted as separate words, while
+ * real punctuation in established names ("McDonald's", "R2-D2") remains valid.
+ * Previously collected names are never mutated or shortened.
+ */
+export const MAX_ELEMENT_WORDS = 3;
+export function elementNameWordCount(name: string): number {
+  return name.trim().match(/[\\p{L}\\p{N}]+(?:['’][\\p{L}\\p{N}]+)*/gu)?.length ?? 0;
+}
+export function validNewElementName(name: string): boolean {
+  const count = elementNameWordCount(name);
+  return count >= 1 && count <= MAX_ELEMENT_WORDS && name.trim().length <= 160;
+}
+
 export function makePairKey(a: string, b: string): string {
   return [normalizeName(a), normalizeName(b)].sort().join(':::');
 }
