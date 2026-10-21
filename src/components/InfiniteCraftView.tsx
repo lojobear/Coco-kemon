@@ -20,6 +20,7 @@ import { getElementEmoji, retryElementEmoji } from '../lib/elementEmoji';
 import { CANONICAL_INFINITE_CRAFT_RECIPES, makePairKey } from '../lib/infiniteCraftData';
 import { findCraftDropTarget } from '../lib/craftCollision';
 import { BOARD_WIDTH, BOARD_HEIGHT, BOARD_START_X, BOARD_START_Y, boardCenter, clampBoardTile } from '../lib/boardGeometry';
+import { loadBoardLayout, saveBoardLayout } from '../lib/boardLayout';
 import { pickRandomPair } from '../lib/randomPair';
 import { saveCraftElements, readCraftElements, SAVE_IMPORTED_EVENT } from '../lib/saveData';
 import { sound } from '../lib/audio';
@@ -182,12 +183,13 @@ export function InfiniteCraftView() {
     return () => window.removeEventListener(PROFILE_SPRITES_UPDATED, update);
   }, []);
 
-  const [canvasItems, setCanvasItems] = useState<CanvasItem[]>([
+  const [canvasItems, setCanvasItems] = useState<CanvasItem[]>(() => loadBoardLayout(readCraftElements()) ?? [
     { instanceId: 'init-1', name: 'Water', emoji: '💧', x: BOARD_START_X, y: BOARD_START_Y },
     { instanceId: 'init-2', name: 'Fire', emoji: '🔥', x: BOARD_START_X + 166, y: BOARD_START_Y },
     { instanceId: 'init-3', name: 'Wind', emoji: '💨', x: BOARD_START_X, y: BOARD_START_Y + 96 },
     { instanceId: 'init-4', name: 'Earth', emoji: '🌍', x: BOARD_START_X + 166, y: BOARD_START_Y + 96 },
   ]);
+  useEffect(() => saveBoardLayout(canvasItems), [canvasItems]);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [sortMode, setSortMode] = useState<'time' | 'alpha' | 'discoveries' | 'shinies' | 'crafted'>('time');
@@ -807,7 +809,7 @@ export function InfiniteCraftView() {
           <label className="boop-search"><Search size={17}/><input ref={searchInputRef} tabIndex={isSidebarOpen?0:-1} aria-label="Search ingredients" placeholder="Search elements…" value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} /></label>
           <div className="boop-library-filters"><div className="boop-pills">{(['all','new','shiny'] as const).map(filter=><button key={filter} tabIndex={isSidebarOpen?0:-1} aria-pressed={ingredientFilter===filter} onClick={()=>setIngredientFilter(filter)}>{filter==='all'?'All':filter==='new'?'First finds':'Shiny'}</button>)}</div>
             <select tabIndex={isSidebarOpen?0:-1} aria-label="Sort ingredients" value={sortMode} onChange={e=>setSortMode(e.target.value as typeof sortMode)}><option value="time">Recent</option><option value="alpha">A-Z</option><option value="crafted">Most crafted</option></select></div>
-          <div className="boop-board-ingredient-grid">{ingredientList.map(el=><div key={el.id} className="boop-board-library-item"><button disabled={!isSidebarOpen} onClick={()=>{spawnFromSidebar(el);setIsSidebarOpen(false);}}><CraftSprite name={el.name} emoji={el.emoji} isShiny={el.isShiny}/><span>{el.name}</span><Plus size={15}/></button><button disabled={!isSidebarOpen} aria-label={`Inspect ${el.name}`} onClick={()=>setInspectedElement(el)}><Info size={15}/></button></div>)}</div>
+          <div className="boop-board-ingredient-grid">{isSidebarOpen && ingredientList.map(el=><div key={el.id} className="boop-board-library-item"><button disabled={!isSidebarOpen} onClick={()=>{spawnFromSidebar(el);setIsSidebarOpen(false);}}><CraftSprite name={el.name} emoji={el.emoji} isShiny={el.isShiny}/><span>{el.name}</span><Plus size={15}/></button><button disabled={!isSidebarOpen} aria-label={`Inspect ${el.name}`} onClick={()=>setInspectedElement(el)}><Info size={15}/></button></div>)}</div>
           {!ingredientList.length && <div className="boop-empty">No elements match this search.</div>}
           <div className="boop-board-drawer-footer"><span>{collectionStats.totalCrafts.toLocaleString()} crafts</span><span>{collectionStats.totalShinies} shinies</span><button onClick={()=>setActiveTab('profile')}>Profile stats →</button></div>
         </aside>
