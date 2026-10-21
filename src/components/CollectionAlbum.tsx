@@ -19,7 +19,7 @@ function CollectibleArt({ item, variant = 'normal' }: {item: InfiniteElement; va
     {variant!=='normal' && <i aria-hidden="true">{variant==='celestial'?'✶':'✦'}</i>}
   </span>;
 }
-function CollectorCard({item,index,onOpen}: {item:InfiniteElement;index:number;onOpen:()=>void}) {
+function CollectorCard({item,index,onOpen}: {key?:string;item:InfiniteElement;index:number;onOpen:()=>void}) {
   const evo=evolutionFor(item);
   const variant:CollectorVariant=item.unlockedCelestial?'celestial':availableVariants(item).includes('shiny')?'shiny':'normal';
   return <button className={`boop-sticker-card is-${variant}`} type="button" onClick={onOpen} aria-label={`Inspect collectible ${item.name}`}>
