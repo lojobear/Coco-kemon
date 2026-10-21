@@ -2,7 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
     <application android:allowBackup="false" android:label="Boop"
-      android:icon="@drawable/boop_icon"
+      android:icon="@drawable/ic_boop_planet"
       android:theme="@android:style/Theme.Material.Light.NoActionBar"
       android:usesCleartextTraffic="false">
         <activity android:name=".MainActivity" android:exported="true"
