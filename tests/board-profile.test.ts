@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import { boardCenter, clampBoardTile, BOARD_WIDTH, BOARD_HEIGHT } from '../src/lib/boardGeometry';
+import { parseBoardLayout } from '../src/lib/boardLayout';
 import { playerCraftStats } from '../src/lib/playerStats';
 import type { InfiniteElement } from '../src/lib/infiniteCraftData';
 
@@ -53,4 +54,17 @@ test('profiles are navigable on Android and web and use saved records',()=>{
   assert.match(profile,/onOpenCloud/);
   assert.match(app,/activeTab === 'profile'/);
   assert.match(native,/"profile", "Profile"/);
+});
+
+test('board layout restoration preserves positions but cannot leak forgotten items or malformed records',()=>{
+  const collection:InfiniteElement[]=[{id:'water',name:'Water',emoji:'💧'},{id:'ice',name:'Ice',emoji:'🧊',unlockedShiny:true}];
+  const parsed=parseBoardLayout([
+    {instanceId:'good',name:'Ice',emoji:'wrong',x:1400,y:800,isShiny:true},
+    {instanceId:'duplicate',name:'Unknown Item',x:1300,y:800},
+    {instanceId:'broken',name:'Ice',x:Infinity,y:0},
+    {instanceId:'good',name:'Water',x:600,y:400}
+  ],collection);
+  assert.equal(parsed?.length,1);
+  assert.deepEqual(parsed?.[0],{instanceId:'good',name:'Ice',emoji:'🧊',x:1400,y:800,isShiny:true});
+  assert.equal(parseBoardLayout(null,collection),null);
 });
