@@ -64,7 +64,7 @@ export function CollectionAlbum({
     window.addEventListener('boop-open-trophy-room',open);
     return()=>window.removeEventListener('boop-open-trophy-room',open);
   },[]);
-  const catalog=useMemo(()=>{
+  const catalog=useMemo<InfiniteElement[]>(()=>{
     const seen=new Set<string>();
     return elements.filter(el=>{
       const key=el?.name?.trim().toLowerCase();
@@ -72,10 +72,10 @@ export function CollectionAlbum({
       seen.add(key);return true;
     }).map(normalizeElementStats);
   },[elements]);
-  const byName=useMemo(()=>new Map(catalog.map(e=>[e.name.trim().toLowerCase(),e])),[catalog]);
+  const byName=useMemo(()=>new Map<string,InfiniteElement>(catalog.map(e=>[e.name.trim().toLowerCase(),e] as [string,InfiniteElement])),[catalog]);
   const custom=useMemo(()=>new Map(catalog.flatMap(e=>e.customSpriteUrl
     ? [[e.name.toLowerCase(),e.customSpriteUrl] as const]:[])),[catalog]);
-  const shown=useMemo(()=>{
+  const shown=useMemo<InfiniteElement[]>(()=>{
     const q=query.toLowerCase().trim();
     const list=catalog.filter(e=>(!q||e.name.toLowerCase().includes(q)||
       e.connection?.toLowerCase().includes(q)) && (filter==='all'||
@@ -97,7 +97,7 @@ export function CollectionAlbum({
     setViewVariant(item.unlockedCelestial?'celestial':availableVariants(item).includes('shiny')?'shiny':'normal');
   };
   const persistRoom=(next:TrophyRoom)=>{
-    const available=new Map(catalog.map(e=>[e.name.toLowerCase(),e]));
+    const available=new Map<string,InfiniteElement>(catalog.map(e=>[e.name.toLowerCase(),e] as [string,InfiniteElement]));
     const safe={...next,slots:next.slots.map(slot=>{
       if(!slot)return null;
       const found=available.get(slot.name.toLowerCase());
