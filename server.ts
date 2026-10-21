@@ -19,7 +19,7 @@ import { callGeminiStructured, ApiFailure, publicFailure, getGeminiModels, getGr
 import { validMaterial, validOddkin, validSprite, record, text, strings, color, finite } from './src/lib/validation.js';
 import { CANONICAL_INFINITE_CRAFT_RECIPES, makePairKey } from './src/lib/infiniteCraftData.js';
 
-import { chooseConcept, applyInheritance, inheritanceFor, type ConceptResult } from './server/discovery.js';
+import { chooseConcept, normalizeDiscoveryCandidates, applyInheritance, inheritanceFor, type ConceptResult } from './server/discovery.js';
 import { TRAIL_RECIPES, rollRareVariant } from './src/lib/discoveryTrails.js';
 import { ALL_PROCESSES } from './src/lib/starterData.js';
 import { cachedWork } from './server/persistentCache.js';
@@ -111,7 +111,7 @@ bridges, not a word collage.
 
 METHOD (do this privately; do not output reasoning):
 1. Identify at least two distinct meaningful traits or associations of EACH input.
-2. Explore four DIFFERENT connections between the inputs (what one enables, changes,
+2. Explore two or three DIFFERENT connections between the inputs (what one enables, changes,
    combines with, protects from, resembles, evokes, or culturally refers to).
 3. For each possibility ask: "Would this be the same answer if either ingredient were
    removed?" If yes, discard it. The output must have its own identity and uses.
@@ -129,7 +129,7 @@ HARD NEGATIVES:
   Unicorn; Sand + Glass -> Hourglass; Vampire + Internet -> Dark Web).
 - For identical inputs, a genuine scale-up or collective form is acceptable.
 
-Return ONLY JSON with a candidates array of 4 items (each a DIFFERENT semantic
+Return ONLY JSON with a candidates array of 2 or 3 items (each a DIFFERENT semantic
 bridge—not four differently worded versions of one answer), each with:
 result (specific noun, ideally 1–3 words),
 emoji (one appropriate emoji),
@@ -138,9 +138,10 @@ biology/ecology/technology/history/geography/food/pop-culture/brand/character/
 comedy/language),
 explanation (one natural player-facing sentence of at most 200 characters
 explicitly connecting both ingredient names to the result),
-coherence, surprise, inputFit, recognizability, chainPotential, novelty
-(each integer 1–5). Use honest ratings: 5 for inputFit ONLY when neither
-parent alone could plausibly generate that result.
+Optionally include coherence, surprise, inputFit, recognizability, chainPotential,
+novelty (each integer 1–5). Do not spend the response budget on these scores.
+Use honest ratings if included: 5 for inputFit ONLY when neither parent alone
+could plausibly generate that result.
 Both ingredients matter more than novelty. Avoid any private reasoning.`;
 
   const prompt = `Find satisfying discoveries for these input names: ${JSON.stringify([first, second])}`;
@@ -160,7 +161,8 @@ Both ingredients matter more than novelty. Avoid any private reasoning.`;
         } catch {
           return undefined;
         }
-        const chosen = chooseConcept(parsed, first, second);
+        const normalized = normalizeDiscoveryCandidates(parsed, first, second);
+        const chosen = normalized ? chooseConcept(normalized, first, second) : undefined;
         if (!chosen || typeof chosen.result !== 'string' || !chosen.result.trim() || chosen.result.length > 160 ||
             typeof chosen.emoji !== 'string' || !chosen.emoji.trim() || chosen.emoji.length > 32) {
           return undefined;
@@ -183,7 +185,7 @@ Both ingredients matter more than novelty. Avoid any private reasoning.`;
         const strictSystem = `${systemInstruction}\nCRITICAL: no restatements, synonym swaps or parent-shaped descriptions. Explore new function, cultural, physical or symbolic bridges. Ensure explanations mention BOTH ingredients by name.`;
         result = await attemptResolve(prompt, strictSystem);
       }
-      if (!result) throw new ApiFailure(502, 'AI returned an incomplete combination. Please retry.');
+      if (!result) throw new ApiFailure(502, 'The AI could not find a meaningful combination this time. Try again.');
       return result;
     });
 
