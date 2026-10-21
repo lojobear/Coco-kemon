@@ -1,5 +1,5 @@
 import { GoogleGenAI } from '@google/genai';
-import { conceptDNAFor } from './discovery.js';
+import { conceptDNAFor, normalizeDiscoveryCandidates } from './discovery.js';
 import { getWorkersAiBinding } from './workersAi.js';
 import { generateRunwareSprite, isRunwareAuthenticationRejected } from './runware.js';
 
@@ -55,8 +55,8 @@ const DISCOVERY_RESPONSE_SCHEMA = {
   properties: {
     candidates: {
       type: 'array',
-      minItems: 3,
-      maxItems: 5,
+      minItems: 1,
+      maxItems: 3,
       items: {
         type: 'object',
         properties: {
@@ -71,7 +71,7 @@ const DISCOVERY_RESPONSE_SCHEMA = {
           chainPotential: { type: 'integer', minimum: 1, maximum: 5, description: 'How useful this concept is for many future combinations.' },
           novelty: { type: 'integer', minimum: 1, maximum: 5, description: 'How distinct this idea is from generic mashups without sacrificing coherence.' },
         },
-        required: ['result', 'emoji', 'connection', 'explanation', 'coherence', 'surprise', 'inputFit', 'recognizability', 'chainPotential', 'novelty'],
+        required: ['result', 'emoji', 'connection', 'explanation'],
         additionalProperties: false,
       },
     },
@@ -260,7 +260,7 @@ function enhanceDiscoveryInstruction(systemInstruction: string): string {
   return `${systemInstruction}
 
 QUALITY CHECK:
-- Produce four genuinely DIFFERENT semantic bridges, not trivial variations
+- Produce two to three DIFFERENT semantic bridges, not trivial variations
   of one noun. Keep output concise and parseable, especially on small models.
 - Use actual functions, material interactions, biology, myths, idioms, culture,
   place names or history where both inputs meaningfully contribute.
@@ -272,7 +272,8 @@ QUALITY CHECK:
 - Explain each outcome in ONE short, player-facing sentence mentioning BOTH
   inputs by name. Do not provide private reasoning.
 - Scores must reflect real two-parent fit, not self-congratulation.
-- Return a JSON object with exactly four concise candidates.`;
+- Return a compact JSON object with two or three candidates. The six numeric
+  scores are OPTIONAL; prioritize complete names and explanations.`;
 }
 
 function enrichDiscoveryPrompt(prompt: string | { parts: any[] }): string | { parts: any[] } {
@@ -597,12 +598,35 @@ export function getGroqModels(): string[] {
   ].filter((model): model is string => Boolean(model)))).slice(0, 2);
 }
 
+/**
+ * A JSON object is not necessarily a playable discovery. Reject malformed
+ * semantic payloads at EACH provider boundary, so Groq's valid-but-useless
+ * answer can fail over to Workers AI and Gemini rather than blocking them.
+ */
+export function acceptDiscoveryProviderJson(raw: string, prompt: string): string | null {
+  const prefix = 'Find satisfying discoveries for these input names:';
+  const start = prompt.indexOf(prefix);
+  if (start < 0) return raw; // Other structured routes have their own validators.
+  const line = prompt.slice(start + prefix.length).trimStart().split('\n', 1)[0];
+  let ingredients: unknown;
+  try { ingredients = JSON.parse(line); }
+  catch { return null; }
+  if (!Array.isArray(ingredients) || ingredients.length !== 2 ||
+      ingredients.some(name => typeof name !== 'string')) return null;
+  try {
+    const payload: unknown = JSON.parse(raw);
+    const normalized = normalizeDiscoveryCandidates(payload, ingredients[0], ingredients[1]);
+    return normalized ? JSON.stringify(normalized) : null;
+  } catch { return null; }
+}
+
 async function callGroqStructured(
   prompt: string,
   systemInstruction: string | undefined,
   temperature: number,
   schema?: Record<string, unknown>,
   deadlineMs?: number,
+  accept?: (raw: string) => string | null,
 ): Promise<string | null> {
   const apiKey = process.env.GROQ_API_KEY?.trim();
   if (!apiKey) return null;
@@ -683,7 +707,10 @@ async function callGroqStructured(
               if (jsonStart >= 0 && jsonEnd > jsonStart) {
                 try {
                   const parsed = JSON.parse(recoveredText.slice(jsonStart, jsonEnd + 1));
-                  if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return JSON.stringify(parsed);
+                  if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+                    const accepted = accept ? accept(JSON.stringify(parsed)) : JSON.stringify(parsed);
+                    if (accepted) return accepted;
+                  }
                 } catch { /* Try the next model instead. */ }
               }
             }
@@ -705,7 +732,9 @@ async function callGroqStructured(
       if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
         throw new Error('Groq returned invalid JSON.');
       }
-      return JSON.stringify(parsed);
+      const accepted = accept ? accept(JSON.stringify(parsed)) : JSON.stringify(parsed);
+      if (!accepted) throw new Error('Groq returned no usable discovery candidates.');
+      return accepted;
     } catch (error) {
       last = error;
       const message = error instanceof Error ? error.message : String(error);
@@ -749,6 +778,7 @@ async function callWorkersAiStructured(
   // per-model timeouts shrink to fit the remaining budget and the loop bails
   // early instead of burning quota after the client has given up.
   deadlineMs?: number,
+  accept?: (raw: string) => string | null,
 ): Promise<string | null> {
   const ai = getWorkersAiBinding();
   if (!ai?.run) return null;
@@ -824,7 +854,9 @@ async function callWorkersAiStructured(
         if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
           throw new Error('Workers AI returned invalid JSON.');
         }
-        return JSON.stringify(parsed);
+        const accepted = accept ? accept(JSON.stringify(parsed)) : JSON.stringify(parsed);
+        if (!accepted) throw new Error('Workers AI returned no usable discovery candidates.');
+        return accepted;
       } catch (error) {
         last = error;
         const message = error instanceof Error ? error.message : String(error);
@@ -852,6 +884,9 @@ export async function callGeminiStructured(
   const overallDeadline = Date.now() + (drawingOptions ? Math.min(55000, drawingOptions.timeoutMs) : 27000);
   const discoveryRequest = isDiscoveryInstruction(systemInstruction);
   const foundryRequest = isFoundryPrompt(prompt);
+  const acceptDiscovery = discoveryRequest && typeof prompt === 'string'
+    ? (raw: string) => acceptDiscoveryProviderJson(raw, prompt)
+    : undefined;
   const effectiveSystemInstruction = discoveryRequest && systemInstruction
     ? enhanceDiscoveryInstruction(systemInstruction)
     : systemInstruction;
@@ -879,6 +914,7 @@ export async function callGeminiStructured(
       providerTemperature,
       providerSchema,
       overallDeadline,
+      acceptDiscovery,
     );
     if (groqResult) return groqResult;
 
@@ -889,6 +925,7 @@ export async function callGeminiStructured(
       providerTemperature,
       providerSchema,
       overallDeadline,
+      acceptDiscovery,
     );
     if (workersResult) return workersResult;
 
@@ -958,7 +995,9 @@ export async function callGeminiStructured(
       if (!raw) throw new Error('AI returned an empty response');
       const parsed = JSON.parse(raw);
       if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('Invalid JSON object');
-      return raw;
+      const accepted = acceptDiscovery ? acceptDiscovery(raw) : raw;
+      if (!accepted) throw new Error('Gemini returned no usable discovery candidates.');
+      return accepted;
     } catch (error: any) {
       last = error;
       const code = Number(error?.status || error?.code);
