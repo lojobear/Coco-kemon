@@ -14,7 +14,7 @@ type AlbumTab = 'album'|'sets'|'room'|'foundry';
 type AlbumFilter = 'all'|'shiny'|'celestial'|'evolved';
 
 function CollectibleArt({ item, variant = 'normal' }: {item: InfiniteElement; variant?: CollectorVariant}) {
-  return <span className={`boop-album-art boop-album-art--${variant}`}>
+  return <span className={`boop-album-art boop-album-art--${variant} boop-album-art--evolution-${evolutionFor(item).level}`}>
     <CraftSprite name={item.name} emoji={item.emoji} isShiny={variant==='shiny'} idle={false}/>
     {variant!=='normal' && <i aria-hidden="true">{variant==='celestial'?'✶':'✦'}</i>}
   </span>;
