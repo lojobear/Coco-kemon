@@ -8,7 +8,7 @@ import type { User } from '@supabase/supabase-js';
 import { UserRound, Cloud, Sparkles, Trophy, History, Medal, Pencil, Check, Flame, Layers } from 'lucide-react';
 
 export function PlayerProfile({ onOpenCloud }: { onOpenCloud: () => void }) {
-  const { progression, oddkinCollection, materials, experiments } = useGame();
+  const { progression, oddkinCollection, materials, experiments, setActiveTab } = useGame();
   const [elements, setElements] = useState(readCraftElements);
   const [user, setUser] = useState<User | null>(null);
   const [guestName, setGuestName] = useState(() => localStorage.getItem('boop-guest-display-name') || 'Explorer');
@@ -110,6 +110,8 @@ export function PlayerProfile({ onOpenCloud }: { onOpenCloud: () => void }) {
           <div className="boop-profile-facts"><span>Materials collected <b>{materials.length}</b></span><span>Oddkin collected <b>{oddkinCollection.length}</b></span><span>Experiments recorded <b>{experiments.length}</b></span><span>Shiny crafting events <b>{stats.shinyCrafts}</b></span><span>All known elements <b>{stats.totalElements}</b></span></div>
         </div>
       </div>
+      <div className="boop-profile-account"><Trophy size={20}/><div><strong>Your trophy room</strong><p>Curate twelve favourite discoveries, choose frames, and export your personal collectible gallery.</p></div>
+        <button onClick={() => { setActiveTab('archive'); window.setTimeout(() => window.dispatchEvent(new Event('boop-open-trophy-room')), 80); }}>Open room</button></div>
       <div className="boop-profile-account"><Cloud size={20}/><div><strong>{user ? 'Cloud account connected' : 'Connect your profile'}</strong><p>{user ? 'Stats reflect this device’s current collection. Use cloud saves to move progress between devices.' : 'Sign in with Google to save a profile nickname and back up discoveries.'}</p></div><button onClick={onOpenCloud}>{user?'Cloud saves':'Sign in'}</button></div>
     </section>
   </CraftSprites.Provider>;
