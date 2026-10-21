@@ -1,7 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 16 16" shape-rendering="crispEdges" role="img" aria-label="Boop pixel creature">
-  <rect width="16" height="16" rx="3" fill="#153d32"/>
-  <path d="M5 4h6v1h2v2h1v5h-2v1H4v-1H2V7h1V5h2Z" fill="#d7f879"/>
-  <path d="M5 3h2v2H5zm4 0h2v2H9z" fill="#d7f879"/>
-  <path d="M5 7h2v2H5zm4 0h2v2H9zM6 10h4v1H6z" fill="#153d32"/>
-  <path d="M4 9h1v1H4zm7 0h1v1h-1z" fill="#a5d955"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 64 64" role="img" aria-label="Boop planet logo">
+  <rect width="64" height="64" rx="14" fill="#242a31"/>
+  <path d="M9 41c7-9 18-15 32-16 7 0 12 1 17 4" fill="none" stroke="#bfc7d1" stroke-width="3.4" stroke-linecap="round"/>
+  <circle cx="32" cy="33" r="16.5" fill="#ffffff"/>
+  <path d="M21 29l5-5 7 1 2 5-5 5-7-1z" fill="#d4dbe2"/>
+  <path d="M35 37l5-4 7 2-2 7-6 5-5-3z" fill="#c3ccd5"/>
+  <path d="M30 17v-4" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
+  <path d="M29 13c-5-1-7-5-6-7 5 0 8 3 7 7zm2-1c0-5 4-7 8-7 0 5-3 8-8 7" fill="#ffffff"/>
+  <path d="M10 42c10 4 22 4 35 0 6-2 11-5 14-9" fill="none" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M10 42c10 4 22 4 35 0 6-2 11-5 14-9" fill="none" stroke="#bac4cd" stroke-width="1.1" stroke-linecap="round"/>
+  <path d="M14 16v7M10.5 19.5h7M52 13v6M49 16h6" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
+  <circle cx="48" cy="50" r="1.4" fill="#ffffff"/>
 </svg>

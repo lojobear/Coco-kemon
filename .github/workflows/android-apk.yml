@@ -30,10 +30,8 @@ jobs:
           SDK_TOOL="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager | head -n 1)"
           test -n "$SDK_TOOL"
           "$SDK_TOOL" 'platforms;android-35' 'build-tools;35.0.0'
-      - name: Package Boop icon
-        run: |
-          mkdir -p android-shell/app/src/main/res/drawable-nodpi
-          cp public/pwa-192x192.png android-shell/app/src/main/res/drawable-nodpi/boop_icon.png
+      - name: Verify vector launcher icon
+        run: test -s android-shell/app/src/main/res/drawable/ic_boop_planet.xml
       - name: Build installable Android debug APK
         run: gradle --no-daemon -p android-shell assembleDebug
       - name: Upload Boop APK
