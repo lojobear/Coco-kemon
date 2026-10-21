@@ -1416,3 +1416,16 @@ html.boop-native-shell .boop-app .boop-cloud-dialog {
 }
 @media(max-width:360px) {.boop-sticker-grid {grid-template-columns:repeat(2,minmax(0,1fr));}.boop-album-summary {grid-template-columns:repeat(2,minmax(0,1fr));}}
 @media(prefers-reduced-motion:reduce){.boop-sticker-card,.boop-album-page button,.boop-album-set-meter>i {animation:none!important;transition:none!important;}}
+
+/* Evolved forms are truly visual, without mutating the source sprite file:
+   craft milestones unlock progressively richer displays for every collectible. */
+.boop-album-art--evolution-1 {border-color:#c9ded6;background:radial-gradient(circle at 50% 45%,#fff 36%,#e9f4ef);}
+.boop-album-art--evolution-1::before {content:'·  ✦  ·';position:absolute;top:2px;left:0;right:0;text-align:center;font-size:11px;color:#73b7a3;pointer-events:none;z-index:1;}
+.boop-album-art--evolution-2 {border:2px solid #abaddf;background:radial-gradient(circle at 48% 47%,#fff 28%,#e9e7ff);box-shadow:inset 0 0 16px #a39cec26;}
+.boop-album-art--evolution-2::before {content:'✧     ✧';position:absolute;left:0;right:0;top:6px;text-align:center;color:#9891cb;font-size:14px;pointer-events:none;z-index:1;}
+.boop-album-art--evolution-3 {border:2px solid #d9ae65;background:radial-gradient(circle at 49% 43%,#fff 19%,#fff2d5 100%);box-shadow:inset 0 0 18px #dab2564b,0 0 0 1px #f7eccb;}
+.boop-album-art--evolution-3::before {content:'✶        ✶';position:absolute;left:0;right:0;top:7px;text-align:center;font-size:16px;color:#cda456;text-shadow:0 0 8px #e8b851;font-weight:900;pointer-events:none;z-index:1;}
+@media(prefers-reduced-motion:no-preference){
+  .boop-album-art--evolution-3::before {animation:boop-album-legendary-shimmer 3.6s ease-in-out infinite;}
+}
+@keyframes boop-album-legendary-shimmer {50%{opacity:.45;filter:brightness(1.25)}}
