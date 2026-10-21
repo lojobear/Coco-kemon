@@ -21,7 +21,7 @@
   --basic-accent: var(--boop-forest);
   --basic-focus: var(--boop-forest);
   --surface-shadow: 0 8px 24px #0f241a0f;
-  --font-sans: Roboto, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-sans: "Pixelify Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 .boop-app[data-theme="quark-light"] { background:var(--boop-canvas)!important; color:var(--boop-ink)!important; display:grid; grid-template-rows:auto minmax(0,1fr) auto; grid-template-areas:'header' 'main' 'nav'; justify-content:normal; }
 .boop-app button { cursor:pointer; }
@@ -33,10 +33,10 @@
 .boop-app .collection-header { grid-area:header; padding:16px 24px!important; background:white!important; border-bottom:1px solid var(--boop-line)!important; box-shadow:none!important; }
 .boop-app .collection-header-inner { max-width:none; min-height:40px; gap:16px; }
 .boop-app .collection-brand { flex-shrink:0; gap:10px; min-height:36px; }
-.boop-app .collection-brand img { width:36px!important; height:36px!important; padding:0; background:var(--boop-forest)!important; border:0; border-radius:10px; image-rendering:pixelated; }
+.boop-app .collection-brand img { width:36px!important; height:36px!important; padding:0; background:transparent!important; border:0; border-radius:10px; image-rendering:auto; }
 .boop-app .collection-brand > span { display:flex; align-items:center; gap:16px; }
-.boop-app .collection-brand strong { font-size:24px!important; font-weight:800; letter-spacing:-.7px; text-transform:none; }
-.boop-app .collection-brand small { margin:0; font-size:9px; letter-spacing:.6px; }
+.boop-app .collection-brand strong { font-family:var(--font-pixel); font-size:25px!important; font-weight:700; letter-spacing:0; text-transform:none; }
+.boop-app .collection-brand small { font-family:var(--font-pixel); margin:0; font-size:10px; letter-spacing:.6px; }
 .boop-app .header-actions { gap:6px; }
 .boop-app .header-actions button { display:grid; place-items:center; width:36px!important; height:36px!important; min-width:36px!important; min-height:36px!important; border:0; box-shadow:none; border-radius:50%!important; }
 .boop-app .header-actions .boop-avatar { color:var(--boop-ink)!important; background:var(--boop-lavender)!important; }
