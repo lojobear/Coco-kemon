@@ -6,7 +6,7 @@ import { isNativeTab, NATIVE_TABS, isAndroidNativeShell, sendToAndroid } from '.
 const file = (path: string) => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 
 test('native Android navigation includes every main Boop game screen', () => {
-  assert.deepEqual([...NATIVE_TABS], ['kitchen','infinite-craft','foundry','archive','sprite-lab','notebook']);
+  assert.deepEqual([...NATIVE_TABS], ['kitchen','infinite-craft','foundry','archive','sprite-lab','notebook','profile']);
   for (const tab of NATIVE_TABS) assert.equal(isNativeTab(tab), true);
   assert.equal(isNativeTab('google-auth'), false);
   assert.equal(isNativeTab('https://evil.example'), false);

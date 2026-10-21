@@ -1,15 +1,16 @@
 import { memo, startTransition, useCallback, useEffect, useState } from 'react';
 import { sound } from '../lib/audio';
 import { haptics } from '../lib/haptics';
-import { FlaskConical, LayoutGrid, Cat, ChefHat, Cloud } from 'lucide-react';
+import { FlaskConical, LayoutGrid, Cat, ChefHat, Cloud, UserRound } from 'lucide-react';
 
-export type BottomTab = 'foundry' | 'kitchen' | 'infinite-craft' | 'archive' | 'sprite-lab';
+export type BottomTab = 'foundry' | 'kitchen' | 'infinite-craft' | 'archive' | 'sprite-lab' | 'profile';
 
 const TABS = [
   { id: 'kitchen', label: 'Kitchen', icon: ChefHat },
   { id: 'infinite-craft', label: 'Craft', icon: FlaskConical },
   { id: 'archive', label: 'Collection', icon: LayoutGrid },
   { id: 'sprite-lab', label: 'Sprites', icon: Cat },
+  { id: 'profile', label: 'Profile', icon: UserRound },
 ] as const;
 
 function BottomNavInner({

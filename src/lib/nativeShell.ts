@@ -2,8 +2,8 @@
  * Native Android navigation bridge. It only runs inside Boop's Android shell;
  * normal web and PWA clients keep their existing header and tab bar.
  */
-export type NativeTab = 'kitchen' | 'infinite-craft' | 'foundry' | 'archive' | 'sprite-lab' | 'notebook';
-export const NATIVE_TABS: readonly NativeTab[] = ['kitchen','infinite-craft','foundry','archive','sprite-lab','notebook'];
+export type NativeTab = 'kitchen' | 'infinite-craft' | 'foundry' | 'archive' | 'sprite-lab' | 'notebook' | 'profile';
+export const NATIVE_TABS: readonly NativeTab[] = ['kitchen','infinite-craft','foundry','archive','sprite-lab','notebook','profile'];
 
 type NativePort = { postMessage: (message: string) => void };
 type NativeWindow = Window & { BoopNative?: NativePort };

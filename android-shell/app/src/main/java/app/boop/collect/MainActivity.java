@@ -61,7 +61,8 @@ public final class MainActivity extends Activity {
         {"infinite-craft", "Craft", "⚗"},
         {"foundry", "Foundry", "◇"},
         {"archive", "Collection", "▦"},
-        {"sprite-lab", "Sprites", "✦"}
+        {"sprite-lab", "Sprites", "✦"},
+        {"profile", "Profile", "☻"}
     };
 
     private WebView webView;

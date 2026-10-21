@@ -29,6 +29,7 @@ const SpriteLabModal = lazy(() => loadSpriteLabModal().then(module => ({ default
 const NotebookView = lazy(() => loadNotebookView().then(module => ({ default: module.NotebookView })));
 const SeedsModal = lazy(() => loadSeedsModal().then(module => ({ default: module.SeedsModal })));
 const VoiceLabModal = lazy(() => loadVoiceLabModal().then(module => ({ default: module.VoiceLabModal })));
+const PlayerProfile = lazy(() => import('./components/PlayerProfile').then(module => ({ default: module.PlayerProfile })));
 import { SAVE_STATUS_EVENT, getSaveError } from './lib/saveData';
 import { sound } from './lib/audio';
 import { isAndroidNativeShell, isNativeTab, sendToAndroid } from './lib/nativeShell';
@@ -96,7 +97,7 @@ function GameContent() {
       const requested = (event as CustomEvent<string>).detail;
       if (typeof requested === 'string' && isNativeTab(requested)) setActiveTab(requested);
     };
-    const openCloud = () => setShowCloud(true);
+    const openCloud = () => setActiveTab('profile');
     const handleBack = () => {
       if (showCloud) setShowCloud(false);
       else if (showSeedsModal) setShowSeedsModal(false);
@@ -151,6 +152,8 @@ function GameContent() {
         {activeTab === 'sprite-lab' && (
           <Suspense fallback={<div className="view-loading-card">Opening Sprite Lab…</div>}><SpriteLabModal embedded /></Suspense>
         )}
+
+        {activeTab === 'profile' && <Suspense fallback={<div className="view-loading-card">Opening profile…</div>}><PlayerProfile onOpenCloud={() => setShowCloud(true)}/></Suspense>}
 
         {activeTab === 'notebook' && (
           <Suspense fallback={<div className="view-loading-card">Opening notebook…</div>}><NotebookView /></Suspense>

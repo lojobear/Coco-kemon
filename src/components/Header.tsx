@@ -73,7 +73,7 @@ export function Header({
         <span className="boop-level-tag">Level {String(progression.level).padStart(2, '0')}</span>
         <div className="header-actions">
           <button aria-label="Cloud saves and sign in" title="Cloud saves and sign in" onClick={onOpenProfile}><Cloud size={21} /></button>
-          <button className="boop-avatar" aria-label="Your profile" title="Your profile" onClick={onOpenProfile}><UserRound size={18} /></button>
+          <button className="boop-avatar" aria-label="Your profile" title="Your profile" onClick={() => setActiveTab('profile')}><UserRound size={18} /></button>
           <button aria-label="Settings and tools" title="Settings and tools" onClick={() => setShowSettings(true)}><Settings2 size={21} /></button>
         </div>
       </div>
