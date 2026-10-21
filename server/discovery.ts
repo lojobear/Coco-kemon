@@ -375,6 +375,55 @@ export function candidateRejectionReason(c: unknown, first: string, second: stri
   return lowValueConceptReason(c.result, first, second);
 }
 
+/**
+ * Repair harmless formatting differences from smaller/cheaper text models,
+ * without relaxing the semantic checks that reject lazy word mashups.
+ * This runs BEFORE accepting a provider response so another provider can be
+ * tried if the first one returned valid JSON but invalid discoveries.
+ */
+export function normalizeDiscoveryCandidates(raw: unknown, first: string, second: string): { candidates: Candidate[] } | undefined {
+  if (!record(raw)) return;
+  const entries: unknown[] = Array.isArray(raw.candidates) ? raw.candidates
+    : Array.isArray(raw.results) ? raw.results
+    : (typeof raw.result === 'string' || typeof raw.name === 'string') ? [raw] : [];
+  if (!entries.length) return;
+
+  const connections: Record<string, ConceptConnection> = {
+    nature: 'ecology', natural: 'ecology', weather: 'science',
+    alchemy: 'chemistry', invention: 'technology', engineering: 'technology',
+    culture: 'pop-culture', pop_culture: 'pop-culture', popculture: 'pop-culture',
+    humor: 'comedy', humour: 'comedy', joke: 'comedy', fantasy: 'mythology',
+    logic: 'function', practical: 'function', metaphor: 'wordplay',
+  };
+  const normalized: Candidate[] = [];
+  for (const entry of entries.slice(0, 6)) {
+    if (!record(entry)) continue;
+    const result = typeof entry.result === 'string' ? entry.result : typeof entry.name === 'string' ? entry.name : '';
+    const explanation = typeof entry.explanation === 'string' ? entry.explanation
+      : typeof entry.reason === 'string' ? entry.reason
+      : typeof entry.reasoning === 'string' ? entry.reasoning : '';
+    if (!result.trim() || !explanation.trim()) continue;
+    const originalRoute = typeof entry.connection === 'string' ? entry.connection
+      : typeof entry.category === 'string' ? entry.category : 'function';
+    const route = originalRoute.trim().toLowerCase().replace(/\s+/g, '-');
+    const connection: ConceptConnection = CONNECTIONS.has(route as ConceptConnection)
+      ? route as ConceptConnection : connections[route] || 'function';
+    const emoji = typeof entry.emoji === 'string' && entry.emoji.trim() ? entry.emoji.trim() : '✨';
+    const candidate: Candidate = {
+      result: result.trim(), emoji, connection, explanation: explanation.trim(),
+    };
+    for (const key of ['coherence', 'surprise', 'inputFit', 'recognizability', 'chainPotential', 'novelty'] as const) {
+      const score = entry[key];
+      // Optional model scores are hints, not a reason to throw away a useful
+      // result when one provider omits them or sends "4" instead of 4.
+      const number = typeof score === 'number' ? score : typeof score === 'string' ? Number(score) : NaN;
+      if (Number.isFinite(number) && number >= 1 && number <= 5) candidate[key] = Math.round(number);
+    }
+    if (!candidateRejectionReason(candidate, first, second)) normalized.push(candidate);
+  }
+  return normalized.length ? { candidates: normalized } : undefined;
+}
+
 function scoreCandidate(candidate: Candidate, first: string, second: string, routeFrequency: Map<string, number>): { score: number; dna: ConceptDNA } {
   const dna = inferDNA(candidate, first, second);
   const mentionsFirst = hasIngredientReference(candidate.explanation, first);
