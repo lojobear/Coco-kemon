@@ -761,62 +761,57 @@ export function InfiniteCraftView() {
   return (
     <CraftSprites.Provider value={customSprites}>
     <div className="boop-craft-studio">
-      <section className="boop-craft-workspace">
-        <div className="boop-screen-intro"><h1>What will you discover?</h1><p>Two familiar things. One unexpected result.</p></div>
-        <div className="boop-craft-controls"><div className="boop-pills" aria-label="Crafting mode"><button type="button" aria-pressed="true">Classic craft</button><button type="button" aria-pressed="false" onClick={() => { haptics.lightTap(); setActiveTab('foundry'); }}>Foundry</button></div>
-          <button type="button" className="boop-random-button" disabled={isSynthesizing || elements.length === 0} onClick={randomizeIngredients} aria-label="Surprise me with two random ingredients">
-            <span className="boop-random-icon" aria-hidden="true"><Shuffle key={randomVersion} size={19} strokeWidth={2.5} /></span><span className="boop-random-label">Surprise me</span><span className="boop-random-glint" aria-hidden="true">✦</span>
-          </button></div>
-        <div ref={showFreeform ? undefined : canvasRef} className={`boop-pad-stage ${isSynthesizing ? 'is-discovering' : ''}`} onDragOver={event => { if (!isSynthesizing) event.preventDefault(); }} onDrop={event => {
-          event.preventDefault(); const name = event.dataTransfer.getData('application/x-boop-ingredient');
-          const item = elements.find(el => el.name === name); if (item) selectIngredient(item);
-        }}>
-          <CraftingCrucible slotA={crucibleSlotA} slotB={crucibleSlotB} onClearSlotA={() => setCrucibleSlotA(null)} onClearSlotB={() => setCrucibleSlotB(null)} onClearAll={() => { setCrucibleSlotA(null); setCrucibleSlotB(null); }} onSwapSlots={handleSwapCrucible} onCombine={handleCrucibleCombine} isSynthesizing={isSynthesizing} isDarkMode={false} isDropTargetActive={isCrucibleHovered} crucibleRef={crucibleRef} quickPickVersion={randomVersion} />
-          {revealBurst && <div key={revealBurst.id} className={`boop-reveal-burst ${revealBurst.isRare ? 'is-special' : ''}`} aria-hidden="true">
-            {Array.from({ length: 8 }, (_, i) => <i key={i} style={{ '--direction': `${i * 45}deg` } as React.CSSProperties} />)}
-          </div>}
-          {activeCombination && <div className="boop-inline-reaction" role="status" aria-live="polite"><span className="boop-inline-spinner" aria-hidden="true" /><span>Mixing <strong>{activeCombination.nameA}</strong> + <strong>{activeCombination.nameB}</strong>…</span></div>}
+      <section className="boop-board-layout" aria-label="Discover crafting board">
+        <header className="boop-board-toolbar">
+          <div className="boop-board-heading"><strong>Discover</strong><small>Drag tiles together to combine · drag empty space to explore</small></div>
+          <div className="boop-board-actions">
+            <button type="button" className="boop-random-button" disabled={isSynthesizing || elements.length === 0} onClick={randomizeIngredients} aria-label="Add two random ingredients to board">
+              <span className="boop-random-icon"><Shuffle key={randomVersion} size={19}/></span><span className="boop-random-label">Random</span><span className="boop-random-glint">✦</span>
+            </button>
+            <button type="button" aria-label="Tidy tiles" title="Tidy tiles" onClick={tidyCanvas}><LayoutGrid size={18}/><span>Tidy</span></button>
+            <button type="button" aria-label="Clear board" title="Clear board" onClick={clearCanvas}><Trash2 size={18}/></button>
+            <button type="button" className="boop-board-library-toggle" aria-expanded={isSidebarOpen} aria-controls="boop-board-library" onClick={() => setIsSidebarOpen(v=>!v)}><Search size={18}/><span>Elements</span><b>{elements.length}</b></button>
+          </div>
+        </header>
+        <div className="boop-board-viewport" ref={viewportRef} aria-label="Pan and drag crafting board" onPointerDown={startPan} onPointerMove={movePan} onPointerUp={endPan} onPointerCancel={endPan}>
+          <div ref={canvasRef} className="boop-board-world" style={{ width:BOARD_WIDTH, height:BOARD_HEIGHT }}>
+            <div className="boop-board-origin-hint" style={{ left:BOARD_START_X - 6, top:BOARD_START_Y - 68 }}>DROP. MIX. DISCOVER.</div>
+            {canvasItems.map(item=><div
+              key={item.instanceId} data-craft-instance={item.instanceId}
+              className={`boop-board-item ${selectedCanvasId === item.instanceId ? 'is-selected' : ''} ${activeDragId === item.instanceId ? 'is-dragging' : ''} ${item.instanceId.startsWith('fusion-') ? 'is-fusion-result' : ''}`}
+              onPointerDown={e=>handlePointerDown(item,e)}
+              onClick={e=>{e.stopPropagation();handleCanvasItemClick(item);}}
+              onDoubleClick={e=>handleDuplicate(item,e)}
+              style={{transform:`translate3d(${item.x}px,${item.y}px,0)`}}>
+              <CraftSprite name={item.name} emoji={item.emoji} isShiny={item.isShiny}/>
+              <span>{item.name}</span>
+              <button aria-label={`Duplicate ${item.name}`} title="Duplicate" className="boop-tile-duplicate" onClick={e=>handleDuplicate(item,e)}><Plus size={12}/></button>
+              <button aria-label={`Remove ${item.name} from board`} title="Remove" onClick={e=>handleRemoveFromCanvas(item.instanceId,e)}><X size={12}/></button>
+            </div>)}
+            {mergeFx && <div key={mergeFx.id} className="boop-board-fusion" style={{left:mergeFx.x,top:mergeFx.y}} aria-hidden="true">
+              <span className="boop-merge-piece boop-merge-a" style={{'--from-x':`${mergeFx.dxA}px`,'--from-y':`${mergeFx.dyA}px`} as React.CSSProperties}>{mergeFx.a}</span>
+              <span className="boop-merge-piece boop-merge-b" style={{'--from-x':`${mergeFx.dxB}px`,'--from-y':`${mergeFx.dyB}px`} as React.CSSProperties}>{mergeFx.b}</span>
+              <i/>
+            </div>}
+          </div>
         </div>
-        {spriteIssue && <div className="boop-sprite-warning" role="status" aria-live="polite">
-          <strong>{spriteIssue.name} saved · AI artwork pending</strong>
-          <p>{/Runware rejected/i.test(spriteIssue.message)
-            ? 'Runware needs a valid API key in Cloudflare. The discovery is safe; temporary pixel art is shown until you can retry.'
-            : 'The image service is temporarily unavailable. Your discovery is safe and temporary pixel art is shown.'}</p>
-          {!/Runware rejected/i.test(spriteIssue.message) && <button className="boop-secondary" disabled={spriteRetrying} onClick={() => void retryMissingSprite()}>{spriteRetrying ? 'Trying…' : 'Retry artwork'}</button>}
-          <button className="boop-secondary" onClick={() => setSpriteIssue(null)}>Got it</button>
-        </div>}
-        {combineError && <div role="alert" className="boop-error"><p>{combineError}</p><button onClick={() => { if (lastPairRef.current) void handleCombine(lastPairRef.current[0], lastPairRef.current[1]); }}>Retry combination</button><button onClick={() => setCombineError(null)}>Dismiss</button></div>}
-        <div className={`boop-result-shell ${lastResult ? 'is-visible' : ''}`} aria-live="polite" aria-atomic="true">
-          <div className="boop-result-shell-inner">{lastResult && <div key={lastResult.discoveredAt} className={`boop-result ${lastResult.isNew ? 'is-first-find' : ''}`}>
-            <span className="boop-result-art"><CraftSprite name={lastResult.name} emoji={lastResult.emoji} isShiny={lastResult.isShiny} className="boop-result-sprite" /></span>
-            <div className="boop-result-copy"><small>{lastResult.isNew ? '✦ NEW DISCOVERY' : 'CRAFTED'}</small><strong>{lastResult.name}</strong><p>{lastResult.explanation || 'Your next ingredient is ready.'}</p>
-              <div className="boop-next-ideas"><span>Try next:</span>{STARTER_ELEMENTS.filter(el => el.name.toLowerCase() !== lastResult.name.toLowerCase()).slice(0, 3).map(el => <button key={el.name} disabled={isSynthesizing} onClick={() => void handleCombine({ name: lastResult.name, emoji: lastResult.emoji, x: 75, y: 90 }, { name: el.name, emoji: el.emoji, x: 180, y: 90 })}>{el.emoji} {el.name}</button>)}</div>
-            </div>
-            <button className="boop-secondary" disabled={isSynthesizing} onClick={() => selectIngredient(lastResult)}>Use it <span aria-hidden="true">↗</span></button>
-          </div>}</div>
-        </div>
-        {spawnToast && <p className="boop-notice" role="status">{spawnToast}</p>}
-        <div className="boop-section-heading"><h2>Recently discovered</h2><button className="boop-text-button" onClick={() => setActiveTab('archive')}>View collection ↗</button></div>
-        <div className="boop-recent-grid">{(recent.length ? recent : elements.slice(0, 4)).map(el => <DiscoveryCard key={el.id} name={el.name} emoji={el.emoji} isShiny={el.isShiny} detail={el.isNew ? 'First discovery' : el.isShiny ? 'Shiny' : 'Discovery'} compact disabled={isSynthesizing} onSelect={() => selectIngredient(el)} onInspect={() => setInspectedElement(el)} />)}</div>
-        <p className="boop-hint"><Sparkles size={18} />Try a place, an animal, or an idea. There’s always another combination.</p>
-        <div className="boop-secondary-tools"><DiscoveryTrails elements={elements} busy={isSynthesizing} onPrepare={(a, b) => { setCrucibleSlotA(a); setCrucibleSlotB(b); }} />
-          <button className="boop-secondary" aria-expanded={showFreeform} onClick={() => setShowFreeform(value => !value)}>{showFreeform ? 'Close freeform board' : 'Open freeform board'}</button></div>
-        {showFreeform && <section className="boop-freeform"><div className="boop-section-heading"><h2>Freeform board</h2><button onClick={clearCanvas}>Clear</button><button onClick={tidyCanvas}>Tidy</button></div><p>Tap two items to combine, or drag one onto another.</p>
-          <div ref={canvasRef} className="boop-freeform-canvas">{canvasItems.map(item => <div key={item.instanceId} data-craft-instance={item.instanceId} className={`boop-board-item ${selectedCanvasId === item.instanceId ? 'is-selected' : ''} ${activeDragId === item.instanceId ? 'is-dragging' : ''}`} onPointerDown={e => handlePointerDown(item, e)} onClick={e => { e.stopPropagation(); handleCanvasItemClick(item); }} onDoubleClick={e => handleDuplicate(item, e)} style={{ transform: `translate3d(${item.x}px, ${item.y}px, 0)` }}><CraftSprite name={item.name} emoji={item.emoji} isShiny={item.isShiny} /><span>{item.name}</span><button aria-label={`Remove ${item.name} from board`} onClick={e => handleRemoveFromCanvas(item.instanceId, e)}><X size={14} /></button></div>)}</div>
-        </section>}
+        {activeCombination && <div className="boop-board-status" role="status"><span className="boop-inline-spinner"/>Combining {activeCombination.nameA} + {activeCombination.nameB}… <small>Keep moving tiles</small></div>}
+        {lastResult && <div className="boop-board-result" key={lastResult.discoveredAt} role="status"><CraftSprite name={lastResult.name} emoji={lastResult.emoji} isShiny={lastResult.isShiny}/><div><small>{lastResult.isNew ? '✦ NEW DISCOVERY' : 'CREATED'}</small><strong>{lastResult.name}</strong></div><button onClick={()=>spawnOnCanvas(lastResult.name,lastResult.emoji,Boolean(lastResult.isShiny))}>Add to board <Plus size={15}/></button><button aria-label="Dismiss result" onClick={()=>setLastResult(null)}><X size={16}/></button></div>}
+        {combineError && <div className="boop-board-alert" role="alert">{combineError}<button onClick={()=>{if(lastPairRef.current)void handleCombine(lastPairRef.current[0],lastPairRef.current[1]);}}>Retry</button><button onClick={()=>setCombineError(null)}>Dismiss</button></div>}
+        {spriteIssue && <div className="boop-board-alert" role="status"><strong>{spriteIssue.name} saved.</strong> Artwork is pending; the temporary sprite stays available.<button onClick={()=>setSpriteIssue(null)}>OK</button></div>}
+        {spawnToast && <div className="boop-board-toast" role="status">{spawnToast}</div>}
+        <button className="boop-board-mobile-library" onClick={()=>setIsSidebarOpen(true)} aria-label="Open element library"><Plus size={21}/> Add elements</button>
+        {isSidebarOpen && <div className="boop-board-drawer-backdrop" onClick={()=>setIsSidebarOpen(false)} aria-hidden="true"/>}
+        <aside id="boop-board-library" className={`boop-board-drawer ${isSidebarOpen ? 'is-open' : ''}`} aria-label="Your element library" aria-hidden={!isSidebarOpen}>
+          <div className="boop-board-drawer-head"><div><h2>Ingredients</h2><small>{elements.length} discovered · tap to add to board</small></div><button aria-label="Close ingredients" onClick={()=>setIsSidebarOpen(false)}><X size={21}/></button></div>
+          <label className="boop-search"><Search size={17}/><input ref={searchInputRef} tabIndex={isSidebarOpen?0:-1} aria-label="Search ingredients" placeholder="Search elements…" value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} /></label>
+          <div className="boop-library-filters"><div className="boop-pills">{(['all','new','shiny'] as const).map(filter=><button key={filter} tabIndex={isSidebarOpen?0:-1} aria-pressed={ingredientFilter===filter} onClick={()=>setIngredientFilter(filter)}>{filter==='all'?'All':filter==='new'?'First finds':'Shiny'}</button>)}</div>
+            <select tabIndex={isSidebarOpen?0:-1} aria-label="Sort ingredients" value={sortMode} onChange={e=>setSortMode(e.target.value as typeof sortMode)}><option value="time">Recent</option><option value="alpha">A-Z</option><option value="crafted">Most crafted</option></select></div>
+          <div className="boop-board-ingredient-grid">{ingredientList.map(el=><div key={el.id} className="boop-board-library-item"><button disabled={!isSidebarOpen} onClick={()=>{spawnFromSidebar(el);setIsSidebarOpen(false);}}><CraftSprite name={el.name} emoji={el.emoji} isShiny={el.isShiny}/><span>{el.name}</span><Plus size={15}/></button><button disabled={!isSidebarOpen} aria-label={`Inspect ${el.name}`} onClick={()=>setInspectedElement(el)}><Info size={15}/></button></div>)}</div>
+          {!ingredientList.length && <div className="boop-empty">No elements match this search.</div>}
+          <div className="boop-board-drawer-footer"><span>{collectionStats.totalCrafts.toLocaleString()} crafts</span><span>{collectionStats.totalShinies} shinies</span><button onClick={()=>setActiveTab('profile')}>Profile stats →</button></div>
+        </aside>
       </section>
-      <aside className="boop-ingredient-library" aria-label="Ingredient library">
-        <div className="boop-section-heading"><h2>Your ingredients</h2><small>{elements.length} discoveries</small></div>
-        <p className="boop-library-caption">Every discovery can become the next ingredient.</p>
-        <label className="boop-search"><Search size={18} /><input ref={searchInputRef} aria-label="Find an ingredient" placeholder="Find an ingredient…" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} /><span className="boop-key-hint">/</span></label>
-        <div className="boop-library-filters"><div className="boop-pills" aria-label="Filter ingredients">{(['all', 'new', 'shiny'] as const).map(filter => <button key={filter} aria-pressed={ingredientFilter === filter} onClick={() => setIngredientFilter(filter)}>{filter === 'all' ? 'All' : filter === 'new' ? 'First finds' : 'Shiny'}</button>)}</div>
-          <select aria-label="Sort ingredients" value={sortMode} onChange={e => setSortMode(e.target.value as typeof sortMode)}><option value="time">Recent</option><option value="alpha">A–Z</option><option value="crafted">Most crafted</option></select></div>
-        <div className="boop-ingredient-grid">{ingredientList.map(el => <IngredientLibraryCard key={el.id} item={el} selected={crucibleSlotA?.name === el.name || crucibleSlotB?.name === el.name} disabled={isSynthesizing && !showFreeform} onPick={handleIngredientPick} onInspect={handleIngredientInspect} />)}</div>
-        {!ingredientList.length && <div className="boop-empty"><Search size={24} /><h3>No matching discoveries</h3><p>Try a different name or filter.</p><button className="boop-secondary" onClick={() => { setSearchQuery(''); setIngredientFilter('all'); }}>Clear filters</button></div>}
-        <button className="boop-secondary boop-explore" onClick={() => setActiveTab('archive')}>Explore your collection →</button>
-        <div className="boop-hint boop-library-hint"><div><strong>A world of possibilities.</strong><p>Select two discoveries, or drag them into the pad. Your next favourite might be one mix away.</p></div></div>
-        <div className="boop-mini-stats"><span><b>{collectionStats.totalCrafts}</b> crafts</span><span><b>{collectionStats.totalShinies}</b> shinies</span><span><b>{collectionStats.uniqueRecipes}</b> recipes</span></div>
-      </aside>
       {firstDiscoveryModal && <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn" onClick={() => setFirstDiscoveryModal(null)}><div onClick={e => e.stopPropagation()} className={`w-full max-w-sm rounded-2xl p-6 border shadow-2xl text-center relative overflow-hidden ${isDarkMode ? 'bg-[#18181b] border-amber-500/40 text-white' : 'bg-white border-amber-400 text-black'}`}><div className="absolute -top-12 -left-12 w-32 h-32 bg-amber-500/20 rounded-full blur-2xl pointer-events-none" /><div className="absolute -bottom-12 -right-12 w-32 h-32 bg-amber-500/20 rounded-full blur-2xl pointer-events-none" /><div className="text-5xl mb-3 animate-bounce"><CraftSprite name={firstDiscoveryModal.name} emoji={firstDiscoveryModal.emoji} isShiny={firstDiscoveryModal.isShiny} /></div><div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40 text-xs font-mono font-bold tracking-widest uppercase mb-2"><Sparkles className="w-3.5 h-3.5" />FIRST DISCOVERY!</div><h3 className="text-2xl font-black tracking-tight mb-1">{firstDiscoveryModal.name}</h3><p className="text-xs text-zinc-400 mb-5 leading-relaxed">You are the very first crafter to unlock this combination in the global matrix!</p>{firstDiscoveryModal.recipe && <div className={`p-3 rounded-xl border text-xs font-mono mb-5 ${isDarkMode ? 'bg-black/30 border-zinc-800 text-zinc-300' : 'bg-zinc-100 border-zinc-200 text-zinc-700'}`}>{firstDiscoveryModal.recipe.first} + {firstDiscoveryModal.recipe.second} = {firstDiscoveryModal.name}</div>}<button onClick={() => { sound.playClick(); setFirstDiscoveryModal(null); }} className="w-full py-2.5 rounded-xl font-bold text-sm bg-gradient-to-r from-amber-500 to-amber-600 text-black hover:brightness-110 shadow-lg transition-all active:scale-95">Continue Crafting</button></div></div>}
 
       {inspectedElement && <ElementDossierModal element={normalizeElementStats(inspectedElement)} onClose={() => setInspectedElement(null)} onSpawnOnCanvas={(name, emoji, isShiny) => spawnOnCanvas(name, emoji, isShiny)} isDarkMode={isDarkMode} />}
