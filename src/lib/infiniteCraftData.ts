@@ -60,7 +60,7 @@ const normalizeName = (value: string) => value.normalize('NFKC').trim().replace(
  */
 export const MAX_ELEMENT_WORDS = 3;
 export function elementNameWordCount(name: string): number {
-  return name.trim().match(/[\\p{L}\\p{N}]+(?:['’][\\p{L}\\p{N}]+)*/gu)?.length ?? 0;
+  return name.trim().match(/[\p{L}\p{N}]+(?:['’][\p{L}\p{N}]+)*/gu)?.length ?? 0;
 }
 export function validNewElementName(name: string): boolean {
   const count = elementNameWordCount(name);
