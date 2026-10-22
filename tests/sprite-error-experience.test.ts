@@ -7,7 +7,7 @@ test('Discover persists pending artwork and does not show repeated provider quot
   const queue=readFileSync(new URL('../src/lib/artworkQueue.ts',import.meta.url),'utf8');
   assert.match(source,/artworkQueueStatus/);
   assert.match(source,/startArtworkQueue/);
-  assert.match(source,/boop-artwork-queue/);
+  assert.match(source,/boop-more-artwork/);
   assert.match(source,/enqueueArtwork\(cleanName, false\)/);
   assert.match(source,/retryPendingArtwork/);
   assert.match(queue,/ARTWORK_FAILURE_DELAY_MS/);
