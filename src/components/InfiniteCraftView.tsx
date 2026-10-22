@@ -18,6 +18,7 @@ import {
 } from '../lib/infiniteCraftData';
 import { requestJson } from '../lib/api';
 import { enqueueArtwork, startArtworkQueue, artworkQueueStatus, retryPendingArtwork, ARTWORK_QUEUE_EVENT } from '../lib/artworkQueue';
+import { beginBoardHistory, recordBoardHistory, undoBoard, redoBoard, clampBoardZoom } from '../lib/boardHistory';
 import { CANONICAL_INFINITE_CRAFT_RECIPES, makePairKey } from '../lib/infiniteCraftData';
 import { findCraftDropTarget } from '../lib/craftCollision';
 import { BOARD_WIDTH, BOARD_HEIGHT, BOARD_START_X, BOARD_START_Y, boardCenter, clampBoardTile } from '../lib/boardGeometry';
@@ -186,7 +187,35 @@ export function InfiniteCraftView() {
     { instanceId: 'init-3', name: 'Wind', emoji: '💨', x: BOARD_START_X, y: BOARD_START_Y + 96 },
     { instanceId: 'init-4', name: 'Earth', emoji: '🌍', x: BOARD_START_X + 166, y: BOARD_START_Y + 96 },
   ]);
-  useEffect(() => saveBoardLayout(canvasItems), [canvasItems]);
+  const historyRef = useRef(beginBoardHistory(canvasItems));
+  const skipHistoryRef = useRef(false);
+  const [historySize, setHistorySize] = useState({past:0,future:0});
+  useEffect(() => {
+    historyRef.current = skipHistoryRef.current
+      ? {...historyRef.current,present:canvasItems}
+      : recordBoardHistory(historyRef.current,canvasItems);
+    skipHistoryRef.current = false;
+    setHistorySize({past:historyRef.current.past.length,future:historyRef.current.future.length});
+    saveBoardLayout(canvasItems);
+  }, [canvasItems]);
+  const undoLayout = () => {
+    if (requestRef.current) return;
+    const next=undoBoard(historyRef.current);
+    if(next===historyRef.current)return;
+    historyRef.current=next;skipHistoryRef.current=true;setCanvasItems(next.present);haptics.lightTap();
+  };
+  const redoLayout = () => {
+    if (requestRef.current) return;
+    const next=redoBoard(historyRef.current);
+    if(next===historyRef.current)return;
+    historyRef.current=next;skipHistoryRef.current=true;setCanvasItems(next.present);haptics.lightTap();
+  };
+  const [boardZoom,setBoardZoom] = useState(()=>{
+    try {return clampBoardZoom(Number(localStorage.getItem('boop-board-zoom')||'1')); }
+    catch {return 1;}
+  });
+  const zoomRef=useRef(boardZoom);
+  zoomRef.current=boardZoom;
 
   const [searchQuery, setSearchQuery] = useState('');
   const [sortMode, setSortMode] = useState<'time' | 'alpha' | 'discoveries' | 'shinies' | 'crafted'>('time');
@@ -226,14 +255,55 @@ export function InfiniteCraftView() {
   const burstTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const viewportRef = useRef<HTMLDivElement>(null);
+  const setZoomPreservingCenter = (value:number) => {
+    const next=clampBoardZoom(value),prior=zoomRef.current;
+    if(next===prior)return;
+    const viewport=viewportRef.current;
+    const centerX=viewport?(viewport.scrollLeft+viewport.clientWidth/2)/prior:0;
+    const centerY=viewport?(viewport.scrollTop+viewport.clientHeight/2)/prior:0;
+    zoomRef.current=next;setBoardZoom(next);
+    try{localStorage.setItem('boop-board-zoom',String(next));}catch{/* optional UI preference */}
+    if(viewport)requestAnimationFrame(()=>{
+      viewport.scrollLeft=centerX*next-viewport.clientWidth/2;
+      viewport.scrollTop=centerY*next-viewport.clientHeight/2;
+    });
+  };
+  useEffect(()=>{
+    const viewport=viewportRef.current;
+    if(!viewport)return;
+    let pinch:{distance:number;zoom:number}|null=null;
+    const distance=(a:Touch,b:Touch)=>Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);
+    const start=(e:TouchEvent)=>{
+      if(e.touches.length===2)pinch={distance:Math.max(1,distance(e.touches[0],e.touches[1])),zoom:zoomRef.current};
+    };
+    const move=(e:TouchEvent)=>{
+      if(e.touches.length!==2||!pinch)return;
+      e.preventDefault();
+      setZoomPreservingCenter(pinch.zoom*distance(e.touches[0],e.touches[1])/pinch.distance);
+    };
+    const end=(e:TouchEvent)=>{if(e.touches.length<2)pinch=null;};
+    const wheel=(e:WheelEvent)=>{
+      if(!e.ctrlKey)return;
+      e.preventDefault();
+      setZoomPreservingCenter(zoomRef.current*(e.deltaY<0?1.08:.92));
+    };
+    viewport.addEventListener('touchstart',start,{passive:true});
+    viewport.addEventListener('touchmove',move,{passive:false});
+    viewport.addEventListener('touchend',end);
+    viewport.addEventListener('wheel',wheel,{passive:false});
+    return ()=>{
+      viewport.removeEventListener('touchstart',start);viewport.removeEventListener('touchmove',move);
+      viewport.removeEventListener('touchend',end);viewport.removeEventListener('wheel',wheel);
+    };
+  }, []);
   const panningRef = useRef<{ id: number; startX: number; startY: number; scrollX: number; scrollY: number } | null>(null);
   const [mergeFx, setMergeFx] = useState<{ id: number; x: number; y: number; dxA: number; dyA: number; dxB: number; dyB: number; a: string; b: string } | null>(null);
   const mergeFxTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     const viewport = viewportRef.current;
     if (!viewport) return;
-    viewport.scrollLeft = BOARD_START_X - Math.min(220, viewport.clientWidth / 4);
-    viewport.scrollTop = BOARD_START_Y - Math.min(160, viewport.clientHeight / 3);
+    viewport.scrollLeft = BOARD_START_X * zoomRef.current - Math.min(220, viewport.clientWidth / 4);
+    viewport.scrollTop = BOARD_START_Y * zoomRef.current - Math.min(160, viewport.clientHeight / 3);
   }, []);
   useEffect(() => () => { if (mergeFxTimerRef.current) clearTimeout(mergeFxTimerRef.current); }, []);
 
@@ -299,7 +369,11 @@ export function InfiniteCraftView() {
       if (document.querySelector('dialog[open]')) return;
       const target = e.target as HTMLElement | null;
       if (target?.matches('input,textarea,select,[contenteditable="true"]')) return;
-      if (e.key === 'Escape') {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') {
+        e.preventDefault(); if (e.shiftKey) redoLayout(); else undoLayout();
+      } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'y') {
+        e.preventDefault(); redoLayout();
+      } else if (e.key === 'Escape') {
         if (firstDiscoveryModal) setFirstDiscoveryModal(null);
         else if (inspectedElement) setInspectedElement(null);
         else if (selectedCanvasId) setSelectedCanvasId(null);
@@ -312,7 +386,7 @@ export function InfiniteCraftView() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [firstDiscoveryModal, inspectedElement, selectedCanvasId, isSidebarOpen]);
+  }, [firstDiscoveryModal, inspectedElement, selectedCanvasId, isSidebarOpen, isSynthesizing]);
 
   // One DOM burst per reveal; CSS handles the motion on the compositor.
   // The previous 24ms particle setInterval rerendered the entire craft view
@@ -559,7 +633,7 @@ export function InfiniteCraftView() {
   const spawnOnCanvas = (name: string, emoji: string, isShiny = false) => {
     sound.playClick(); haptics.lightTap();
     const viewport = viewportRef.current;
-    const center = viewport ? boardCenter(viewport.scrollLeft, viewport.scrollTop, viewport.clientWidth, viewport.clientHeight) : { x: BOARD_START_X, y: BOARD_START_Y };
+    const center = viewport ? boardCenter(viewport.scrollLeft/zoomRef.current, viewport.scrollTop/zoomRef.current, viewport.clientWidth/zoomRef.current, viewport.clientHeight/zoomRef.current) : { x: BOARD_START_X, y: BOARD_START_Y };
     const {x,y} = clampBoardTile(center.x - 65 + (Math.random() * 120 - 60), center.y - 22 + (Math.random() * 95 - 48));
     const newItem: CanvasItem = { instanceId: `spawn-${Date.now()}-${Math.random()}`, name, emoji, x, y, isShiny };
     setCanvasItems(prev => [...prev, newItem]);
@@ -609,8 +683,8 @@ export function InfiniteCraftView() {
   interactions.current = { dropIntoCrucible, handleCombine };
   useEffect(() => {
     const position = (drag: NonNullable<typeof draggingItemRef.current>) => ({
-      x: drag.originX + drag.currentX - drag.startX,
-      y: drag.originY + drag.currentY - drag.startY,
+      x: drag.originX + (drag.currentX - drag.startX) / zoomRef.current,
+      y: drag.originY + (drag.currentY - drag.startY) / zoomRef.current,
     });
     const applyDragPosition = (drag: NonNullable<typeof draggingItemRef.current>) => {
       const { x, y } = position(drag);
@@ -749,7 +823,11 @@ export function InfiniteCraftView() {
       return;
     }
     const picked = chooseSpawnElements<InfiniteElement>(pool, count).slice(0, remaining);
-    const spots = spawnPositions(picked.length, viewportRef.current);
+    const vp = viewportRef.current;
+    const spots = spawnPositions(picked.length,vp ? {
+      scrollLeft:vp.scrollLeft/zoomRef.current,scrollTop:vp.scrollTop/zoomRef.current,
+      clientWidth:vp.clientWidth/zoomRef.current,clientHeight:vp.clientHeight/zoomRef.current
+    }:null);
     const batchId = ++spawnSequenceRef.current;
     const tiles: CanvasItem[] = picked.map((item, index) => ({
       instanceId: `spawn-${Date.now()}-${batchId}-${index}`,
@@ -814,13 +892,18 @@ export function InfiniteCraftView() {
                 <p className="boop-spawn-note">Only elements you already own. Tap any number to place them on your board.</p>
               </div>}
             </div>
+            <button type="button" aria-label="Undo last board action" title="Undo (Ctrl+Z)" disabled={isSynthesizing || !historySize.past} onClick={undoLayout}><Undo2 size={18}/></button>
+            <button type="button" aria-label="Redo board action" title="Redo (Ctrl+Y)" disabled={isSynthesizing || !historySize.future} onClick={redoLayout}><Redo2 size={18}/></button>
+            <button type="button" aria-label="Zoom out" disabled={boardZoom<=.6} onClick={()=>setZoomPreservingCenter(boardZoom-.15)}><Minus size={18}/></button>
+            <span className="boop-board-zoom" aria-live="off">{Math.round(boardZoom*100)}%</span>
+            <button type="button" aria-label="Zoom in" disabled={boardZoom>=1.5} onClick={()=>setZoomPreservingCenter(boardZoom+.15)}><ZoomIn size={18}/></button>
             <button type="button" aria-label="Tidy tiles" title="Tidy tiles" onClick={tidyCanvas}><LayoutGrid size={18}/><span>Tidy</span></button>
             <button type="button" aria-label="Clear board" title="Clear board" onClick={clearCanvas}><Trash2 size={18}/></button>
             <button type="button" className="boop-board-library-toggle" aria-expanded={isSidebarOpen} aria-controls="boop-board-library" onClick={() => setIsSidebarOpen(v=>!v)}><Search size={18}/><span>Elements</span><b>{elements.length}</b></button>
           </div>
         </header>
         <div className="boop-board-viewport" ref={viewportRef} aria-label="Pan and drag crafting board" onPointerDown={startPan} onPointerMove={movePan} onPointerUp={endPan} onPointerCancel={endPan}>
-          <div ref={canvasRef} className="boop-board-world" style={{ width:BOARD_WIDTH, height:BOARD_HEIGHT }}>
+          <div ref={canvasRef} className="boop-board-world" style={{ width:BOARD_WIDTH, height:BOARD_HEIGHT, zoom:boardZoom }}>
             <div className="boop-board-origin-hint" style={{ left:BOARD_START_X - 6, top:BOARD_START_Y - 68 }}>DROP. MIX. DISCOVER.</div>
             {canvasItems.map(item=><div
               key={item.instanceId} data-craft-instance={item.instanceId}
