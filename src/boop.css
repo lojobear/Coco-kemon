@@ -1635,3 +1635,359 @@ html.boop-native-shell .boop-app .boop-cloud-dialog {
   .boop-app .boop-board-toolbar--quiet *,
   .boop-app .collection-workbench .combine-dock * {transition:none!important;animation:none!important;}
 }
+
+/* ==========================================================
+   BOOP / PIXEL 9 FOCUS PASS
+   Compact crafting, thumb-reachable actions and calm combine.
+   393dp reference viewport; accommodates safe areas and zoom.
+   ========================================================== */
+.boop-app .boop-board-toolbar--quiet {
+  background:#fff!important;border-bottom:1px solid #eaedf0!important;
+  padding:11px 14px!important;
+}
+.boop-app .boop-board-toolbar--quiet .boop-board-heading strong {
+  font-size:23px;letter-spacing:-.9px;color:#252e38;font-weight:850;
+}
+.boop-app .boop-board-toolbar--quiet .boop-board-heading small {
+  color:#85909c;font-size:11px;
+}
+.boop-app .boop-board-viewport {
+  background:#fff!important;
+}
+.boop-app .boop-board-world {
+  background-color:#fff!important;
+  background-image:radial-gradient(circle,#e5e9ed 1px,transparent 1.4px)!important;
+  background-size:25px 25px!important;
+}
+.boop-app .boop-board-layout .boop-board-item {
+  background:#fff;box-shadow:0 3px 0 #eef0f2,0 5px 12px #2936430b;
+  border:1px solid #d7dde2;color:#364351;
+  padding:6px 8px 6px 6px;min-height:42px;
+}
+.boop-app .boop-board-layout .boop-board-item .craft-emoji {
+  width:32px;height:32px;
+}
+.boop-app .boop-board-layout .boop-board-item button {
+  opacity:.48;
+}
+.boop-app .boop-board-layout .boop-board-item:is(:focus-within,:hover,.is-selected) button {
+  opacity:1;
+}
+.boop-app .boop-board-layout .boop-board-item > span:not(.element-emoji) {
+  font-size:12px;font-weight:700;
+}
+.boop-craft-action-dock {
+  flex:0 0 auto;
+  z-index:7;
+  background:#fff;
+  box-shadow:0 -7px 32px #2434460c;
+  border-top:1px solid #e8ecf0;
+  padding:10px 14px max(12px,env(safe-area-inset-bottom,0px));
+  display:flex;flex-direction:column;gap:9px;
+}
+.boop-craft-dock-row {
+  display:flex;align-items:center;gap:8px;min-height:47px;
+}
+.boop-app .boop-craft-dock-row > button {
+  display:flex;align-items:center;justify-content:center;gap:9px;
+  border-radius:14px;min-height:47px;
+  background:#f6f7f8;border:1px solid #e0e5e9;
+  color:#46515e;font-size:12px;font-weight:800;
+  padding:10px 13px;white-space:nowrap;
+}
+.boop-app .boop-craft-dock-row .boop-board-mobile-library {
+  position:static!important;transform:none;
+  min-height:48px!important;flex:1;display:flex!important;
+  justify-content:flex-start;background:#303943!important;
+  color:#fff!important;border-color:#303943!important;
+  box-shadow:none!important;max-width:none!important;
+  padding:10px 13px!important;margin:0!important;
+}
+.boop-craft-dock-row .boop-board-mobile-library b {
+  margin-left:auto;background:#ffffff24;color:#fff;
+  border-radius:8px;padding:3px 6px;font-size:10px;
+}
+.boop-craft-dock-row .boop-craft-quick-spawn {
+  background:#f6f7f8;border-color:#e0e5e9;min-width:99px;
+}
+.boop-craft-dock-row .boop-artwork-queue {
+  position:relative!important;inset:auto!important;bottom:auto!important;
+  width:45px;min-width:45px;min-height:47px;max-width:none!important;
+  border:1px solid #e2e7ed!important;border-radius:13px!important;
+  background:#fff!important;box-shadow:none!important;
+  padding:0!important;display:flex;align-items:stretch;
+}
+.boop-craft-dock-row .boop-artwork-queue summary {
+  list-style:none;display:flex;align-items:center;justify-content:center;gap:3px;
+  height:100%;min-height:45px;padding:4px;cursor:pointer;color:#66727f;
+  font-size:10px;font-weight:850;
+}
+.boop-craft-dock-row .boop-artwork-queue summary::-webkit-details-marker {display:none;}
+.boop-craft-dock-row .boop-artwork-queue>div {
+  position:absolute;right:0;bottom:calc(100% + 9px);
+  min-width:195px;max-width:min(265px,90vw);background:#fff;
+  border:1px solid #e2e7ec;border-radius:13px;
+  box-shadow:0 12px 28px #19283820;
+  padding:12px;display:flex;flex-direction:column;gap:7px;z-index:10;
+}
+.boop-craft-dock-row .boop-artwork-queue p {
+  margin:0;font-size:12px;color:#697582;font-weight:650;
+}
+.boop-craft-dock-row .boop-artwork-queue>div button {
+  width:100%;padding:10px;min-height:42px;border:1px solid #dbe2e8;
+  background:#f5f6f8;border-radius:10px;color:#37424f;font-weight:800;font-size:11px;
+}
+.boop-app .boop-craft-action-dock .boop-board-result {
+  display:flex;align-items:center;position:relative!important;left:auto!important;right:auto!important;
+  top:auto!important;bottom:auto!important;transform:none!important;
+  width:100%!important;max-width:none!important;min-width:0;
+  border:1px solid #e2e7ed!important;background:#fbfcfd!important;
+  border-radius:14px!important;padding:6px 8px!important;gap:8px!important;
+  box-shadow:none!important;animation:none!important;color:#303943;
+}
+.boop-craft-action-dock .boop-board-result .craft-emoji {
+  width:46px!important;height:46px!important;flex-shrink:0;
+}
+.boop-craft-action-dock .boop-board-result small {
+  font-size:9px!important;color:#8b96a1!important;letter-spacing:.8px;
+}
+.boop-craft-action-dock .boop-board-result strong {
+  color:#303943!important;font-size:14px!important;
+}
+.boop-craft-action-dock .boop-board-result button {
+  min-height:37px;min-width:37px;padding:8px;border-radius:10px;
+  white-space:nowrap;background:#e8edf1!important;color:#3d4b57!important;
+}
+.boop-craft-action-dock .boop-board-result button:last-child {background:transparent!important;min-width:28px;}
+.boop-app .boop-craft-action-dock .boop-board-status,
+.boop-app .boop-craft-action-dock .boop-board-alert {
+  position:relative!important;left:auto!important;right:auto!important;
+  top:auto!important;bottom:auto!important;transform:none!important;
+  margin:0;width:100%;max-width:none!important;
+  display:flex;align-items:center;gap:8px;
+  padding:9px 11px!important;border-radius:12px;
+  background:#f6f8fa!important;color:#44515f!important;
+  font-size:11px;border:1px solid #e7ebef;
+}
+.boop-craft-action-dock .boop-board-status small {
+  font-size:10px;color:#82909d!important;
+  max-width:45%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.boop-craft-action-dock .boop-board-alert {
+  flex-wrap:wrap;background:#fff7f1!important;
+}
+.boop-app .boop-board-toast {
+  bottom:calc(88px + env(safe-area-inset-bottom,0px))!important;
+  left:50%!important;right:auto!important;transform:translateX(-50%);
+  max-width:calc(100% - 30px);pointer-events:none;
+}
+/* Combine: the reaction is the hero, ingredient browsing is supporting UI. */
+.boop-app .collection-workbench {
+  display:flex!important;flex-direction:column;max-width:920px!important;
+  gap:13px!important;background:#fff!important;
+  padding:17px 16px calc(85px + env(safe-area-inset-bottom,0px))!important;
+}
+.boop-app .collection-workbench .workbench-intro {
+  gap:9px;align-items:center!important;
+}
+.boop-app .collection-workbench .workbench-intro h1 {
+  font-size:27px!important;letter-spacing:-1px;color:#222d37;font-weight:850;
+}
+.boop-app .collection-workbench .workbench-intro p {
+  font-size:11px!important;color:#82909a!important;
+}
+.boop-app .collection-workbench .craft-switch {flex-shrink:0;}
+.boop-app .collection-workbench .combine-dock {
+  background:#fbfcfd!important;box-shadow:0 2px 8px #202a3410!important;
+  border:1px solid #e5e9ee!important;border-radius:19px!important;
+  padding:14px!important;gap:9px!important;
+}
+.boop-app .collection-workbench .combine-dock .boop-pad-heading {
+  color:#7b8792!important;font-size:10px!important;
+}
+.boop-app .collection-workbench .combine-dock .boop-ready-tag {
+  background:#f0f3f5!important;color:#4a5763!important;
+}
+.boop-app .collection-workbench .combine-inputs {
+  display:flex;align-items:center;justify-content:center;gap:10px;
+}
+.boop-app .collection-workbench .combine-dock .ingredient-pick {
+  background:white!important;border:1px solid #dce3e9!important;
+  box-shadow:0 2px 0 #e9edf0;border-radius:14px;
+}
+.boop-app .collection-workbench .combine-dock .ingredient-pick.is-targeted {
+  border-color:#818e9b!important;box-shadow:0 0 0 3px #d8dfe6!important;
+}
+.boop-app .collection-workbench .combine-dock .combine-primary {
+  background:#303b45!important;box-shadow:none!important;
+  min-height:47px;border-radius:12px!important;font-size:13px;
+}
+.boop-app .collection-workbench .discovery-heading {
+  flex-wrap:wrap;align-items:center;gap:8px;margin:2px 0 0;
+}
+.boop-app .collection-workbench .discovery-heading h2 {
+  color:#313d49;font-size:17px;font-weight:850;
+}
+.boop-app .collection-workbench .discovery-search {
+  border-color:#e0e5ea!important;border-radius:12px!important;
+}
+.boop-foundry-filter-disclosure {
+  width:100%;border-bottom:1px solid #edf0f2;padding-bottom:8px;
+}
+.boop-foundry-filter-disclosure>summary {
+  list-style:none;cursor:pointer;display:flex;align-items:center;gap:7px;
+  color:#7a8693;font-size:12px;font-weight:700;min-height:32px;
+}
+.boop-foundry-filter-disclosure>summary::-webkit-details-marker {display:none;}
+.boop-foundry-filter-disclosure>summary>span {margin-left:auto;color:#a1aab4;font-weight:600;font-size:11px;}
+.boop-foundry-filter-disclosure .collection-filters {
+  display:flex;align-items:center;gap:7px;margin:7px 0 0!important;
+  border:0!important;padding:0!important;
+}
+.boop-foundry-filter-disclosure .collection-filters select {
+  min-height:40px;padding:8px;border:1px solid #e0e5eb;border-radius:10px;
+  background:#fff;color:#4a5765;font-size:11px;
+}
+.boop-app .collection-workbench .discovery-grid {
+  display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:9px!important;
+}
+.boop-app .collection-workbench .discovery-tile {
+  position:relative;border:1px solid #e7eaee!important;background:#fff!important;
+  border-radius:14px!important;
+}
+.boop-app .collection-workbench .discovery-pick {
+  min-height:113px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:5px!important;padding:8px 4px!important;
+}
+.boop-app .collection-workbench .discovery-pick .element-emoji {
+  width:66px;height:66px;
+}
+.boop-app .collection-workbench .discovery-pick>span:not(.element-emoji) {
+  font-size:11px;font-weight:700;line-height:1.25;color:#394755!important;
+  max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.boop-app .collection-workbench .discovery-info {
+  opacity:.65;
+}
+.boop-foundry-show-more {
+  display:flex;align-items:center;justify-content:center;gap:10px;align-self:center;
+  width:min(100%,300px);background:#f5f7f9;border:1px solid #e1e6eb;
+  min-height:44px;border-radius:12px;padding:10px 15px;
+  color:#435160;font-weight:800;font-size:12px;
+}
+.boop-foundry-show-more span {color:#8996a2;font-weight:500;font-size:10px;}
+/* First discovery modal should match the restrained white collectible UI. */
+.boop-app .boop-craft-studio .boop-board-fusion {pointer-events:none;}
+@media(max-width:520px){
+  .boop-app .boop-board-toolbar--quiet {
+    min-height:53px!important;padding:7px 12px!important;gap:6px;
+  }
+  .boop-app .boop-board-toolbar--quiet .boop-board-heading strong {font-size:20px;}
+  .boop-app .boop-board-toolbar--quiet .boop-board-heading small {
+    font-size:9px;display:block;max-width:133px;
+    text-overflow:ellipsis;overflow:hidden;white-space:nowrap;
+  }
+  .boop-app .boop-board-actions--quiet {gap:5px;}
+  .boop-app .boop-board-actions--quiet > button {min-width:36px;min-height:38px;padding:6px;}
+  .boop-app .boop-board-actions--quiet .boop-quiet-spawn {
+    background:#f5f6f7!important;color:#374451!important;
+    border-color:#e1e6ea!important;padding:7px 9px;
+  }
+  .boop-app .boop-board-actions--quiet .boop-quiet-spawn span {display:none;}
+  .boop-app .boop-craft-action-dock {
+    padding:9px 12px calc(10px + env(safe-area-inset-bottom,0px));
+    gap:8px;box-shadow:0 -5px 19px #2937470b;
+  }
+  .boop-craft-dock-row {gap:7px;}
+  .boop-app .boop-craft-dock-row .boop-board-mobile-library {min-height:47px!important;}
+  .boop-app .boop-craft-dock-row .boop-craft-quick-spawn {min-width:91px;padding:9px;}
+  .boop-app .boop-board-layout .boop-board-item {
+    border-radius:12px;min-height:41px;
+  }
+  .boop-app .boop-board-layout .boop-board-item .craft-emoji {
+    width:30px;height:30px;
+  }
+  .boop-app .boop-board-origin-hint {display:none;}
+  .boop-app .collection-workbench {
+    padding:12px 12px calc(92px + env(safe-area-inset-bottom,0px))!important;
+    gap:10px!important;
+  }
+  .boop-app .collection-workbench .workbench-intro h1 {font-size:23px!important;}
+  .boop-app .collection-workbench .workbench-intro p {font-size:10px!important;}
+  .boop-app .collection-workbench .craft-switch {gap:2px;padding:3px!important;}
+  .boop-app .collection-workbench .craft-switch button {
+    padding:7px 8px!important;min-height:35px;font-size:11px!important;
+  }
+  .boop-app .collection-workbench .craft-switch button svg {width:14px;height:14px;}
+  .boop-app .collection-workbench .combine-dock {
+    position:sticky!important;top:0;z-index:7;
+    border-radius:16px!important;padding:10px 10px 11px!important;gap:7px!important;
+    box-shadow:0 5px 17px #26384912!important;
+  }
+  .boop-app .collection-workbench .combine-dock .boop-pad-heading {font-size:9px!important;}
+  .boop-app .collection-workbench .combine-inputs {
+    gap:7px;flex-wrap:wrap!important;justify-content:center!important;
+  }
+  .boop-app .collection-workbench .combine-dock .ingredient {
+    flex:0 1 94px;min-width:0;
+  }
+  .boop-app .collection-workbench .combine-dock .ingredient-pick {
+    width:68px!important;height:68px!important;max-width:100%;
+    margin-inline:auto;border-radius:12px;
+  }
+  .boop-app .collection-workbench .combine-dock .ingredient-pick .element-emoji {
+    width:61px!important;height:61px!important;
+  }
+  .boop-app .collection-workbench .combine-dock .ingredient>span {
+    font-size:10px!important;max-width:100px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .boop-app .collection-workbench .combine-dock .ingredient-plus {width:17px;height:17px;}
+  .boop-app .collection-workbench .combine-dock .process-control {
+    flex:1 0 100%;max-width:none!important;min-height:35px;
+    display:flex;align-items:center;flex-direction:row;gap:8px;
+  }
+  .boop-app .collection-workbench .combine-dock .process-control select {
+    flex:1;min-height:36px!important;font-size:11px;
+  }
+  .boop-app .collection-workbench .combine-dock .random-process {
+    flex:0 0 35px;min-height:35px!important;
+  }
+  .boop-app .collection-workbench .combine-dock .recipe-tools {display:none!important;}
+  .boop-app .collection-workbench .combine-actions {gap:7px;margin:0!important;}
+  .boop-app .collection-workbench .combine-actions button {min-height:44px!important;}
+  .boop-app .collection-workbench .discovery-heading {
+    align-items:center;gap:8px!important;
+  }
+  .boop-app .collection-workbench .discovery-heading h2 {font-size:14px!important;}
+  .boop-app .collection-workbench .discovery-search {
+    flex:1 1 100%;width:100%;min-height:43px;
+  }
+  .boop-app .collection-workbench .discovery-search input {min-height:43px;font-size:13px;}
+  .boop-app .collection-workbench .discovery-grid {
+    grid-template-columns:repeat(3,minmax(0,1fr));gap:8px!important;
+  }
+  .boop-app .collection-workbench .discovery-pick {
+    min-height:108px!important;padding:7px 4px!important;
+  }
+  .boop-app .collection-workbench .discovery-pick .element-emoji {
+    width:63px!important;height:63px!important;
+  }
+  .boop-app .collection-workbench .discovery-pick>span:not(.element-emoji) {
+    font-size:10px!important;max-width:100%;
+  }
+  .boop-app .collection-workbench .discovery-info {width:26px;height:26px;}
+  .boop-app .collection-workbench .boop-foundry-progress-details {margin-top:2px;}
+}
+@media(max-width:365px){
+  .boop-app .collection-workbench .craft-switch button {font-size:10px!important;padding:6px!important;}
+  .boop-app .boop-board-toolbar--quiet .boop-board-heading small {display:none;}
+  .boop-app .boop-craft-dock-row .boop-board-mobile-library span {font-size:11px;}
+  .boop-app .boop-craft-dock-row .boop-craft-quick-spawn {min-width:47px;font-size:0;}
+  .boop-app .collection-workbench .discovery-pick .element-emoji {width:53px!important;height:53px!important;}
+}
+@media(prefers-reduced-motion:reduce){
+  .boop-craft-action-dock *, .boop-app .collection-workbench .discovery-tile {
+    animation:none!important;transition:none!important;
+  }
+}
