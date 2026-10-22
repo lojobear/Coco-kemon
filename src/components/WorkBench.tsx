@@ -4,7 +4,6 @@ import { useGame } from '../lib/gameStore';
 import type { Material } from '../types';
 import { readCraftElements, SAVE_IMPORTED_EVENT } from '../lib/saveData';
 import { conceptMaterial } from '../lib/conceptMaterial';
-import { generateMaterialSprite } from '../lib/pixelRenderer';
 import { generateFreshPixelArt } from '../lib/freshPixelArt';
 import { MaterialSprite } from './ElementSprite';
 import { chooseRandomProcess } from '../lib/randomProcess';
