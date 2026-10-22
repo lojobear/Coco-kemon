@@ -50,7 +50,7 @@ const PATTERNS:Array<[RegExp,Form,keyof typeof PALETTES]>=[
  [/\b(?:lantern|lamp|lightbulb|light bulb)\b/i,'lantern','food'],
  [/\b(?:trophy|medal|award|champion)\b/i,'trophy','magic'],
  [/\b(?:toaster|oven|microwave)\b/i,'toaster','tech'],
- [/\b(?:pancake|waffle|crepe)\b/i,'pancakes','food'],
+ [/\b(?:pancakes?|waffles?|crepes?)\b/i,'pancakes','food'],
  [/\b(?:compass|navigation|map)\b/i,'compass','tech'],
  [/\b(?:umbrella|parasol)\b/i,'umbrella','ice'],
  [/\b(?:bread|loaf|baguette|croissant|toast)\b/i,'bread','food'],
