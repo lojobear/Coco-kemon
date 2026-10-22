@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { chooseSpawnElements, spawnSourcePool, spawnPositions, SPAWN_COUNTS, SPAWN_SOURCES } from '../src/lib/randomSpawn';
+import { chooseSpawnElements, spawnSourcePool, spawnPositions, spreadSpawnPositions, SPAWN_COUNTS, SPAWN_SOURCES } from '../src/lib/randomSpawn';
 import type { InfiniteElement } from '../src/lib/infiniteCraftData';
 
 const items: InfiniteElement[] = [
@@ -45,14 +45,16 @@ test('spawn positions keep tiles near viewport center and inside the world',()=>
   }
 });
 
-test("Discover menu has accessible choices and does not trigger AI calls or unlock items",()=>{
+test("Discover instant Spawn controls are direct, accessible and never call AI",()=>{
   const component=readFileSync(new URL('../src/components/InfiniteCraftView.tsx',import.meta.url),'utf8');
-  assert.match(component,/aria-label="Random spawn options"/);
-  assert.match(component,/aria-expanded=\{spawnMenuOpen\}/);
+  assert.match(component,/aria-label="Random element spawn"/);
+  assert.match(component,/Tap an amount to spawn instantly/);
+  assert.match(component,/aria-pressed=\{spawnCount===count\}/);
+  assert.match(component,/onClick=\{\(\)=>spawnRandomBatch\(count\)\}/);
+  assert.match(component,/onClick=\{\(\)=>spawnRandomBatch\(spawnCount\)\}/);
   assert.match(component,/SPAWN_COUNTS\.map/);
-  assert.match(component,/SPAWN_SOURCES\.map/);
-  assert.match(component,/chooseSpawnElements<InfiniteElement>\(pool, count\)/);
-  assert.match(component,/setSpawnMenuOpen\(false\)/);
+  assert.doesNotMatch(component,/spawnMenuOpen|boop-spawn-menu|SPAWN_SOURCES\.map/);
+  assert.match(component,/chooseSpawnElements<InfiniteElement>\(spawnPool, count\)/);
   assert.match(component,/setCanvasItems\(previous =>/);
   assert.match(component,/setTimeout\(\(\) => setSpawnToast\(null\), 2400\)/);
 });
@@ -63,7 +65,15 @@ test('Boop uses white canvas with legible dark controls in web and native Androi
   assert.match(css,/--boop-canvas: #ffffff;/);
   assert.match(css,/\.boop-app \.boop-board-world\s*\{\s*background-color:#fff!important;/);
   assert.match(css,/\.boop-app \.boop-board-layout \.boop-board-item\s*\{\s*background:#fff;/);
-  assert.match(css,/\.boop-spawn-menu\s*\{[\s\S]*?background:#fff;color:#28323d;/);
+  assert.match(css,/\.boop-spawn-quick-counts button\[aria-pressed="true"\]/);
   assert.match(java,/setStatusBarColor\(Color\.WHITE\)/);
   assert.match(java,/toolbar\.setBackgroundColor\(Color\.WHITE\)/);
+});
+
+test('repeat batches avoid overlapping the same positions and retain owned item count',()=>{
+  const viewport={scrollLeft:900,scrollTop:560,clientWidth:380,clientHeight:650};
+  const first=spreadSpawnPositions(spawnPositions(2,viewport),[],1);
+  const second=spreadSpawnPositions(spawnPositions(2,viewport),first,2);
+  assert.equal(new Set([...first,...second].map(p=>`${p.x},${p.y}`)).size,4);
+  assert.deepEqual(items.map(p=>p.name),['Water','Fire','Cloud','Ice','Flower']);
 });
