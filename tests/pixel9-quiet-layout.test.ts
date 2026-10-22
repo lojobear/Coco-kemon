@@ -45,14 +45,14 @@ test('Crafting board has one progressive-disclosure tools menu',()=>{
   assert.match(src,/setSpawnCount\(count\)/);
   assert.match(src,/aria-label="Undo last board action"/);
   assert.match(src,/aria-label="Zoom in"/);
-  assert.match(src,/boop-board-mobile-library/);
+  assert.match(src,/boop-mobile-craft-dock/);
   assert.doesNotMatch(src,/className="boop-spawn-quick"/);
 });
 
 test('Combine screen puts the real ingredient panel first and hides advanced progression',()=>{
   const src=read('src/components/WorkBench.tsx');
   assert.ok(src.indexOf('className={`combine-dock') < src.indexOf('className="discovery-heading"'));
-  assert.match(src,/<h1>Combine\.<\/h1>/);
+  assert.match(src,/<h1>Combine<\/h1>/);
   assert.match(src,/<details className="boop-foundry-progress-details">/);
   assert.match(src,/generateFreshPixelArt\(item\.name\)/);
   assert.match(src,/runSynthesis\(\)/);
