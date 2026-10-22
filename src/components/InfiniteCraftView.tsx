@@ -17,7 +17,7 @@ import {
   validNewElementName,
 } from '../lib/infiniteCraftData';
 import { requestJson } from '../lib/api';
-import { getElementEmoji, retryElementEmoji } from '../lib/elementEmoji';
+import { enqueueArtwork, startArtworkQueue, artworkQueueStatus, retryPendingArtwork, ARTWORK_QUEUE_EVENT } from '../lib/artworkQueue';
 import { CANONICAL_INFINITE_CRAFT_RECIPES, makePairKey } from '../lib/infiniteCraftData';
 import { findCraftDropTarget } from '../lib/craftCollision';
 import { BOARD_WIDTH, BOARD_HEIGHT, BOARD_START_X, BOARD_START_Y, boardCenter, clampBoardTile } from '../lib/boardGeometry';
@@ -138,18 +138,13 @@ export function InfiniteCraftView() {
   const showFreeform = true;
   const [ingredientFilter, setIngredientFilter] = useState<'all' | 'new' | 'shiny'>('all');
   const [lastResult, setLastResult] = useState<InfiniteElement | null>(null);
-  const [spriteIssue, setSpriteIssue] = useState<{ name: string; message: string } | null>(null);
-  const [spriteRetrying, setSpriteRetrying] = useState(false);
-  const latestSpriteRequestRef = useRef('');
-  const lastSpriteNoticeAtRef = useRef(0);
-
-  // A failed image request must not leave an old discovery warning permanently
-  // occupying the play area. Artwork is still saved/retryable via Sprite Lab.
+  const [artStatus, setArtStatus] = useState(artworkQueueStatus);
   useEffect(() => {
-    if (!spriteIssue) return;
-    const timer = window.setTimeout(() => setSpriteIssue(null), 12_000);
-    return () => window.clearTimeout(timer);
-  }, [spriteIssue]);
+    const update = () => setArtStatus(artworkQueueStatus());
+    window.addEventListener(ARTWORK_QUEUE_EVENT, update);
+    const cleanup = startArtworkQueue();
+    return () => { window.removeEventListener(ARTWORK_QUEUE_EVENT, update); cleanup(); };
+  }, []);
   const [elements, setElements] = useState<InfiniteElement[]>(() => {
     try {
       const saved = JSON.stringify(readCraftElements());
@@ -169,7 +164,6 @@ export function InfiniteCraftView() {
       setElements(sanitizeElements(readCraftElements()));
       setCanvasItems([]);
       setLastResult(null);
-      setSpriteIssue(null);
       setCrucibleSlotA(null);
       setCrucibleSlotB(null);
       setSelectedCanvasId(null);
@@ -436,27 +430,11 @@ export function InfiniteCraftView() {
       };
 
       setLastResult(newElemObj);
-      setSpriteIssue(null);
-      latestSpriteRequestRef.current = cleanName;
-      if (firstInCollection || isShinyEncounter) {
-        // Missing artwork must not silently fail after the item was collected.
-        // Keep the discovery; the gallery renders a temporary local pixel preview.
-        void getElementEmoji(cleanName, false, '', true, isShinyEncounter).then(() => {
-          if (latestSpriteRequestRef.current === cleanName) {
-            setSpriteIssue(prev => prev?.name === cleanName ? null : prev);
-          }
-        }).catch(error => {
-          if (latestSpriteRequestRef.current !== cleanName) return;
-          // Warn once per brief gameplay window, not after every new element
-          // while the account's image-provider credentials remain broken.
-          if (Date.now() - lastSpriteNoticeAtRef.current < 90_000) return;
-          lastSpriteNoticeAtRef.current = Date.now();
-          setSpriteIssue({
-            name: cleanName,
-            message: error instanceof Error ? error.message : 'AI sprite generation is unavailable right now.',
-          });
-        });
-      }
+      // Artwork is best effort and never blocks discovery saves or the board.
+      // Provider outages pause the durable queue instead of showing one error
+      // after every newly discovered element.
+      if (firstInCollection) enqueueArtwork(cleanName, false);
+      if (isShinyEncounter) enqueueArtwork(cleanName, true);
       setElements(prev => {
         const existingIdx = prev.findIndex(el => el.id.toLowerCase() === cleanId || el.name.trim().toLowerCase() === normName);
         if (existingIdx >= 0) {
@@ -539,23 +517,6 @@ export function InfiniteCraftView() {
       if (hoveredNodeRef.current) hoveredNodeRef.current.classList.remove('is-drop-target');
       hoveredNodeRef.current = null;
       setIsCrucibleHovered(false);
-    }
-  };
-
-  const retryMissingSprite = async () => {
-    const target = spriteIssue?.name;
-    if (!target || spriteRetrying) return;
-    setSpriteRetrying(true);
-    try {
-      await retryElementEmoji(target, Boolean(elements.find(el => el.name === target)?.isShiny));
-      setSpriteIssue(prev => prev?.name === target ? null : prev);
-    } catch (error) {
-      setSpriteIssue({
-        name: target,
-        message: error instanceof Error ? error.message : 'The image service is still unavailable.',
-      });
-    } finally {
-      setSpriteRetrying(false);
     }
   };
 
@@ -883,7 +844,11 @@ export function InfiniteCraftView() {
         {activeCombination && <div className="boop-board-status" role="status"><span className="boop-inline-spinner"/>Combining {activeCombination.nameA} + {activeCombination.nameB}… <small>Keep moving tiles</small></div>}
         {lastResult && <div className="boop-board-result" key={lastResult.discoveredAt} role="status"><CraftSprite name={lastResult.name} emoji={lastResult.emoji} isShiny={lastResult.isShiny}/><div><small>{lastResult.isNew ? '✦ NEW DISCOVERY' : 'CREATED'}</small><strong>{lastResult.name}</strong></div><button onClick={()=>spawnOnCanvas(lastResult.name,lastResult.emoji,Boolean(lastResult.isShiny))}>Add to board <Plus size={15}/></button><button aria-label="Dismiss result" onClick={()=>setLastResult(null)}><X size={16}/></button></div>}
         {combineError && <div className="boop-board-alert" role="alert">{combineError}<button onClick={()=>{if(lastPairRef.current)void handleCombine(lastPairRef.current[0],lastPairRef.current[1]);}}>Retry</button><button onClick={()=>setCombineError(null)}>Dismiss</button></div>}
-        {spriteIssue && <div className="boop-board-alert" role="status"><strong>{spriteIssue.name} saved.</strong> {/Runware rejected/i.test(spriteIssue.message) ? 'Runware needs a valid API key in Cloudflare. Temporary art is visible.' : 'Artwork is pending; the temporary sprite stays available.'}<button onClick={()=>setSpriteIssue(null)}>OK</button></div>}
+        {artStatus.pending>0 && <div className="boop-artwork-queue" role="status" aria-live="polite">
+          <span>{artStatus.running ? '✦ Drawing artwork…' : `✦ ${artStatus.pending} artwork ${artStatus.pending===1?'item':'items'} pending`}</span>
+          {artStatus.failures>0 && <small>Saved discoveries are safe. Provider access may need attention.</small>}
+          <button type="button" onClick={retryPendingArtwork} disabled={artStatus.running} aria-label="Retry pending artwork">Retry</button>
+        </div>}
         {spawnToast && <div className="boop-board-toast" role="status">{spawnToast}</div>}
         <button className="boop-board-mobile-library" onClick={()=>setIsSidebarOpen(true)} aria-label="Open element library"><Plus size={21}/> Add elements</button>
         {isSidebarOpen && <div className="boop-board-drawer-backdrop" onClick={()=>setIsSidebarOpen(false)} aria-hidden="true"/>}
