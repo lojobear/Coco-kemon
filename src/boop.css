@@ -1434,3 +1434,9 @@ html.boop-native-shell .boop-app .boop-cloud-dialog {
   .boop-app .boop-artwork-queue {right:10px;left:10px;bottom:114px;max-width:none;}
   .boop-app .boop-board-actions >button {min-height:34px;min-width:34px;}
 }
+
+/* Missing artwork repair is opt-in, batch-limited, and does not change discoveries. */
+.boop-album-header-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.boop-album-repair-status{margin:0;color:#687480;background:#f7f8f9;border:1px solid #e6e9ec;border-radius:10px;padding:9px 12px;font-size:12px;line-height:1.4}
+.boop-album-header-actions button:disabled{opacity:.55;cursor:wait}
+@media(max-width:760px){.boop-album-header-actions{width:100%;gap:6px}.boop-album-header-actions button{flex:1;min-width:0;font-size:11px}}
