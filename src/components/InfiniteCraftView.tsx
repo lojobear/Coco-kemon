@@ -872,6 +872,7 @@ export function InfiniteCraftView() {
                   <button type="button" onClick={tidyCanvas}><LayoutGrid size={16}/> Tidy</button>
                   <button type="button" onClick={clearCanvas}><Trash2 size={16}/> Clear board</button>
                 </div>
+                {artStatus.pending>0 && <div className="boop-more-artwork"><span><Sparkles size={15}/> {artStatus.pending} pending sprite{artStatus.pending===1?'':'s'}</span><button type="button" disabled={artStatus.running} onClick={retryPendingArtwork}>Retry artwork</button></div>}
                 <div className="boop-board-more-zoom">
                   <span>Zoom</span>
                   <button type="button" aria-label="Zoom out" disabled={boardZoom<=.6} onClick={()=>setZoomPreservingCenter(boardZoom-.15)}><Minus size={17}/></button>
@@ -904,14 +905,14 @@ export function InfiniteCraftView() {
             </div>}
           </div>
         </div>
-        {activeCombination && <div className="boop-board-status" role="status"><span className="boop-inline-spinner"/>Combining {activeCombination.nameA} + {activeCombination.nameB}… <small>Keep moving tiles</small></div>}
-        {lastResult && <div className="boop-board-result" key={lastResult.discoveredAt} role="status"><CraftSprite name={lastResult.name} emoji={lastResult.emoji} isShiny={lastResult.isShiny}/><div><small>{lastResult.isNew ? '✦ NEW DISCOVERY' : 'CREATED'}</small><strong>{lastResult.name}</strong></div><button onClick={()=>spawnOnCanvas(lastResult.name,lastResult.emoji,Boolean(lastResult.isShiny))}>Add to board <Plus size={15}/></button><button aria-label="Dismiss result" onClick={()=>setLastResult(null)}><X size={16}/></button></div>}
-        {combineError && <div className="boop-board-alert" role="alert">{combineError}<button onClick={()=>{if(lastPairRef.current)void handleCombine(lastPairRef.current[0],lastPairRef.current[1]);}}>Retry</button><button onClick={()=>setCombineError(null)}>Dismiss</button></div>}
-        {artStatus.pending>0 && <div className="boop-artwork-queue" role="status" aria-live="polite">
-          <span>{artStatus.running ? '✦ Drawing artwork…' : `✦ ${artStatus.pending} artwork ${artStatus.pending===1?'item':'items'} pending`}</span>
-          {artStatus.failures>0 && <small>Saved discoveries are safe. Provider access may need attention.</small>}
-          <button type="button" onClick={retryPendingArtwork} disabled={artStatus.running} aria-label="Retry pending artwork">Retry</button>
-        </div>}
+        {/* One feedback card at a time on phone; artwork jobs live in More tools. */}
+        {combineError
+          ? <div className="boop-board-alert" role="alert">{combineError}<button onClick={()=>{if(lastPairRef.current)void handleCombine(lastPairRef.current[0],lastPairRef.current[1]);}}>Retry</button><button onClick={()=>setCombineError(null)}>Dismiss</button></div>
+          : activeCombination
+          ? <div className="boop-board-status" role="status"><span className="boop-inline-spinner"/>Mixing {activeCombination.nameA} + {activeCombination.nameB}…</div>
+          : lastResult
+          ? <div className="boop-board-result" key={lastResult.discoveredAt} role="status"><CraftSprite name={lastResult.name} emoji={lastResult.emoji} isShiny={lastResult.isShiny}/><div><small>{lastResult.isNew ? 'NEW DISCOVERY' : 'CREATED'}</small><strong>{lastResult.name}</strong></div><button onClick={()=>spawnOnCanvas(lastResult.name,lastResult.emoji,Boolean(lastResult.isShiny))}>Place <Plus size={15}/></button><button aria-label="Dismiss result" onClick={()=>setLastResult(null)}><X size={16}/></button></div>
+          : null}
         {spawnToast && <div className="boop-board-toast" role="status">{spawnToast}</div>}
         <div className="boop-mobile-craft-dock" aria-label="Crafting quick actions">
           <button type="button" className="boop-mobile-craft-library" onClick={()=>setIsSidebarOpen(true)} aria-label="Browse ingredients"><Plus size={19}/><span>Ingredients</span><small>{elements.length}</small></button>
