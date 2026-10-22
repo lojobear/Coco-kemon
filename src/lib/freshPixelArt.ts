@@ -10,7 +10,8 @@ type Form='fire'|'water'|'wind'|'earth'|'tree'|'flower'|'mushroom'|'fish'|'cat'|
   |'cake'|'pizza'|'coffee'|'robot'|'rocket'|'cloud'|'sun'|'moon'|'star'|'gem'
   |'book'|'sword'|'heart'|'house'|'mountain'|'burger'|'snow'|'bird'|'butterfly'
   |'clock'|'bottle'|'egg'|'leaf'|'ghost'|'battery'|'planet'|'shell'|'key'
-  |'curio'|'relic'|'creature'|'mechanism'|'crystal';
+  |'curio'|'relic'|'creature'|'mechanism'|'crystal'|'toaster'|'dragon'|'skull'|'crown'
+  |'train'|'car'|'noodles'|'lantern'|'compass'|'camera'|'trophy'|'gift'|'music';
 type Palette={base:string;light:string;shade:string;accent:string;bright:string};
 const PALETTES:Record<string,Palette>={
  fire:{base:'#f87040',light:'#ffb76b',shade:'#b83f3a',accent:'#f7d36d',bright:'#fff4a4'},
@@ -63,6 +64,19 @@ const PATTERNS:Array<[RegExp,Form,keyof typeof PALETTES]>=[
  [/\b(?:planet|galaxy|universe|saturn)\b/i,'planet','cosmic'],
  [/\b(?:shell|coral|seashell)\b/i,'shell','water'],
  [/\b(?:key|lock|door)\b/i,'key','tech'],
+ [/\b(?:toaster|oven|microwave|strudel|waffle)\b/i,'toaster','food'],
+ [/\b(?:dragon|wyrm|wyvern|griffin|phoenix)\b/i,'dragon','magic'],
+ [/\b(?:skull|skeleton|bones|fossil)\b/i,'skull','earth'],
+ [/\b(?:crown|royalty|king|queen|tiara)\b/i,'crown','magic'],
+ [/\b(?:train|locomotive|railway)\b/i,'train','tech'],
+ [/\b(?:car|truck|vehicle|automobile)\b/i,'car','tech'],
+ [/\b(?:noodle|ramen|pasta|spaghetti|soup)\b/i,'noodles','food'],
+ [/\b(?:lantern|lamp|lightbulb|beacon)\b/i,'lantern','magic'],
+ [/\b(?:compass|map|navigation|explorer)\b/i,'compass','earth'],
+ [/\b(?:camera|photo|photography|film)\b/i,'camera','tech'],
+ [/\b(?:trophy|medal|champion|award)\b/i,'trophy','food'],
+ [/\b(?:present|gift|package|parcel)\b/i,'gift','magic'],
+ [/\b(?:music|guitar|piano|song|melody|drum)\b/i,'music','magic'],
 ];
 function hash(name:string):number{
   let n=2166136261;
@@ -72,7 +86,8 @@ function hash(name:string):number{
 function pickForm(name:string):[Form,Palette]{
   for(const [pattern,form,palette] of PATTERNS)if(pattern.test(name))return [form,PALETTES[palette]];
   const n=hash(name);
-  const generic:Form[]=['curio','relic','creature','mechanism','crystal'];
+  const generic:Form[]=['curio','relic','creature','mechanism','crystal',
+    'lantern','compass','camera','trophy','gift','music','crown','toaster','skull','dragon'];
   return [generic[n%generic.length],Object.values(PALETTES)[(n>>>5)%Object.keys(PALETTES).length]];
 }
 const CACHE=new Map<string,string>();
@@ -170,6 +185,32 @@ export function generateFreshPixelArt(name:string):string {
       ellipse(12,14,8,7,B);for(let x=7;x<18;x+=4)line(12,7,x,19,L,1);rect(6,19,12,2,S);break;
     case 'key':
       ellipse(8,8,5,5,B);ellipse(8,8,2,2,H);line(11,12,19,20,S,3);rect(17,18,4,2,A);break;
+    case 'toaster':
+      rect(5,7,14,13,S);rect(6,8,12,10,B);rect(8,5,8,4,INK);rect(9,6,6,3,H);rect(7,16,8,2,L);rect(17,12,3,2,A);break;
+    case 'dragon':
+      ellipse(12,13,7,6,B);ellipse(17,7,3,4,L);line(15,8,19,3,S,2);line(12,9,8,4,A,2);line(9,17,4,20,S,3);rect(17,11,2,2,INK);rect(19,14,2,2,H);break;
+    case 'skull':
+      ellipse(12,10,7,7,L);rect(7,13,10,7,H);rect(8,11,3,3,INK);rect(14,11,3,3,INK);rect(11,16,2,2,S);line(9,19,16,19,S);break;
+    case 'crown':
+      rect(4,13,16,7,B);line(5,12,4,6,S,3);line(9,13,12,4,L,3);line(18,12,19,6,S,3);rect(5,16,14,2,A);rect(11,15,3,3,H);break;
+    case 'train':
+      rect(5,8,14,11,B);rect(5,12,14,5,S);rect(7,10,4,3,H);rect(13,10,4,3,H);rect(9,5,6,4,B);rect(7,18,4,3,INK);rect(15,18,4,3,INK);break;
+    case 'car':
+      rect(3,12,18,7,B);rect(6,8,12,6,S);rect(8,9,4,3,H);rect(14,9,3,3,L);rect(5,17,4,4,INK);rect(16,17,4,4,INK);break;
+    case 'noodles':
+      rect(5,12,14,8,B);rect(4,12,16,3,S);for(let i=7;i<18;i+=3)line(i,7,i+1,13,L,2);rect(7,17,10,2,H);break;
+    case 'lantern':
+      rect(7,8,10,12,S);rect(8,10,8,8,A);rect(10,12,4,5,H);line(9,7,12,4,B,2);line(12,4,15,7,B,2);rect(6,18,12,2,INK);break;
+    case 'compass':
+      ellipse(12,12,9,9,S);ellipse(12,12,7,7,L);line(8,16,16,8,B,2);line(16,8,13,14,A,2);rect(11,11,2,2,INK);break;
+    case 'camera':
+      rect(4,9,16,12,B);rect(7,6,6,4,S);ellipse(12,15,5,5,INK);ellipse(12,15,3,3,L);rect(17,11,2,2,A);break;
+    case 'trophy':
+      rect(8,6,8,10,B);line(6,7,3,12,S,2);line(18,7,21,12,S,2);rect(11,15,3,5,S);rect(7,20,11,2,A);star(12,9,2,H);break;
+    case 'gift':
+      rect(5,9,14,12,B);rect(4,7,16,4,L);rect(11,7,3,14,A);rect(6,13,12,2,H);line(12,8,7,4,S,2);line(12,8,17,4,S,2);break;
+    case 'music':
+      line(13,5,13,17,S,2);line(13,5,19,7,A,2);line(19,7,19,15,S,2);ellipse(10,18,4,3,B);ellipse(16,16,4,3,B);break;
     case 'curio':case 'relic':case 'creature':case 'mechanism':case 'crystal':{
       // Unrecognized elements still receive *different, named original pixel
       // illustrations*, not the same placeholder or emoji.
@@ -181,6 +222,27 @@ export function generateFreshPixelArt(name:string):string {
       else {line(5,17,12,4,B,5);line(12,4,19,17,S,5);ellipse(12,14,5,5,A);star(12,14,2,H);}
       dot(8+accentOffset,6,H);dot(16-accentOffset,19,A);break;
     }
+  }
+  // Original details are deterministically authored for each combination:
+  // even uncommon names sharing a silhouette receive individualized markings.
+  // Keep all decoration inside the sprite boundary and preserve transparency.
+  const detail=(seed>>>10)%5;
+  const x=6+(seed>>>15)%12, y=6+(seed>>>20)%10;
+  if(detail===0){dot(x,y,H);dot(x+1,y,H);dot(x,y+1,A);}
+  else if(detail===1){star(x,y,1,A);dot(x+3,y+5,L);}
+  else if(detail===2){rect(x,y,2,2,A);dot(x+4,y+1,H);}
+  else if(detail===3){line(x,y,x+3,y+2,L);dot(x+2,y+4,H);}
+  else {dot(x,y,A);dot(x+4,y-2,H);dot(x+2,y+4,L);}
+  const matched=PATTERNS.filter(([re])=>re.test(name));
+  if(matched.length>1 && matched[0][1]!==matched[1][1]){
+    // Two recognisable ingredient concepts leave a distinct hybrid hallmark,
+    // rather than simply stamping the exact same art for every pair.
+    const motif=matched[1][1];
+    if(['fire','sun','star','gem','moon'].includes(motif))star(19,5,2,A);
+    else if(['water','cloud','snow','wind'].includes(motif)){line(17,5,20,8,A,2);dot(19,10,H);}
+    else if(['tree','leaf','flower','mushroom'].includes(motif)){line(19,5,17,10,S);rect(17,5,3,2,L);}
+    else if(['robot','battery','camera','mechanism'].includes(motif)){rect(18,5,3,3,INK);dot(19,6,H);}
+    else {rect(18,5,3,3,A);dot(19,6,H);}
   }
   // One-pixel ink border, precise readable silhouette at 24/48/96px.
   const outlined=[...pixels];
