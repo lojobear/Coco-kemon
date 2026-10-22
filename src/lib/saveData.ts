@@ -2,6 +2,7 @@ import { isSpriteReference } from './spriteReference';
 import { validKitchenRecipe } from './kitchen/engine';
 import { STARTER_ELEMENTS, type InfiniteElement } from './infiniteCraftData';
 import { sanitizeTrophyRoom, type TrophyRoom } from './collectorData';
+import { loadBoardLayout, parseBoardLayout, saveBoardLayout, type SavedBoardTile } from './boardLayout';
 import { ALL_PROCESSES, INITIAL_HABITATS } from './starterData';
 import { record, text, strings, finite, color, validMaterial, validOddkin } from './validation';
 
@@ -88,7 +89,7 @@ export function readCraftElements(): InfiniteElement[] {
     return craftMemory = v;
   } catch { recoveryRequired = true; status('Crafting save could not be loaded. Import a valid backup to recover.'); return STARTER_ELEMENTS; }
 }
-function write(foundry: any, crafting: InfiniteElement[], force = false, collectorRoom?: TrophyRoom) {
+function write(foundry: any, crafting: InfiniteElement[], force = false, collectorRoom?: TrophyRoom, boardLayout?: SavedBoardTile[] | null) {
   // Refuse to overwrite a save that another tab wrote after this tab last read it.
   if (!force && lastSeenSavedAt !== undefined && storedSavedAt() > lastSeenSavedAt) {
     status(STALE_TAB_MESSAGE);
@@ -98,7 +99,8 @@ function write(foundry: any, crafting: InfiniteElement[], force = false, collect
   // One setItem commits both collections atomically. Quota failures leave the old save intact.
   const previousRoom = collectorRoom ?? storedEnvelope()?.collectorRoom;
   localStorage.setItem(SAVE_KEY, JSON.stringify({ version: 2, savedAt, foundry, crafting,
-    collectorRoom: sanitizeTrophyRoom(previousRoom, crafting) }));
+    collectorRoom: sanitizeTrophyRoom(previousRoom, crafting),
+    boardLayout: boardLayout ?? loadBoardLayout(crafting) ?? [] }));
   lastSeenSavedAt = savedAt;
   invalidateStoredEnvelope();
   status(null);
@@ -149,7 +151,8 @@ export function saveCollectorRoom(room: TrophyRoom): void {
 }
 export function exportCompleteSave(foundry: any): string {
   return JSON.stringify({ version: 2, exportedAt: new Date().toISOString(), foundry,
-    crafting: readCraftElements(), collectorRoom: readCollectorRoom() }, null, 2);
+    crafting: readCraftElements(), collectorRoom: readCollectorRoom(),
+    boardLayout: loadBoardLayout(readCraftElements()) ?? [] }, null, 2);
 }
 export function parseSave(json: string) {
   const v = JSON.parse(json);
@@ -158,11 +161,14 @@ export function parseSave(json: string) {
   const crafting = v.version === 2 ? v.crafting : readCraftElements();
   if (!validateFoundry(foundry) || !validateCraft(crafting)) throw new Error('Invalid backup');
   return { foundry, crafting,
-    collectorRoom: sanitizeTrophyRoom(v.version === 2 ? v.collectorRoom : null, crafting) };
+    collectorRoom: sanitizeTrophyRoom(v.version === 2 ? v.collectorRoom : null, crafting),
+    boardLayout: v.version === 2 && 'boardLayout' in v
+      ? parseBoardLayout(v.boardLayout, crafting) : null };
 }
 export function importCompleteSave(json: string) {
   const parsed = parseSave(json);
-  write(parsed.foundry, parsed.crafting, true, parsed.collectorRoom);
+  write(parsed.foundry, parsed.crafting, true, parsed.collectorRoom, parsed.boardLayout);
+  if (parsed.boardLayout !== null) saveBoardLayout(parsed.boardLayout);
   recoveryRequired = false;
   craftMemory = parsed.crafting;
   window.dispatchEvent(new Event(SAVE_IMPORTED_EVENT));
