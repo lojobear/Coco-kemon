@@ -866,7 +866,7 @@ export function InfiniteCraftView() {
                 </div>
                 <span className="boop-board-more-label">BOARD TOOLS</span>
                 <div className="boop-board-more-actions">
-                  <button type="button" disabled={isSynthesizing||!historySize.future} onClick={redoLayout}><Redo2 size={16}/> Redo</button>
+                  <button type="button" aria-label="Redo board action" disabled={isSynthesizing||!historySize.future} onClick={redoLayout}><Redo2 size={16}/> Redo</button>
                   <button type="button" onClick={tidyCanvas}><LayoutGrid size={16}/> Tidy</button>
                   <button type="button" onClick={clearCanvas}><Trash2 size={16}/> Clear board</button>
                 </div>
