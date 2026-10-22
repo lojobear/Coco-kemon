@@ -20,6 +20,7 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
   const [category, setCategory] = useState('all');
   const [sort, setSort] = useState<'collection' | 'recent' | 'name'>('collection');
   const [picker, setPicker] = useState<'A' | 'B' | null>(null);
+  const [visible, setVisible] = useState(48);
   const searchRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     const reload = () => setCraftItems(readCraftElements());
@@ -44,6 +45,7 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
     if (sort === 'name') result.sort((a,b) => a.displayName.localeCompare(b.displayName));
     return result;
   }, [materials, category, search, sort]);
+  useEffect(() => setVisible(48), [search, category, sort]);
   const selectItem = (item: Material) => {
     if (isSynthesizing) return;
     sound.playClick();
@@ -71,14 +73,14 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
 
   return <section className="collection-workbench" aria-label="Foundry workspace"><FoundryFusionOverlay />
     <div className="workbench-intro">
-      <div><h1>Combine.</h1><p>Two discoveries. One surprising result.</p></div>
+      <div><h1>Combine</h1><p>Pick two things. See what happens.</p></div>
       <div className="craft-switch" aria-label="Crafting mode">
         <button type="button" aria-pressed="true"><FlaskConical size={19} /> Combine</button>
         <button type="button" aria-pressed="false" onClick={() => setActiveTab('infinite-craft')}><Hammer size={19} /> Craft</button>
       </div>
     </div>
     <div className={`combine-dock ${isSynthesizing ? 'is-combining' : ''}`}>
-      <div className="boop-pad-heading"><span>YOUR COMBINATION</span><span className="boop-ready-tag">{slotA ? (slotB ? 'Ready' : 'Add one more') : 'Choose an ingredient'}</span></div>
+      <div className="boop-pad-heading"><span>YOUR RECIPE</span><span className="boop-ready-tag">{slotA ? (slotB ? 'Ready to mix' : 'One more ingredient') : 'Pick the first ingredient'}</span></div>
       <div className="combine-inputs">
         {(['A', 'B'] as const).map((key, index) => {
           const item = key === 'A' ? slotA : slotB;
@@ -105,17 +107,19 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
       </div>
       {isSynthesizing && <p className="synthesis-status" role="status">{synthesisStage || 'Discovering something new…'}</p>}
     </div>
-    <div className="discovery-heading"><h2>Choose ingredients <span>{materials.length}</span></h2>
+    <div className="discovery-heading"><h2>Your ingredients <span>{materials.length}</span></h2>
       <label className="discovery-search"><Search size={17} /><input ref={searchRef} aria-label="Search your discoveries" placeholder="Search collection…" value={search} onChange={e => setSearch(e.target.value)} /></label>
     </div>
     {picker && <div className="picker-prompt" role="status">Choose item {picker}. You can use the same item twice.<button onClick={() => setPicker(null)} aria-label="Cancel choosing item"><X size={16} /></button></div>}
-    <div className="collection-filters">
-      <label><span className="sr-only">Discovery category</span><select aria-label="Discovery category" value={category} onChange={e => setCategory(e.target.value)}><option value="all">All categories</option>{categories.map(c => <option key={c}>{c}</option>)}</select></label>
-      <label><span className="sr-only">Sort discoveries</span><select aria-label="Sort discoveries" value={sort} onChange={e => setSort(e.target.value as typeof sort)}><option value="collection">Collection order</option><option value="recent">Newest first</option><option value="name">Name A–Z</option></select></label>
-      <span aria-live="polite">{filtered.length} items</span>
-    </div>
+    <details className="boop-foundry-filter-disclosure">
+      <summary><Layers3 size={15}/> Filter & sort <span>{filtered.length} shown</span></summary>
+      <div className="collection-filters">
+        <label><span className="sr-only">Discovery category</span><select aria-label="Discovery category" value={category} onChange={e => setCategory(e.target.value)}><option value="all">All categories</option>{categories.map(c => <option key={c}>{c}</option>)}</select></label>
+        <label><span className="sr-only">Sort discoveries</span><select aria-label="Sort discoveries" value={sort} onChange={e => setSort(e.target.value as typeof sort)}><option value="collection">Collection order</option><option value="recent">Newest first</option><option value="name">Name A–Z</option></select></label>
+      </div>
+    </details>
     <div className="discovery-grid" aria-label="Discovered items" aria-busy={isSynthesizing}>
-      {filtered.map(item => <div key={item.id} data-rarity={item.rarity} className={`discovery-tile ${item.variant ? `variant-${item.variant}` : ''} ${slotA?.id === item.id || slotB?.id === item.id ? 'is-selected' : ''}`}>
+      {filtered.slice(0,visible).map(item => <div key={item.id} data-rarity={item.rarity} className={`discovery-tile ${item.variant ? `variant-${item.variant}` : ''} ${slotA?.id === item.id || slotB?.id === item.id ? 'is-selected' : ''}`}>
         <button className="discovery-pick" onClick={() => selectItem(item)} disabled={isSynthesizing} aria-label={`Select ${item.displayName}`} aria-pressed={slotA?.id === item.id || slotB?.id === item.id}>
           <MaterialSprite material={item} className="discovery-emoji" /><span>{item.displayName}</span>
         </button>
@@ -126,6 +130,7 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
       {!filtered.length && <p className="collection-empty">No discoveries match these filters. <button onClick={() => { setSearch(''); setCategory('all'); }}>Clear filters</button></p>}
     </div>
 
+    {filtered.length > visible && <button type="button" className="boop-foundry-show-more" onClick={() => setVisible(n=>n+48)} aria-label="Show more ingredients">Show more ingredients <span>{Math.min(filtered.length-visible,48)} more</span></button>}
     <details className="boop-foundry-progress-details">
       <summary><Trophy size={15}/> Collection progress <span>Level {progression.level} · {progression.xp} XP</span></summary>
     <div className="progression-loop" aria-label="Discovery progression">
