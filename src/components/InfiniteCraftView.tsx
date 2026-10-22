@@ -167,7 +167,9 @@ export function InfiniteCraftView() {
     const reload = () => {
       requestRef.current?.abort();
       setElements(sanitizeElements(readCraftElements()));
-      setCanvasItems([]);
+      // Restore saved board positions from the cloud/imported backup.
+      // An old-format backup without a board layout safely starts blank.
+      setCanvasItems(loadBoardLayout(readCraftElements()) ?? []);
       setLastResult(null);
       setCrucibleSlotA(null);
       setCrucibleSlotB(null);
