@@ -4,7 +4,7 @@ import { useGame } from '../lib/gameStore';
 import type { Material } from '../types';
 import { readCraftElements, SAVE_IMPORTED_EVENT } from '../lib/saveData';
 import { conceptMaterial } from '../lib/conceptMaterial';
-import { generateMaterialSprite } from '../lib/pixelRenderer';
+import { generateFreshPixelArt } from '../lib/freshPixelArt';
 import { MaterialSprite } from './ElementSprite';
 import { chooseRandomProcess } from '../lib/randomProcess';
 import { EXTRA_PROCESSES } from '../lib/extraProcesses';
@@ -30,7 +30,7 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
     const names = new Set(foundryMaterials.map(item => item.displayName.trim().toLowerCase()));
     return [...foundryMaterials, ...craftItems.filter(item => !names.has(item.name.trim().toLowerCase())).map(item => {
       const material = conceptMaterial({ result: item.name, emoji: item.emoji, explanation: item.explanation, connection: item.connection });
-      return { ...material, discoveredAt: item.discoveredAt || 0, customSpriteUrl: item.customSpriteUrl || generateMaterialSprite(material) };
+      return { ...material, discoveredAt: item.discoveredAt || 0, customSpriteUrl: item.customSpriteUrl || generateFreshPixelArt(item.name) };
     })];
   }, [foundryMaterials, craftItems]);
   const availableProcesses = useMemo(() => [...processes, ...EXTRA_PROCESSES.filter(extra => !processes.some(p => p.id === extra.id)), ...FOUNDRY_ACTIONS.filter(action => ![...processes, ...EXTRA_PROCESSES].some(p => p.id === action.id))].filter(p => p.unlocked), [processes]);
@@ -71,51 +71,14 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
 
   return <section className="collection-workbench" aria-label="Foundry workspace"><FoundryFusionOverlay />
     <div className="workbench-intro">
-      <div><h1>Follow your curiosity.</h1><p>Give your discoveries a new process. See what happens.</p></div>
+      <div><h1>Combine.</h1><p>Two discoveries. One surprising result.</p></div>
       <div className="craft-switch" aria-label="Crafting mode">
-        <button type="button" aria-pressed="true"><FlaskConical size={19} /> Foundry</button>
+        <button type="button" aria-pressed="true"><FlaskConical size={19} /> Combine</button>
         <button type="button" aria-pressed="false" onClick={() => setActiveTab('infinite-craft')}><Hammer size={19} /> Craft</button>
       </div>
     </div>
-    <div className="progression-loop" aria-label="Discovery progression">
-      <div className="progression-level">
-        <span className="progression-icon"><Trophy size={16} /></span>
-        <div><strong>Level {progression.level}</strong><small>{progression.xp} XP</small></div>
-        <div className="progression-xp"><span style={{ width: `${Math.min(100, (progression.levelCurrent / progression.levelRequired) * 100)}%` }} /></div>
-      </div>
-      <div className="progression-chips">
-        <span><Flame size={14} /><b>{progression.streak}</b> streak <small>next {progression.nextStreakMilestone}</small></span>
-        <span><Layers3 size={14} /><b>{progression.sets.filter(s => s.complete).length}/{progression.sets.length}</b> sets</span>
-        <span><Target size={14} /><b>{progression.dailyGoals.filter(g => g.progress >= g.target).length}/{progression.dailyGoals.length}</b> daily</span>
-      </div>
-      <div className="progression-details">
-        <div className="progression-set-row">{progression.sets.map(set => <span key={set.id} title={set.hint} className={set.complete ? 'complete' : ''}>{set.name} {Math.min(set.count, set.target)}/{set.target}</span>)}</div>
-        <div className="progression-goals">{progression.dailyGoals.map(goal => <span key={goal.id} className={goal.progress >= goal.target ? 'complete' : ''}>{goal.label} <b>{goal.progress}/{goal.target}</b></span>)}</div>
-        {progression.hint && <p className="progression-hint"><Sparkles size={13} /> {progression.hint}</p>}
-      </div>
-    </div>
-    <div className="discovery-heading"><h2>Your discoveries <span>{materials.length}</span></h2>
-      <label className="discovery-search"><Search size={17} /><input ref={searchRef} aria-label="Search your discoveries" placeholder="Search collection…" value={search} onChange={e => setSearch(e.target.value)} /></label>
-    </div>
-    {picker && <div className="picker-prompt" role="status">Choose item {picker}. You can use the same item twice.<button onClick={() => setPicker(null)} aria-label="Cancel choosing item"><X size={16} /></button></div>}
-    <div className="collection-filters">
-      <label><span className="sr-only">Discovery category</span><select aria-label="Discovery category" value={category} onChange={e => setCategory(e.target.value)}><option value="all">All categories</option>{categories.map(c => <option key={c}>{c}</option>)}</select></label>
-      <label><span className="sr-only">Sort discoveries</span><select aria-label="Sort discoveries" value={sort} onChange={e => setSort(e.target.value as typeof sort)}><option value="collection">Collection order</option><option value="recent">Newest first</option><option value="name">Name A–Z</option></select></label>
-      <span aria-live="polite">{filtered.length} items</span>
-    </div>
-    <div className="discovery-grid" aria-label="Discovered items" aria-busy={isSynthesizing}>
-      {filtered.map(item => <div key={item.id} data-rarity={item.rarity} className={`discovery-tile ${item.variant ? `variant-${item.variant}` : ''} ${slotA?.id === item.id || slotB?.id === item.id ? 'is-selected' : ''}`}>
-        <button className="discovery-pick" onClick={() => selectItem(item)} disabled={isSynthesizing} aria-label={`Select ${item.displayName}`} aria-pressed={slotA?.id === item.id || slotB?.id === item.id}>
-          <MaterialSprite material={item} className="discovery-emoji" /><span>{item.displayName}</span>
-        </button>
-        {(slotA?.id === item.id || slotB?.id === item.id) && <span className="ingredient-badge">{[slotA?.id === item.id ? 'A' : '', slotB?.id === item.id ? 'B' : ''].filter(Boolean).join(' + ')}</span>}
-        {item.variant && <span className={`variant-badge variant-${item.variant}`}>{item.variant}</span>}
-        <button className="discovery-info" aria-label={`Details for ${item.displayName}`} onClick={() => { onInspectMaterial(item); setActiveTab('archive'); }}><Info size={15} /></button>
-      </div>)}
-      {!filtered.length && <p className="collection-empty">No discoveries match these filters. <button onClick={() => { setSearch(''); setCategory('all'); }}>Clear filters</button></p>}
-    </div>
     <div className={`combine-dock ${isSynthesizing ? 'is-combining' : ''}`}>
-      <div className="boop-pad-heading"><span>FOUNDRY PAD</span><span className="boop-ready-tag">{slotA ? 'Ready to experiment' : 'Choose an ingredient'}</span></div>
+      <div className="boop-pad-heading"><span>YOUR COMBINATION</span><span className="boop-ready-tag">{slotA ? (slotB ? 'Ready' : 'Add one more') : 'Choose an ingredient'}</span></div>
       <div className="combine-inputs">
         {(['A', 'B'] as const).map((key, index) => {
           const item = key === 'A' ? slotA : slotB;
@@ -142,6 +105,48 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
       </div>
       {isSynthesizing && <p className="synthesis-status" role="status">{synthesisStage || 'Discovering something new…'}</p>}
     </div>
+    <div className="discovery-heading"><h2>Choose ingredients <span>{materials.length}</span></h2>
+      <label className="discovery-search"><Search size={17} /><input ref={searchRef} aria-label="Search your discoveries" placeholder="Search collection…" value={search} onChange={e => setSearch(e.target.value)} /></label>
+    </div>
+    {picker && <div className="picker-prompt" role="status">Choose item {picker}. You can use the same item twice.<button onClick={() => setPicker(null)} aria-label="Cancel choosing item"><X size={16} /></button></div>}
+    <div className="collection-filters">
+      <label><span className="sr-only">Discovery category</span><select aria-label="Discovery category" value={category} onChange={e => setCategory(e.target.value)}><option value="all">All categories</option>{categories.map(c => <option key={c}>{c}</option>)}</select></label>
+      <label><span className="sr-only">Sort discoveries</span><select aria-label="Sort discoveries" value={sort} onChange={e => setSort(e.target.value as typeof sort)}><option value="collection">Collection order</option><option value="recent">Newest first</option><option value="name">Name A–Z</option></select></label>
+      <span aria-live="polite">{filtered.length} items</span>
+    </div>
+    <div className="discovery-grid" aria-label="Discovered items" aria-busy={isSynthesizing}>
+      {filtered.map(item => <div key={item.id} data-rarity={item.rarity} className={`discovery-tile ${item.variant ? `variant-${item.variant}` : ''} ${slotA?.id === item.id || slotB?.id === item.id ? 'is-selected' : ''}`}>
+        <button className="discovery-pick" onClick={() => selectItem(item)} disabled={isSynthesizing} aria-label={`Select ${item.displayName}`} aria-pressed={slotA?.id === item.id || slotB?.id === item.id}>
+          <MaterialSprite material={item} className="discovery-emoji" /><span>{item.displayName}</span>
+        </button>
+        {(slotA?.id === item.id || slotB?.id === item.id) && <span className="ingredient-badge">{[slotA?.id === item.id ? 'A' : '', slotB?.id === item.id ? 'B' : ''].filter(Boolean).join(' + ')}</span>}
+        {item.variant && <span className={`variant-badge variant-${item.variant}`}>{item.variant}</span>}
+        <button className="discovery-info" aria-label={`Details for ${item.displayName}`} onClick={() => { onInspectMaterial(item); setActiveTab('archive'); }}><Info size={15} /></button>
+      </div>)}
+      {!filtered.length && <p className="collection-empty">No discoveries match these filters. <button onClick={() => { setSearch(''); setCategory('all'); }}>Clear filters</button></p>}
+    </div>
+
+    <details className="boop-foundry-progress-details">
+      <summary><Trophy size={15}/> Collection progress <span>Level {progression.level} · {progression.xp} XP</span></summary>
+    <div className="progression-loop" aria-label="Discovery progression">
+      <div className="progression-level">
+        <span className="progression-icon"><Trophy size={16} /></span>
+        <div><strong>Level {progression.level}</strong><small>{progression.xp} XP</small></div>
+        <div className="progression-xp"><span style={{ width: `${Math.min(100, (progression.levelCurrent / progression.levelRequired) * 100)}%` }} /></div>
+      </div>
+      <div className="progression-chips">
+        <span><Flame size={14} /><b>{progression.streak}</b> streak <small>next {progression.nextStreakMilestone}</small></span>
+        <span><Layers3 size={14} /><b>{progression.sets.filter(s => s.complete).length}/{progression.sets.length}</b> sets</span>
+        <span><Target size={14} /><b>{progression.dailyGoals.filter(g => g.progress >= g.target).length}/{progression.dailyGoals.length}</b> daily</span>
+      </div>
+      <div className="progression-details">
+        <div className="progression-set-row">{progression.sets.map(set => <span key={set.id} title={set.hint} className={set.complete ? 'complete' : ''}>{set.name} {Math.min(set.count, set.target)}/{set.target}</span>)}</div>
+        <div className="progression-goals">{progression.dailyGoals.map(goal => <span key={goal.id} className={goal.progress >= goal.target ? 'complete' : ''}>{goal.label} <b>{goal.progress}/{goal.target}</b></span>)}</div>
+        {progression.hint && <p className="progression-hint"><Sparkles size={13} /> {progression.hint}</p>}
+      </div>
+    </div>
+    </details>
+
   </section>;
 }
 
