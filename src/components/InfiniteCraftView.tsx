@@ -59,6 +59,10 @@ import {
   Zap,
   Shuffle,
   ChevronDown,
+  Undo2,
+  Redo2,
+  Minus,
+  ZoomIn,
   Trophy,
 } from 'lucide-react';
 
