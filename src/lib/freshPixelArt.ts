@@ -279,15 +279,27 @@ export function generateFreshPixelArt(name:string):string {
       ellipse(12,12,9,7,B);rect(5,12,14,7,B);rect(7,9,10,7,L);
       rect(8,12,3,2,H);rect(14,13,3,2,H);line(6,19,18,19,S,2);break;
     case 'curio':case 'relic':case 'creature':case 'mechanism':case 'crystal':{
-      // Unrecognized elements still receive *different, named original pixel
-      // illustrations*, not the same placeholder or emoji.
-      const variant=seed%5,accentOffset=(seed>>>8)%5;
-      if(variant===0){rect(6,9,12,11,B);ellipse(12,8,6,5,L);rect(9,12,6,5,A);star(12,14,2,H);}
-      else if(variant===1){ellipse(12,12,8,8,B);ellipse(9,9,5,4,L);rect(8,15,8,3,S);star(15,8,2,A);}
-      else if(variant===2){rect(6,7,12,13,S);rect(8,9,8,9,B);rect(11,3,3,5,L);rect(9,12,2,2,A);rect(14,12,2,2,A);}
-      else if(variant===3){ellipse(12,13,7,6,B);rect(8,4,8,7,S);ellipse(12,7,4,4,L);rect(9,15,6,3,A);}
-      else {line(5,17,12,4,B,5);line(12,4,19,17,S,5);ellipse(12,14,5,5,A);star(12,14,2,H);}
-      dot(8+accentOffset,6,H);dot(16-accentOffset,19,A);break;
+      // Unrecognized or imaginative discoveries get a deterministic original
+      // modular pixel artefact. The full name drives every cluster, so this
+      // is not a rotation among five generic placeholder sprites.
+      const variant=(seed>>>3)%4;
+      if(variant===0){ellipse(12,13,7,6,S);ellipse(12,12,5,5,B);}
+      else if(variant===1){rect(6,8,12,12,S);rect(8,7,8,11,B);}
+      else if(variant===2){line(5,17,11,5,B,4);line(11,5,19,17,S,4);}
+      else {ellipse(12,12,8,8,B);rect(10,4,4,5,S);}
+      for(let i=0;i<10;i++){
+        const bits=(seed>>>((i*3)%24))^(Math.imul(seed,i+17)>>>7);
+        const x=5+(bits%7),y=7+((bits>>>5)%12);
+        const color=bits&1?L:bits&2?A:B;
+        rect(x,y,(bits&4)?2:1,(bits&8)?2:1,color);
+        if((bits&16)!==0)rect(23-x,y,2,1,color);
+      }
+      const coreX=9+((seed>>>14)%6),coreY=10+((seed>>>19)%7);
+      rect(coreX,coreY,3,3,H);
+      if((seed&1)!==0){star(5,5,1,A);star(19,19,1,L);}
+      if((seed&2)!==0){line(7,20,17,20,S);dot(18,5,H);}
+      if((seed&4)!==0){line(4,12,7,12,A,2);line(17,12,20,12,A,2);}
+      break;
     }
   }
   // One-pixel ink border, precise readable silhouette at 24/48/96px.
