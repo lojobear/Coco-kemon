@@ -23,7 +23,7 @@ import { CANONICAL_INFINITE_CRAFT_RECIPES, makePairKey } from '../lib/infiniteCr
 import { findCraftDropTarget } from '../lib/craftCollision';
 import { BOARD_WIDTH, BOARD_HEIGHT, BOARD_START_X, BOARD_START_Y, boardCenter, clampBoardTile } from '../lib/boardGeometry';
 import { loadBoardLayout, saveBoardLayout } from '../lib/boardLayout';
-import { spawnSourcePool, chooseSpawnElements, spawnPositions, SPAWN_COUNTS, SPAWN_SOURCES, type SpawnCount, type SpawnSource } from '../lib/randomSpawn';
+import { spawnSourcePool, chooseSpawnElements, spawnPositions, spreadSpawnPositions, SPAWN_COUNTS, type SpawnCount } from '../lib/randomSpawn';
 import { saveCraftElements, readCraftElements, SAVE_IMPORTED_EVENT } from '../lib/saveData';
 import { sound } from '../lib/audio';
 import { haptics } from '../lib/haptics';
@@ -58,7 +58,6 @@ import {
   Check,
   Zap,
   Shuffle,
-  ChevronDown,
   Undo2,
   Redo2,
   Minus,
@@ -74,6 +73,7 @@ interface CanvasItem {
   y: number;
   isNew?: boolean;
   isShiny?: boolean;
+  spawnDelay?: number;
 }
 
 /**
@@ -233,25 +233,8 @@ export function InfiniteCraftView() {
   const [crucibleSlotA, setCrucibleSlotA] = useState<CrucibleSlotItem | null>(null);
   const [crucibleSlotB, setCrucibleSlotB] = useState<CrucibleSlotItem | null>(null);
   const [randomVersion, setRandomVersion] = useState(0);
-  const [spawnMenuOpen, setSpawnMenuOpen] = useState(false);
-  const [spawnSource, setSpawnSource] = useState<SpawnSource>('all');
-  const spawnMenuRef = useRef<HTMLDivElement>(null);
+  const [spawnCount, setSpawnCount] = useState<SpawnCount>(2);
   const spawnSequenceRef = useRef(0);
-  useEffect(() => {
-    if (!spawnMenuOpen) return;
-    const dismiss = (event: PointerEvent) => {
-      if (!spawnMenuRef.current?.contains(event.target as Node)) setSpawnMenuOpen(false);
-    };
-    const escape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setSpawnMenuOpen(false);
-    };
-    document.addEventListener('pointerdown', dismiss);
-    document.addEventListener('keydown', escape);
-    return () => {
-      document.removeEventListener('pointerdown', dismiss);
-      document.removeEventListener('keydown', escape);
-    };
-  }, [spawnMenuOpen]);
   const [isCrucibleHovered, setIsCrucibleHovered] = useState(false);
   const crucibleRef = useRef<HTMLDivElement | null>(null);
 
@@ -807,20 +790,13 @@ export function InfiniteCraftView() {
     [elements],
   );
 
-  // Derive pools only when the collection changes; taps remain cheap even
-  // with thousands of discoveries.
-  const spawnPools = useMemo(() => ({
-    all: spawnSourcePool(elements, 'all'),
-    recent: spawnSourcePool(elements, 'recent'),
-    shiny: spawnSourcePool(elements, 'shiny'),
-    starters: spawnSourcePool(elements, 'starters'),
-  }), [elements]);
+  // One familiar random pool; no slow AI calls or category picker.
+  const spawnPool = useMemo(() => spawnSourcePool(elements, 'all'), [elements]);
 
   const spawnRandomBatch = (count: SpawnCount) => {
-    setSpawnMenuOpen(false);
-    const pool = spawnPools[spawnSource];
-    if (!pool.length) {
-      setSpawnToast(spawnSource === 'shiny' ? 'No shiny elements unlocked yet.' : 'No elements in that category yet.');
+    setSpawnCount(count);
+    if (!spawnPool.length) {
+      setSpawnToast('Discover an element first.');
       return;
     }
     const remaining = Math.max(0, 300 - canvasItemsRef.current.length);
@@ -828,25 +804,29 @@ export function InfiniteCraftView() {
       setSpawnToast('Board is full. Clear or remove tiles to spawn more.');
       return;
     }
-    const picked = chooseSpawnElements<InfiniteElement>(pool, count).slice(0, remaining);
+    const picked = chooseSpawnElements<InfiniteElement>(spawnPool, count).slice(0, remaining);
     const vp = viewportRef.current;
-    const spots = spawnPositions(picked.length,vp ? {
+    const baseSpots = spawnPositions(picked.length,vp ? {
       scrollLeft:vp.scrollLeft/zoomRef.current,scrollTop:vp.scrollTop/zoomRef.current,
       clientWidth:vp.clientWidth/zoomRef.current,clientHeight:vp.clientHeight/zoomRef.current
     }:null);
     const batchId = ++spawnSequenceRef.current;
+    // Repeated taps spread new pills around those already visible rather than
+    // stacking an identical batch right on top of its predecessor.
+    const spots = spreadSpawnPositions(baseSpots,canvasItemsRef.current,batchId);
     const tiles: CanvasItem[] = picked.map((item, index) => ({
       instanceId: `spawn-${Date.now()}-${batchId}-${index}`,
       name: item.name,
       emoji: item.emoji,
-      isShiny: spawnSource === 'shiny' || Boolean(item.isShiny),
+      isShiny: Boolean(item.isShiny),
+      spawnDelay: Math.min(index,9)*34,
       ...spots[index],
     }));
     haptics.mediumTap();
     sound.playClick();
     setCanvasItems(previous => [...previous, ...tiles].slice(0, 300));
-    if (picked.length < count) setSpawnToast(`Added ${picked.length} tiles; board has reached its limit.`);
-    else setSpawnToast(`+ ${picked.length} ${spawnSource === 'shiny' ? 'shiny' : spawnSource === 'recent' ? 'recent' : spawnSource === 'starters' ? 'starter' : 'random'} ${picked.length === 1 ? 'element' : 'elements'}`);
+    if (picked.length < count) setSpawnToast(`✦ +${picked.length} elements · Board full`);
+    else setSpawnToast(`✦ +${picked.length} random ${picked.length===1?'element':'elements'}`);
     setRandomVersion(version => version + 1);
   };
 
@@ -867,36 +847,20 @@ export function InfiniteCraftView() {
         <header className="boop-board-toolbar">
           <div className="boop-board-heading"><strong>Discover</strong><small>Drag tiles together to combine · drag empty space to explore</small></div>
           <div className="boop-board-actions">
-            <div className="boop-spawn-control" ref={spawnMenuRef}>
-              <button type="button" className="boop-random-button" disabled={elements.length === 0}
-                aria-expanded={spawnMenuOpen} aria-haspopup="true" aria-controls="boop-spawn-menu"
-                onClick={() => { haptics.lightTap(); setSpawnMenuOpen(open => !open); }}
-                aria-label="Random spawn options">
+            <div className="boop-spawn-quick" role="group" aria-label="Random element spawn">
+              <button type="button" className="boop-random-button boop-spawn-now" disabled={!spawnPool.length || canvasItems.length>=300}
+                aria-label={`Spawn ${spawnCount} random ${spawnCount===1?'element':'elements'}`}
+                title="Instantly spawn random unlocked elements"
+                onClick={()=>spawnRandomBatch(spawnCount)}>
                 <span className="boop-random-icon"><Shuffle key={randomVersion} size={19}/></span>
-                <span className="boop-random-label">Spawn</span><ChevronDown size={16} className={spawnMenuOpen ? 'is-rotated' : ''}/>
+                <span className="boop-random-label">Spawn</span>
               </button>
-              {spawnMenuOpen && <div id="boop-spawn-menu" className="boop-spawn-menu" role="group" aria-label="Random spawn options">
-                <div className="boop-spawn-menu-heading"><strong>Spawn elements</strong><small>Choose how many and what kind</small></div>
-                <div className="boop-spawn-options-label">NUMBER OF TILES</div>
-                <div className="boop-spawn-count-grid">
-                  {SPAWN_COUNTS.map(count => <button type="button" key={count}
-                    disabled={!spawnPools[spawnSource].length} onClick={() => spawnRandomBatch(count)}
-                    aria-label={`Spawn ${count} ${spawnSource} ${count === 1 ? 'element' : 'elements'}`}>
-                    <span className="boop-spawn-count-number">{count}</span>
-                    <small>{count === 1 ? 'Single' : count === 2 ? 'Pair' : count === 5 ? 'Handful' : 'Burst'}</small>
-                  </button>)}
-                </div>
-                <div className="boop-spawn-options-label">PICK FROM</div>
-                <div className="boop-spawn-filter-grid">
-                  {SPAWN_SOURCES.map(source => <button type="button" key={source}
-                    aria-pressed={spawnSource === source}
-                    disabled={!spawnPools[source].length} onClick={() => setSpawnSource(source)}>
-                    {source === 'all' ? 'All' : source === 'recent' ? 'Recent' : source === 'shiny' ? '✦ Shiny' : 'Starters'}
-                    <small>{spawnPools[source].length}</small>
-                  </button>)}
-                </div>
-                <p className="boop-spawn-note">Only elements you already own. Tap any number to place them on your board.</p>
-              </div>}
+              <div className="boop-spawn-quick-counts" role="group" aria-label="Tap an amount to spawn instantly">
+                {SPAWN_COUNTS.map(count=><button type="button" key={count}
+                  aria-label={`Spawn ${count} random ${count===1?'element':'elements'} now`}
+                  aria-pressed={spawnCount===count} disabled={!spawnPool.length || canvasItems.length>=300}
+                  onClick={()=>spawnRandomBatch(count)}>{count}</button>)}
+              </div>
             </div>
             <button type="button" aria-label="Undo last board action" title="Undo (Ctrl+Z)" disabled={isSynthesizing || !historySize.past} onClick={undoLayout}><Undo2 size={18}/></button>
             <button type="button" aria-label="Redo board action" title="Redo (Ctrl+Y)" disabled={isSynthesizing || !historySize.future} onClick={redoLayout}><Redo2 size={18}/></button>
@@ -917,7 +881,7 @@ export function InfiniteCraftView() {
               onPointerDown={e=>handlePointerDown(item,e)}
               onClick={e=>{e.stopPropagation();handleCanvasItemClick(item);}}
               onDoubleClick={e=>handleDuplicate(item,e)}
-              style={{transform:`translate3d(${item.x}px,${item.y}px,0)`}}>
+              style={{transform:`translate3d(${item.x}px,${item.y}px,0)`, '--spawn-delay':`${item.spawnDelay||0}ms`} as React.CSSProperties}>
               <CraftSprite name={item.name} emoji={item.emoji} isShiny={item.isShiny}/>
               <span>{item.name}</span>
               <button aria-label={`Duplicate ${item.name}`} title="Duplicate" className="boop-tile-duplicate" onClick={e=>handleDuplicate(item,e)}><Plus size={12}/></button>
