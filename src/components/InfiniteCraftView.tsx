@@ -917,7 +917,7 @@ export function InfiniteCraftView() {
             {artStatus.pending>0 && <details className="boop-artwork-queue"><summary title="Pending artwork"><Sparkles size={17}/><span>{artStatus.pending}</span></summary><div><p>{artStatus.running?'Drawing artwork…':`${artStatus.pending} sprites queued`}</p><button type="button" onClick={retryPendingArtwork} disabled={artStatus.running}>Retry artwork</button></div></details>}
           </div>
         </div>
-        {spawnToast && <div className="boop-board-toast" role="status">{spawnToast}</div>
+        {spawnToast && <div className="boop-board-toast" role="status">{spawnToast}</div>}
         {isSidebarOpen && <div className="boop-board-drawer-backdrop" onClick={()=>setIsSidebarOpen(false)} aria-hidden="true"/>}
         <aside id="boop-board-library" className={`boop-board-drawer ${isSidebarOpen ? 'is-open' : ''}`} aria-label="Your element library" aria-hidden={!isSidebarOpen}>
           <div className="boop-board-drawer-head"><div><h2>Ingredients</h2><small>{elements.length} discovered · tap to add to board</small></div><button aria-label="Close ingredients" onClick={()=>setIsSidebarOpen(false)}><X size={21}/></button></div>
