@@ -30,7 +30,21 @@ test('complete backup round trip retains both collections and recipe history', (
   assert.deepEqual(exported.crafting, crafting);
   assert.deepEqual(parseSave(JSON.stringify(exported)), {
     foundry, crafting, collectorRoom: { theme: 'gallery', slots: Array(12).fill(null) },
+    boardLayout: [],
   });
+});
+
+test('board placement survives cloud-compatible export and import without unlocking unknown tiles', () => {
+  const fixture={...complete, boardLayout:[
+    {instanceId:'saved-cloud',name:'Coffee',emoji:'☕',x:1300,y:920},
+    {instanceId:'invented',name:'Secret Dragon',emoji:'🐉',x:100,y:100},
+  ]};
+  const game=importCompleteSave(JSON.stringify(fixture));
+  const exported=JSON.parse(exportCompleteSave(game));
+  assert.equal(exported.boardLayout.length,1);
+  assert.equal(exported.boardLayout[0].name,'Coffee');
+  assert.deepEqual(parseSave(JSON.stringify(exported)).boardLayout,exported.boardLayout);
+  importCompleteSave(JSON.stringify(complete));
 });
 
 test('legacy backup preserves the current crafting collection', () => {

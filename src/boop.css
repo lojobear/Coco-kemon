@@ -1429,3 +1429,32 @@ html.boop-native-shell .boop-app .boop-cloud-dialog {
   .boop-album-art--evolution-3::before {animation:boop-album-legendary-shimmer 3.6s ease-in-out infinite;}
 }
 @keyframes boop-album-legendary-shimmer {50%{opacity:.45;filter:brightness(1.25)}}
+
+/* Board reliability: unobtrusive artwork queue and touch-friendly tools */
+.boop-app .boop-artwork-queue {
+  position:absolute;right:14px;bottom:77px;z-index:6;
+  display:flex;align-items:center;flex-wrap:wrap;gap:8px;
+  padding:9px 11px;max-width:min(420px,90%);
+  border:1px solid #e1e5e9;border-radius:12px;
+  background:#fff;box-shadow:0 5px 20px #222b3617;
+  color:#414c57;font-size:11px;font-weight:700;
+}
+.boop-artwork-queue small {flex-basis:100%;color:#7d8791;font-weight:400;}
+.boop-app .boop-artwork-queue button {
+  border:1px solid #d2d9e0;border-radius:8px;
+  background:#f6f7f8;color:#333e48;font-weight:800;
+  min-height:30px;padding:5px 10px;
+}
+.boop-artwork-queue button:disabled {opacity:.5;}
+.boop-board-zoom {
+  min-width:37px;align-self:center;text-align:center;
+  color:#535e69;font-size:11px;font-variant-numeric:tabular-nums;font-weight:850;
+}
+.boop-board-actions button:disabled {opacity:.36;cursor:not-allowed;}
+@media(max-width:760px){
+  .boop-app .boop-board-toolbar {align-items:flex-start;flex-wrap:wrap;}
+  .boop-app .boop-board-actions {flex:1;flex-wrap:wrap;justify-content:flex-end;gap:4px;}
+  .boop-board-zoom {font-size:10px;}
+  .boop-app .boop-artwork-queue {right:10px;left:10px;bottom:114px;max-width:none;}
+  .boop-app .boop-board-actions >button {min-height:34px;min-width:34px;}
+}

@@ -71,7 +71,7 @@ test('collection navigation and trophy room save travel with normal cloud backup
   assert.match(album,/boop-open-trophy-room/);
   assert.match(album,/exportTrophyPostcard/);
   assert.match(save,/collectorRoom: readCollectorRoom\(\)/);
-  assert.match(save,/write\(parsed\.foundry, parsed\.crafting, true, parsed\.collectorRoom\)/);
+  assert.match(save,/write\(parsed\.foundry, parsed\.crafting, true, parsed\.collectorRoom, parsed\.boardLayout\)/);
   assert.match(save,/saveCollectorRoom\(room: TrophyRoom\)/);
 });
 

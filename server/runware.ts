@@ -29,6 +29,15 @@ export async function generateRunwareSprite(
 ): Promise<GeminiImageResult | null> {
   const apiKey = (options.apiKey ?? process.env.RUNWARE_API_KEY ?? '').trim();
   if (!apiKey) return null;
+  // The live Worker was mistakenly configured with the Gemini key in BOTH
+  // fields. Do not transmit that third-party credential to Runware or waste
+  // requests on an impossible authorization attempt.
+  if (apiKey === (process.env.GEMINI_API_KEY || '').trim()) {
+    rejectedKey = apiKey;
+    authenticationRetryAfter = Date.now() + 5 * 60_000;
+    console.warn('Runware image fallback disabled: RUNWARE_API_KEY matches GEMINI_API_KEY. Set a genuine Runware key as an encrypted Cloudflare Secret.');
+    return null;
+  }
   if (rejectedKey && rejectedKey !== apiKey) {
     // A hot-reloaded secret should work immediately rather than inheriting
     // the old key's cooldown.
