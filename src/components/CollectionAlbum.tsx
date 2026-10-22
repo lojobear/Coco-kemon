@@ -7,6 +7,7 @@ import { ALBUM_SETS, albumSetProgress, availableVariants, evolutionFor, type Col
 import { normalizeElementStats } from '../lib/elementStats';
 import { CraftSprite, CraftSprites } from './CraftSprite';
 import { exportTrophyPostcard } from '../lib/trophyPostcard';
+import { queueMissingArtwork } from '../lib/artworkQueue';
 import type { Material, Oddkin } from '../types';
 
 const LegacyArchive = lazy(() => import('./ArchiveView').then(m=>({default:m.ArchiveView})));
@@ -50,6 +51,8 @@ export function CollectionAlbum({
   const [frame,setFrame]=useState<FrameStyle>('classic');
   const [galleryNotice,setGalleryNotice]=useState('');
   const [exporting,setExporting]=useState(false);
+  const [repairingArt,setRepairingArt]=useState(false);
+  const [repairStatus,setRepairStatus]=useState('');
   const {setActiveTab}=useGame();
 
   useEffect(()=>setQuery(initialSearch),[initialSearch]);
@@ -98,6 +101,18 @@ export function CollectionAlbum({
   const celestialCount=catalog.filter(e=>Boolean(e.unlockedCelestial)).length;
   const evolvedCount=catalog.filter(e=>evolutionFor(e).level>0).length;
 
+  const repairMissing=async()=>{
+    if(repairingArt)return;
+    setRepairingArt(true);setRepairStatus('Checking saved sprites without generating new images…');
+    try {
+      const result=await queueMissingArtwork(catalog,5);
+      setRepairStatus(result.queued
+        ? `Queued ${result.queued} missing ${result.queued===1?'sprite':'sprites'} (checked ${result.checked}). Check again for more.`
+        : `Checked ${result.checked} sprite ${result.checked===1?'entry':'entries'}; none newly queued.`);
+    }catch {
+      setRepairStatus('Could not inspect some saved artwork. Your collection is unchanged.');
+    }finally{setRepairingArt(false);}
+  };
   const openItem=(item:InfiniteElement)=>{
     setSelected(item);
     setViewVariant(item.unlockedCelestial?'celestial':availableVariants(item).includes('shiny')?'shiny':'normal');
@@ -159,8 +174,12 @@ export function CollectionAlbum({
         <div className="boop-album-title"><span className="boop-album-mark"><BookOpen size={23}/></span>
           <div><small>YOUR PERSONAL COLLECTION</small><h1>Collection.</h1><p>A little museum of everything you've discovered.</p></div>
         </div>
-        <button type="button" className="boop-album-outline-button" onClick={()=>setActiveTab('infinite-craft')}><Plus size={16}/> Discover more</button>
+        <div className="boop-album-header-actions">
+          <button type="button" className="boop-album-outline-button" disabled={repairingArt} onClick={()=>void repairMissing()}><Sparkles size={16}/>{repairingArt?'Checking…':'Find missing art'}</button>
+          <button type="button" className="boop-album-outline-button" onClick={()=>setActiveTab('infinite-craft')}><Plus size={16}/> Discover more</button>
+        </div>
       </header>
+      {repairStatus&&<p className="boop-album-repair-status" role="status">{repairStatus}</p>}
       <div className="boop-album-summary" aria-label="Collection statistics">
         <div><strong>{catalog.length.toLocaleString()}</strong><small>Collected</small></div>
         <div><strong>{shinyCount}</strong><small>Shiny forms</small></div>

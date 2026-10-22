@@ -1,4 +1,5 @@
 import { getElementEmoji, retryElementEmoji } from './elementEmoji';
+import type { InfiniteElement } from './infiniteCraftData';
 
 /**
  * Best-effort artwork queue for new discoveries. No credits are spent on album
@@ -72,6 +73,38 @@ export function enqueueArtwork(name: string, shiny = false): void {
   }
   void pumpArtworkQueue();
 }
+/**
+ * Manually repair historical discoveries after provider downtime.
+ * Reads caches/profile artwork FIRST with generateIfMissing=false, so the scan
+ * consumes zero AI credits. Queue at most five missing items per tap.
+ */
+export async function queueMissingArtwork(elements: readonly InfiniteElement[], maxNew = 5) {
+  const wanted = Math.min(5,Math.max(1,Math.floor(maxNew)));
+  let checked = 0;
+  let queued = 0;
+  for (const element of elements) {
+    if (checked >= 140 || queued >= wanted) break;
+    if (!element?.name?.trim() || element.customSpriteUrl) continue;
+    const variants = [false, ...(element.unlockedShiny || element.isShiny ? [true] : [])];
+    for (const shiny of variants) {
+      if (checked >= 140 || queued >= wanted) break;
+      if (readTasks().some(t=>t.shiny===shiny && t.name.toLowerCase()===element.name.toLowerCase())) continue;
+      checked++;
+      try {
+        // Cache/profile only. This NEVER asks a model to generate an image.
+        const existing = await getElementEmoji(element.name,false,'',false,shiny);
+        if (existing) continue;
+      } catch {
+        // Storage or account lookup errors are not proof artwork is missing.
+        continue;
+      }
+      enqueueArtwork(element.name,shiny);
+      queued++;
+    }
+  }
+  return {checked,queued};
+}
+
 function planNext() {
   if (timer) clearTimeout(timer);
   if (running || !readTasks().length || typeof window==='undefined') return;

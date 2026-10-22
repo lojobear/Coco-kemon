@@ -1,8 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
 import { conceptDNAFor, normalizeDiscoveryCandidates } from './discovery.js';
 import { getWorkersAiBinding } from './workersAi.js';
-import { generateRunwareSprite, isRunwareAuthenticationRejected } from './runware.js';
-import { generateRunwaySprite, RunwayPendingError } from './runway.js';
 
 export class ApiFailure extends Error {
   status: number;
@@ -453,7 +451,7 @@ async function generateWorkersAiImage(prompt: string): Promise<GeminiImageResult
       const message = error instanceof Error ? error.message : String(error);
       if (/4006.*(?:daily free allocation|neurons)|used up your daily free allocation/i.test(message)) {
         workersImageQuotaBackoffUntil = Date.now() + 5 * 60_000;
-        console.warn('Cloudflare image quota exhausted; attempting Runware before Gemini.');
+        console.warn('Cloudflare image quota exhausted; switching to Gemini fallback.');
         break;
       }
       if (model.includes('flux-2-klein-4b') && /3030|flagged/i.test(message)) {
@@ -483,7 +481,7 @@ async function generateWorkersAiImage(prompt: string): Promise<GeminiImageResult
   // Crucially, do not strand every sprite when Workers AI changes response shape or a model is
   // temporarily unavailable. Returning null lets generateGeminiImage use the configured Gemini
   // image model as the secondary provider.
-  console.warn('Workers AI image generation unavailable; trying next image provider.', last instanceof Error ? last.name : 'unknown');
+  console.warn('Workers AI image generation unavailable; trying original Gemini fallback.', last instanceof Error ? last.name : 'unknown');
   return null;
 }
 
@@ -499,33 +497,16 @@ export async function generateGeminiImage(
   if (!injectedClient) {
     const workersImage = await generateWorkersAiImage(prompt);
     if (workersImage) return workersImage;
-    // Prefer Runware's low-cost FLUX.2 Klein when Cloudflare free neurons run out.
-    // Only uses credits if RUNWARE_API_KEY is configured; returns the existing
-    // image payload shape, so all sprite caching and client logic still work.
-    const runwareImage = await generateRunwareSprite(prompt);
-    if (runwareImage) return runwareImage;
-    // Optional paid fallback. Off until RUNWAY_SPRITES_ENABLED=1 and a
-    // server-side RUNWAYML_API_SECRET is configured. Pending Runway tasks
-    // are polled on subsequent retries rather than creating new paid tasks.
-    try {
-      const runwayImage = await generateRunwaySprite(prompt);
-      if (runwayImage) return runwayImage;
-    } catch (error) {
-      if (error instanceof RunwayPendingError) {
-        throw new ApiFailure(425, error.message);
-      }
-      console.warn('Runway fallback unavailable; trying Gemini.');
-    }
+
   }
   if (!injectedClient && !process.env.GEMINI_API_KEY) {
-    throw new ApiFailure(503, isRunwareAuthenticationRejected()
-      ? 'Runware rejected its configured API key (HTTP 401/403). Update RUNWARE_API_KEY in Cloudflare. Other image providers are unavailable.'
-      : 'Sprite image providers are temporarily unavailable. Try again later.');
+    throw new ApiFailure(503, 'Cloudflare image service is unavailable and the Gemini fallback is not configured. Your discovery is saved; retry the artwork later.');
   }
   const ai = injectedClient ?? (client ??= new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! }));
   const models = getGeminiImageModels();
-  // Leave enough of the client's 60s timeout for Runware + a final Gemini attempt.
-  const deadline = Date.now() + (!injectedClient && (process.env.RUNWARE_API_KEY || process.env.RUNWAYML_API_SECRET) ? 35_000 : 55_000);
+  // Original Cloudflare → Gemini path: full deadline for Gemini, no
+  // unnecessary waiting for an unrelated provider or an incorrect API key.
+  const deadline = Date.now() + 55_000;
   let last: unknown;
 
   for (let attempt = 0; attempt < models.length; attempt++) {
@@ -576,9 +557,7 @@ export async function generateGeminiImage(
       const terminal = terminalGeminiFailure(error);
       if (terminal) {
         if (terminal.status === 429 && !injectedClient) {
-          throw new ApiFailure(503, isRunwareAuthenticationRejected()
-            ? 'Runware rejected its configured API key (HTTP 401/403). Update RUNWARE_API_KEY in Cloudflare. Cloudflare is unavailable and Gemini has exhausted its quota.'
-            : 'Image generation is temporarily unavailable. Cloudflare and Runware could not generate art and Gemini has exhausted its quota.');
+          throw new ApiFailure(503, 'Cloudflare image allocation is unavailable and Gemini image quota is exhausted. The discovery is saved; retry artwork when quota resets.');
         }
         throw terminal;
       }

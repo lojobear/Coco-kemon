@@ -58,3 +58,38 @@ export function spawnPositions(
     );
   });
 }
+
+/**
+ * Place successive instant-spawn batches without covering existing tiles.
+ * Searches a small deterministic neighborhood; no DOM reads or AI calls.
+ */
+export function spreadSpawnPositions(
+  spots: readonly {x:number;y:number}[],
+  occupied: readonly {x:number;y:number}[],
+  sequence = 0,
+): Array<{x:number;y:number}> {
+  const taken = occupied.map(p=>({x:p.x,y:p.y}));
+  const shifts:Array<[number,number]> = [[0,0]];
+  for (let ring=1;ring<=4;ring++) {
+    for (let y=-ring;y<=ring;y++) for(let x=-ring;x<=ring;x++) {
+      if(Math.max(Math.abs(x),Math.abs(y))===ring)shifts.push([x*154,y*69]);
+    }
+  }
+  return spots.map((spot,index)=>{
+    // Prefer the exact visible centered grid on the first spawn. Explore
+    // nearby offsets only when that location would overlap an existing tile.
+    let selected=clampBoardTile(spot.x,spot.y);
+    const overlaps=(candidate:typeof selected)=>taken.reduce((n,p)=>
+      n+(Math.abs(p.x-candidate.x)<145 && Math.abs(p.y-candidate.y)<59?1:0),0);
+    let bestOverlap=overlaps(selected);
+    if(bestOverlap>0) for (let i=1;i<shifts.length;i++) {
+      const [dx,dy] = shifts[1+((i-1+(sequence+index)*7)%(shifts.length-1))];
+      const candidate=clampBoardTile(spot.x+dx,spot.y+dy);
+      const overlap=overlaps(candidate);
+      if(overlap<bestOverlap){selected=candidate;bestOverlap=overlap;}
+      if(!overlap)break;
+    }
+    taken.push(selected);
+    return selected;
+  });
+}
