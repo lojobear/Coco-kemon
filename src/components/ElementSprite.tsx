@@ -2,7 +2,8 @@ import { SpriteImage } from './SpriteImage';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { getElementEmoji } from '../lib/elementEmoji';
 import { spriteVariantKey } from '../lib/spriteVariant';
-import { generateConceptSprite, generateMaterialSprite } from '../lib/pixelRenderer';
+import { generateMaterialSprite } from '../lib/pixelRenderer';
+import { generateFreshPixelArt } from '../lib/freshPixelArt';
 import type { Material } from '../types';
 
 /** Uploaded/rerolled art always wins. Generated defaults share one durable cache. */
@@ -10,6 +11,9 @@ export function ElementSprite({ name, custom, fallback, className = '', alt = ''
   name: string; custom?: string; fallback?: string; className?: string; alt?: string; idle?: boolean; isShiny?: boolean;
 }) {
   const [art, setArt] = useState<{ key: string; url: string }>();
+  // The first frame is ALWAYS a new hand-drawn pixel sprite, never a generic
+  // emoji or empty box, including offline and while AI requests are queued.
+  const freshArt = useMemo(() => generateFreshPixelArt(name), [name]);
   const [error, setError] = useState('');
   const [temporary, setTemporary] = useState<{ key: string; url: string }>();
   const [retry, setRetry] = useState(0);
@@ -41,7 +45,7 @@ export function ElementSprite({ name, custom, fallback, className = '', alt = ''
         // local pixel preview instead of leaving every ungenerated item as an emoji.
         // Never persist this temporary preview as finished AI art.
         try {
-          const preview = generateConceptSprite(name);
+          const preview = generateFreshPixelArt(name);
           if (preview) setTemporary({ key, url: preview });
         } catch {
           // Browsers without a canvas can still display the item's emoji.
@@ -51,7 +55,7 @@ export function ElementSprite({ name, custom, fallback, className = '', alt = ''
       if (cancelled) return;
       setError(e instanceof Error ? e.message : String(e));
       try {
-        const preview = generateConceptSprite(name);
+        const preview = generateFreshPixelArt(name);
         if (preview) setTemporary({ key, url: preview });
       } catch {
         // Browser canvas unavailable: keep the original emoji as last resort.
@@ -69,13 +73,15 @@ export function ElementSprite({ name, custom, fallback, className = '', alt = ''
     || (art?.key === key || (isShiny && art?.key === normalKey) ? art?.url : undefined)
     || (temporary?.key === key ? temporary.url : undefined);
   return <span ref={host} className={`element-emoji${idle ? ' sprite-idle' : ''}${isShiny ? ' boop-shiny-sprite' : ''}${ownShiny ? ' boop-shiny-authored' : ''} ${className}`} title={error ? `Sprite unavailable: ${error} Retry in Sprites.` : isShiny ? `Shiny variant of ${name}` : undefined}>
-    {url ? <SpriteImage src={url} alt={alt} draggable={false} decoding="async" /> : fallback?.startsWith('data:') || fallback?.startsWith('/')
-      ? <SpriteImage src={fallback} alt={alt} draggable={false} />
-      : <span role={alt ? 'img' : undefined} aria-label={alt || undefined}>{fallback || '◌'}</span>}
+    {<SpriteImage src={url || ((fallback?.startsWith('data:') || fallback?.startsWith('/')) ? fallback : freshArt)} alt={alt || name} draggable={false} decoding="async" />}
   </span>;
 }
 export function MaterialSprite({ material, className, alt = '', idle = true }: { material: Material; className?: string; alt?: string; idle?: boolean }) {
-  const procedural = useMemo(() => generateMaterialSprite(material), [material]);
-  const custom = material.customSpriteUrl && material.customSpriteUrl !== procedural ? material.customSpriteUrl : undefined;
-  return <ElementSprite name={material.displayName} custom={custom} fallback={procedural} className={className} alt={alt} idle={idle} />;
+  const fresh = useMemo(() => generateFreshPixelArt(material.displayName), [material.displayName]);
+  const legacy = useMemo(() => generateMaterialSprite(material), [material]);
+  // Preserve uploads/rerolls. Old procedural defaults are not uploaded art:
+  // replace those with the new distinctly hand-authored pixel silhouettes.
+  const custom = material.customSpriteUrl && material.customSpriteUrl !== legacy
+    ? material.customSpriteUrl : undefined;
+  return <ElementSprite name={material.displayName} custom={custom} fallback={fresh} className={className} alt={alt} idle={idle} />;
 }
