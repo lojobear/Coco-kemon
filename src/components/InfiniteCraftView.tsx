@@ -64,6 +64,7 @@ import {
   ZoomIn,
   Trophy,
   SlidersHorizontal,
+  ArrowRight,
 } from 'lucide-react';
 
 interface CanvasItem {
@@ -846,7 +847,8 @@ export function InfiniteCraftView() {
     <div className="boop-craft-studio">
       <section className="boop-board-layout" aria-label="Discover crafting board">
         <header className="boop-board-toolbar boop-board-toolbar--quiet">
-          <div className="boop-board-heading"><strong>Craft</strong><small>Drag elements together to discover</small></div>
+          <div className="boop-board-heading"><strong>Craft</strong><small>Drag two sprites together</small></div>
+          <button type="button" className="boop-craft-mode-link" onClick={()=>setActiveTab('foundry')} aria-label="Open combination lab">Combine <ArrowRight size={14}/></button>
           <div className="boop-board-actions boop-board-actions--quiet">
             <button type="button" className="boop-quiet-spawn" disabled={!spawnPool.length || canvasItems.length>=300}
               aria-label={`Spawn ${spawnCount} random ${spawnCount===1?'element':'elements'}`}
@@ -911,7 +913,10 @@ export function InfiniteCraftView() {
           <button type="button" onClick={retryPendingArtwork} disabled={artStatus.running} aria-label="Retry pending artwork">Retry</button>
         </div>}
         {spawnToast && <div className="boop-board-toast" role="status">{spawnToast}</div>}
-        <button className="boop-board-mobile-library" onClick={()=>setIsSidebarOpen(true)} aria-label="Open element library"><Plus size={21}/> Add an element</button>
+        <div className="boop-mobile-craft-dock" aria-label="Crafting quick actions">
+          <button type="button" className="boop-mobile-craft-library" onClick={()=>setIsSidebarOpen(true)} aria-label="Browse ingredients"><Plus size={19}/><span>Ingredients</span><small>{elements.length}</small></button>
+          <button type="button" className="boop-mobile-craft-spawn" disabled={!spawnPool.length || canvasItems.length>=300} onClick={()=>spawnRandomBatch(spawnCount)} aria-label={`Spawn ${spawnCount} random elements`}><Shuffle size={18}/><span>Surprise me</span></button>
+        </div>
         {isSidebarOpen && <div className="boop-board-drawer-backdrop" onClick={()=>setIsSidebarOpen(false)} aria-hidden="true"/>}
         <aside id="boop-board-library" className={`boop-board-drawer ${isSidebarOpen ? 'is-open' : ''}`} aria-label="Your element library" aria-hidden={!isSidebarOpen}>
           <div className="boop-board-drawer-head"><div><h2>Ingredients</h2><small>{elements.length} discovered · tap to add to board</small></div><button aria-label="Close ingredients" onClick={()=>setIsSidebarOpen(false)}><X size={21}/></button></div>
