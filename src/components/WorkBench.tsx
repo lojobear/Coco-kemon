@@ -4,7 +4,6 @@ import { useGame } from '../lib/gameStore';
 import type { Material } from '../types';
 import { readCraftElements, SAVE_IMPORTED_EVENT } from '../lib/saveData';
 import { conceptMaterial } from '../lib/conceptMaterial';
-import { generateFreshPixelArt } from '../lib/freshPixelArt';
 import { MaterialSprite } from './ElementSprite';
 import { chooseRandomProcess } from '../lib/randomProcess';
 import { EXTRA_PROCESSES } from '../lib/extraProcesses';
@@ -32,7 +31,7 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
     const names = new Set(foundryMaterials.map(item => item.displayName.trim().toLowerCase()));
     return [...foundryMaterials, ...craftItems.filter(item => !names.has(item.name.trim().toLowerCase())).map(item => {
       const material = conceptMaterial({ result: item.name, emoji: item.emoji, explanation: item.explanation, connection: item.connection });
-      return { ...material, discoveredAt: item.discoveredAt || 0, customSpriteUrl: item.customSpriteUrl || generateFreshPixelArt(item.name) };
+      return { ...material, discoveredAt: item.discoveredAt || 0, customSpriteUrl: item.customSpriteUrl };
     })];
   }, [foundryMaterials, craftItems]);
   const availableProcesses = useMemo(() => [...processes, ...EXTRA_PROCESSES.filter(extra => !processes.some(p => p.id === extra.id)), ...FOUNDRY_ACTIONS.filter(action => ![...processes, ...EXTRA_PROCESSES].some(p => p.id === action.id))].filter(p => p.unlocked), [processes]);
