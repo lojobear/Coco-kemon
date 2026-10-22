@@ -47,7 +47,7 @@ test('craft board uses artwork queue, zoom-safe pointer geometry and accessible 
   assert.match(src,/Redo board action/);
   assert.match(src,/Zoom in/);
   assert.match(src,/Zoom out/);
-  assert.match(src,/boop-artwork-queue/);
+  assert.match(src,/boop-more-artwork/);
   assert.match(src,/zoom:boardZoom/);
   assert.match(src,/drag\.currentX - drag\.startX\) \/ zoomRef\.current/);
   assert.doesNotMatch(src,/AI artwork pending: \{spriteIssue\.name\}/);
