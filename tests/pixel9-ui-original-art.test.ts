@@ -24,8 +24,8 @@ test('new 24px hand-authored icons identify real concepts instead of emoji place
 });
 
 test('made-up infinite crafting names get individual deterministic pixel art, not an emoji',()=>{
-  const a=generateFreshPixelArt('Glowing Burrito Nimbus');
-  const b=generateFreshPixelArt('Glowing Burrito Nebula');
+  const a=generateFreshPixelArt('Aether Wisp Nimbus');
+  const b=generateFreshPixelArt('Aether Wisp Nebula');
   assert.ok(a.startsWith('data:image/svg+xml'));
   assert.notEqual(a,b);
   assert.doesNotMatch(decodeURIComponent(a),/<text|emoji/);
