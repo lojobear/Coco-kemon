@@ -2153,3 +2153,33 @@ html.boop-native-shell .boop-app .boop-cloud-dialog {
   .boop-app .collection-workbench .boop-combine-inventory *,
   .boop-combine-quick-row button {animation:none!important;transition:none!important;}
 }
+
+/* Craft canvas: hide secondary tools on the Pixel 9; More retains undo/redo. */
+@media(max-width:600px) {
+  .boop-app .boop-board-toolbar--quiet {
+    padding:9px 14px!important;min-height:56px;height:56px;gap:9px;
+  }
+  .boop-app .boop-board-toolbar--quiet .boop-board-heading strong {font-size:23px;}
+  .boop-app .boop-board-toolbar--quiet .boop-board-actions--quiet >button[aria-label="Undo last board action"] {display:none!important;}
+  .boop-app .boop-board-toolbar--quiet .boop-craft-mode-link {min-height:39px;height:39px;padding:8px 12px;font-size:12px;}
+  .boop-app .boop-board-world {
+    background-color:#fff!important;
+    background-image:radial-gradient(circle,#ebeff3 .65px,transparent .85px)!important;
+    background-size:35px 35px!important;
+  }
+  .boop-app .boop-board-layout .boop-board-item {
+    border:1px solid #edf0f2!important;box-shadow:0 3px 10px #2635440e!important;
+  }
+  .boop-app .boop-mobile-craft-dock {
+    grid-template-columns:minmax(0,1.45fr) minmax(0,.85fr);
+    padding:7px;gap:7px;bottom:max(10px,env(safe-area-inset-bottom));
+    border:1px solid #e4e9ee;border-radius:20px;box-shadow:0 6px 27px #1d29351b;
+  }
+  .boop-app .boop-mobile-craft-dock button {min-height:54px;font-size:12px;border-radius:15px;}
+  .boop-app .boop-mobile-craft-dock .boop-mobile-craft-library {
+    background:#27313d;color:white;
+  }
+  .boop-app .boop-mobile-craft-dock .boop-mobile-craft-spawn {
+    border:1px solid #e8edf1;background:#f6f8fa;color:#35414c;
+  }
+}
