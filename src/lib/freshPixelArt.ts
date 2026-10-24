@@ -14,7 +14,8 @@ type Form='fire'|'water'|'wind'|'earth'|'tree'|'flower'|'mushroom'|'fish'|'cat'|
   |'train'|'car'|'noodles'|'lantern'|'compass'|'camera'|'trophy'|'gift'|'music'
   |'sushi'|'taco'|'icecream'|'cheese'|'berry'|'apple'|'phone'|'helicopter'
   |'dinosaur'|'cactus'|'castle'|'pancakes'|'umbrella'|'fox'|'bread'
-  |'delight'|'cereal'|'cookie'|'donut'|'steak'|'pie'|'candle'|'sandwich'|'dumpling'|'soda';
+  |'delight'|'cereal'|'cookie'|'donut'|'steak'|'pie'|'candle'|'sandwich'|'dumpling'|'soda'
+  |'owl'|'jellyfish'|'sailboat'|'balloon'|'campfire'|'potion'|'breakfast'|'hourglass'|'ring'|'lightning';
 type Palette={base:string;light:string;shade:string;accent:string;bright:string};
 const PALETTES:Record<string,Palette>={
  fire:{base:'#f87040',light:'#ffb76b',shade:'#b83f3a',accent:'#f7d36d',bright:'#fff4a4'},
@@ -29,6 +30,17 @@ const PALETTES:Record<string,Palette>={
  animal:{base:'#dfaa83',light:'#f9d9a7',shade:'#a77870',accent:'#e98086',bright:'#fff1c9'}
 };
 const PATTERNS:Array<[RegExp,Form,keyof typeof PALETTES]>=[
+  // Newly authored silhouettes for specific concepts before broad matching rules.
+  [/\b(?:owl|barn owl|snowy owl|night owl)\b/i,'owl','animal'],
+  [/\b(?:jellyfish|medusa|sea jelly)\b/i,'jellyfish','water'],
+  [/\b(?:sailboat|sailing ship|yacht|sail ship)\b/i,'sailboat','water'],
+  [/\b(?:hot air balloon|balloon|dirigible)\b/i,'balloon','cosmic'],
+  [/\b(?:campfire|bonfire|firepit)\b/i,'campfire','fire'],
+  [/\b(?:potion|healing potion|mana potion|alchemy bottle)\b/i,'potion','magic'],
+  [/\b(?:breakfast|brunch|morning meal)\b/i,'breakfast','food'],
+  [/\b(?:hourglass|sand timer)\b/i,'hourglass','tech'],
+  [/\b(?:wedding ring|magic ring|engagement ring)\b/i,'ring','magic'],
+  [/\b(?:lightning|thunderbolt|electric spark)\b/i,'lightning','tech'],
   // Named, individually drawn food sprites—not a generic cake/burger icon for all dishes.
   [/\b(?:turkish delight|lokum|rosewater candy)\b/i,'delight','food'],
   [/\b(?:cereal|granola|porridge|oatmeal|cornflakes)\b/i,'cereal','food'],
@@ -329,6 +341,50 @@ export function generateFreshPixelArt(name:string):string {
       rect(7,8,10,13,B);rect(8,9,8,10,A);rect(8,6,9,3,S);
       line(14,7,17,3,L,2);rect(10,12,2,2,H);rect(14,15,2,2,H);
       rect(10,19,5,2,L);break;
+    case 'owl':
+      ellipse(12,14,8,7,B);ellipse(12,8,7,5,S);
+      line(6,8,5,4,S,2);line(18,8,19,4,S,2);
+      ellipse(9,11,3,3,H);ellipse(16,11,3,3,H);
+      dot(9,11,INK);dot(16,11,INK);
+      line(12,13,13,15,A,2);line(8,19,8,21,S,2);line(16,19,16,21,S,2);break;
+    case 'jellyfish':
+      ellipse(12,10,8,6,B);rect(5,10,14,4,L);
+      for(const x of [6,10,14,18])line(x,14,x+(x%3)-1,21,S,2);
+      ellipse(9,10,2,2,H);dot(9,11,INK);dot(15,11,INK);break;
+    case 'sailboat':
+      line(12,4,12,18,S,2);line(11,5,4,15,L,3);
+      line(14,6,20,15,B,3);line(4,17,20,17,S,3);
+      line(6,20,18,20,B,2);dot(17,8,H);break;
+    case 'balloon':
+      ellipse(12,10,7,7,B);ellipse(9,8,3,4,L);
+      line(9,15,10,19,S);line(15,15,14,19,S);
+      rect(9,19,6,3,A);rect(11,4,2,2,H);break;
+    case 'campfire':
+      line(5,19,19,15,S,3);line(5,15,19,19,B,3);
+      ellipse(12,12,6,7,A);line(10,13,12,3,B,3);
+      line(14,13,17,7,S,3);ellipse(12,15,3,4,H);break;
+    case 'potion':
+      rect(10,3,5,6,S);rect(9,4,7,2,B);
+      ellipse(12,15,8,7,S);ellipse(12,16,6,5,A);
+      rect(9,11,7,3,H);rect(7,15,2,2,L);star(15,16,1,H);break;
+    case 'breakfast':
+      ellipse(12,15,10,6,S);ellipse(12,13,9,5,H);
+      ellipse(10,12,5,4,L);ellipse(10,12,2,2,A);
+      rect(14,9,6,5,B);rect(15,10,4,3,L);
+      line(6,18,18,18,S,1);break;
+    case 'hourglass':
+      rect(5,4,14,2,S);rect(5,19,14,2,S);
+      line(7,6,12,12,L,2);line(17,6,12,12,L,2);
+      line(7,19,12,13,B,2);line(17,19,12,13,B,2);
+      rect(10,16,4,2,A);rect(11,12,2,3,H);break;
+    case 'ring':
+      ellipse(12,14,8,7,S);ellipse(12,14,5,4,H);
+      line(9,9,12,4,A,3);line(15,9,12,4,B,3);
+      star(12,5,2,L);break;
+    case 'lightning':
+      line(14,3,7,13,B,5);line(7,13,14,12,A,3);
+      line(14,12,10,21,B,5);rect(11,5,2,3,H);
+      star(18,7,1,L);break;
     case 'curio':case 'relic':case 'creature':case 'mechanism':case 'crystal':{
       // Fresh name-driven pixel art, NOT one of five reused "mystery" icons.
       // Compose a silhouette, asymmetrical profile, inset details and secondary
