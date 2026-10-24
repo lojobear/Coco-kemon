@@ -94,7 +94,7 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
   return <section className="collection-workbench" aria-label="Foundry workspace"><FoundryFusionOverlay />
     <div className="workbench-intro boop-focus-intro">
       <div><span className="boop-workbench-eyebrow">THE MIXING LAB</span><h1>Combine</h1><p>Two ingredients. One new discovery.</p></div>
-      <button type="button" className="boop-workbench-craft-link" onClick={() => setActiveTab('infinite-craft')}><Hammer size={16}/> Board</button>
+      <button type="button" className="boop-workbench-craft-link" onClick={() => setActiveTab('infinite-craft')}><Hammer size={16}/> Craft board</button>
     </div>
     <div className={`combine-dock boop-focus-recipe ${isSynthesizing ? 'is-combining' : ''}`}>
       <div className="boop-pad-heading"><span>YOUR RECIPE</span><span className="boop-ready-tag">{slotA && slotB ? <><CheckCircle2 size={12}/> Ready</> : `${Number(!!slotA)+Number(!!slotB)} / 2 selected`}</span></div>
