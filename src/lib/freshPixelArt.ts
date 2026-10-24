@@ -13,7 +13,8 @@ type Form='fire'|'water'|'wind'|'earth'|'tree'|'flower'|'mushroom'|'fish'|'cat'|
   |'curio'|'relic'|'creature'|'mechanism'|'crystal'|'toaster'|'dragon'|'skull'|'crown'
   |'train'|'car'|'noodles'|'lantern'|'compass'|'camera'|'trophy'|'gift'|'music'
   |'sushi'|'taco'|'icecream'|'cheese'|'berry'|'apple'|'phone'|'helicopter'
-  |'dinosaur'|'cactus'|'castle'|'pancakes'|'umbrella'|'fox'|'bread';
+  |'dinosaur'|'cactus'|'castle'|'pancakes'|'umbrella'|'fox'|'bread'
+  |'delight'|'cereal'|'cookie'|'donut'|'steak'|'pie'|'candle'|'sandwich'|'dumpling'|'soda';
 type Palette={base:string;light:string;shade:string;accent:string;bright:string};
 const PALETTES:Record<string,Palette>={
  fire:{base:'#f87040',light:'#ffb76b',shade:'#b83f3a',accent:'#f7d36d',bright:'#fff4a4'},
@@ -28,6 +29,17 @@ const PALETTES:Record<string,Palette>={
  animal:{base:'#dfaa83',light:'#f9d9a7',shade:'#a77870',accent:'#e98086',bright:'#fff1c9'}
 };
 const PATTERNS:Array<[RegExp,Form,keyof typeof PALETTES]>=[
+  // Named, individually drawn food sprites—not a generic cake/burger icon for all dishes.
+  [/\b(?:turkish delight|lokum|rosewater candy)\b/i,'delight','food'],
+  [/\b(?:cereal|granola|porridge|oatmeal|cornflakes)\b/i,'cereal','food'],
+  [/\b(?:cookie|biscuit|shortbread)\b/i,'cookie','food'],
+  [/\b(?:donut|doughnut|cruller)\b/i,'donut','food'],
+  [/\b(?:steak|ribeye|sirloin|tenderloin)\b/i,'steak','food'],
+  [/\b(?:fruit pie|apple pie|cherry pie|pumpkin pie)\b/i,'pie','food'],
+  [/\b(?:candle|wax|wick)\b/i,'candle','magic'],
+  [/\b(?:sandwich|panini|submarine sandwich|grilled cheese)\b/i,'sandwich','food'],
+  [/\b(?:dumpling|gyoza|pierogi|wonton|bao)\b/i,'dumpling','food'],
+  [/\b(?:soda|fizzy drink|lemonade|cola|pop)\b/i,'soda','food'],
  [ /\b(?:sushi|nigiri|onigiri|maki)\b/i, 'sushi', 'food' ],
  [ /\b(?:taco|burrito|quesadilla)\b/i, 'taco', 'food' ],
  [ /\b(?:ice cream|gelato|sorbet|sundae|popsicle)\b/i, 'icecream', 'food' ],
@@ -278,16 +290,98 @@ export function generateFreshPixelArt(name:string):string {
     case 'bread':
       ellipse(12,12,9,7,B);rect(5,12,14,7,B);rect(7,9,10,7,L);
       rect(8,12,3,2,H);rect(14,13,3,2,H);line(6,19,18,19,S,2);break;
+    case 'delight':
+      // Rosewater lokum, cubic translucent candies in a small tray.
+      rect(3,16,18,5,S);rect(4,15,16,3,L);
+      rect(5,9,7,7,A);rect(13,8,7,8,B);rect(6,10,5,4,L);rect(14,9,5,4,H);
+      rect(7,11,2,2,H);rect(16,11,2,2,H);rect(5,17,15,1,A);break;
+    case 'cereal':
+      ellipse(12,15,9,6,S);ellipse(12,12,8,5,L);ellipse(12,12,6,3,H);
+      for(const [x,y] of [[8,10],[11,11],[15,10],[17,12],[9,13]])rect(x,y,2,2,A);
+      line(17,6,20,13,INK,2);break;
+    case 'cookie':
+      ellipse(12,12,9,8,B);ellipse(11,10,7,6,L);
+      for(const [x,y] of [[8,8],[15,9],[10,14],[16,16],[6,13]])rect(x,y,2,2,S);
+      rect(8,7,2,2,H);break;
+    case 'donut':
+      ellipse(12,13,9,7,S);ellipse(12,11,9,6,B);ellipse(12,11,6,4,A);
+      ellipse(12,12,3,3,INK);ellipse(12,12,2,2,H);
+      for(const [x,y] of [[7,8],[16,8],[17,13],[8,15]])line(x,y,x+2,y+1,L);break;
+    case 'steak':
+      ellipse(12,14,9,7,S);ellipse(11,12,8,6,B);ellipse(9,11,4,3,L);
+      ellipse(15,14,3,3,A);rect(16,13,2,2,H);line(6,17,12,19,H);break;
+    case 'pie':
+      rect(4,13,16,7,B);line(4,11,20,11,S,3);ellipse(12,11,8,5,A);
+      for(const [x,y] of [[8,8],[13,9],[17,11]])rect(x,y,2,2,H);
+      rect(5,18,14,2,S);break;
+    case 'candle':
+      rect(8,10,8,11,B);rect(9,11,6,8,L);rect(11,7,2,4,INK);
+      ellipse(12,6,3,4,A);rect(11,4,2,3,H);
+      rect(6,21,12,1,S);break;
+    case 'sandwich':
+      line(4,8,20,8,B,4);rect(5,11,14,3,A);rect(5,14,14,3,S);
+      line(4,18,20,18,L,3);rect(7,7,4,2,H);rect(14,16,3,2,H);break;
+    case 'dumpling':
+      ellipse(12,14,9,6,S);ellipse(12,12,8,6,L);
+      for(let x=7;x<=17;x+=3)line(x,9,x+1,13,B,1);
+      rect(8,18,8,2,A);rect(10,8,2,2,H);break;
+    case 'soda':
+      rect(7,8,10,13,B);rect(8,9,8,10,A);rect(8,6,9,3,S);
+      line(14,7,17,3,L,2);rect(10,12,2,2,H);rect(14,15,2,2,H);
+      rect(10,19,5,2,L);break;
     case 'curio':case 'relic':case 'creature':case 'mechanism':case 'crystal':{
-      // Unrecognized elements still receive *different, named original pixel
-      // illustrations*, not the same placeholder or emoji.
-      const variant=seed%5,accentOffset=(seed>>>8)%5;
-      if(variant===0){rect(6,9,12,11,B);ellipse(12,8,6,5,L);rect(9,12,6,5,A);star(12,14,2,H);}
-      else if(variant===1){ellipse(12,12,8,8,B);ellipse(9,9,5,4,L);rect(8,15,8,3,S);star(15,8,2,A);}
-      else if(variant===2){rect(6,7,12,13,S);rect(8,9,8,9,B);rect(11,3,3,5,L);rect(9,12,2,2,A);rect(14,12,2,2,A);}
-      else if(variant===3){ellipse(12,13,7,6,B);rect(8,4,8,7,S);ellipse(12,7,4,4,L);rect(9,15,6,3,A);}
-      else {line(5,17,12,4,B,5);line(12,4,19,17,S,5);ellipse(12,14,5,5,A);star(12,14,2,H);}
-      dot(8+accentOffset,6,H);dot(16-accentOffset,19,A);break;
+      // Fresh name-driven pixel art, NOT one of five reused "mystery" icons.
+      // Compose a silhouette, asymmetrical profile, inset details and secondary
+      // markings from the full discovery name. Stable across device/reloads.
+      const kind=seed%7;
+      const width=4+((seed>>>6)%6),height=5+((seed>>>12)%5);
+      const mid=11+((seed>>>9)%3);
+      if(kind===0){ // mechanical relic with offset tower and lens
+        rect(12-width/2,11-height/2,width+3,height+7,S);
+        rect(14,6,4+(seed%3),5,B);rect(10,5,3,4,L);
+        ellipse(10,14,3,3,A);ellipse(10,14,1,1,H);
+        rect(5,17,4,3,B);
+      }else if(kind===1){ // asymmetrical horned specimen
+        ellipse(12,14,width,6,B);ellipse(8,11,4,4,L);
+        line(8,8,5-(seed%2),4,S,2);line(16,9,19,3,A,3);
+        rect(8,14,2,2,INK);rect(15,12,2,2,INK);
+        line(17,17,20,20,S,2);
+      }else if(kind===2){ // glass artifact with layered core
+        line(mid,3,5,13,S,3);line(mid,3,20,13,B,3);
+        line(5,13,mid,21,B,4);line(20,13,mid,21,S,4);
+        ellipse(mid,13,3,4,A);rect(mid-1,10,2,4,H);
+      }else if(kind===3){ // relic on asymmetric supports
+        rect(5,12,15,6,S);rect(6,11,13,6,B);
+        rect(8,7,6+seed%4,5,L);rect(12,4,3,4,A);
+        rect(4,18,4,3,INK);rect(16,18,4,3,INK);
+        rect(10,13,2,2,H);rect(16,13,2,2,A);
+      }else if(kind===4){ // plant/alien shape, no arbitrary emoji
+        rect(11,11,3,10,S);ellipse(9,10,5,6,B);
+        ellipse(16,12,5,4,A);line(12,11,18,5,L,2);
+        ellipse(17,6,3,3,H);rect(6,15,4,2,L);
+      }else if(kind===5){ // glider/feathered discovery
+        line(3,10,12,6,B,4);line(12,6,21,11,S,4);
+        ellipse(12,12,4,7,L);rect(11,8,2,6,A);
+        line(12,17,7,21,S);line(12,17,17,21,B);
+      }else{ // miniature architecture, staggered roofs
+        rect(5,11,8,10,B);rect(13,9,7,12,S);
+        line(4,11,10,5,L,3);line(10,5,15,11,L,3);
+        line(12,9,17,4,A,2);line(17,4,21,9,A,2);
+        rect(9,14,2,4,H);rect(15,13,3,3,L);
+      }
+      // Unique surface geometry from its full name: each unknown discovery
+      // gets its own silhouette accents, not just a recolored placeholder.
+      const side=seed&1?4:19;
+      const marks=2+(seed>>>18)%5;
+      for(let i=0;i<marks;i++){
+        const n=(seed>>>(i*4))&15;
+        const px=5+(n%14),py=7+((n+i*5)%13);
+        if(i%3===0)rect(px,py,2,1,H);
+        else if(i%3===1)dot(px,py,A);
+        else rect(px,py,1,2,L);
+      }
+      if((seed>>>24)&1)star(side,7,1,A);
+      break;
     }
   }
   // Original details are deterministically authored for each combination:

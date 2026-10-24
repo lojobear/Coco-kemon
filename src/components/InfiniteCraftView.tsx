@@ -872,7 +872,7 @@ export function InfiniteCraftView() {
                   <button type="button" onClick={tidyCanvas}><LayoutGrid size={16}/> Tidy</button>
                   <button type="button" onClick={clearCanvas}><Trash2 size={16}/> Clear board</button>
                 </div>
-                {artStatus.pending>0 && <div className="boop-more-artwork"><span><Sparkles size={15}/> {artStatus.pending} pending sprite{artStatus.pending===1?'':'s'}</span><button type="button" disabled={artStatus.running} onClick={retryPendingArtwork}>Retry artwork</button></div>}
+                {artStatus.pending>0 && <div className="boop-more-artwork"><button type="button" disabled={artStatus.running} onClick={retryPendingArtwork} aria-label="Retry pending sprites">Retry missing sprites</button><small>{artStatus.pending} in queue</small></div>}
                 <div className="boop-board-more-zoom">
                   <span>Zoom</span>
                   <button type="button" aria-label="Zoom out" disabled={boardZoom<=.6} onClick={()=>setZoomPreservingCenter(boardZoom-.15)}><Minus size={17}/></button>

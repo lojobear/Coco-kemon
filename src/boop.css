@@ -1831,3 +1831,170 @@ html.boop-native-shell .boop-app .boop-cloud-dialog {
   .boop-app .boop-board-result strong {font-size:13px;}
   .boop-app .boop-board-result button {min-height:37px;min-width:37px;}
 }
+
+/* BOOP FOCUS — Google Pixel 9 (412×915 CSS px class)
+ * Keep the canvas and recipe as the primary visual; tools remain discoverable
+ * in More / Experiment settings. No artwork queue notifications over the board.
+ */
+.boop-app .boop-artwork-queue {display:none!important;}
+.boop-app .collection-workbench .boop-workbench-eyebrow {
+  display:block;font-size:9px;letter-spacing:1.7px;color:#89939e;
+  font-weight:850;margin-bottom:2px;
+}
+.boop-app .collection-workbench .boop-combine-settings {
+  border-top:1px solid #e8ecf0;padding-top:8px;
+}
+.boop-app .collection-workbench .boop-combine-settings > summary {
+  display:flex;align-items:center;gap:8px;list-style:none;
+  min-height:36px;color:#75818d;cursor:pointer;
+  font-size:11px;font-weight:750;outline-offset:3px;
+}
+.boop-app .collection-workbench .boop-combine-settings > summary::-webkit-details-marker {display:none;}
+.boop-app .collection-workbench .boop-combine-settings > summary > b {
+  margin-left:auto;font-size:10px;font-weight:700;
+  color:#6c7784;background:#f3f5f7;padding:4px 7px;border-radius:8px;
+}
+.boop-app .collection-workbench .boop-combine-settings[open] > summary {color:#2c3743;}
+.boop-app .collection-workbench .boop-combine-settings .process-control {
+  display:flex;align-items:center;gap:8px;max-width:none;
+  margin-top:9px;padding:0;min-width:0;
+}
+.boop-app .collection-workbench .boop-combine-settings .process-control label {
+  font-size:11px;color:#6e7986!important;flex:0 0 auto;
+}
+.boop-app .collection-workbench .boop-combine-settings .process-control select {
+  flex:1;min-width:0;min-height:40px;color:#2b3641;
+  background:#fff;border:1px solid #e3e7eb;border-radius:11px;
+}
+.boop-app .collection-workbench .boop-combine-settings .random-process {
+  min-width:70px;min-height:40px;display:flex;align-items:center;
+  justify-content:center;gap:5px;padding:6px 8px;
+  border-radius:11px;border:1px solid #e3e7eb;color:#465461;
+  background:#fff;font-size:11px;
+}
+.boop-app .boop-board-layout .boop-board-item .craft-emoji,
+.boop-app .collection-workbench .discovery-pick .element-emoji,
+.boop-app .collection-workbench .ingredient-pick .element-emoji {
+  image-rendering:pixelated;
+}
+@media(max-width:520px){
+  .boop-app .collection-workbench {
+    padding:9px 14px max(72px,env(safe-area-inset-bottom))!important;
+    gap:11px!important;max-width:500px!important;
+    overscroll-behavior:contain;
+  }
+  .boop-app .collection-workbench .workbench-intro {
+    min-height:35px;gap:8px;
+  }
+  .boop-app .collection-workbench .workbench-intro h1 {
+    margin:0;font-size:23px;line-height:1.1;letter-spacing:-.75px;
+  }
+  .boop-app .collection-workbench .workbench-intro p {display:none;}
+  .boop-app .collection-workbench .boop-workbench-craft-link {
+    min-height:34px;height:34px;font-size:10px;padding:6px 9px;
+  }
+  .boop-app .collection-workbench .combine-dock {
+    padding:12px!important;gap:9px!important;
+    background:#fff!important;border:1px solid #e7eaf0!important;
+    border-radius:18px!important;box-shadow:0 3px 16px #27303d08!important;
+  }
+  .boop-app .collection-workbench .combine-dock .boop-pad-heading {
+    min-height:20px;display:flex;align-items:center;justify-content:space-between;
+  }
+  .boop-app .collection-workbench .combine-dock .boop-ready-tag {
+    font-size:9px;padding:5px 9px;background:#f3f5f7;color:#65707b;
+  }
+  .boop-app .collection-workbench .combine-inputs {
+    display:grid!important;grid-template-columns:minmax(0,1fr) 22px minmax(0,1fr);
+    align-items:start;justify-items:center;column-gap:6px!important;
+    margin:0!important;
+  }
+  .boop-app .collection-workbench .combine-dock .ingredient {
+    max-width:none;width:100%;gap:5px;
+  }
+  .boop-app .collection-workbench .combine-dock .ingredient-pick {
+    width:min(100%,122px);height:78px;min-height:78px;
+    border-radius:13px!important;border-color:#e4e8ec!important;
+    box-shadow:none!important;
+  }
+  .boop-app .collection-workbench .combine-dock .ingredient-pick .element-emoji {
+    height:70px;width:70px;
+  }
+  .boop-app .collection-workbench .combine-dock .ingredient>span {
+    max-width:130px;font-size:10px;line-height:1.2;
+  }
+  .boop-app .collection-workbench .combine-dock .ingredient-plus {
+    margin-top:26px;width:19px;height:19px;
+  }
+  .boop-app .collection-workbench .combine-actions {
+    gap:7px;margin:0;
+  }
+  .boop-app .collection-workbench .combine-primary,
+  .boop-app .collection-workbench .random-items {
+    min-height:46px;height:46px;border-radius:12px;
+  }
+  .boop-app .collection-workbench .combine-primary {font-size:13px;}
+  .boop-app .collection-workbench .random-items {
+    min-width:46px;flex-basis:46px;
+  }
+  .boop-app .collection-workbench .boop-combine-settings {
+    padding-top:3px;border-color:#f0f1f3;
+  }
+  .boop-app .collection-workbench .boop-combine-settings > summary {
+    min-height:29px;font-size:10px;
+  }
+  .boop-app .collection-workbench .discovery-heading {
+    display:flex;align-items:center;gap:9px;flex-wrap:nowrap;
+  }
+  .boop-app .collection-workbench .discovery-heading h2 {
+    font-size:14px;font-weight:850;white-space:nowrap;
+  }
+  .boop-app .collection-workbench .discovery-search {
+    height:42px;min-height:42px;min-width:0;flex:1 1 auto;
+  }
+  .boop-app .collection-workbench .discovery-grid {
+    grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;
+  }
+  .boop-app .collection-workbench .discovery-tile {
+    border-radius:15px!important;min-width:0;
+  }
+  .boop-app .collection-workbench .discovery-pick {
+    min-height:120px;padding:11px 6px 9px;gap:6px;
+  }
+  .boop-app .collection-workbench .discovery-pick .element-emoji {
+    height:74px;width:74px;
+  }
+  .boop-app .collection-workbench .discovery-pick>span:not(.element-emoji) {
+    font-size:11px;line-height:1.2;max-width:100%;overflow-wrap:anywhere;
+  }
+  .boop-app .boop-board-toolbar--quiet {
+    padding:7px 11px!important;gap:5px;
+  }
+  .boop-app .boop-board-toolbar--quiet .boop-board-heading strong {
+    font-size:22px;
+  }
+  .boop-app .boop-board-actions--quiet {
+    margin-left:auto;gap:4px!important;
+  }
+  .boop-app .boop-mobile-craft-dock {
+    border-radius:16px;box-shadow:0 6px 20px #252c3718;
+    padding:6px;gap:6px;
+  }
+  .boop-app .boop-mobile-craft-dock button {
+    min-height:47px;border-radius:12px;
+  }
+  .boop-app .boop-mobile-craft-library {font-size:12px;}
+  .boop-app .boop-board-world {
+    background-image:radial-gradient(circle,#edf0f3 .7px,transparent 1px)!important;
+    background-size:32px 32px!important;
+  }
+  .boop-app .boop-board-status,
+  .boop-app .boop-board-alert {max-width:none;}
+  .boop-app .boop-board-drawer {
+    border-radius:19px 19px 0 0;box-shadow:0 -10px 45px #1c273825!important;
+  }
+}
+@media(prefers-reduced-motion:reduce){
+ .boop-app .collection-workbench .combine-dock *,
+ .boop-app .boop-board-layout .boop-board-item {transition:none!important;animation:none!important;}
+}
