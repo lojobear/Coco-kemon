@@ -3,9 +3,10 @@ import { resolveSpriteSource } from '../lib/spriteAssets';
 import { isSpriteReference } from '../lib/spriteReference';
 
 /** Resolve private files at display time; account credentials never enter image URLs. */
-export function SpriteImage({ src, ...props }: React.ImgHTMLAttributes<HTMLImageElement>) {
+export function SpriteImage({ src, fallbackSrc, ...props }: React.ImgHTMLAttributes<HTMLImageElement> & { fallbackSrc?: string }) {
   const [resolved, setResolved] = useState<{ source?: string; url?: string; error?: string }>();
   const [retry, setRetry] = useState(0);
+  const [brokenSource, setBrokenSource] = useState<string | undefined>();
   useEffect(() => {
     if (!isSpriteReference(src)) return;
     let alive = true;
@@ -17,7 +18,13 @@ export function SpriteImage({ src, ...props }: React.ImgHTMLAttributes<HTMLImage
     window.addEventListener('quarkpop-sprite-account', retryLoad);
     return () => { alive = false; window.removeEventListener('quarkpop-retry-sprites', retryLoad); window.removeEventListener('quarkpop-sprite-account', retryLoad); };
   }, [src, retry]);
-  const url = isSpriteReference(src) ? (resolved?.source === src ? resolved.url : undefined) : src;
-  if (!url) return <span role="img" aria-label={props.alt || 'Sprite loading'} className={props.className} title={resolved?.error}>◌</span>;
-  return <img {...props} src={url} />;
+  const candidate = isSpriteReference(src) ? (resolved?.source === src ? resolved.url : undefined) : src;
+  // A saved remote sprite can be missing/offline; never show placeholder glyphs.
+  // The offline original pixel-art sprite remains visible while files resolve.
+  const url = candidate && candidate !== brokenSource ? candidate : fallbackSrc;
+  if (!url) return null;
+  return <img {...props} src={url} onError={event => {
+    if (candidate && candidate !== fallbackSrc) setBrokenSource(candidate);
+    props.onError?.(event);
+  }} />;
 }
