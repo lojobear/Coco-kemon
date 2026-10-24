@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { FlaskConical, Hammer, Search, Plus, X, Dice5, Sparkles, Info, Shuffle, ArrowLeftRight, RotateCcw, Trophy, Target, Layers3, Flame, SlidersHorizontal } from 'lucide-react';
+import { FlaskConical, Hammer, Search, Plus, X, Dice5, Sparkles, Info, Shuffle, ArrowLeftRight, RotateCcw, Trophy, Target, Layers3, Flame, SlidersHorizontal, ChevronUp, ChevronDown, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { useGame } from '../lib/gameStore';
 import type { Material } from '../types';
 import { readCraftElements, SAVE_IMPORTED_EVENT } from '../lib/saveData';
@@ -21,7 +21,27 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
   const [visibleCount, setVisibleCount] = useState(48);
   useEffect(()=>setVisibleCount(48),[search,category,sort]);
   const [picker, setPicker] = useState<'A' | 'B' | null>(null);
+  const [inventoryOpen, setInventoryOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
+  const openInventory = (slot?: 'A' | 'B') => {
+    if (slot) setPicker(slot);
+    setInventoryOpen(true);
+  };
+  const closeInventory = () => { setInventoryOpen(false); setPicker(null); };
+  useEffect(() => {
+    if (!inventoryOpen) return;
+    const onKey = (event: KeyboardEvent) => { if(event.key === 'Escape')closeInventory(); };
+    const onBack = () => closeInventory();
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('boop-native-back', onBack);
+    return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('boop-native-back', onBack); };
+  }, [inventoryOpen]);
+  useEffect(() => {
+    if (inventoryOpen) {
+      const id=window.requestAnimationFrame(()=>searchRef.current?.focus({preventScroll:true}));
+      return () => window.cancelAnimationFrame(id);
+    }
+  }, [inventoryOpen]);
   useEffect(() => {
     const reload = () => setCraftItems(readCraftElements());
     window.addEventListener(SAVE_IMPORTED_EVENT, reload);
@@ -56,8 +76,9 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
     else if (slotB.id === item.id) setSlotB(null);
     else setSlotB(item);
     setPicker(null);
+    setInventoryOpen(false);
   };
-  const chooseSlot = (slot: 'A' | 'B') => { setPicker(slot); searchRef.current?.focus(); };
+  const chooseSlot = (slot: 'A' | 'B') => openInventory(slot);
   const randomItems = () => {
     if (isSynthesizing || !materials.length) return;
     const first = Math.floor(Math.random() * materials.length);
@@ -71,12 +92,12 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
   useEffect(() => { if (!selectedProcess && process && !isSynthesizing) setSelectedProcess(process); }, [selectedProcess, process, isSynthesizing, setSelectedProcess]);
 
   return <section className="collection-workbench" aria-label="Foundry workspace"><FoundryFusionOverlay />
-    <div className="workbench-intro">
-      <div><span className="boop-workbench-eyebrow">THE MIXING LAB</span><h1>Combine</h1><p>Pick two discoveries. Make something unexpected.</p></div>
-      <button type="button" className="boop-workbench-craft-link" onClick={() => setActiveTab('infinite-craft')}><Hammer size={17}/> Craft board</button>
+    <div className="workbench-intro boop-focus-intro">
+      <div><span className="boop-workbench-eyebrow">THE MIXING LAB</span><h1>Combine</h1><p>Two ingredients. One new discovery.</p></div>
+      <button type="button" className="boop-workbench-craft-link" onClick={() => setActiveTab('infinite-craft')}><Hammer size={16}/> Craft board</button>
     </div>
-    <div className={`combine-dock ${isSynthesizing ? 'is-combining' : ''}`}>
-      <div className="boop-pad-heading"><span>YOUR RECIPE</span><span className="boop-ready-tag">{slotA ? (slotB ? 'Ready to combine' : '1 of 2 selected') : 'Select two items'}</span></div>
+    <div className={`combine-dock boop-focus-recipe ${isSynthesizing ? 'is-combining' : ''}`}>
+      <div className="boop-pad-heading"><span>YOUR RECIPE</span><span className="boop-ready-tag">{slotA && slotB ? <><CheckCircle2 size={12}/> Ready</> : `${Number(!!slotA)+Number(!!slotB)} / 2 selected`}</span></div>
       <div className="combine-inputs">
         {(['A', 'B'] as const).map((key, index) => {
           const item = key === 'A' ? slotA : slotB;
@@ -86,13 +107,13 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
                 {item ? <MaterialSprite material={item} className="ingredient-emoji" /> : <Plus size={24} />}
               </button>
               {item && <button className="ingredient-remove" aria-label={`Remove item ${key}`} disabled={isSynthesizing} onClick={() => key === 'A' ? setSlotA(null) : setSlotB(null)}><X size={15} /></button>}
-              <span>{item?.displayName || (key === 'A' ? 'Choose item' : 'Optional item')}</span>
+              <span>{item?.displayName || (key === 'A' ? 'Ingredient one' : 'Ingredient two')}</span>
             </div>
           </React.Fragment>;
         })}
       </div>
       <div className="recipe-tools"><span>{slotA ? `${slotA.displayName}${slotB ? ` + ${slotB.displayName}` : ''}` : 'Pick an item to begin'}</span><button disabled={isSynthesizing || !slotA || !slotB} aria-label="Swap ingredients" onClick={() => { setSlotA(slotB); setSlotB(slotA); }}><ArrowLeftRight size={16} /></button><button disabled={isSynthesizing || (!slotA && !slotB)} aria-label="Clear ingredients" onClick={() => { clearSlots(); setPicker(null); }}><RotateCcw size={16} /></button></div>
-      <div className="combine-actions"><button className="combine-primary" disabled={!slotA || !selectedProcess || isSynthesizing} onClick={() => void runSynthesis()}><Sparkles size={23} />{isSynthesizing ? 'Combining…' : 'Combine'}</button>
+      <div className="combine-actions"><button className="combine-primary" disabled={!slotA || !selectedProcess || isSynthesizing} onClick={() => void runSynthesis()}><Sparkles size={20} />{isSynthesizing ? 'Combining…' : 'Discover result'}</button>
         <button className="random-items" aria-label="Choose random ingredients" disabled={isSynthesizing || !materials.length} onClick={randomItems}><Dice5 size={23} /><span>Random</span></button>
       </div>
       {isSynthesizing && <p className="synthesis-status" role="status">{synthesisStage || 'Discovering something new…'}</p>}
@@ -107,6 +128,25 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
       </details>
 
     </div>
+    <div className="boop-combine-quick">
+      <div className="boop-combine-quick-heading"><span>QUICK PICKS</span><small>Tap to fill the next slot</small></div>
+      <div className="boop-combine-quick-row">
+        {[...materials].sort((a,b)=>b.discoveredAt-a.discoveredAt).slice(0,8).map(item=>
+          <button type="button" key={item.id} disabled={isSynthesizing} onClick={()=>selectItem(item)}
+            aria-label={`Quick pick ${item.displayName}`}>
+            <MaterialSprite material={item}/><span>{item.displayName}</span>
+          </button>
+        )}
+      </div>
+    </div>
+    <button type="button" className="boop-combine-browse-toggle" aria-expanded={inventoryOpen} aria-controls="boop-combine-inventory" onClick={()=>inventoryOpen?closeInventory():openInventory()}>
+      <span><Search size={18}/><strong>Browse ingredients</strong><small>{materials.length} collected</small></span>
+      {inventoryOpen?<ChevronDown size={18}/>:<ChevronUp size={18}/>}
+    </button>
+    {inventoryOpen && <button type="button" className="boop-combine-backdrop" aria-label="Close ingredient picker" onClick={closeInventory}/>}
+    <div id="boop-combine-inventory" className={`boop-combine-inventory ${inventoryOpen?'is-open':''}`}>
+    <div className="boop-combine-inventory-handle" aria-hidden="true"/>
+    <div className="boop-combine-inventory-title"><div><strong>Choose a sprite</strong><small>Tap to add it to the recipe</small></div><button aria-label="Close ingredient picker" onClick={closeInventory}><X size={19}/></button></div>
     <div className="discovery-heading"><h2>Ingredients <span>{materials.length}</span></h2>
       <label className="discovery-search"><Search size={17} /><input ref={searchRef} aria-label="Search your discoveries" placeholder="Find a sprite…" value={search} onChange={e => setSearch(e.target.value)} /></label>
     </div>
@@ -130,7 +170,7 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
       {!filtered.length && <p className="collection-empty">No discoveries match these filters. <button onClick={() => { setSearch(''); setCategory('all'); }}>Clear filters</button></p>}
     </div>
     {visibleCount<filtered.length && <button className="boop-more-discoveries" onClick={()=>setVisibleCount(n=>n+48)}>Show more discoveries <span>{Math.min(visibleCount,filtered.length)} of {filtered.length}</span></button>}
-
+    </div>
     <details className="boop-foundry-progress-details">
       <summary><Trophy size={15}/> Collection progress <span>Level {progression.level} · {progression.xp} XP</span></summary>
     <div className="progression-loop" aria-label="Discovery progression">

@@ -847,7 +847,7 @@ export function InfiniteCraftView() {
     <div className="boop-craft-studio">
       <section className="boop-board-layout" aria-label="Discover crafting board">
         <header className="boop-board-toolbar boop-board-toolbar--quiet">
-          <div className="boop-board-heading"><strong>Craft</strong><small>Drag two sprites together</small></div>
+          <div className="boop-board-heading"><strong>Craft</strong><small>{canvasItems.length} sprites on board</small></div>
           <button type="button" className="boop-craft-mode-link" onClick={()=>setActiveTab('foundry')} aria-label="Open combination lab">Combine <ArrowRight size={14}/></button>
           <div className="boop-board-actions boop-board-actions--quiet">
             <button type="button" className="boop-quiet-spawn" disabled={!spawnPool.length || canvasItems.length>=300}
@@ -868,6 +868,7 @@ export function InfiniteCraftView() {
                 </div>
                 <span className="boop-board-more-label">BOARD TOOLS</span>
                 <div className="boop-board-more-actions">
+                  <button type="button" aria-label="Undo board action" disabled={isSynthesizing||!historySize.past} onClick={undoLayout}><Undo2 size={16}/> Undo</button>
                   <button type="button" aria-label="Redo board action" disabled={isSynthesizing||!historySize.future} onClick={redoLayout}><Redo2 size={16}/> Redo</button>
                   <button type="button" onClick={tidyCanvas}><LayoutGrid size={16}/> Tidy</button>
                   <button type="button" onClick={clearCanvas}><Trash2 size={16}/> Clear board</button>
@@ -915,8 +916,8 @@ export function InfiniteCraftView() {
           : null}
         {spawnToast && <div className="boop-board-toast" role="status">{spawnToast}</div>}
         <div className="boop-mobile-craft-dock" aria-label="Crafting quick actions">
-          <button type="button" className="boop-mobile-craft-library" onClick={()=>setIsSidebarOpen(true)} aria-label="Browse ingredients"><Plus size={19}/><span>Ingredients</span><small>{elements.length}</small></button>
-          <button type="button" className="boop-mobile-craft-spawn" disabled={!spawnPool.length || canvasItems.length>=300} onClick={()=>spawnRandomBatch(spawnCount)} aria-label={`Spawn ${spawnCount} random elements`}><Shuffle size={18}/><span>Surprise me</span></button>
+          <button type="button" className="boop-mobile-craft-library" onClick={()=>setIsSidebarOpen(true)} aria-label="Browse ingredients"><Plus size={19}/><span>Add sprites</span><small>{elements.length}</small></button>
+          <button type="button" className="boop-mobile-craft-spawn" title="Surprise me" disabled={!spawnPool.length || canvasItems.length>=300} onClick={()=>spawnRandomBatch(spawnCount)} aria-label={`Spawn ${spawnCount} random elements`}><Shuffle size={18}/><span>Surprise</span></button>
         </div>
         {isSidebarOpen && <div className="boop-board-drawer-backdrop" onClick={()=>setIsSidebarOpen(false)} aria-hidden="true"/>}
         <aside id="boop-board-library" className={`boop-board-drawer ${isSidebarOpen ? 'is-open' : ''}`} aria-label="Your element library" aria-hidden={!isSidebarOpen}>
