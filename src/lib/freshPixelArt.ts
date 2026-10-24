@@ -13,7 +13,8 @@ type Form='fire'|'water'|'wind'|'earth'|'tree'|'flower'|'mushroom'|'fish'|'cat'|
   |'curio'|'relic'|'creature'|'mechanism'|'crystal'|'toaster'|'dragon'|'skull'|'crown'
   |'train'|'car'|'noodles'|'lantern'|'compass'|'camera'|'trophy'|'gift'|'music'
   |'sushi'|'taco'|'icecream'|'cheese'|'berry'|'apple'|'phone'|'helicopter'
-  |'dinosaur'|'cactus'|'castle'|'pancakes'|'umbrella'|'fox'|'bread';
+  |'dinosaur'|'cactus'|'castle'|'pancakes'|'umbrella'|'fox'|'bread'
+  |'delight'|'cereal'|'cookie'|'donut'|'steak'|'pie'|'candle'|'sandwich'|'dumpling'|'soda';
 type Palette={base:string;light:string;shade:string;accent:string;bright:string};
 const PALETTES:Record<string,Palette>={
  fire:{base:'#f87040',light:'#ffb76b',shade:'#b83f3a',accent:'#f7d36d',bright:'#fff4a4'},
@@ -28,6 +29,17 @@ const PALETTES:Record<string,Palette>={
  animal:{base:'#dfaa83',light:'#f9d9a7',shade:'#a77870',accent:'#e98086',bright:'#fff1c9'}
 };
 const PATTERNS:Array<[RegExp,Form,keyof typeof PALETTES]>=[
+  // Named, individually drawn food sprites—not a generic cake/burger icon for all dishes.
+  [/\b(?:turkish delight|lokum|rosewater candy)\b/i,'delight','food'],
+  [/\b(?:cereal|granola|porridge|oatmeal|cornflakes)\b/i,'cereal','food'],
+  [/\b(?:cookie|biscuit|shortbread)\b/i,'cookie','food'],
+  [/\b(?:donut|doughnut|cruller)\b/i,'donut','food'],
+  [/\b(?:steak|ribeye|sirloin|tenderloin)\b/i,'steak','food'],
+  [/\b(?:fruit pie|apple pie|cherry pie|pumpkin pie)\b/i,'pie','food'],
+  [/\b(?:candle|wax|wick)\b/i,'candle','magic'],
+  [/\b(?:sandwich|panini|submarine sandwich|grilled cheese)\b/i,'sandwich','food'],
+  [/\b(?:dumpling|gyoza|pierogi|wonton|bao)\b/i,'dumpling','food'],
+  [/\b(?:soda|fizzy drink|lemonade|cola|pop)\b/i,'soda','food'],
  [ /\b(?:sushi|nigiri|onigiri|maki)\b/i, 'sushi', 'food' ],
  [ /\b(?:taco|burrito|quesadilla)\b/i, 'taco', 'food' ],
  [ /\b(?:ice cream|gelato|sorbet|sundae|popsicle)\b/i, 'icecream', 'food' ],
@@ -278,6 +290,45 @@ export function generateFreshPixelArt(name:string):string {
     case 'bread':
       ellipse(12,12,9,7,B);rect(5,12,14,7,B);rect(7,9,10,7,L);
       rect(8,12,3,2,H);rect(14,13,3,2,H);line(6,19,18,19,S,2);break;
+    case 'delight':
+      // Rosewater lokum, cubic translucent candies in a small tray.
+      rect(3,16,18,5,S);rect(4,15,16,3,L);
+      rect(5,9,7,7,A);rect(13,8,7,8,B);rect(6,10,5,4,L);rect(14,9,5,4,H);
+      rect(7,11,2,2,H);rect(16,11,2,2,H);rect(5,17,15,1,A);break;
+    case 'cereal':
+      ellipse(12,15,9,6,S);ellipse(12,12,8,5,L);ellipse(12,12,6,3,H);
+      for(const [x,y] of [[8,10],[11,11],[15,10],[17,12],[9,13]])rect(x,y,2,2,A);
+      line(17,6,20,13,INK,2);break;
+    case 'cookie':
+      ellipse(12,12,9,8,B);ellipse(11,10,7,6,L);
+      for(const [x,y] of [[8,8],[15,9],[10,14],[16,16],[6,13]])rect(x,y,2,2,S);
+      rect(8,7,2,2,H);break;
+    case 'donut':
+      ellipse(12,13,9,7,S);ellipse(12,11,9,6,B);ellipse(12,11,6,4,A);
+      ellipse(12,12,3,3,INK);ellipse(12,12,2,2,H);
+      for(const [x,y] of [[7,8],[16,8],[17,13],[8,15]])line(x,y,x+2,y+1,L);break;
+    case 'steak':
+      ellipse(12,14,9,7,S);ellipse(11,12,8,6,B);ellipse(9,11,4,3,L);
+      ellipse(15,14,3,3,A);rect(16,13,2,2,H);line(6,17,12,19,H);break;
+    case 'pie':
+      rect(4,13,16,7,B);line(4,11,20,11,S,3);ellipse(12,11,8,5,A);
+      for(const [x,y] of [[8,8],[13,9],[17,11]])rect(x,y,2,2,H);
+      rect(5,18,14,2,S);break;
+    case 'candle':
+      rect(8,10,8,11,B);rect(9,11,6,8,L);rect(11,7,2,4,INK);
+      ellipse(12,6,3,4,A);rect(11,4,2,3,H);
+      rect(6,21,12,1,S);break;
+    case 'sandwich':
+      line(4,8,20,8,B,4);rect(5,11,14,3,A);rect(5,14,14,3,S);
+      line(4,18,20,18,L,3);rect(7,7,4,2,H);rect(14,16,3,2,H);break;
+    case 'dumpling':
+      ellipse(12,14,9,6,S);ellipse(12,12,8,6,L);
+      for(let x=7;x<=17;x+=3)line(x,9,x+1,13,B,1);
+      rect(8,18,8,2,A);rect(10,8,2,2,H);break;
+    case 'soda':
+      rect(7,8,10,13,B);rect(8,9,8,10,A);rect(8,6,9,3,S);
+      line(14,7,17,3,L,2);rect(10,12,2,2,H);rect(14,15,2,2,H);
+      rect(10,19,5,2,L);break;
     case 'curio':case 'relic':case 'creature':case 'mechanism':case 'crystal':{
       // Unrecognized elements still receive *different, named original pixel
       // illustrations*, not the same placeholder or emoji.
