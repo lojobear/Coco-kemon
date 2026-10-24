@@ -72,11 +72,11 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
 
   return <section className="collection-workbench" aria-label="Foundry workspace"><FoundryFusionOverlay />
     <div className="workbench-intro">
-      <div><h1>Combine</h1><p>Choose ingredients. Discover something new.</p></div>
+      <div><span className="boop-workbench-eyebrow">THE MIXING LAB</span><h1>Combine</h1><p>Pick two discoveries. Make something unexpected.</p></div>
       <button type="button" className="boop-workbench-craft-link" onClick={() => setActiveTab('infinite-craft')}><Hammer size={17}/> Craft board</button>
     </div>
     <div className={`combine-dock ${isSynthesizing ? 'is-combining' : ''}`}>
-      <div className="boop-pad-heading"><span>YOUR MIX</span><span className="boop-ready-tag">{slotA ? (slotB ? 'Ready' : 'Choose another') : 'Choose an ingredient'}</span></div>
+      <div className="boop-pad-heading"><span>YOUR RECIPE</span><span className="boop-ready-tag">{slotA ? (slotB ? 'Ready to combine' : '1 of 2 selected') : 'Select two items'}</span></div>
       <div className="combine-inputs">
         {(['A', 'B'] as const).map((key, index) => {
           const item = key === 'A' ? slotA : slotB;
@@ -90,21 +90,25 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
             </div>
           </React.Fragment>;
         })}
-        <div className="process-control"><label htmlFor="foundry-process">Process</label>
-          <select id="foundry-process" value={process?.id || ''} disabled={isSynthesizing} onChange={e => setSelectedProcess(availableProcesses.find(p => p.id === e.target.value) || null)}>
-            {availableProcesses.map(p => <option value={p.id} key={p.id}>{p.name}</option>)}
-          </select>
-          <button className="random-process" disabled={isSynthesizing || !availableProcesses.length} onClick={() => setSelectedProcess(chooseRandomProcess(availableProcesses, process?.id))}><Shuffle size={13} /> Random process</button>
-        </div>
       </div>
       <div className="recipe-tools"><span>{slotA ? `${slotA.displayName}${slotB ? ` + ${slotB.displayName}` : ''}` : 'Pick an item to begin'}</span><button disabled={isSynthesizing || !slotA || !slotB} aria-label="Swap ingredients" onClick={() => { setSlotA(slotB); setSlotB(slotA); }}><ArrowLeftRight size={16} /></button><button disabled={isSynthesizing || (!slotA && !slotB)} aria-label="Clear ingredients" onClick={() => { clearSlots(); setPicker(null); }}><RotateCcw size={16} /></button></div>
       <div className="combine-actions"><button className="combine-primary" disabled={!slotA || !selectedProcess || isSynthesizing} onClick={() => void runSynthesis()}><Sparkles size={23} />{isSynthesizing ? 'Combining…' : 'Combine'}</button>
         <button className="random-items" aria-label="Choose random ingredients" disabled={isSynthesizing || !materials.length} onClick={randomItems}><Dice5 size={23} /><span>Random</span></button>
       </div>
       {isSynthesizing && <p className="synthesis-status" role="status">{synthesisStage || 'Discovering something new…'}</p>}
+      <details className="boop-combine-settings">
+        <summary><SlidersHorizontal size={16}/><span>Experiment settings</span><b>{process?.name || 'Mix'}</b></summary>
+        <div className="process-control"><label htmlFor="foundry-process">Process</label>
+          <select id="foundry-process" value={process?.id || ''} disabled={isSynthesizing} onChange={e => setSelectedProcess(availableProcesses.find(p => p.id === e.target.value) || null)}>
+            {availableProcesses.map(p => <option value={p.id} key={p.id}>{p.name}</option>)}
+          </select>
+          <button className="random-process" type="button" disabled={isSynthesizing || !availableProcesses.length} onClick={() => setSelectedProcess(chooseRandomProcess(availableProcesses, process?.id))}><Shuffle size={16}/> Random</button>
+        </div>
+      </details>
+
     </div>
-    <div className="discovery-heading"><h2>Choose ingredients <span>{materials.length}</span></h2>
-      <label className="discovery-search"><Search size={17} /><input ref={searchRef} aria-label="Search your discoveries" placeholder="Search collection…" value={search} onChange={e => setSearch(e.target.value)} /></label>
+    <div className="discovery-heading"><h2>Ingredients <span>{materials.length}</span></h2>
+      <label className="discovery-search"><Search size={17} /><input ref={searchRef} aria-label="Search your discoveries" placeholder="Find a sprite…" value={search} onChange={e => setSearch(e.target.value)} /></label>
     </div>
     {picker && <div className="picker-prompt" role="status">Choose item {picker}. You can use the same item twice.<button onClick={() => setPicker(null)} aria-label="Cancel choosing item"><X size={16} /></button></div>}
     <details className="boop-discovery-filters">
