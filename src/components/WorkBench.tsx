@@ -128,6 +128,17 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
       </details>
 
     </div>
+    <div className="boop-combine-quick">
+      <div className="boop-combine-quick-heading"><span>QUICK PICKS</span><small>Tap to fill the next slot</small></div>
+      <div className="boop-combine-quick-row">
+        {[...materials].sort((a,b)=>b.discoveredAt-a.discoveredAt).slice(0,8).map(item=>
+          <button type="button" key={item.id} disabled={isSynthesizing} onClick={()=>selectItem(item)}
+            aria-label={`Quick pick ${item.displayName}`}>
+            <MaterialSprite material={item}/><span>{item.displayName}</span>
+          </button>
+        )}
+      </div>
+    </div>
     <button type="button" className="boop-combine-browse-toggle" aria-expanded={inventoryOpen} aria-controls="boop-combine-inventory" onClick={()=>inventoryOpen?closeInventory():openInventory()}>
       <span><Search size={18}/><strong>Browse ingredients</strong><small>{materials.length} collected</small></span>
       {inventoryOpen?<ChevronDown size={18}/>:<ChevronUp size={18}/>}
