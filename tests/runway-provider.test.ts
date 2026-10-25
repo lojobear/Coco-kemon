@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { generateRunwaySprite, RunwayPendingError, runwayJobKey, RUNWAY_SPRITE_MODEL, RUNWAY_API_URL } from '../server/runway';
 import { readFileSync } from 'node:fs';
+import { publicFailure } from '../server/gemini';
 
 const DATA = new Uint8Array(160).fill(77);
 function testKv(){
@@ -101,4 +102,9 @@ test('Runway is integrated as an opt-in fallback with a retryable pending respon
   assert.match(backend,/await generateRunwareSprite\(prompt\)/);
   assert.match(backend,/process\.env\.GEMINI_API_KEY/);
   assert.match(readFileSync(new URL('../server/runway.ts',import.meta.url),'utf8'),/RUNWAY_SPRITES_ENABLED/);
+});
+
+test('pending paid sprite task returns HTTP 425 so client polls rather than resubmits', () => {
+  const pending = new RunwayPendingError();
+  assert.deepEqual(publicFailure(pending), { status: 425, error: pending.message });
 });
