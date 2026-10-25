@@ -42,12 +42,12 @@ test('craft board uses artwork queue, zoom-safe pointer geometry and accessible 
   const src=readFileSync(new URL('../src/components/InfiniteCraftView.tsx',import.meta.url),'utf8');
   assert.match(src,/enqueueArtwork\(cleanName, false\)/);
   assert.match(src,/enqueueArtwork\(cleanName, true\)/);
-  assert.match(src,/retryPendingArtwork/);
+  assert.match(src,/startArtworkQueue\(\)/);
   assert.match(src,/Undo last board action/);
   assert.match(src,/Redo board action/);
   assert.match(src,/Zoom in/);
   assert.match(src,/Zoom out/);
-  assert.match(src,/boop-artwork-queue/);
+  assert.doesNotMatch(src,/boop-artwork-queue|Drawing artwork|artStatus\.pending/);
   assert.match(src,/zoom:boardZoom/);
   assert.match(src,/drag\.currentX - drag\.startX\) \/ zoomRef\.current/);
   assert.doesNotMatch(src,/AI artwork pending: \{spriteIssue\.name\}/);
