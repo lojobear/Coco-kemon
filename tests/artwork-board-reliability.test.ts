@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { parseArtworkTasks, ARTWORK_FAILURE_DELAY_MS, ARTWORK_QUEUE_KEY } from '../src/lib/artworkQueue';
+import { parseArtworkTasks, ARTWORK_FAILURE_DELAY_MS, ARTWORK_QUEUE_KEY, ARTWORK_RATE_WINDOW_MS, ARTWORK_RATE_MAX_ATTEMPTS, artworkRateLimitDelay } from '../src/lib/artworkQueue';
 import { beginBoardHistory,recordBoardHistory,undoBoard,redoBoard,clampBoardZoom } from '../src/lib/boardHistory';
 
 test('artwork retries survive reload without duplicates or unsafe provider data',()=>{
@@ -53,4 +53,26 @@ test('craft board uses artwork queue, zoom-safe pointer geometry and accessible 
   assert.match(src,/zoom:boardZoom/);
   assert.match(src,/drag\.currentX - drag\.startX\) \/ zoomRef\.current/);
   assert.doesNotMatch(src,/AI artwork pending: \{spriteIssue\.name\}/);
+});
+
+test('artwork generation automatically resumes after rate-window instead of stopping per session', () => {
+  const now = 1_000_000;
+  assert.equal(ARTWORK_RATE_WINDOW_MS, 5 * 60_000);
+  assert.equal(ARTWORK_RATE_MAX_ATTEMPTS, 6);
+  assert.equal(artworkRateLimitDelay(5, now, now + 1000), 0);
+  assert.equal(artworkRateLimitDelay(6, now, now + 1000), ARTWORK_RATE_WINDOW_MS - 1000);
+  assert.equal(artworkRateLimitDelay(6, now, now + ARTWORK_RATE_WINDOW_MS), 0);
+  const queue = readFileSync(new URL('../src/lib/artworkQueue.ts', import.meta.url), 'utf8');
+  assert.doesNotMatch(queue, /MAX_SESSION_ATTEMPTS/);
+  assert.match(queue, /list\.unshift\(\{name:trimmed/);
+  assert.match(queue, /rateLimitDelay\(\)>0/);
+});
+
+test('Sprite Lab can repair previously missed discoveries and rare bonus crafts get artwork', () => {
+  const lab=readFileSync(new URL('../src/components/SpriteLabModal.tsx',import.meta.url),'utf8');
+  assert.match(lab,/queueMissingArtwork\(craftElements, 5\)/);
+  assert.match(lab,/Repair missing sprites/);
+  assert.match(lab,/Retry queued art/);
+  const craft=readFileSync(new URL('../src/components/InfiniteCraftView.tsx',import.meta.url),'utf8');
+  assert.match(craft,/enqueueArtwork\(bonus\.result, false\)/);
 });
