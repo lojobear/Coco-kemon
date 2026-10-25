@@ -140,7 +140,7 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
           </button>
         )}
       </div>
-    </div>
+    </div>}
     <div className="discovery-heading"><h2>Ingredients <span>{materials.length}</span></h2>
       <label className="discovery-search"><Search size={17} /><input ref={searchRef} aria-label="Search your discoveries" placeholder="Find a sprite…" value={search} onChange={e => setSearch(e.target.value)} /></label>
     </div>
