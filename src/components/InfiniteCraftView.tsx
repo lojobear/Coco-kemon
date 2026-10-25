@@ -17,7 +17,7 @@ import {
   validNewElementName,
 } from '../lib/infiniteCraftData';
 import { requestJson } from '../lib/api';
-import { enqueueArtwork, startArtworkQueue } from '../lib/artworkQueue';
+import { enqueueArtwork } from '../lib/artworkQueue';
 import { beginBoardHistory, recordBoardHistory, undoBoard, redoBoard, clampBoardZoom } from '../lib/boardHistory';
 import { CANONICAL_INFINITE_CRAFT_RECIPES, makePairKey } from '../lib/infiniteCraftData';
 import { findCraftDropTarget } from '../lib/craftCollision';
@@ -144,9 +144,6 @@ export function InfiniteCraftView() {
   const showFreeform = true;
   const [ingredientFilter, setIngredientFilter] = useState<'all' | 'new' | 'shiny'>('all');
   const [lastResult, setLastResult] = useState<InfiniteElement | null>(null);
-  // Sprite generation stays active without rerendering the Craft board for
-  // every queue status update or showing a floating artwork progress box.
-  useEffect(() => startArtworkQueue(), []);
   const [elements, setElements] = useState<InfiniteElement[]>(() => {
     try {
       const saved = JSON.stringify(readCraftElements());
