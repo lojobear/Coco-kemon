@@ -113,18 +113,17 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
         })}
       </div>
       <div className="recipe-tools"><span>{slotA ? `${slotA.displayName}${slotB ? ` + ${slotB.displayName}` : ''}` : 'Pick an item to begin'}</span><button disabled={isSynthesizing || !slotA || !slotB} aria-label="Swap ingredients" onClick={() => { setSlotA(slotB); setSlotB(slotA); }}><ArrowLeftRight size={16} /></button><button disabled={isSynthesizing || (!slotA && !slotB)} aria-label="Clear ingredients" onClick={() => { clearSlots(); setPicker(null); }}><RotateCcw size={16} /></button></div>
-      <div className="combine-actions"><button className="combine-primary" disabled={!slotA || !slotB || !selectedProcess || isSynthesizing} onClick={() => void runSynthesis()}><Sparkles size={20} />{isSynthesizing ? 'Combining…' : 'Discover result'}</button>
-        <button className="random-items" aria-label="Choose random ingredients" disabled={isSynthesizing || !materials.length} onClick={randomItems}><Dice5 size={23} /><span>Random</span></button>
-      </div>
+      <div className="combine-actions"><button className="combine-primary" disabled={!slotA || !slotB || !selectedProcess || isSynthesizing} onClick={() => void runSynthesis()}><Sparkles size={20} />{isSynthesizing ? 'Combining…' : 'Discover result'}</button></div>
       {isSynthesizing && <p className="synthesis-status" role="status">{synthesisStage || 'Discovering something new…'}</p>}
       <details className="boop-combine-settings">
-        <summary><SlidersHorizontal size={16}/><span>Experiment settings</span><b>{process?.name || 'Mix'}</b></summary>
+        <summary><SlidersHorizontal size={16}/><span>More options</span><b>{process?.name || 'Mix'}</b></summary>
         <div className="process-control"><label htmlFor="foundry-process">Process</label>
           <select id="foundry-process" value={process?.id || ''} disabled={isSynthesizing} onChange={e => setSelectedProcess(availableProcesses.find(p => p.id === e.target.value) || null)}>
             {availableProcesses.map(p => <option value={p.id} key={p.id}>{p.name}</option>)}
           </select>
-          <button className="random-process" type="button" disabled={isSynthesizing || !availableProcesses.length} onClick={() => setSelectedProcess(chooseRandomProcess(availableProcesses, process?.id))}><Shuffle size={16}/> Random</button>
+          <button className="random-process" type="button" disabled={isSynthesizing || !availableProcesses.length} onClick={() => setSelectedProcess(chooseRandomProcess(availableProcesses, process?.id))}><Shuffle size={16}/> Random process</button>
         </div>
+        <button type="button" className="boop-focus-surprise" aria-label="Choose two random ingredients" disabled={isSynthesizing || !materials.length} onClick={randomItems}><Dice5 size={17}/> Surprise me with two ingredients</button>
       </details>
 
     </div>
