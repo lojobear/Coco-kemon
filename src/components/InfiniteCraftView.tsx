@@ -532,6 +532,7 @@ export function InfiniteCraftView() {
           physicalData: generatePhysicalData(bonus.result, bonus.emoji, false),
           ...initialCraftStats(bonusRecipe, false, bonusAt),
         };
+        if (!elements.some(e => e.name.toLowerCase() === bonus.result.toLowerCase())) enqueueArtwork(bonus.result, false);
         setElements(prev => prev.some(e => e.name.toLowerCase() === bonus.result.toLowerCase()) ? prev : [bonusElement, ...prev]);
         setSpawnToast(`✦ Rare bonus: ${bonus.result}! ${cleanName} was also saved.`);
         setTimeout(() => setSpawnToast(null), 4500);
