@@ -65,7 +65,7 @@ test('failed remote sprites render original offline pixel art, not an emoji/glyp
 
 
 test('novel unrecognized discoveries render newly assembled 24px silhouettes',()=>{
-  for(const name of ['Astral Teapot Sparrow','Glacial Semaphore Vessel','Quantum Coral Umbrella']) {
+  for(const name of ['Astral Teapot Sparrow','Glacial Semaphore Vessel','Velvet Atlas Beacon']) {
     assert.equal(pixelArtFormFor(name),'chimera');
     const art=generateFreshPixelArt(name);
     assert.ok(art.startsWith('data:image/svg+xml'));
