@@ -1,6 +1,8 @@
 import { GoogleGenAI } from '@google/genai';
 import { conceptDNAFor, normalizeDiscoveryCandidates } from './discovery.js';
 import { getWorkersAiBinding } from './workersAi.js';
+import { generateRunwareSprite } from './runware.js';
+import { generateRunwaySprite, RunwayPendingError } from './runway.js';
 
 export class ApiFailure extends Error {
   status: number;
@@ -498,14 +500,29 @@ export async function generateGeminiImage(
     const workersImage = await generateWorkersAiImage(prompt);
     if (workersImage) return workersImage;
 
+    // The independent Runware API is optional: its key must be a real Runware
+    // secret, never a copy of GEMINI_API_KEY. Failures leave Gemini available.
+    const runwareImage = await generateRunwareSprite(prompt);
+    if (runwareImage) return runwareImage;
+
+    // Muse is opt-in and uses a persisted paid task ID to avoid duplicate
+    // purchases. Its pending status must propagate for 12-second queue polls.
+    // A missing key, disabled feature, or provider failure is non-fatal.
+    try {
+      const runwayImage = await generateRunwaySprite(prompt);
+      if (runwayImage) return runwayImage;
+    } catch (error) {
+      if (error instanceof RunwayPendingError) throw error;
+      console.warn('Runway image fallback unavailable.');
+    }
   }
   if (!injectedClient && !process.env.GEMINI_API_KEY) {
-    throw new ApiFailure(503, 'Cloudflare image service is unavailable and the Gemini fallback is not configured. Your discovery is saved; retry the artwork later.');
+    throw new ApiFailure(503, 'Image providers are temporarily unavailable. Your discovery is saved; retry artwork later.');
   }
   const ai = injectedClient ?? (client ??= new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! }));
   const models = getGeminiImageModels();
-  // Original Cloudflare → Gemini path: full deadline for Gemini, no
-  // unnecessary waiting for an unrelated provider or an incorrect API key.
+  // Keep the deadline for Gemini independent of any unavailable earlier provider;
+  // an upstream image service must never make its fallback unusable.
   const deadline = Date.now() + 55_000;
   let last: unknown;
 
