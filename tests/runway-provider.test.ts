@@ -92,10 +92,13 @@ test('failed paid task is remembered and never recreated automatically',async()=
   assert.equal(requests,1);
 });
 
-test('Runway remains available as a separate module but the restored image chain does not call it',()=>{
+test('Runway is integrated as an opt-in fallback with a retryable pending response',()=>{
   const backend=readFileSync(new URL('../server/gemini.ts',import.meta.url),'utf8');
-  assert.doesNotMatch(backend,/generateRunwaySprite|RUNWAYML_API_SECRET|RunwayPendingError/);
+  assert.match(backend,/await generateRunwaySprite\(prompt\)/);
+  assert.match(backend,/RunwayPendingError/);
+  assert.match(backend,/status: 425/);
   assert.match(backend,/await generateWorkersAiImage\(prompt\)/);
+  assert.match(backend,/await generateRunwareSprite\(prompt\)/);
   assert.match(backend,/process\.env\.GEMINI_API_KEY/);
   assert.match(readFileSync(new URL('../server/runway.ts',import.meta.url),'utf8'),/RUNWAY_SPRITES_ENABLED/);
 });
