@@ -11,6 +11,7 @@ import { InfiniteElement } from '../lib/infiniteCraftData';
 import { sound } from '../lib/audio';
 import { ElementSprite, MaterialSprite } from './ElementSprite';
 import { retryElementEmoji, upgradeElementEmoji } from '../lib/elementEmoji';
+import { ARTWORK_QUEUE_EVENT, artworkQueueStatus, queueMissingArtwork, retryPendingArtwork } from '../lib/artworkQueue';
 
 type LabItem =
   | { type: 'craft'; id: string; name: string; sprite?: string; item: InfiniteElement }
@@ -73,6 +74,13 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
     return () => window.removeEventListener(SAVE_IMPORTED_EVENT, reload);
   }, []);
   const [uploading, setUploading] = useState(false);
+  const [artworkStatus, setArtworkStatus] = useState(artworkQueueStatus);
+  useEffect(() => {
+    const update = () => setArtworkStatus(artworkQueueStatus());
+    window.addEventListener(ARTWORK_QUEUE_EVENT, update);
+    return () => window.removeEventListener(ARTWORK_QUEUE_EVENT, update);
+  }, []);
+
   const latest = useRef({ exportSaveData, importSaveData });
   latest.current = { exportSaveData, importSaveData };
   const [query, setQuery] = useState('');
@@ -180,6 +188,28 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
     }
   };
 
+  const repairMissing = async () => {
+    if (uploading) return;
+    setUploading(true);
+    setStatus('Checking recent discoveries for missing artwork…');
+    try {
+      // Reads existing cache/profile sprites before spending any generation
+      // requests; one tap schedules at most five truly missing items.
+      const { checked, queued } = await queueMissingArtwork(craftElements, 5);
+      if (queued) {
+        setStatus(`Queued ${queued} missing ${queued === 1 ? 'sprite' : 'sprites'}. They will appear as generation finishes.`);
+      } else {
+        setStatus(checked
+          ? 'Checked recent discoveries. Artwork is already saved or pending; use Retry queued art if it is stuck.'
+          : 'No unqueued missing artwork found in recent discoveries.');
+      }
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'Could not scan missing artwork.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const reroll = (target: LabItem) => freshPixelSprite(target, 'reroll');
 
   const restoreDefault = async (target: LabItem) => {
@@ -232,6 +262,15 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
             <div className="boop-section-heading"><h2>Choose a discovery</h2><small>{items.length} items</small></div>
             <label className="boop-search"><Search size={18} /><input value={query} onChange={event => setQuery(event.target.value)} aria-label="Search sprites" placeholder="Search discoveries…" /></label>
             <div className="boop-pills" aria-label="Sprite category">{(['all', 'craft', 'material', 'oddkin'] as const).map(value => <button key={value} aria-pressed={filter === value} onClick={() => setFilter(value)}>{value === 'all' ? 'All' : value === 'craft' ? 'Craft' : value === 'material' ? 'Matter' : 'Oddkin'}</button>)}</div>
+            <div className="boop-sprite-repair">
+              <button type="button" disabled={uploading} onClick={() => void repairMissing()}>
+                Repair missing sprites
+              </button>
+              {artworkStatus.pending > 0 && <>
+                <span role="status">{artworkStatus.pending} queued{artworkStatus.blocked ? ' · retry scheduled' : artworkStatus.running ? ' · generating' : ''}</span>
+                <button type="button" disabled={uploading || artworkStatus.running} onClick={retryPendingArtwork}>Retry queued art</button>
+              </>}
+            </div>
             <div className="boop-sprite-picker-grid">{items.map(item => {
               const key = `${item.type}:${item.id}`;
               return <button key={key} disabled={uploading} aria-pressed={selected?.id === item.id && selected?.type === item.type} onClick={() => { sound.playClick(); setSelectedKey(key); setStatus(null); }}><LabSprite target={item} className="boop-picker-sprite" /><strong>{item.name}</strong><small>{item.type}</small></button>;
