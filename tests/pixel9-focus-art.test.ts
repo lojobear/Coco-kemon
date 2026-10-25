@@ -32,7 +32,7 @@ test('unknown discoveries do not receive a single recycled fallback graphic',()=
 test('Pixel 9 Combine puts process choices into secondary settings',()=>{
   const workbench=source('src/components/WorkBench.tsx');
   assert.match(workbench,/boop-combine-settings/);
-  assert.match(workbench,/Two discoveries\. One surprise\./);
+  assert.match(workbench,/CREATE SOMETHING NEW/);
   assert.match(workbench,/boop-combine-quick--in-picker/);
   assert.match(workbench,/boop-focus-surprise/);
   assert.doesNotMatch(workbench,/requestAnimationFrame\(\(\)=>searchRef\.current\?\.focus/);
