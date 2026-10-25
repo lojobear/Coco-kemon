@@ -1653,3 +1653,18 @@ html.boop-native-shell .boop-app .boop-cloud-dialog {
   box-sizing: border-box;
   padding: 5%;
 }
+
+/* Foundry pagination: discover more without mounting every sprite at once. */
+.boop-app .boop-foundry-load-more {
+  align-self: center;
+  width: min(100%, 360px);
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 1px solid #dce3e9;
+  border-radius: 12px;
+  background: #fff;
+  color: #303b45;
+  font-size: 12px;
+  font-weight: 750;
+}
+.boop-app .boop-foundry-load-more:active { background:#f2f5f7; }
