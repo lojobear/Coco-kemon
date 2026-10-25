@@ -76,12 +76,13 @@ export function ElementSprite({ name, custom, fallback, className = '', alt = ''
     {<SpriteImage src={url || ((fallback?.startsWith('data:') || fallback?.startsWith('/')) ? fallback : freshArt)} alt={alt || name} draggable={false} decoding="async" />}
   </span>;
 }
-export function MaterialSprite({ material, className, alt = '', idle = true }: { material: Material; className?: string; alt?: string; idle?: boolean }) {
+export const MaterialSprite = React.memo(function MaterialSprite({ material, className, alt = '', idle = true }: { material: Material; className?: string; alt?: string; idle?: boolean }) {
   const fresh = useMemo(() => generateFreshPixelArt(material.displayName), [material.displayName]);
-  const legacy = useMemo(() => generateMaterialSprite(material), [material]);
+  // Avoid synthesizing an unused legacy image for ordinary Craft discoveries.
+  const legacy = useMemo(() => material.customSpriteUrl ? generateMaterialSprite(material) : undefined, [material]);
   // Preserve uploads/rerolls. Old procedural defaults are not uploaded art:
   // replace those with the new distinctly hand-authored pixel silhouettes.
   const custom = material.customSpriteUrl && material.customSpriteUrl !== legacy
     ? material.customSpriteUrl : undefined;
   return <ElementSprite name={material.displayName} custom={custom} fallback={fresh} className={className} alt={alt} idle={idle} />;
-}
+});
