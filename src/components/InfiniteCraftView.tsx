@@ -628,7 +628,7 @@ export function InfiniteCraftView() {
     const {x,y} = clampBoardTile(center.x - 65 + (Math.random() * 120 - 60), center.y - 22 + (Math.random() * 95 - 48));
     const newItem: CanvasItem = { instanceId: `spawn-${Date.now()}-${Math.random()}`, name, emoji, x, y, isShiny };
     setCanvasItems(prev => [...prev, newItem]);
-    setSpawnToast(`${emoji} ${isShiny ? '✨ ' : ''}${name} added`);
+    setSpawnToast(`${isShiny ? 'Shiny ' : ''}${name} added to board`);
     setTimeout(() => setSpawnToast(null), 1800);
     // Picking from the library adds a tile; it must not unexpectedly fuse
     // with a board selection. Players intentionally tap two tiles to combine.
@@ -847,7 +847,7 @@ export function InfiniteCraftView() {
     <div className="boop-craft-studio">
       <section className="boop-board-layout" aria-label="Discover crafting board">
         <header className="boop-board-toolbar boop-board-toolbar--quiet">
-          <div className="boop-board-heading"><strong>Craft</strong><small>{canvasItems.length} sprites on board</small></div>
+          <div className="boop-board-heading"><strong>Craft</strong><small>{canvasItems.length} on board</small></div>
           <button type="button" className="boop-craft-mode-link" onClick={()=>setActiveTab('foundry')} aria-label="Open combination lab">Combine <ArrowRight size={14}/></button>
           <div className="boop-board-actions boop-board-actions--quiet">
             <button type="button" className="boop-quiet-spawn" disabled={!spawnPool.length || canvasItems.length>=300}
@@ -861,6 +861,9 @@ export function InfiniteCraftView() {
             <details className="boop-board-more" aria-label="More crafting tools">
               <summary aria-label="More crafting tools" title="More crafting tools"><SlidersHorizontal size={19}/></summary>
               <div className="boop-board-more-panel">
+                <button type="button" className="boop-more-spawn-action" disabled={!spawnPool.length||canvasItems.length>=300}
+                  onClick={()=>{spawnRandomBatch(spawnCount);(document.activeElement as HTMLElement)?.blur();}}
+                  aria-label={`Add ${spawnCount} random sprites to board`}><Shuffle size={17}/> Add ${spawnCount} random ${spawnCount===1?'sprite':'sprites'}</button>
                 <span className="boop-board-more-label">SPAWN AMOUNT</span>
                 <div className="boop-board-more-counts" role="group" aria-label="Random spawn count">
                   {SPAWN_COUNTS.map(count=><button type="button" key={count} aria-pressed={spawnCount===count}
@@ -886,7 +889,7 @@ export function InfiniteCraftView() {
         </header>
         <div className="boop-board-viewport" ref={viewportRef} aria-label="Pan and drag crafting board" onPointerDown={startPan} onPointerMove={movePan} onPointerUp={endPan} onPointerCancel={endPan}>
           <div ref={canvasRef} className="boop-board-world" style={{ width:BOARD_WIDTH, height:BOARD_HEIGHT, zoom:boardZoom }}>
-            <div className="boop-board-origin-hint" style={{ left:BOARD_START_X - 6, top:BOARD_START_Y - 68 }}>DROP. MIX. DISCOVER.</div>
+            <div className="boop-board-origin-hint" style={{ left:BOARD_START_X - 6, top:BOARD_START_Y - 68 }}>DRAG TWO TOGETHER · OR TAP TWO</div>
             {canvasItems.map(item=><div
               key={item.instanceId} data-craft-instance={item.instanceId}
               className={`boop-board-item ${selectedCanvasId === item.instanceId ? 'is-selected' : ''} ${activeDragId === item.instanceId ? 'is-dragging' : ''} ${item.instanceId.startsWith('fusion-') ? 'is-fusion-result' : ''} ${item.instanceId.startsWith('spawn-') ? 'is-random-spawn' : ''}`}
@@ -916,8 +919,8 @@ export function InfiniteCraftView() {
           : null}
         {spawnToast && <div className="boop-board-toast" role="status">{spawnToast}</div>}
         <div className="boop-mobile-craft-dock" aria-label="Crafting quick actions">
-          <button type="button" className="boop-mobile-craft-library" onClick={()=>setIsSidebarOpen(true)} aria-label="Browse ingredients"><Plus size={19}/><span>Add sprites</span><small>{elements.length}</small></button>
-          <button type="button" className="boop-mobile-craft-spawn" title="Surprise me" disabled={!spawnPool.length || canvasItems.length>=300} onClick={()=>spawnRandomBatch(spawnCount)} aria-label={`Spawn ${spawnCount} random elements`}><Shuffle size={18}/><span>Surprise</span></button>
+          <button type="button" className="boop-mobile-craft-library" onClick={()=>setIsSidebarOpen(true)} aria-label="Browse ingredients"><Plus size={19}/><span>Add a discovery</span><small>{elements.length} found</small></button>
+
         </div>
         {isSidebarOpen && <div className="boop-board-drawer-backdrop" onClick={()=>setIsSidebarOpen(false)} aria-hidden="true"/>}
         <aside id="boop-board-library" className={`boop-board-drawer ${isSidebarOpen ? 'is-open' : ''}`} aria-label="Your element library" aria-hidden={!isSidebarOpen}>
