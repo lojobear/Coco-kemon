@@ -33,7 +33,10 @@ test('Pixel 9 Craft has one focus canvas plus mobile dock, no redundant floating
   assert.match(code,/boop-mobile-craft-dock/);
   assert.match(code,/Open combination lab/);
   assert.match(code,/Browse ingredients/);
-  assert.match(code,/Surprise me/);
+  // Random spawns are deliberately tucked into More; the phone now has one main CTA.
+  assert.match(code,/boop-more-spawn-action/);
+  assert.match(code,/Add a discovery/);
+  assert.doesNotMatch(code,/className="boop-mobile-craft-spawn"/);
   assert.doesNotMatch(code,/className="boop-board-mobile-library"/);
   assert.match(css,/@media\(max-width:520px\)/);
   assert.match(css,/boop-mobile-craft-dock/);

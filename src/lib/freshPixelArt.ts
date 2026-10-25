@@ -15,7 +15,7 @@ type Form='fire'|'water'|'wind'|'earth'|'tree'|'flower'|'mushroom'|'fish'|'cat'|
   |'sushi'|'taco'|'icecream'|'cheese'|'berry'|'apple'|'phone'|'helicopter'
   |'dinosaur'|'cactus'|'castle'|'pancakes'|'umbrella'|'fox'|'bread'
   |'delight'|'cereal'|'cookie'|'donut'|'steak'|'pie'|'candle'|'sandwich'|'dumpling'|'soda'
-  |'owl'|'jellyfish'|'sailboat'|'balloon'|'campfire'|'potion'|'breakfast'|'hourglass'|'ring'|'lightning';
+  |'owl'|'jellyfish'|'sailboat'|'balloon'|'campfire'|'potion'|'breakfast'|'hourglass'|'ring'|'lightning'|'chimera';
 type Palette={base:string;light:string;shade:string;accent:string;bright:string};
 const PALETTES:Record<string,Palette>={
  fire:{base:'#f87040',light:'#ffb76b',shade:'#b83f3a',accent:'#f7d36d',bright:'#fff4a4'},
@@ -127,9 +127,10 @@ function hash(name:string):number{
 function pickForm(name:string):[Form,Palette]{
   for(const [pattern,form,palette] of PATTERNS)if(pattern.test(name))return [form,PALETTES[palette]];
   const n=hash(name);
-  const generic:Form[]=['curio','relic','creature','mechanism','crystal',
-    'lantern','compass','camera','trophy','gift','music','crown','toaster','skull','dragon'];
-  return [generic[n%generic.length],Object.values(PALETTES)[(n>>>5)%Object.keys(PALETTES).length]];
+  // An unknown item must get an ORIGINAL procedural silhouette rather than a
+  // recolored generic curio. Each complete name selects shape, attachments,
+  // proportions and surface details independently, with no network/AI cost.
+  return ['chimera',Object.values(PALETTES)[(n>>>5)%Object.keys(PALETTES).length]];
 }
 const CACHE=new Map<string,string>();
 export function pixelArtFormFor(name:string):string {return pickForm(name)[0];}
@@ -385,6 +386,66 @@ export function generateFreshPixelArt(name:string):string {
       line(14,3,7,13,B,5);line(7,13,14,12,A,3);
       line(14,12,10,21,B,5);rect(11,5,2,3,H);
       star(18,7,1,L);break;
+    case 'chimera':{
+      // Compose an entirely new 24px specimen for every unfamiliar discovery:
+      // body proportions, silhouette topology, appendages and facets are seeded
+      // from the FULL name. A fixed template/color swap is not used here.
+      const part=(shift:number,size:number)=>(seed>>>shift)%size;
+      const centerX=10+part(4,5), centerY=11+part(9,4);
+      const radiusX=4+part(13,5), radiusY=5+part(19,4);
+      const shape=part(2,6), material=part(16,5);
+      if(shape===0){ // faceted artifact
+        ellipse(centerX,centerY,radiusX,radiusY,S);
+        line(centerX-radiusX,centerY-1,centerX,centerY-radiusY,L,3);
+        line(centerX,centerY-radiusY,centerX+radiusX,centerY,A,3);
+      }else if(shape===1){ // compact autonomous machine
+        rect(centerX-radiusX,centerY-radiusY,radiusX*2,radiusY*2,S);
+        rect(centerX-radiusX+2,centerY-radiusY+2,radiusX*2-4,radiusY*2-4,B);
+      }else if(shape===2){ // wild organic bloom
+        ellipse(centerX,centerY,radiusX,radiusY,B);
+        ellipse(centerX-4,centerY-4,2+part(6,3),4,L);
+        ellipse(centerX+4,centerY-4,3,3+part(10,3),A);
+      }else if(shape===3){ // airborne kinetic object
+        line(3,centerY+3,centerX,centerY-radiusY,S,3);
+        line(centerX,centerY-radiusY,21,centerY+3,L,3);
+        ellipse(centerX,centerY+2,radiusX-1,4,B);
+      }else if(shape===4){ // ancient vessel / curiosity
+        ellipse(centerX,centerY+3,radiusX,radiusY-1,S);
+        rect(centerX-3,centerY-radiusY,6,3,A);
+        rect(centerX-2,centerY-radiusY+1,4,3,H);
+      }else{ // biomechanical creature
+        ellipse(centerX,centerY,radiusX,radiusY-1,B);
+        line(centerX-2,centerY+3,centerX-6,20,S,2);
+        line(centerX+2,centerY+3,centerX+6,20,S,2);
+      }
+      if(material===0){ // antennae
+        line(centerX-2,centerY-radiusY,centerX-5,3,INK,1);star(centerX-5,3,1,A);
+      }else if(material===1){ // wings
+        ellipse(5,centerY,3+part(12,3),3,A);
+        ellipse(19,centerY-1,3+part(21,2),4,L);
+      }else if(material===2){ // fins
+        line(centerX-radiusX,centerY,3,centerY-4,L,2);
+        line(centerX+radiusX,centerY,20,centerY+5,A,2);
+      }else if(material===3){ // crystal crown
+        line(centerX-5,centerY-radiusY+1,centerX-2,3,A,2);
+        line(centerX+2,centerY-radiusY+1,centerX+5,4,L,2);
+      }else{ // orbiting rings
+        line(3,centerY+2,21,centerY-1,A,2);
+        dot(20,centerY-3,H);
+      }
+      const traits=3+part(8,6);
+      for(let i=0;i<traits;i++){
+        const n=(seed>>>((i*4)%26))&31;
+        const px=centerX-radiusX+2+(n%Math.max(2,radiusX*2-3));
+        const py=centerY-radiusY+2+((n+i*3)%Math.max(2,radiusY*2-3));
+        if((i+n)%3===0)rect(px,py,2,1,H);
+        else if((i+n)%3===1)dot(px,py,L);
+        else dot(px,py,A);
+      }
+      // For creature-like shapes, give expressive asymmetrical readable eyes.
+      if(shape===5){dot(centerX-3,centerY-2,INK);dot(centerX+2,centerY-2,INK);}
+      break;
+    }
     case 'curio':case 'relic':case 'creature':case 'mechanism':case 'crystal':{
       // Fresh name-driven pixel art, NOT one of five reused "mystery" icons.
       // Compose a silhouette, asymmetrical profile, inset details and secondary
