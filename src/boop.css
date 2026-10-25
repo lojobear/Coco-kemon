@@ -1635,3 +1635,21 @@ html.boop-native-shell .boop-app .boop-cloud-dialog {
   .boop-app .boop-board-toolbar--quiet *,
   .boop-app .collection-workbench .combine-dock * {transition:none!important;animation:none!important;}
 }
+
+
+/* Boop sprite size adjustment: artwork 10% smaller, unchanged touch targets. */
+/* Keep slot/card/board dimensions unchanged; shrink only sprite content. */
+.boop-app .element-emoji > img {
+  width: 90% !important;
+  height: 90% !important;
+}
+.boop-app .element-emoji > span[role="img"] {
+  font-size: 90%;
+}
+/* Oddkin and other directly rendered images without an ElementSprite wrapper. */
+.boop-app img.boop-editor-sprite,
+.boop-app img.boop-picker-sprite,
+.boop-app img.boop-archive-sprite {
+  box-sizing: border-box;
+  padding: 5%;
+}
