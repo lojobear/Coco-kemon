@@ -41,6 +41,23 @@ function GameContent() {
   const [showCloud, setShowCloud] = useState(false);
   const [collectionSearch, setCollectionSearch] = useState('');
   const [kitchenOpened, setKitchenOpened] = useState(false);
+  // Keep pending sprite jobs progressing regardless of the selected screen.
+  // Load after first paint so the sprite queue never competes with tab startup.
+  useEffect(() => {
+    let disposed = false;
+    let stopQueue: (() => void) | undefined;
+    const timer = window.setTimeout(() => {
+      void import('./lib/artworkQueue').then(({ startArtworkQueue }) => {
+        if (!disposed) stopQueue = startArtworkQueue();
+      }).catch(() => { /* Offline artwork stays queued for the next launch. */ });
+    }, 1600);
+    return () => {
+      disposed = true;
+      window.clearTimeout(timer);
+      stopQueue?.();
+    };
+  }, []);
+
   useEffect(() => { if (activeTab === 'kitchen') setKitchenOpened(true); }, [activeTab]);
 
   // Warm likely next screens during idle time instead of shipping every heavy view
