@@ -2904,3 +2904,267 @@ html, body, #root {
     width: 66px !important;
   }
 }
+
+/* =====================================================================
+   PAPER LAB — presentation-only theme (2026-10-25)
+   Light cream paper surfaces, ink text, grown-up card feel.
+   Activated by data-theme="paper-lab" on the .collection-app root.
+   This block only restyles existing classes: no class names, layout
+   structure, API calls, or combination-engine code are changed here.
+   Accents are used sparingly: ember for the primary action, teal for
+   selection/focus, both carried from the Boop merging-orbs mark.
+   ===================================================================== */
+.collection-app[data-theme="paper-lab"] {
+  --basic-bg: #f7f2e7;
+  --basic-panel: #fffdf7;
+  --basic-panel-raised: #ffffff;
+  --basic-text: #211d16;
+  --basic-muted: #6f6759;
+  --basic-line: #e2dacb;
+  --basic-line-strong: #cfc4ae;
+  --basic-soft: #efe8d8;
+  --basic-accent: #bf4f1a;
+  --basic-accent-2: #1f7a6d;
+  --basic-focus: #1f7a6d;
+  --basic-danger: #b3402a;
+  --surface-shadow: 0 2px 10px rgba(62, 50, 28, 0.07), 0 14px 30px rgba(62, 50, 28, 0.08);
+  --collection-muted: var(--basic-muted);
+  --collection-line: var(--basic-line);
+  background:
+    radial-gradient(circle at 18% -8%, rgba(191, 79, 26, 0.07), transparent 26rem),
+    radial-gradient(circle at 94% 10%, rgba(31, 122, 109, 0.07), transparent 24rem),
+    var(--basic-bg) !important;
+  color: var(--basic-text);
+}
+
+body:has(.collection-app[data-theme="paper-lab"]) {
+  background: #f7f2e7;
+}
+
+.collection-app[data-theme="paper-lab"] :is(.shadow, .shadow-sm, .shadow-lg, .shadow-xl, .shadow-2xl) {
+  box-shadow: var(--surface-shadow);
+}
+
+.collection-app[data-theme="paper-lab"] :is(button, input, select):focus-visible {
+  outline: 2px solid var(--basic-focus);
+  outline-offset: 2px;
+}
+
+.collection-app[data-theme="paper-lab"] .collection-header {
+  background: rgba(255, 253, 247, 0.97) !important;
+  border-bottom: 1px solid var(--basic-line) !important;
+  box-shadow: 0 2px 12px rgba(62, 50, 28, 0.06) !important;
+  color: var(--basic-text) !important;
+}
+
+.collection-app[data-theme="paper-lab"] .collection-brand strong {
+  color: var(--basic-text) !important;
+  letter-spacing: -0.01em;
+}
+
+.collection-app[data-theme="paper-lab"] .collection-brand small {
+  color: var(--basic-muted) !important;
+}
+
+.collection-app[data-theme="paper-lab"] .header-actions {
+  color: var(--basic-muted) !important;
+}
+
+.collection-app[data-theme="paper-lab"] .header-actions button:hover {
+  background: var(--basic-soft) !important;
+  color: var(--basic-text) !important;
+}
+
+.collection-app[data-theme="paper-lab"] .workbench-intro h1 {
+  font-size: 26px;
+  letter-spacing: -0.01em;
+}
+
+.collection-app[data-theme="paper-lab"] .craft-switch {
+  background: var(--basic-soft);
+  border-color: var(--basic-line);
+  border-radius: 14px;
+  padding: 4px;
+}
+
+.collection-app[data-theme="paper-lab"] .craft-switch button {
+  color: var(--basic-muted);
+  border-radius: 10px;
+  font-size: 15px;
+}
+
+.collection-app[data-theme="paper-lab"] .craft-switch button[aria-pressed="true"] {
+  color: #fffdf7;
+  background: var(--basic-accent);
+  box-shadow: 0 4px 12px rgba(191, 79, 26, 0.22);
+}
+
+.collection-app[data-theme="paper-lab"] .discovery-heading h2 {
+  font-size: 17px;
+}
+
+.collection-app[data-theme="paper-lab"] .discovery-heading h2 span {
+  background: var(--basic-soft);
+  border-color: var(--basic-line);
+  color: var(--basic-muted);
+}
+
+.collection-app[data-theme="paper-lab"] .discovery-search {
+  background: #fffdf7;
+  border-color: var(--basic-line-strong);
+  border-radius: 12px;
+  color: var(--basic-text);
+}
+
+.collection-app[data-theme="paper-lab"] .discovery-search input {
+  color: var(--basic-text);
+  font-size: 14px;
+}
+
+.collection-app[data-theme="paper-lab"] .discovery-search input::placeholder {
+  color: #9a917f;
+}
+
+.collection-app[data-theme="paper-lab"] .discovery-grid {
+  gap: 10px;
+}
+
+.collection-app[data-theme="paper-lab"] .discovery-tile {
+  background: linear-gradient(180deg, #fffdf7, #fbf7ec) !important;
+  border-color: var(--basic-line) !important;
+  border-radius: 16px;
+  box-shadow: 0 2px 8px rgba(62, 50, 28, 0.05);
+}
+
+.collection-app[data-theme="paper-lab"] .discovery-tile.is-selected {
+  border-color: var(--basic-accent-2) !important;
+  box-shadow: inset 0 0 0 1px var(--basic-accent-2), 0 6px 16px rgba(31, 122, 109, 0.12) !important;
+}
+
+.collection-app[data-theme="paper-lab"] .discovery-pick span {
+  color: var(--basic-text);
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.collection-app[data-theme="paper-lab"] .discovery-info {
+  color: var(--basic-muted);
+  background: rgba(247, 242, 231, 0.9);
+}
+
+.collection-app[data-theme="paper-lab"] .discovery-info:hover {
+  color: var(--basic-text);
+  background: var(--basic-soft);
+}
+
+.collection-app[data-theme="paper-lab"] .combine-dock {
+  background: #fffdf7 !important;
+  border-color: var(--basic-line) !important;
+  border-radius: 20px;
+  box-shadow: var(--surface-shadow) !important;
+}
+
+.collection-app[data-theme="paper-lab"] .ingredient-pick {
+  background: #fbf7ec;
+  border-color: var(--basic-line-strong);
+  border-radius: 14px;
+}
+
+.collection-app[data-theme="paper-lab"] .ingredient-pick.is-targeted {
+  border-color: var(--basic-accent-2);
+}
+
+.collection-app[data-theme="paper-lab"] .ingredient-remove {
+  background: #fffdf7;
+  border-color: var(--basic-line-strong);
+}
+
+.collection-app[data-theme="paper-lab"] .ingredient > span {
+  color: var(--basic-text);
+}
+
+.collection-app[data-theme="paper-lab"] .combine-primary {
+  background: var(--basic-accent);
+  color: #fffdf7;
+  border-radius: 14px;
+  box-shadow: 0 6px 16px rgba(191, 79, 26, 0.22);
+}
+
+.collection-app[data-theme="paper-lab"] .combine-primary:disabled {
+  background: #c9bfa9;
+  box-shadow: none;
+}
+
+.collection-app[data-theme="paper-lab"] .random-items {
+  background: #fbf7ec;
+  border-color: var(--basic-line-strong);
+  border-radius: 14px;
+  color: var(--basic-text);
+}
+
+.collection-app[data-theme="paper-lab"] .random-items span {
+  color: var(--basic-muted);
+}
+
+.collection-app[data-theme="paper-lab"] .synthesis-status {
+  color: var(--basic-muted);
+  font-size: 12px;
+}
+
+.collection-app[data-theme="paper-lab"] .collection-nav {
+  background: rgba(255, 253, 247, 0.98) !important;
+  border-top-color: var(--basic-line) !important;
+  box-shadow: 0 -4px 16px rgba(62, 50, 28, 0.06) !important;
+}
+
+.collection-app[data-theme="paper-lab"] .collection-nav button {
+  color: var(--basic-muted);
+  font-size: 12px;
+}
+
+.collection-app[data-theme="paper-lab"] .collection-nav button[aria-current="page"] {
+  color: var(--basic-text);
+  background: var(--basic-soft);
+  border-bottom-color: var(--basic-accent);
+}
+
+.collection-app[data-theme="paper-lab"] .collection-reveal {
+  background: #fffdf7;
+  border-color: var(--basic-line);
+  border-radius: 20px;
+  color: var(--basic-text);
+  box-shadow: var(--surface-shadow);
+}
+
+.collection-app[data-theme="paper-lab"] .collection-reveal::backdrop {
+  background: rgba(33, 29, 22, 0.45);
+}
+
+.collection-app[data-theme="paper-lab"] .collection-reveal h2 {
+  font-size: 28px;
+  letter-spacing: -0.01em;
+}
+
+.collection-app[data-theme="paper-lab"] .reveal-explanation {
+  color: var(--basic-text);
+  line-height: 1.65;
+}
+
+.collection-app[data-theme="paper-lab"] .lab-panel,
+.collection-app[data-theme="paper-lab"] .view-loading-card {
+  background: #fffdf7;
+  border-color: var(--basic-line);
+  color: var(--basic-text);
+}
+
+.collection-app[data-theme="paper-lab"] ::-webkit-scrollbar-track {
+  background: #efe8d8;
+}
+
+.collection-app[data-theme="paper-lab"] ::-webkit-scrollbar-thumb {
+  background: #cfc4ae;
+}
+
+.collection-app[data-theme="paper-lab"] ::-webkit-scrollbar-thumb:hover {
+  background: #b8ab8f;
+}
