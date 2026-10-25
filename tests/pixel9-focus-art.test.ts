@@ -32,7 +32,10 @@ test('unknown discoveries do not receive a single recycled fallback graphic',()=
 test('Pixel 9 Combine puts process choices into secondary settings',()=>{
   const workbench=source('src/components/WorkBench.tsx');
   assert.match(workbench,/boop-combine-settings/);
-  assert.match(workbench,/THE MIXING LAB/);
+  assert.match(workbench,/CREATE SOMETHING NEW/);
+  assert.match(workbench,/boop-combine-quick--in-picker/);
+  assert.match(workbench,/boop-focus-surprise/);
+  assert.doesNotMatch(workbench,/requestAnimationFrame\(\(\)=>searchRef\.current\?\.focus/);
   assert.match(workbench,/Find a sprite/);
   const beforeSettings=workbench.split('className="boop-combine-settings"')[0];
   assert.doesNotMatch(beforeSettings,/id="foundry-process"/);
@@ -58,4 +61,22 @@ test('failed remote sprites render original offline pixel art, not an emoji/glyp
   assert.match(image,/const url = candidate && candidate !== brokenSource \? candidate : fallbackSrc/);
   assert.doesNotMatch(image,/>◌<\/span>/);
   assert.match(sprite,/generateFreshPixelArt/);
+});
+
+
+test('novel unrecognized discoveries render newly assembled 24px silhouettes',()=>{
+  for(const name of ['Astral Teapot Sparrow','Glacial Semaphore Vessel','Quantum Coral Umbrella']) {
+    assert.equal(pixelArtFormFor(name),'chimera');
+    const art=generateFreshPixelArt(name);
+    assert.ok(art.startsWith('data:image/svg+xml'));
+    assert.doesNotMatch(decodeURIComponent(art.slice(art.indexOf(',')+1)),/<text|<image/);
+  }
+  assert.notEqual(generateFreshPixelArt('Astral Teapot Sparrow'),generateFreshPixelArt('Glacial Semaphore Vessel'));
+});
+
+test('Pixel 9 always shows one bottom craft CTA; more tools have the spawn action',()=>{
+  const board=source('src/components/InfiniteCraftView.tsx');
+  assert.match(board,/boop-more-spawn-action/);
+  assert.match(board,/boop-mobile-craft-library/);
+  assert.doesNotMatch(board,/className="boop-mobile-craft-spawn"/);
 });
