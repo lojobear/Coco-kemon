@@ -13,6 +13,9 @@ export class ApiFailure extends Error {
 }
 
 export function publicFailure(error: unknown): { status: number; error: string } {
+  // 425 is a normal async Runway task still processing. The artwork queue
+  // polls its persisted task ID without creating or charging for another job.
+  if (error instanceof RunwayPendingError) return { status: 425, error: error.message };
   return error instanceof ApiFailure
     ? { status: error.status, error: error.message }
     : { status: 502, error: 'The AI returned an invalid result. Please retry.' };
