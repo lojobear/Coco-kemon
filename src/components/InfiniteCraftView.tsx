@@ -17,7 +17,7 @@ import {
   validNewElementName,
 } from '../lib/infiniteCraftData';
 import { requestJson } from '../lib/api';
-import { enqueueArtwork, startArtworkQueue, artworkQueueStatus, retryPendingArtwork, ARTWORK_QUEUE_EVENT } from '../lib/artworkQueue';
+import { enqueueArtwork, startArtworkQueue } from '../lib/artworkQueue';
 import { beginBoardHistory, recordBoardHistory, undoBoard, redoBoard, clampBoardZoom } from '../lib/boardHistory';
 import { CANONICAL_INFINITE_CRAFT_RECIPES, makePairKey } from '../lib/infiniteCraftData';
 import { findCraftDropTarget } from '../lib/craftCollision';
@@ -144,13 +144,9 @@ export function InfiniteCraftView() {
   const showFreeform = true;
   const [ingredientFilter, setIngredientFilter] = useState<'all' | 'new' | 'shiny'>('all');
   const [lastResult, setLastResult] = useState<InfiniteElement | null>(null);
-  const [artStatus, setArtStatus] = useState(artworkQueueStatus);
-  useEffect(() => {
-    const update = () => setArtStatus(artworkQueueStatus());
-    window.addEventListener(ARTWORK_QUEUE_EVENT, update);
-    const cleanup = startArtworkQueue();
-    return () => { window.removeEventListener(ARTWORK_QUEUE_EVENT, update); cleanup(); };
-  }, []);
+  // Sprite generation stays active without rerendering the Craft board for
+  // every queue status update or showing a floating artwork progress box.
+  useEffect(() => startArtworkQueue(), []);
   const [elements, setElements] = useState<InfiniteElement[]>(() => {
     try {
       const saved = JSON.stringify(readCraftElements());
@@ -905,11 +901,6 @@ export function InfiniteCraftView() {
         {activeCombination && <div className="boop-board-status" role="status"><span className="boop-inline-spinner"/>Combining {activeCombination.nameA} + {activeCombination.nameB}… <small>Keep moving tiles</small></div>}
         {lastResult && <div className="boop-board-result" key={lastResult.discoveredAt} role="status"><CraftSprite name={lastResult.name} emoji={lastResult.emoji} isShiny={lastResult.isShiny}/><div><small>{lastResult.isNew ? '✦ NEW DISCOVERY' : 'CREATED'}</small><strong>{lastResult.name}</strong></div><button onClick={()=>spawnOnCanvas(lastResult.name,lastResult.emoji,Boolean(lastResult.isShiny))}>Add to board <Plus size={15}/></button><button aria-label="Dismiss result" onClick={()=>setLastResult(null)}><X size={16}/></button></div>}
         {combineError && <div className="boop-board-alert" role="alert">{combineError}<button onClick={()=>{if(lastPairRef.current)void handleCombine(lastPairRef.current[0],lastPairRef.current[1]);}}>Retry</button><button onClick={()=>setCombineError(null)}>Dismiss</button></div>}
-        {artStatus.pending>0 && <div className="boop-artwork-queue" role="status" aria-live="polite">
-          <span>{artStatus.running ? '✦ Drawing artwork…' : `✦ ${artStatus.pending} artwork ${artStatus.pending===1?'item':'items'} pending`}</span>
-          {artStatus.failures>0 && <small>Saved discoveries are safe. Provider access may need attention.</small>}
-          <button type="button" onClick={retryPendingArtwork} disabled={artStatus.running} aria-label="Retry pending artwork">Retry</button>
-        </div>}
         {spawnToast && <div className="boop-board-toast" role="status">{spawnToast}</div>}
         <button className="boop-board-mobile-library" onClick={()=>setIsSidebarOpen(true)} aria-label="Open element library"><Plus size={21}/> Add an element</button>
         {isSidebarOpen && <div className="boop-board-drawer-backdrop" onClick={()=>setIsSidebarOpen(false)} aria-hidden="true"/>}
