@@ -63,8 +63,6 @@ import {
   Minus,
   ZoomIn,
   Trophy,
-  SlidersHorizontal,
-  ArrowRight,
 } from 'lucide-react';
 
 interface CanvasItem {
@@ -628,7 +626,7 @@ export function InfiniteCraftView() {
     const {x,y} = clampBoardTile(center.x - 65 + (Math.random() * 120 - 60), center.y - 22 + (Math.random() * 95 - 48));
     const newItem: CanvasItem = { instanceId: `spawn-${Date.now()}-${Math.random()}`, name, emoji, x, y, isShiny };
     setCanvasItems(prev => [...prev, newItem]);
-    setSpawnToast(`${isShiny ? 'Shiny ' : ''}${name} added to board`);
+    setSpawnToast(`${emoji} ${isShiny ? '✨ ' : ''}${name} added`);
     setTimeout(() => setSpawnToast(null), 1800);
     // Picking from the library adds a tile; it must not unexpectedly fuse
     // with a board selection. Players intentionally tap two tiles to combine.
@@ -846,50 +844,37 @@ export function InfiniteCraftView() {
     <CraftSprites.Provider value={customSprites}>
     <div className="boop-craft-studio">
       <section className="boop-board-layout" aria-label="Discover crafting board">
-        <header className="boop-board-toolbar boop-board-toolbar--quiet">
-          <div className="boop-board-heading"><strong>Craft</strong><small>{canvasItems.length} on board</small></div>
-          <button type="button" className="boop-craft-mode-link" onClick={()=>setActiveTab('foundry')} aria-label="Open combination lab">Combine <ArrowRight size={14}/></button>
-          <div className="boop-board-actions boop-board-actions--quiet">
-            <button type="button" className="boop-quiet-spawn" disabled={!spawnPool.length || canvasItems.length>=300}
-              aria-label={`Spawn ${spawnCount} random ${spawnCount===1?'element':'elements'}`}
-              onClick={()=>spawnRandomBatch(spawnCount)}>
-              <Shuffle size={18}/><span>Spawn</span>
-            </button>
-            <button type="button" aria-label="Undo last board action" title="Undo" disabled={isSynthesizing || !historySize.past} onClick={undoLayout}><Undo2 size={19}/></button>
-            <button type="button" className="boop-board-library-toggle" aria-expanded={isSidebarOpen} aria-controls="boop-board-library"
-              aria-label="Open element library" onClick={()=>setIsSidebarOpen(v=>!v)}><Search size={19}/><span>Elements</span></button>
-            <details className="boop-board-more" aria-label="More crafting tools">
-              <summary aria-label="More crafting tools" title="More crafting tools"><SlidersHorizontal size={19}/></summary>
-              <div className="boop-board-more-panel">
-                <button type="button" className="boop-more-spawn-action" disabled={!spawnPool.length||canvasItems.length>=300}
-                  onClick={()=>{spawnRandomBatch(spawnCount);(document.activeElement as HTMLElement)?.blur();}}
-                  aria-label={`Add ${spawnCount} random sprites to board`}><Shuffle size={17}/> Add ${spawnCount} random ${spawnCount===1?'sprite':'sprites'}</button>
-                <span className="boop-board-more-label">SPAWN AMOUNT</span>
-                <div className="boop-board-more-counts" role="group" aria-label="Random spawn count">
-                  {SPAWN_COUNTS.map(count=><button type="button" key={count} aria-pressed={spawnCount===count}
-                    aria-label={`Select ${count} elements per spawn`} onClick={()=>setSpawnCount(count)}>{count}</button>)}
-                </div>
-                <span className="boop-board-more-label">BOARD TOOLS</span>
-                <div className="boop-board-more-actions">
-                  <button type="button" aria-label="Undo board action" disabled={isSynthesizing||!historySize.past} onClick={undoLayout}><Undo2 size={16}/> Undo</button>
-                  <button type="button" aria-label="Redo board action" disabled={isSynthesizing||!historySize.future} onClick={redoLayout}><Redo2 size={16}/> Redo</button>
-                  <button type="button" onClick={tidyCanvas}><LayoutGrid size={16}/> Tidy</button>
-                  <button type="button" onClick={clearCanvas}><Trash2 size={16}/> Clear board</button>
-                </div>
-                {artStatus.pending>0 && <div className="boop-more-artwork"><button type="button" disabled={artStatus.running} onClick={retryPendingArtwork} aria-label="Retry pending sprites">Retry missing sprites</button><small>{artStatus.pending} in queue</small></div>}
-                <div className="boop-board-more-zoom">
-                  <span>Zoom</span>
-                  <button type="button" aria-label="Zoom out" disabled={boardZoom<=.6} onClick={()=>setZoomPreservingCenter(boardZoom-.15)}><Minus size={17}/></button>
-                  <strong>{Math.round(boardZoom*100)}%</strong>
-                  <button type="button" aria-label="Zoom in" disabled={boardZoom>=1.5} onClick={()=>setZoomPreservingCenter(boardZoom+.15)}><ZoomIn size={17}/></button>
-                </div>
+        <header className="boop-board-toolbar">
+          <div className="boop-board-heading"><strong>Discover</strong><small>Drag tiles together to combine · drag empty space to explore</small></div>
+          <div className="boop-board-actions">
+            <div className="boop-spawn-quick" role="group" aria-label="Random element spawn">
+              <button type="button" className="boop-random-button boop-spawn-now" disabled={!spawnPool.length || canvasItems.length>=300}
+                aria-label={`Spawn ${spawnCount} random ${spawnCount===1?'element':'elements'}`}
+                title="Instantly spawn random unlocked elements"
+                onClick={()=>spawnRandomBatch(spawnCount)}>
+                <span className="boop-random-icon"><Shuffle key={randomVersion} size={19}/></span>
+                <span className="boop-random-label">Spawn</span>
+              </button>
+              <div className="boop-spawn-quick-counts" role="group" aria-label="Tap an amount to spawn instantly">
+                {SPAWN_COUNTS.map(count=><button type="button" key={count}
+                  aria-label={`Spawn ${count} random ${count===1?'element':'elements'} now`}
+                  aria-pressed={spawnCount===count} disabled={!spawnPool.length || canvasItems.length>=300}
+                  onClick={()=>spawnRandomBatch(count)}>{count}</button>)}
               </div>
-            </details>
+            </div>
+            <button type="button" aria-label="Undo last board action" title="Undo (Ctrl+Z)" disabled={isSynthesizing || !historySize.past} onClick={undoLayout}><Undo2 size={18}/></button>
+            <button type="button" aria-label="Redo board action" title="Redo (Ctrl+Y)" disabled={isSynthesizing || !historySize.future} onClick={redoLayout}><Redo2 size={18}/></button>
+            <button type="button" aria-label="Zoom out" disabled={boardZoom<=.6} onClick={()=>setZoomPreservingCenter(boardZoom-.15)}><Minus size={18}/></button>
+            <span className="boop-board-zoom" aria-live="off">{Math.round(boardZoom*100)}%</span>
+            <button type="button" aria-label="Zoom in" disabled={boardZoom>=1.5} onClick={()=>setZoomPreservingCenter(boardZoom+.15)}><ZoomIn size={18}/></button>
+            <button type="button" aria-label="Tidy tiles" title="Tidy tiles" onClick={tidyCanvas}><LayoutGrid size={18}/><span>Tidy</span></button>
+            <button type="button" aria-label="Clear board" title="Clear board" onClick={clearCanvas}><Trash2 size={18}/></button>
+            <button type="button" className="boop-board-library-toggle" aria-expanded={isSidebarOpen} aria-controls="boop-board-library" onClick={() => setIsSidebarOpen(v=>!v)}><Search size={18}/><span>Elements</span><b>{elements.length}</b></button>
           </div>
         </header>
         <div className="boop-board-viewport" ref={viewportRef} aria-label="Pan and drag crafting board" onPointerDown={startPan} onPointerMove={movePan} onPointerUp={endPan} onPointerCancel={endPan}>
           <div ref={canvasRef} className="boop-board-world" style={{ width:BOARD_WIDTH, height:BOARD_HEIGHT, zoom:boardZoom }}>
-            <div className="boop-board-origin-hint" style={{ left:BOARD_START_X - 6, top:BOARD_START_Y - 68 }}>DRAG TWO TOGETHER · OR TAP TWO</div>
+            <div className="boop-board-origin-hint" style={{ left:BOARD_START_X - 6, top:BOARD_START_Y - 68 }}>DROP. MIX. DISCOVER.</div>
             {canvasItems.map(item=><div
               key={item.instanceId} data-craft-instance={item.instanceId}
               className={`boop-board-item ${selectedCanvasId === item.instanceId ? 'is-selected' : ''} ${activeDragId === item.instanceId ? 'is-dragging' : ''} ${item.instanceId.startsWith('fusion-') ? 'is-fusion-result' : ''} ${item.instanceId.startsWith('spawn-') ? 'is-random-spawn' : ''}`}
@@ -909,19 +894,16 @@ export function InfiniteCraftView() {
             </div>}
           </div>
         </div>
-        {/* One feedback card at a time on phone; artwork jobs live in More tools. */}
-        {combineError
-          ? <div className="boop-board-alert" role="alert">{combineError}<button onClick={()=>{if(lastPairRef.current)void handleCombine(lastPairRef.current[0],lastPairRef.current[1]);}}>Retry</button><button onClick={()=>setCombineError(null)}>Dismiss</button></div>
-          : activeCombination
-          ? <div className="boop-board-status" role="status"><span className="boop-inline-spinner"/>Mixing {activeCombination.nameA} + {activeCombination.nameB}…</div>
-          : lastResult
-          ? <div className="boop-board-result" key={lastResult.discoveredAt} role="status"><CraftSprite name={lastResult.name} emoji={lastResult.emoji} isShiny={lastResult.isShiny}/><div><small>{lastResult.isNew ? 'NEW DISCOVERY' : 'CREATED'}</small><strong>{lastResult.name}</strong></div><button onClick={()=>spawnOnCanvas(lastResult.name,lastResult.emoji,Boolean(lastResult.isShiny))}>Place <Plus size={15}/></button><button aria-label="Dismiss result" onClick={()=>setLastResult(null)}><X size={16}/></button></div>
-          : null}
+        {activeCombination && <div className="boop-board-status" role="status"><span className="boop-inline-spinner"/>Combining {activeCombination.nameA} + {activeCombination.nameB}… <small>Keep moving tiles</small></div>}
+        {lastResult && <div className="boop-board-result" key={lastResult.discoveredAt} role="status"><CraftSprite name={lastResult.name} emoji={lastResult.emoji} isShiny={lastResult.isShiny}/><div><small>{lastResult.isNew ? '✦ NEW DISCOVERY' : 'CREATED'}</small><strong>{lastResult.name}</strong></div><button onClick={()=>spawnOnCanvas(lastResult.name,lastResult.emoji,Boolean(lastResult.isShiny))}>Add to board <Plus size={15}/></button><button aria-label="Dismiss result" onClick={()=>setLastResult(null)}><X size={16}/></button></div>}
+        {combineError && <div className="boop-board-alert" role="alert">{combineError}<button onClick={()=>{if(lastPairRef.current)void handleCombine(lastPairRef.current[0],lastPairRef.current[1]);}}>Retry</button><button onClick={()=>setCombineError(null)}>Dismiss</button></div>}
+        {artStatus.pending>0 && <div className="boop-artwork-queue" role="status" aria-live="polite">
+          <span>{artStatus.running ? '✦ Drawing artwork…' : `✦ ${artStatus.pending} artwork ${artStatus.pending===1?'item':'items'} pending`}</span>
+          {artStatus.failures>0 && <small>Saved discoveries are safe. Provider access may need attention.</small>}
+          <button type="button" onClick={retryPendingArtwork} disabled={artStatus.running} aria-label="Retry pending artwork">Retry</button>
+        </div>}
         {spawnToast && <div className="boop-board-toast" role="status">{spawnToast}</div>}
-        <div className="boop-mobile-craft-dock" aria-label="Crafting quick actions">
-          <button type="button" className="boop-mobile-craft-library" onClick={()=>setIsSidebarOpen(true)} aria-label="Browse ingredients"><Plus size={19}/><span>Add a discovery</span><small>{elements.length} found</small></button>
-
-        </div>
+        <button className="boop-board-mobile-library" onClick={()=>setIsSidebarOpen(true)} aria-label="Open element library"><Plus size={21}/> Add elements</button>
         {isSidebarOpen && <div className="boop-board-drawer-backdrop" onClick={()=>setIsSidebarOpen(false)} aria-hidden="true"/>}
         <aside id="boop-board-library" className={`boop-board-drawer ${isSidebarOpen ? 'is-open' : ''}`} aria-label="Your element library" aria-hidden={!isSidebarOpen}>
           <div className="boop-board-drawer-head"><div><h2>Ingredients</h2><small>{elements.length} discovered · tap to add to board</small></div><button aria-label="Close ingredients" onClick={()=>setIsSidebarOpen(false)}><X size={21}/></button></div>

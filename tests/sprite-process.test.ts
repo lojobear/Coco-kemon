@@ -18,16 +18,14 @@ test('random processes exclude locked and current choices, with empty and single
   assert.equal(chooseRandomProcess([]), null);
 });
 
-test('craft visuals preserve uploaded art while defaults render original pixel sprites', () => {
+test('craft visual resolves custom art by name while default discoveries keep their emoji', () => {
   const markup = renderToStaticMarkup(React.createElement(CraftSprites.Provider, {
     value: new Map([['water', 'data:image/png;base64,iVBORw0KGgo=']]),
     children: React.createElement(CraftSprite, { name: 'Water', emoji: '💧' }),
   }));
   assert.match(markup, /<img/);
   assert.match(markup, /data:image\/png;base64/);
-  const defaultMarkup = renderToStaticMarkup(React.createElement(CraftSprite, { name: 'Water', emoji: '💧' }));
-  assert.match(defaultMarkup, /data:image\/svg\+xml/);
-  assert.doesNotMatch(defaultMarkup, /💧/);
+  assert.match(renderToStaticMarkup(React.createElement(CraftSprite, { name: 'Water', emoji: '💧' })), /💧/);
 });
 
 

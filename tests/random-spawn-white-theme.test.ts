@@ -45,13 +45,12 @@ test('spawn positions keep tiles near viewport center and inside the world',()=>
   }
 });
 
-test("Discover Spawn is immediate while count selection lives inside More tools",()=>{
+test("Discover instant Spawn controls are direct, accessible and never call AI",()=>{
   const component=readFileSync(new URL('../src/components/InfiniteCraftView.tsx',import.meta.url),'utf8');
-  assert.match(component,/className="boop-quiet-spawn"/);
-  assert.match(component,/className="boop-board-more"/);
-  assert.match(component,/aria-label="Random spawn count"/);
+  assert.match(component,/aria-label="Random element spawn"/);
+  assert.match(component,/Tap an amount to spawn instantly/);
   assert.match(component,/aria-pressed=\{spawnCount===count\}/);
-  assert.match(component,/onClick=\{\(\)=>setSpawnCount\(count\)\}/);
+  assert.match(component,/onClick=\{\(\)=>spawnRandomBatch\(count\)\}/);
   assert.match(component,/onClick=\{\(\)=>spawnRandomBatch\(spawnCount\)\}/);
   assert.match(component,/SPAWN_COUNTS\.map/);
   assert.doesNotMatch(component,/spawnMenuOpen|boop-spawn-menu|SPAWN_SOURCES\.map/);
@@ -66,7 +65,7 @@ test('Boop uses white canvas with legible dark controls in web and native Androi
   assert.match(css,/--boop-canvas: #ffffff;/);
   assert.match(css,/\.boop-app \.boop-board-world\s*\{\s*background-color:#fff!important;/);
   assert.match(css,/\.boop-app \.boop-board-layout \.boop-board-item\s*\{\s*background:#fff;/);
-  assert.match(css,/\.boop-board-more-counts button\[aria-pressed=true\]/);
+  assert.match(css,/\.boop-spawn-quick-counts button\[aria-pressed="true"\]/);
   assert.match(java,/setStatusBarColor\(Color\.WHITE\)/);
   assert.match(java,/toolbar\.setBackgroundColor\(Color\.WHITE\)/);
 });
