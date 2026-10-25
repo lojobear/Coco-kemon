@@ -5,7 +5,7 @@ import { ProfileSpriteSync } from './components/ProfileSpriteSync';
  * Mobile-First AI Crafting & Procedural Genome Sprite Collection Game
  */
 
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect, lazy, Suspense, startTransition } from 'react';
 import { GameProvider, useGame } from './lib/gameStore';
 import { CloudSaves } from './components/CloudSaves';
 import { Header } from './components/Header';
@@ -50,6 +50,7 @@ function GameContent() {
       void loadKitchenView();
       void loadInfiniteCraftView();
       void loadArchiveView();
+      void loadWorkBench();
     };
     // Keep a timeout fallback without narrowing the Window type to never.
     const idleApi = window as Window & {
@@ -95,7 +96,7 @@ function GameContent() {
     if (!nativeShell) return;
     const navigate = (event: Event) => {
       const requested = (event as CustomEvent<string>).detail;
-      if (typeof requested === 'string' && isNativeTab(requested)) setActiveTab(requested);
+      if (typeof requested === 'string' && isNativeTab(requested)) startTransition(() => setActiveTab(requested));
     };
     const openCloud = () => setActiveTab('profile');
     const handleBack = () => {
