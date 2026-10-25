@@ -1,10 +1,9 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { FlaskConical, Hammer, Search, Plus, X, Dice5, Sparkles, Info, Shuffle, ArrowLeftRight, RotateCcw, Trophy, Target, Layers3, Flame } from 'lucide-react';
 import { useGame } from '../lib/gameStore';
 import type { Material } from '../types';
 import { readCraftElements, SAVE_IMPORTED_EVENT } from '../lib/saveData';
 import { conceptMaterial } from '../lib/conceptMaterial';
-import { generateFreshPixelArt } from '../lib/freshPixelArt';
 import { MaterialSprite } from './ElementSprite';
 import { chooseRandomProcess } from '../lib/randomProcess';
 import { EXTRA_PROCESSES } from '../lib/extraProcesses';
@@ -20,6 +19,10 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
   const [category, setCategory] = useState('all');
   const [sort, setSort] = useState<'collection' | 'recent' | 'name'>('collection');
   const [picker, setPicker] = useState<'A' | 'B' | null>(null);
+  // Large collections must not mount every sprite at once on Android WebView.
+  const FOUNDRY_PAGE_SIZE = 36;
+  const [visibleCount, setVisibleCount] = useState(FOUNDRY_PAGE_SIZE);
+  const deferredSearch = useDeferredValue(search);
   const searchRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     const reload = () => setCraftItems(readCraftElements());
@@ -30,7 +33,7 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
     const names = new Set(foundryMaterials.map(item => item.displayName.trim().toLowerCase()));
     return [...foundryMaterials, ...craftItems.filter(item => !names.has(item.name.trim().toLowerCase())).map(item => {
       const material = conceptMaterial({ result: item.name, emoji: item.emoji, explanation: item.explanation, connection: item.connection });
-      return { ...material, discoveredAt: item.discoveredAt || 0, customSpriteUrl: item.customSpriteUrl || generateFreshPixelArt(item.name) };
+      return { ...material, discoveredAt: item.discoveredAt || 0, customSpriteUrl: item.customSpriteUrl };
     })];
   }, [foundryMaterials, craftItems]);
   const availableProcesses = useMemo(() => [...processes, ...EXTRA_PROCESSES.filter(extra => !processes.some(p => p.id === extra.id)), ...FOUNDRY_ACTIONS.filter(action => ![...processes, ...EXTRA_PROCESSES].some(p => p.id === action.id))].filter(p => p.unlocked), [processes]);
@@ -38,12 +41,14 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
   const process = selectedProcess || availableProcesses.find(p => p.id === 'MIX') || availableProcesses[0];
   const categories = useMemo(() => [...new Set<string>(materials.map(m => m.category))].sort((a,b) => a.localeCompare(b)), [materials]);
   const filtered = useMemo(() => {
-    const query = search.trim().toLowerCase();
+    const query = deferredSearch.trim().toLowerCase();
     const result = materials.filter(m => (category === 'all' || m.category === category) && `${m.displayName} ${m.category} ${m.semanticTags.join(' ')}`.toLowerCase().includes(query));
     if (sort === 'recent') result.sort((a,b) => b.discoveredAt - a.discoveredAt);
     if (sort === 'name') result.sort((a,b) => a.displayName.localeCompare(b.displayName));
     return result;
-  }, [materials, category, search, sort]);
+  }, [materials, category, deferredSearch, sort]);
+  useEffect(() => setVisibleCount(FOUNDRY_PAGE_SIZE), [deferredSearch, category, sort]);
+  const visibleMaterials = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount]);
   const selectItem = (item: Material) => {
     if (isSynthesizing) return;
     sound.playClick();
@@ -112,10 +117,10 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
     <div className="collection-filters">
       <label><span className="sr-only">Discovery category</span><select aria-label="Discovery category" value={category} onChange={e => setCategory(e.target.value)}><option value="all">All categories</option>{categories.map(c => <option key={c}>{c}</option>)}</select></label>
       <label><span className="sr-only">Sort discoveries</span><select aria-label="Sort discoveries" value={sort} onChange={e => setSort(e.target.value as typeof sort)}><option value="collection">Collection order</option><option value="recent">Newest first</option><option value="name">Name A–Z</option></select></label>
-      <span aria-live="polite">{filtered.length} items</span>
+      <span aria-live="polite">{visibleMaterials.length} of {filtered.length} items</span>
     </div>
     <div className="discovery-grid" aria-label="Discovered items" aria-busy={isSynthesizing}>
-      {filtered.map(item => <div key={item.id} data-rarity={item.rarity} className={`discovery-tile ${item.variant ? `variant-${item.variant}` : ''} ${slotA?.id === item.id || slotB?.id === item.id ? 'is-selected' : ''}`}>
+      {visibleMaterials.map(item => <div key={item.id} data-rarity={item.rarity} className={`discovery-tile ${item.variant ? `variant-${item.variant}` : ''} ${slotA?.id === item.id || slotB?.id === item.id ? 'is-selected' : ''}`}>
         <button className="discovery-pick" onClick={() => selectItem(item)} disabled={isSynthesizing} aria-label={`Select ${item.displayName}`} aria-pressed={slotA?.id === item.id || slotB?.id === item.id}>
           <MaterialSprite material={item} className="discovery-emoji" /><span>{item.displayName}</span>
         </button>
@@ -125,6 +130,11 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
       </div>)}
       {!filtered.length && <p className="collection-empty">No discoveries match these filters. <button onClick={() => { setSearch(''); setCategory('all'); }}>Clear filters</button></p>}
     </div>
+    {visibleCount < filtered.length && (
+      <button type="button" className="boop-foundry-load-more" onClick={() => setVisibleCount(count => count + FOUNDRY_PAGE_SIZE)}>
+        Show more discoveries ({filtered.length - visibleCount} remaining)
+      </button>
+    )}
 
     <details className="boop-foundry-progress-details">
       <summary><Trophy size={15}/> Collection progress <span>Level {progression.level} · {progression.xp} XP</span></summary>
