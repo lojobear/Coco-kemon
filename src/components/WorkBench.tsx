@@ -36,12 +36,8 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
     window.addEventListener('boop-native-back', onBack);
     return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('boop-native-back', onBack); };
   }, [inventoryOpen]);
-  useEffect(() => {
-    if (inventoryOpen) {
-      const id=window.requestAnimationFrame(()=>searchRef.current?.focus({preventScroll:true}));
-      return () => window.cancelAnimationFrame(id);
-    }
-  }, [inventoryOpen]);
+  // Keep the Pixel 9 keyboard closed when the ingredient sheet opens:
+  // players can browse pixel sprites first and tap Search if they want to type.
   useEffect(() => {
     const reload = () => setCraftItems(readCraftElements());
     window.addEventListener(SAVE_IMPORTED_EVENT, reload);
