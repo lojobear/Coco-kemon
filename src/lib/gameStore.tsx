@@ -1,4 +1,3 @@
-import { type SpriteChange, PROFILE_SPRITES_UPDATED } from './profileSprites';
 /**
  * ODDKIN FOUNDRY - Central Game State & Persistence Store
  * Manages materials, Oddkin species, processes, experiments, habitats,
@@ -10,9 +9,8 @@ import { Material, Oddkin, Process, ExperimentLog, Habitat, SynthesisResult, Pho
 import { STARTER_MATERIALS, ALL_PROCESSES, INITIAL_HABITATS, mergeProcesses } from './starterData';
 import { generateMaterialSprite, generateOddkinSprite, MATERIAL_SPRITE_RENDERER_VERSION } from './pixelRenderer';
 import { requestJson } from './api';
-import { getElementEmoji } from './elementEmoji';
 import { validMaterial, validOddkin } from './validation';
-import { readFoundrySave, saveFoundry, exportCompleteSave, importCompleteSave, readCraftElements, saveCraftElements } from './saveData';
+import { readFoundrySave, saveFoundry, exportCompleteSave, importCompleteSave } from './saveData';
 import { sound } from './audio';
 import { matchesFoundryRecipe, validSynthesisResult, resolveMaterialDiscovery } from './foundryRecipes';
 import { dailyGoals, discoveryStreak, levelFromXp, nearMissHint, nextStreakMilestone, progressionXp, rollMaterialVariant, setProgress, streakReward } from './progression';
@@ -61,7 +59,7 @@ interface GameState {
     dailyGoals: ReturnType<typeof dailyGoals>;
     hint: string | null;
   };
-  activeTab: 'infinite-craft' | 'foundry' | 'archive' | 'sprite-lab' | 'notebook' | 'seeds' | 'kitchen' | 'profile';
+  activeTab: 'infinite-craft' | 'foundry' | 'archive' | 'sprite-lab' | 'notebook' | 'seeds' | 'kitchen';
   inspectedItem: { type: 'material' | 'oddkin'; item: Material | Oddkin } | null;
   isMuted: boolean;
 
@@ -70,7 +68,7 @@ interface GameState {
   setSlotB: (m: Material | null) => void;
   setSelectedProcess: (p: Process | null) => void;
   clearSlots: () => void;
-  setActiveTab: (tab: 'infinite-craft' | 'foundry' | 'archive' | 'sprite-lab' | 'notebook' | 'seeds' | 'kitchen' | 'profile') => void;
+  setActiveTab: (tab: 'infinite-craft' | 'foundry' | 'archive' | 'sprite-lab' | 'notebook' | 'seeds' | 'kitchen') => void;
   setInspectedItem: (item: { type: 'material' | 'oddkin'; item: Material | Oddkin } | null) => void;
   closeDiscoveryModal: () => void;
   toggleMute: () => void;
@@ -83,7 +81,6 @@ interface GameState {
   resetGame: () => void;
   exportSaveData: () => string;
   importSaveData: (jsonStr: string) => boolean;
-  applyProfileSpriteChanges: (changes: SpriteChange[]) => void;
 }
 
 const GameContext = createContext<GameState | null>(null);
@@ -208,7 +205,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const [synthesisError, setSynthesisError] = useState<string | null>(null);
   const [synthesisStage, setSynthesisStage] = useState<SynthesisStage>(null);
   const [recentDiscovery, setRecentDiscovery] = useState<GameState['recentDiscovery']>(null);
-  const [activeTab, setActiveTab] = useState<'infinite-craft' | 'foundry' | 'archive' | 'sprite-lab' | 'notebook' | 'seeds' | 'kitchen' | 'profile'>('infinite-craft');
+  const [activeTab, setActiveTab] = useState<'infinite-craft' | 'foundry' | 'archive' | 'sprite-lab' | 'notebook' | 'seeds' | 'kitchen'>('foundry');
   const [inspectedItem, setInspectedItem] = useState<GameState['inspectedItem']>(null);
   const [isMuted, setIsMuted] = useState<boolean>(() => sound.isMuted());
 
@@ -430,8 +427,6 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
         sound.playDiscoveryChime(newMat.rarity);
         setMaterials(prev => deduplicateMaterials([newMat, ...prev]));
-        // Only genuinely new Foundry material discoveries spend image AI quota.
-        if (discovery.isNew) void getElementEmoji(newMat.displayName).catch(() => undefined);
 
         // Unlock processes based on discoveries (e.g. Glass unlocks POLISH, Spark unlocks CHARGE, etc.)
         if (newMat.canonicalName.includes('GLASS') || newMat.canonicalName.includes('CERAMIC')) {
@@ -730,27 +725,6 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     return exportCompleteSave(payload);
   }, [materials, oddkinCollection, processes, experiments, habitats]);
 
-  const applyProfileSpriteChanges = useCallback((changes: SpriteChange[]) => {
-    const update = <T extends { customSpriteUrl?: string }>(items: T[], type: SpriteChange['type'], id: (item: T) => string): T[] => {
-      let changed = false;
-      const next = items.map(item => {
-        const patch = changes.find(change => change.type === type && change.id === id(item) && change.previous === item.customSpriteUrl);
-        if (!patch) return item;
-        changed = true;
-        return { ...item, customSpriteUrl: patch.reference, ...(type === 'material' ? { spriteRendererVersion: MATERIAL_SPRITE_RENDERER_VERSION } : {}) };
-      });
-      return changed ? next : items;
-    };
-    setMaterials(items => update<Material>(items, 'material', item => item.id));
-    setOddkinCollection(items => update<Oddkin>(items, 'oddkin', item => item.speciesId));
-    const crafting = readCraftElements();
-    const next = update(crafting, 'craft', item => item.id);
-    if (next !== crafting) {
-      saveCraftElements(next);
-      window.dispatchEvent(new Event(PROFILE_SPRITES_UPDATED));
-    }
-  }, []);
-
   const importSaveData = useCallback((jsonStr: string): boolean => {
     try {
       if (isSynthesizing) return false;
@@ -821,7 +795,6 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     resetGame,
     exportSaveData,
     importSaveData,
-    applyProfileSpriteChanges,
   }), [
     materials,
     oddkinCollection,
@@ -852,7 +825,6 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     resetGame,
     exportSaveData,
     importSaveData,
-    applyProfileSpriteChanges,
   ]);
 
   return (

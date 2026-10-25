@@ -13,7 +13,7 @@ if (useRemoteApp && !/^https:\/\//i.test(appUrl)) {
 
 const config: CapacitorConfig = {
   appId,
-  appName: 'Boop',
+  appName: 'QuarkPop',
   webDir: 'dist',
   server: useRemoteApp ? {
     url: appUrl,

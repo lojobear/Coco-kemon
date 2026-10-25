@@ -4,7 +4,7 @@ import { once } from 'node:events';
 import { DISCOVERY_TRAILS, TRAIL_RECIPES, trailProgress, rollRareVariant } from '../src/lib/discoveryTrails';
 import { CANONICAL_INFINITE_CRAFT_RECIPES, makePairKey, STARTER_ELEMENTS } from '../src/lib/infiniteCraftData';
 import { ALL_PROCESSES, mergeProcesses, STARTER_MATERIALS } from '../src/lib/starterData';
-import { chooseConcept, candidateRejectionReason, lowValueConceptReason, inheritanceFor, applyInheritance } from '../server/discovery';
+import { chooseConcept, inheritanceFor, applyInheritance } from '../server/discovery';
 import { validateCraft, parseSave } from '../src/lib/saveData';
 import { INITIAL_HABITATS } from '../src/lib/starterData';
 import { validMaterial } from '../src/lib/validation';
@@ -86,46 +86,4 @@ test('new trail and process recipes work through API without Gemini', async () =
       const data = await r.json(); assert.equal(r.status, 200); assert.equal(data.material.displayName, name); assert.ok(validMaterial(data.material));
     }
   } finally { server.close(); await once(server, 'close'); }
-});
-
-test('candidateRejectionReason names the failing gate', () => {
-  const base = { emoji: '✨', explanation: 'Fire heats water into steam.', connection: 'science', coherence: 5 };
-  assert.equal(candidateRejectionReason({ ...base, result: '' }, 'Fire', 'Water'), 'missing result');
-  assert.equal(candidateRejectionReason({ ...base, result: 'Steam', coherence: 2 }, 'Fire', 'Water'), 'coherence 2 < 3');
-  assert.equal(candidateRejectionReason({ ...base, result: 'FireWater' }, 'Fire', 'Water'), 'result is a literal mashup of the inputs');
-  assert.equal(candidateRejectionReason({ ...base, result: 'Steam', connection: 'alchemy' }, 'Fire', 'Water'), 'unknown connection "alchemy"');
-  assert.equal(candidateRejectionReason({ ...base, result: 'Steam', emoji: '💨' }, 'Fire', 'Water'), null);
-});
-
-test('two-parent quality gate rejects ingredient-shaped descriptions and shallow synonym results', () => {
-  assert.equal(lowValueConceptReason('Worm-Shaped Cloud', 'Worm', 'Cloud'), 'result is a cosmetic description of an ingredient');
-  assert.equal(lowValueConceptReason('Cloud-Inspired Worm', 'Worm', 'Cloud'), 'result is a cosmetic description of an ingredient');
-  assert.equal(lowValueConceptReason('Grill', 'BBQ', 'Rain'), 'result only renames one ingredient');
-  assert.equal(lowValueConceptReason('Barbecue', 'BBQ', 'Cloud'), 'result only renames one ingredient');
-  assert.equal(lowValueConceptReason('Couch', 'Sofa', 'Fire'), 'result only renames one ingredient');
-  assert.equal(lowValueConceptReason('Cloud', 'Cloud', 'Worm'), 'result only repeats an ingredient');
-  assert.equal(lowValueConceptReason('Cosmic Worm Cloud', 'Worm', 'Cloud'), 'result is an ingredient mashup with a generic modifier');
-});
-
-test('quality gate preserves real discoveries and semantic compound nouns', () => {
-  assert.equal(lowValueConceptReason('Sea Lion', 'Lion', 'Ocean'), null);
-  assert.equal(lowValueConceptReason('Hourglass', 'Sand', 'Glass'), null);
-  assert.equal(lowValueConceptReason('Electric Grill', 'BBQ', 'Electricity'), null);
-  assert.equal(lowValueConceptReason('Fire Truck', 'Fire', 'Truck'), null);
-  assert.equal(lowValueConceptReason('Cloud Nine', 'Cloud', 'Joy'), null);
-  assert.equal(lowValueConceptReason('Dark Web', 'Vampire', 'Internet'), null);
-});
-
-test('candidate ranking ignores lazy worm-shaped cloud and picks an independent concept', () => {
-  const make = (result: string, explanation: string, score = 5) =>
-    ({ result, emoji: '✨', explanation, connection: 'appearance',
-      coherence: score, surprise: score, inputFit: score, recognizability: score, chainPotential: score, novelty: score });
-  const chosen = chooseConcept({ candidates: [
-    make('Worm-Shaped Cloud', 'Worm shape stretches across a Cloud.'),
-    make('Cloud-Inspired Worm', 'Worm imitates a Cloud.'),
-    make('Skywriting', 'A Worm leaves a winding trail, like writing traced across a Cloud.'),
-  ] }, 'Worm', 'Cloud');
-  assert.equal(chosen?.result, 'Skywriting');
-  assert.equal(candidateRejectionReason(make('Grill', 'BBQ and Rain make a grill.'), 'BBQ', 'Rain'), 'result only renames one ingredient');
-  assert.equal(candidateRejectionReason(make('Skywriting', 'Worm leaves a trail across a Cloud.'), 'Worm', 'Cloud'), null);
 });

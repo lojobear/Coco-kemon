@@ -98,15 +98,3 @@ Run `npm run lint`, `npm test`, and `npm run build`. Tests execute the actual mi
 After configuration, use the preview to sign in with Google, save a non-starter collection, sign out/in, and load it on a second browser. Verify both crafting and Foundry data, recovery export, cancelled login, and an offline save failure. Make concurrent saves on two devices and confirm a stale save is rejected. OAuth and the hosted database cannot be fully verified without a configured project.
 
 References: https://supabase.com/docs/guides/auth/social-login/auth-google and https://supabase.com/docs/guides/database/postgres/row-level-security
-
-## Automatic private sprite storage
-
-Apply `supabase/migrations/20261016004829_automatic_sprite_assets.sql` after the cloud-save migration. It creates the private `sprite_assets` index and the `quarkpop-profile-sprites` bucket policies. It does not modify existing game saves or remove image files.
-
-While signed in, generated artwork is uploaded automatically. Sprite Lab uploads and rerolls publish their PNG before activating its permanent `sprite://<account>/auto/<sha256>.png` reference. Existing device artwork is migrated in the background; matching cloud artwork is restored automatically when the device has no custom override. Local conflicting uploads are preserved until the player explicitly chooses **Save sprites** or **Restore sprites**. **Retry sprite sync** and coming back online retry failed background uploads.
-
-Each PNG uses an immutable content hash. Updating an image changes its reference and keeps old backups valid. The app resolves private references with the current account's session and caches downloads in memory. The database and Storage RLS both restrict access to the owner's account folder. No service key or expiring signed URL is stored in the client save.
-
-Game progress cloud saves remain manual. **Save to cloud** first uploads sprite files and puts compact references in the cloud payload. On another browser, sign into the same account and use **Load from cloud** to transfer discoveries; artwork is then retrieved without regeneration. Exported saves containing private references require that account to display the associated files. Existing manual `manifest.json` sprite backups remain importable through **Restore sprites** and are migrated into the new index without deleting their files.
-
-Verification: the sprite integration tests cover nested Foundry records, large images, second-device restoration, immutable rerolls, failed uploads, account changes, pagination, and per-account row/storage policies. Storage permissions are also checked against the connected project.

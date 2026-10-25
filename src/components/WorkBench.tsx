@@ -8,7 +8,6 @@ import { generateMaterialSprite } from '../lib/pixelRenderer';
 import { MaterialSprite } from './ElementSprite';
 import { chooseRandomProcess } from '../lib/randomProcess';
 import { EXTRA_PROCESSES } from '../lib/extraProcesses';
-import { FOUNDRY_ACTIONS } from '../lib/foundryActions';
 import { sound } from '../lib/audio';
 import { FoundryFusionOverlay } from './FoundryFusionOverlay';
 
@@ -33,7 +32,7 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
       return { ...material, discoveredAt: item.discoveredAt || 0, customSpriteUrl: item.customSpriteUrl || generateMaterialSprite(material) };
     })];
   }, [foundryMaterials, craftItems]);
-  const availableProcesses = useMemo(() => [...processes, ...EXTRA_PROCESSES.filter(extra => !processes.some(p => p.id === extra.id)), ...FOUNDRY_ACTIONS.filter(action => ![...processes, ...EXTRA_PROCESSES].some(p => p.id === action.id))].filter(p => p.unlocked), [processes]);
+  const availableProcesses = useMemo(() => [...processes, ...EXTRA_PROCESSES.filter(extra => !processes.some(p => p.id === extra.id))].filter(p => p.unlocked), [processes]);
   // Mix is the useful default; all unlocked transformations remain available.
   const process = selectedProcess || availableProcesses.find(p => p.id === 'MIX') || availableProcesses[0];
   const categories = useMemo(() => [...new Set<string>(materials.map(m => m.category))].sort((a,b) => a.localeCompare(b)), [materials]);
@@ -71,7 +70,7 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
 
   return <section className="collection-workbench" aria-label="Foundry workspace"><FoundryFusionOverlay />
     <div className="workbench-intro">
-      <div><h1>Follow your curiosity.</h1><p>Give your discoveries a new process. See what happens.</p></div>
+      <h1>Small things.<br />Endless possibilities.</h1>
       <div className="craft-switch" aria-label="Crafting mode">
         <button type="button" aria-pressed="true"><FlaskConical size={19} /> Foundry</button>
         <button type="button" aria-pressed="false" onClick={() => setActiveTab('infinite-craft')}><Hammer size={19} /> Craft</button>
@@ -115,7 +114,6 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
       {!filtered.length && <p className="collection-empty">No discoveries match these filters. <button onClick={() => { setSearch(''); setCategory('all'); }}>Clear filters</button></p>}
     </div>
     <div className={`combine-dock ${isSynthesizing ? 'is-combining' : ''}`}>
-      <div className="boop-pad-heading"><span>FOUNDRY PAD</span><span className="boop-ready-tag">{slotA ? 'Ready to experiment' : 'Choose an ingredient'}</span></div>
       <div className="combine-inputs">
         {(['A', 'B'] as const).map((key, index) => {
           const item = key === 'A' ? slotA : slotB;

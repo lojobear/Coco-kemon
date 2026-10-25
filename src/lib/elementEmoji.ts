@@ -1,6 +1,4 @@
-import { spriteAssets, trackSpriteSync } from './spriteAssets';
 import { emojiKey } from './emojiGeometry';
-import { spriteVariantKey, spriteProfileKey } from './spriteVariant';
 import { requestJson } from './api';
 
 const ELEMENT_SPRITE_CACHE_PREFIX = 'pixelimage-v9-2p5d:';
@@ -150,8 +148,8 @@ async function normalizeGeneratedImage(imageBase64: string, mimeType: string): P
 }
 
 /** Return locally cached native artwork without generating or spending AI quota. */
-export async function getCachedElementSprite(name: string, shiny = false): Promise<string | undefined> {
-  const key = spriteVariantKey(name, shiny);
+export async function getCachedElementSprite(name: string): Promise<string | undefined> {
+  const key = emojiKey(name);
   if (memory.has(key)) return memory.get(key);
   try {
     return await stored(ELEMENT_SPRITE_CACHE_PREFIX + key);
@@ -161,17 +159,16 @@ export async function getCachedElementSprite(name: string, shiny = false): Promi
 }
 
 /** Restore a downloaded profile image to the local cache for other collection views. */
-export async function storeProfileElementSprite(name: string, data: string, shiny = false): Promise<void> {
-  const key = spriteVariantKey(name, shiny);
+export async function storeProfileElementSprite(name: string, data: string): Promise<void> {
+  const key = emojiKey(name);
   memory.set(key, data);
   await save(ELEMENT_SPRITE_CACHE_PREFIX + key, data);
   if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('oddkin-emoji-retry', { detail: key }));
 }
 
-export function getElementEmoji(name: string, upgrade = false, variation = '', generateIfMissing = true, isShiny = false): Promise<string> {
-  const key = spriteVariantKey(name, isShiny);
-  // Collection previews may read cached/local/profile art but cannot trigger AI.
-  const jobKey = upgrade ? `${key}:upgrade:${variation || 'fresh'}` : generateIfMissing ? key : `${key}:cache-only`;
+export function getElementEmoji(name: string, upgrade = false, variation = ''): Promise<string> {
+  const key = emojiKey(name);
+  const jobKey = upgrade ? `${key}:upgrade:${variation || 'fresh'}` : key;
 
   if (!upgrade && memory.has(key)) return Promise.resolve(memory.get(key)!);
   if (jobs.has(jobKey)) return jobs.get(jobKey)!;
@@ -182,43 +179,19 @@ export function getElementEmoji(name: string, upgrade = false, variation = '', g
     const cached = upgrade
       ? undefined
       : (await stored(ELEMENT_SPRITE_CACHE_PREFIX + key))
-        // Old sprite versions contain normal artwork only. Never resolve those
-        // as shiny art: it would make normal and shiny visually identical.
-        || (isShiny ? undefined : await stored(LEGACY_NATIVE_IMAGE_V8_CACHE_PREFIX + key))
-        || (isShiny ? undefined : await stored(LEGACY_NATIVE_IMAGE_V7_CACHE_PREFIX + key))
-        || (isShiny ? undefined : await stored(LEGACY_PIXEL_INVENTORY_CACHE_PREFIX + key))
-        || (isShiny ? undefined : await stored(LEGACY_HD_CACHE_PREFIX + key))
-        || (isShiny ? undefined : await stored(LEGACY_3D_CACHE_PREFIX + key))
-        || (isShiny ? undefined : await stored(LEGACY_RECOGNIZABLE_CACHE_PREFIX + key))
-        || (isShiny ? undefined : await stored(LEGACY_PIXEL_CACHE_PREFIX + key))
-        || (isShiny ? undefined : await stored(key));
+        || (await stored(LEGACY_NATIVE_IMAGE_V8_CACHE_PREFIX + key))
+        || (await stored(LEGACY_NATIVE_IMAGE_V7_CACHE_PREFIX + key))
+        || (await stored(LEGACY_PIXEL_INVENTORY_CACHE_PREFIX + key))
+        || (await stored(LEGACY_HD_CACHE_PREFIX + key))
+        || (await stored(LEGACY_3D_CACHE_PREFIX + key))
+        || (await stored(LEGACY_RECOGNIZABLE_CACHE_PREFIX + key))
+        || (await stored(LEGACY_PIXEL_CACHE_PREFIX + key))
+        || (await stored(key));
 
     if (cached) {
       memory.set(key, cached);
       return cached;
     }
-
-    // Account sync can fail independently (expired session / offline). It must
-    // not block access to the public image service or locally cached artwork.
-    const userId = await spriteAssets?.currentUser().catch(() => undefined);
-    if (!upgrade && userId) {
-      try {
-        const reference = await spriteAssets!.find(userId, spriteProfileKey(name, isShiny))
-          || (!isShiny ? await spriteAssets!.findByName(userId, name) : undefined);
-        if (reference) {
-          const data = await spriteAssets!.resolve(reference);
-          memory.set(key, data);
-          await save(ELEMENT_SPRITE_CACHE_PREFIX + key, data);
-          return data;
-        }
-      } catch (error) {
-        console.warn('Saved sprite unavailable, checking image generation:', error);
-      }
-    }
-
-    // Viewing a collection must not exhaust the daily Workers AI image allocation.
-    // Only a new discovery or an explicit Sprite Lab action requests new artwork.
-    if (!generateIfMissing) return '';
 
     const response = await requestJson<{
       imageBase64: string;
@@ -227,7 +200,7 @@ export function getElementEmoji(name: string, upgrade = false, variation = '', g
     }>('/api/element-emoji', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, regenerate: upgrade, variation: upgrade ? variation : undefined, shiny: isShiny }),
+      body: JSON.stringify({ name: key, regenerate: upgrade, variation: upgrade ? variation : undefined }),
     }, 60000);
 
     if (typeof response.imageBase64 !== 'string' || typeof response.mimeType !== 'string') {
@@ -237,45 +210,23 @@ export function getElementEmoji(name: string, upgrade = false, variation = '', g
     const data = await normalizeGeneratedImage(response.imageBase64, response.mimeType);
     memory.set(key, data);
     await save(ELEMENT_SPRITE_CACHE_PREFIX + key, data);
-    if (userId) void trackSpriteSync(() => spriteAssets!.put(userId, spriteProfileKey(name, isShiny), name, data)).catch(() => undefined);
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new Event('quarkpop-sprite-ready'));
-      window.dispatchEvent(new CustomEvent('oddkin-emoji-retry', { detail: key }));
-    }
     return data;
   };
 
-  // If a new-discovery generation is already running, reuse it in collection previews.
-  if (!upgrade && !generateIfMissing && jobs.has(key)) return jobs.get(key)!;
+  const job = queue.then(() => navigator.locks
+    ? navigator.locks.request(`oddkin-emoji:${jobKey}`, work)
+    : work());
 
-  // Cache-only artwork reads should NEVER queue behind expensive AI generation.
-  // During an exhausted quota, one hung render could otherwise delay the entire
-  // collection's cached sprites even though no new images are being requested.
-  const job = !upgrade && !generateIfMissing
-    ? work()
-    : queue.then(() => typeof navigator !== 'undefined' && navigator.locks
-      ? navigator.locks.request(`oddkin-emoji:${jobKey}`, work)
-      : work());
-
-  if (generateIfMissing || upgrade) queue = job.catch(() => undefined);
+  queue = job.catch(() => undefined);
   jobs.set(jobKey, job);
-  // Never permanently cache rejected or completed promises: the player can retry
-  // after quota resets without refreshing the page.
-  void job.then(
-    () => { if (jobs.get(jobKey) === job) jobs.delete(jobKey); },
-    () => { if (jobs.get(jobKey) === job) jobs.delete(jobKey); },
-  );
   return job;
 }
 
-export function retryElementEmoji(name: string, shiny = false): Promise<string> {
-  const key = spriteVariantKey(name, shiny);
-  // An in-flight generation remains deduplicated; deleting its job could send
-  // two expensive requests for the same name while the first is still running.
-  if (jobs.has(key)) return jobs.get(key)!;
+export function retryElementEmoji(name: string) {
+  const key = emojiKey(name);
+  jobs.delete(key);
+  for (const jobKey of [...jobs.keys()]) if (jobKey.startsWith(`${key}:upgrade:`)) jobs.delete(jobKey);
   if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('oddkin-emoji-retry', { detail: key }));
-  // Let the Sprite Lab display the actual API error instead of claiming success.
-  return getElementEmoji(name, false, '', true, shiny);
 }
 
 /** Explicit upgrade/reroll bypasses old art and asks the native image model for a fresh sprite. */

@@ -1,107 +1,99 @@
 import { cloud } from './cloudSave';
+import { readCraftElements } from './saveData';
 import { getCachedElementSprite } from './elementEmoji';
-import { generateMaterialSprite, generateOddkinSprite, MATERIAL_SPRITE_RENDERER_VERSION } from './pixelRenderer';
-import { spriteAssets, SPRITE_BUCKET } from './spriteAssets';
-import { isSpriteReference, SPRITE_SCHEME, spritePath } from './spriteReference';
+import { generateMaterialSprite } from './pixelRenderer';
+import type { InfiniteElement } from './infiniteCraftData';
 
+const BUCKET = 'quarkpop-profile-sprites';
+const MAX_ITEMS = 2000;
+const MAX_BYTES = 4 * 1024 * 1024;
 export type SpriteEntry = { id: string; type: 'craft' | 'material' | 'oddkin'; name: string; path: string };
 export type SpriteManifest = { version: 1; updatedAt: string; items: SpriteEntry[] };
-export type SpriteChange = { type: SpriteEntry['type']; id: string; previous?: string; reference: string };
-export const PROFILE_SPRITES_UPDATED = 'quarkpop-profile-sprites-updated';
 
-export async function syncProfileSprites(userId: string, json: string, mode: 'auto' | 'save' | 'restore' = 'auto',
-  assets = spriteAssets, cachedSprite = getCachedElementSprite) {
-  if (!assets) throw new Error('Cloud profiles are not configured.');
-  const payload = JSON.parse(json);
-  const remote = new Map((await assets.list(userId)).map(item => [item.sprite_key, item]));
-  const records = [
-    ...(payload.crafting || []).map((record: any) => ({ type: 'craft' as const, id: record.id, name: record.name, record, defaultArt: false })),
-    ...(payload.foundry?.materials || []).map((record: any) => ({ type: 'material' as const, id: record.id, name: record.displayName, record, defaultArt: record.customSpriteUrl === generateMaterialSprite(record) })),
-    ...(payload.foundry?.oddkinCollection || []).map((record: any) => ({ type: 'oddkin' as const, id: record.speciesId, name: record.speciesName, record, defaultArt: record.customSpriteUrl === generateOddkinSprite(record, { isChroma: record.isChromaActive }) })),
-  ];
-  const changes: SpriteChange[] = [];
-  let count = 0;
-  for (const item of records) {
-    const previous = item.record.customSpriteUrl as string | undefined;
-    const key = `${item.type}:${item.id}`;
-    const existing = remote.get(key);
-    if (isSpriteReference(previous)) {
-      // Never copy another account's private file into this profile.
-      if (previous.startsWith(`${SPRITE_SCHEME}${userId}/`) && mode !== 'restore') {
-        if (existing && (mode === 'auto' || existing.path === previous.slice(SPRITE_SCHEME.length))) {
-          count++;
-          const reference = SPRITE_SCHEME + existing.path;
-          spritePath(reference, userId);
-          if (reference !== previous) changes.push({ type: item.type, id: item.id, previous, reference });
-          continue;
-        }
-        const image = await assets.resolve(previous);
-        const reference = await assets.put(userId, key, item.name, image, mode === 'save');
-        count++;
-        if (reference !== previous) changes.push({ type: item.type, id: item.id, previous, reference });
-        continue;
-      }
-      if (!existing) continue;
-    }
-    let reference: string | undefined;
-    if (existing && mode !== 'save') {
-      // A different local upload is kept intact until the player explicitly chooses save/restore.
-      if (mode === 'auto' && previous?.startsWith('data:') && !item.defaultArt) continue;
-      reference = SPRITE_SCHEME + existing.path;
-      spritePath(reference, userId);
-    } else if (mode !== 'restore') {
-      const image = (!item.defaultArt && previous) || await cachedSprite(item.name);
-      if (!image?.startsWith('data:image/png;base64,')) continue;
-      reference = await assets.put(userId, key, item.name, image, mode === 'save');
-    }
-    if (reference) count++;
-    if (reference && reference !== previous) changes.push({ type: item.type, id: item.id, previous, reference });
+function requireCloud() {
+  if (!cloud) throw new Error('Cloud profiles are not configured.');
+  return cloud;
+}
+async function verifiedUser(userId: string) {
+  const { data, error } = await requireCloud().auth.getUser();
+  if (error || !data.user || data.user.id !== userId) throw new Error('Please sign in to the correct profile.');
+}
+function toBlob(dataUrl: string): Blob {
+  if (!/^data:image\/png;base64,[A-Za-z0-9+/]+={0,2}$/.test(dataUrl)) throw new Error('Invalid sprite PNG.');
+  const raw = atob(dataUrl.slice('data:image/png;base64,'.length));
+  if (raw.length > MAX_BYTES) throw new Error('Sprite is too large for profile storage.');
+  const bytes = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+  return new Blob([bytes], { type: 'image/png' });
+}
+async function blobToDataUrl(blob: Blob): Promise<string> {
+  if (blob.size > MAX_BYTES) throw new Error('Cloud sprite exceeds maximum size.');
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
   }
-  await assets.currentUser(userId);
-  return { changes, count };
+  return `data:image/png;base64,${btoa(binary)}`;
 }
-
-export function applySpriteChanges(payload: any, changes: SpriteChange[]) {
-  for (const change of changes) {
-    const records = change.type === 'craft' ? payload.crafting : change.type === 'material' ? payload.foundry?.materials : payload.foundry?.oddkinCollection;
-    const record = records?.find((item: any) => (change.type === 'oddkin' ? item.speciesId : item.id) === change.id);
-    if (record && record.customSpriteUrl === change.previous) {
-      record.customSpriteUrl = change.reference;
-      if (change.type === 'material') record.spriteRendererVersion = MATERIAL_SPRITE_RENDERER_VERSION;
-    }
+export async function saveProfileSprites(userId: string, foundryJson: string): Promise<number> {
+  await verifiedUser(userId);
+  const foundry = JSON.parse(foundryJson);
+  const crafting = readCraftElements();
+  const collection: Array<{ type: SpriteEntry['type']; id: string; name: string; sprite: string }> = [];
+  for (const e of crafting) {
+    const image = e.customSpriteUrl || await getCachedElementSprite(e.name);
+    if (image?.startsWith('data:image/png;base64,')) collection.push({ type: 'craft', id: e.id, name: e.name, sprite: image });
   }
-  return payload;
+  for (const m of foundry.materials || []) {
+    const defaultSprite = m.customSpriteUrl === generateMaterialSprite(m);
+    const image = (!defaultSprite && m.customSpriteUrl) || await getCachedElementSprite(m.displayName);
+    if (image?.startsWith('data:image/png;base64,')) collection.push({ type: 'material', id: m.id, name: m.displayName, sprite: image });
+  }
+  for (const o of foundry.oddkinCollection || []) {
+    const image = o.customSpriteUrl || await getCachedElementSprite(o.speciesName);
+    if (image?.startsWith('data:image/png;base64,')) collection.push({ type: 'oddkin', id: o.speciesId, name: o.speciesName, sprite: image });
+  }
+  if (collection.length > MAX_ITEMS) throw new Error('Too many sprites. Save a smaller collection first.');
+  const storage = requireCloud().storage.from(BUCKET);
+  const manifest: SpriteManifest = { version: 1, updatedAt: new Date().toISOString(), items: [] };
+  for (const e of collection) {
+    const path = `${userId}/${e.type}/${encodeURIComponent(e.id)}.png`;
+    const { error } = await storage.upload(path, toBlob(e.sprite), { upsert: true, contentType: 'image/png' });
+    if (error) throw new Error(`Could not upload sprite ${e.name}. Previously uploaded images remain safe.`);
+    manifest.items.push({ id: e.id, type: e.type, name: e.name, path });
+  }
+  // Publish the manifest only once all images are safely uploaded.
+  const { error } = await storage.upload(`${userId}/manifest.json`, new Blob([JSON.stringify(manifest)], { type: 'application/json' }), { upsert: true, contentType: 'application/json' });
+  if (error) throw new Error('Sprites uploaded, but profile index could not be saved. Retry.');
+  return manifest.items.length;
 }
-
-export async function saveProfileSprites(userId: string, json: string): Promise<number> {
-  const result = await syncProfileSprites(userId, json, 'save');
-  return result.count;
-}
-
 export async function loadProfileSprites(userId: string, saveJson: string): Promise<{ json: string; count: number }> {
-  if (!spriteAssets) throw new Error('Cloud profiles are not configured.');
-  // Import the old manual manifest once, so existing backups remain restorable.
-  await spriteAssets.currentUser(userId);
-  const storage = cloud!.storage.from(SPRITE_BUCKET);
+  await verifiedUser(userId);
+  const storage = requireCloud().storage.from(BUCKET);
   const { data, error } = await storage.download(`${userId}/manifest.json`);
-  if (data && !error) {
-    const manifest = JSON.parse(await data.text()) as SpriteManifest;
-    if (manifest?.version !== 1 || !Array.isArray(manifest.items) || manifest.items.length > 2000) throw new Error('Invalid profile sprite index.');
-    const existing = new Set((await spriteAssets.list(userId)).map(item => item.sprite_key));
-    for (const item of manifest.items) {
-      if (!item || !['craft', 'material', 'oddkin'].includes(item.type) || typeof item.id !== 'string' || item.path !== `${userId}/${item.type}/${encodeURIComponent(item.id)}.png`) throw new Error('Invalid profile sprite path.');
-      const key = `${item.type}:${item.id}`;
-      if (existing.has(key)) continue;
-      const { data: blob, error: imageError } = await storage.download(item.path);
-      if (imageError || !blob || blob.size > 4 * 1024 * 1024) throw new Error('Could not migrate a legacy profile sprite. Your backup is preserved.');
-      const bytes = new Uint8Array(await blob.arrayBuffer());
-      let binary = '';
-      for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-      await spriteAssets.put(userId, key, item.name, `data:image/png;base64,${btoa(binary)}`, false);
+  if (error || !data) throw new Error('No profile sprite collection found. Save sprites to your profile first.');
+  const manifest = JSON.parse(await data.text()) as SpriteManifest;
+  if (manifest?.version !== 1 || !Array.isArray(manifest.items) || manifest.items.length > MAX_ITEMS) throw new Error('Invalid profile sprite index.');
+  const payload = JSON.parse(saveJson);
+  let count = 0;
+  const craft = new Map<string, InfiniteElement>((payload.crafting || []).map((e: InfiniteElement) => [e.id, e]));
+  const materials = new Map<string, any>((payload.foundry?.materials || []).map((e: any) => [e.id, e]));
+  const oddkins = new Map<string, any>((payload.foundry?.oddkinCollection || []).map((e: any) => [e.speciesId, e]));
+  for (const item of manifest.items) {
+    if (!item || !['craft', 'material', 'oddkin'].includes(item.type) || typeof item.id !== 'string' || item.path !== `${userId}/${item.type}/${encodeURIComponent(item.id)}.png`) throw new Error('Invalid profile sprite path.');
+    const record = item.type === 'craft' ? craft.get(item.id) : item.type === 'material' ? materials.get(item.id) : oddkins.get(item.id);
+    if (!record) continue;
+    const { data: image, error: imageError } = await storage.download(item.path);
+    if (imageError || !image) throw new Error(`Could not load ${item.name} from profile. Your device collection is unchanged.`);
+    const sprite = await blobToDataUrl(image);
+    if (item.type === 'craft') {
+      // Craft save validation limits images to 100,000 base64 characters.
+      if (sprite.length > 100000) continue;
+      record.customSpriteUrl = sprite;
+    } else {
+      record.customSpriteUrl = sprite;
     }
-  } else if (error && !['404', '400'].includes(String((error as any).statusCode))) {
-    throw new Error('Could not check your existing sprite backup. Retry.');
+    count++;
   }
-  const result = await syncProfileSprites(userId, saveJson, 'restore');
-  return { json: JSON.stringify(applySpriteChanges(JSON.parse(saveJson), result.changes)), count: result.count };
+  return { json: JSON.stringify(payload), count };
 }

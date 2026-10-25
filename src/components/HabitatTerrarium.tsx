@@ -1,4 +1,3 @@
-import { SpriteImage } from './SpriteImage';
 /**
  * ODDKIN FOUNDRY - Habitat Terrarium Dioramas
  * Miniature animated pixel-art enclosures where living Oddkin roam,
@@ -210,7 +209,7 @@ export function HabitatTerrarium() {
                   ♫ {odd.speciesName}
                 </div>
 
-                <SpriteImage
+                <img
                   src={odd.customSpriteUrl}
                   alt={odd.speciesName}
                   className="w-14 h-14 pixelated drop-shadow-lg animate-bounce"
@@ -294,7 +293,7 @@ export function HabitatTerrarium() {
                       }`}
                     >
                       <div className="flex items-center gap-2.5">
-                        <SpriteImage
+                        <img
                           src={odd.customSpriteUrl}
                           alt={odd.speciesName}
                           className="w-10 h-10 pixelated"

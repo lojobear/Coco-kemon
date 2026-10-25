@@ -1,13 +1,52 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 64 64" role="img" aria-label="Boop planet logo">
-  <rect width="64" height="64" rx="14" fill="#242a31"/>
-  <path d="M9 41c7-9 18-15 32-16 7 0 12 1 17 4" fill="none" stroke="#bfc7d1" stroke-width="3.4" stroke-linecap="round"/>
-  <circle cx="32" cy="33" r="16.5" fill="#ffffff"/>
-  <path d="M21 29l5-5 7 1 2 5-5 5-7-1z" fill="#d4dbe2"/>
-  <path d="M35 37l5-4 7 2-2 7-6 5-5-3z" fill="#c3ccd5"/>
-  <path d="M30 17v-4" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
-  <path d="M29 13c-5-1-7-5-6-7 5 0 8 3 7 7zm2-1c0-5 4-7 8-7 0 5-3 8-8 7" fill="#ffffff"/>
-  <path d="M10 42c10 4 22 4 35 0 6-2 11-5 14-9" fill="none" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round"/>
-  <path d="M10 42c10 4 22 4 35 0 6-2 11-5 14-9" fill="none" stroke="#bac4cd" stroke-width="1.1" stroke-linecap="round"/>
-  <path d="M14 16v7M10.5 19.5h7M52 13v6M49 16h6" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
-  <circle cx="48" cy="50" r="1.4" fill="#ffffff"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="76" y1="52" x2="438" y2="472" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#5B4BFF"/>
+      <stop offset="0.56" stop-color="#7B35E8"/>
+      <stop offset="1" stop-color="#2A176A"/>
+    </linearGradient>
+    <radialGradient id="cyan" cx="0.32" cy="0.24" r="0.86">
+      <stop offset="0" stop-color="#D7FFFF"/>
+      <stop offset="0.28" stop-color="#59E8F6"/>
+      <stop offset="0.72" stop-color="#18A7D8"/>
+      <stop offset="1" stop-color="#0C668E"/>
+    </radialGradient>
+    <radialGradient id="lime" cx="0.28" cy="0.2" r="0.88">
+      <stop offset="0" stop-color="#F4FFD1"/>
+      <stop offset="0.3" stop-color="#C9F75D"/>
+      <stop offset="0.72" stop-color="#78C93D"/>
+      <stop offset="1" stop-color="#39852F"/>
+    </radialGradient>
+    <radialGradient id="pink" cx="0.3" cy="0.18" r="0.9">
+      <stop offset="0" stop-color="#FFE0F3"/>
+      <stop offset="0.32" stop-color="#FF77C8"/>
+      <stop offset="0.72" stop-color="#DD3D99"/>
+      <stop offset="1" stop-color="#8E246B"/>
+    </radialGradient>
+    <filter id="shadow" x="-35%" y="-35%" width="170%" height="190%">
+      <feDropShadow dx="0" dy="22" stdDeviation="18" flood-color="#160B3B" flood-opacity=".42"/>
+    </filter>
+    <filter id="softGlow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="14"/>
+    </filter>
+  </defs>
+
+  <rect x="18" y="18" width="476" height="476" rx="126" fill="url(#bg)"/>
+  <circle cx="256" cy="248" r="154" fill="#FFFFFF" opacity=".08"/>
+  <circle cx="256" cy="248" r="112" fill="#FFFFFF" opacity=".05"/>
+
+  <g filter="url(#shadow)">
+    <path d="M121 255C121 196 161 153 215 153C246 153 269 168 284 190C304 163 332 146 367 146C422 146 458 188 458 240C458 290 422 330 372 330C347 330 327 322 310 307C297 342 266 365 227 365C168 365 121 320 121 255Z" fill="#160B3B" opacity=".2"/>
+    <circle cx="198" cy="248" r="91" fill="url(#cyan)"/>
+    <circle cx="332" cy="225" r="82" fill="url(#pink)"/>
+    <circle cx="292" cy="327" r="73" fill="url(#lime)"/>
+  </g>
+
+  <ellipse cx="168" cy="213" rx="27" ry="17" transform="rotate(-26 168 213)" fill="#FFFFFF" opacity=".68"/>
+  <ellipse cx="307" cy="190" rx="23" ry="14" transform="rotate(-22 307 190)" fill="#FFFFFF" opacity=".62"/>
+  <ellipse cx="270" cy="302" rx="20" ry="12" transform="rotate(-20 270 302)" fill="#FFFFFF" opacity=".56"/>
+
+  <circle cx="263" cy="257" r="58" fill="#FFFFFF" opacity=".18" filter="url(#softGlow)"/>
+  <path d="M263 192L278 235L322 249L279 265L264 309L248 266L205 250L247 235L263 192Z" fill="#FFFFFF"/>
+  <circle cx="263" cy="251" r="9" fill="#FFF7B8"/>
 </svg>

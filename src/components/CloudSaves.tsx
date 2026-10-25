@@ -1,14 +1,11 @@
-import { applySpriteChanges, syncProfileSprites } from '../lib/profileSprites';
-import { getSpriteSyncStatus, SPRITE_SYNC_EVENT, trackSpriteSync } from '../lib/spriteAssets';
 import { useEffect, useRef, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
-import { isAndroidNativeShell, nativeOAuthRedirect, sendToAndroid } from '../lib/nativeShell';
 import { useGame } from '../lib/gameStore';
 import { cloud, readCloudSave, writeCloudSave, validateCloudPayload, downloadBackup, RECOVERY_KEY, type CloudSave } from '../lib/cloudSave';
-import { loadProfileSprites } from '../lib/profileSprites';
+import { saveProfileSprites, loadProfileSprites } from '../lib/profileSprites';
 
 export function CloudSaves({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { exportSaveData, importSaveData, isSynthesizing, applyProfileSpriteChanges } = useGame();
+  const { exportSaveData, importSaveData, isSynthesizing } = useGame();
   const dialog = useRef<HTMLDialogElement>(null);
   const account = useRef<string | null>(null);
   const generation = useRef(0);
@@ -19,15 +16,9 @@ export function CloudSaves({ open, onClose }: { open: boolean; onClose: () => vo
   const [message, setMessage] = useState('');
   const [hasRecovery, setHasRecovery] = useState(false);
   const [spriteStatus, setSpriteStatus] = useState('');
-  const [syncStatus, setSyncStatus] = useState(getSpriteSyncStatus);
-  useEffect(() => {
-    const update = () => setSyncStatus(getSpriteSyncStatus());
-    window.addEventListener(SPRITE_SYNC_EVENT, update);
-    return () => window.removeEventListener(SPRITE_SYNC_EVENT, update);
-  }, []);
   // Always access the latest store callbacks after asynchronous requests.
-  const game = useRef({ exportSaveData, importSaveData, isSynthesizing, applyProfileSpriteChanges });
-  game.current = { exportSaveData, importSaveData, isSynthesizing, applyProfileSpriteChanges };
+  const game = useRef({ exportSaveData, importSaveData, isSynthesizing });
+  game.current = { exportSaveData, importSaveData, isSynthesizing };
 
   useEffect(() => {
     if (open && !dialog.current?.open) dialog.current?.showModal();
@@ -103,42 +94,34 @@ export function CloudSaves({ open, onClose }: { open: boolean; onClose: () => vo
     finally { if (current()) setBusy(false); }
   }
 
-  const button = 'boop-cloud-button rounded-xl border px-3 py-2 text-sm disabled:cursor-not-allowed';
+  const button = 'rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-sm text-white disabled:opacity-40 disabled:cursor-not-allowed';
   return <dialog ref={dialog} onCancel={onClose} onClose={onClose}
-    aria-labelledby="cloud-title" aria-busy={busy} className="boop-cloud-dialog m-auto w-[calc(100%-2rem)] max-w-md max-h-[88dvh] overflow-y-auto rounded-2xl border p-5 shadow-2xl backdrop:bg-black/70">
-    <div className="boop-cloud-heading mb-4 flex items-center justify-between gap-3">
+    aria-labelledby="cloud-title" className="m-auto w-[calc(100%-2rem)] max-w-md max-h-[85dvh] overflow-y-auto rounded-xl border border-slate-700 bg-[#181b20] p-5 text-slate-100 shadow-2xl backdrop:bg-black/70">
+    <div className="mb-4 flex items-center justify-between gap-3">
       <h2 id="cloud-title" className="text-lg font-bold">Cloud saves</h2>
       <button className={button} onClick={onClose} aria-label="Close cloud saves">Close</button>
     </div>
-    <p className="mb-4 text-sm boop-cloud-muted">Keep both your crafting discoveries and Foundry collection with your Google account.</p>
-    {!cloud ? <p className="text-sm boop-cloud-notice">Cloud saves are coming soon. You can keep playing and export a backup from Save Management.</p> : !ready ? <p role="status">Checking your account…</p> : !user ? <>
+    <p className="mb-4 text-sm text-slate-300">Keep both your crafting discoveries and Foundry collection with your Google account.</p>
+    {!cloud ? <p className="text-sm text-amber-300">Cloud saves are coming soon. You can keep playing and export a backup from Save Management.</p> : !ready ? <p role="status">Checking your account…</p> : !user ? <>
       <button className={button} disabled={busy} onClick={() => run(async () => {
-        // Google's OAuth disallows sign-in inside an embedded Android WebView.
-        // Open the consent flow in Chrome, then return the PKCE code to Boop.
-        const native = isAndroidNativeShell();
-        const { data, error } = await cloud!.auth.signInWithOAuth({ provider: 'google', options: {
-          redirectTo: native ? nativeOAuthRedirect() : window.location.origin + '/',
-          skipBrowserRedirect: native,
-          queryParams: { prompt: 'select_account' },
+        const { error } = await cloud!.auth.signInWithOAuth({ provider: 'google', options: {
+          redirectTo: window.location.origin + '/', queryParams: { prompt: 'select_account' },
         } });
         if (error) throw new Error('Google sign-in could not start. Please try again.');
-        if (native && (!data.url || !sendToAndroid({ type: 'oauth', url: data.url }))) {
-          throw new Error('The Android sign-in bridge is unavailable. Install the latest Boop APK and try again.');
-        }
       })}>Sign in with Google</button>
-      <p className="mt-3 text-xs boop-cloud-secondary">Signing in leaves your current collection in place. Choose Save to cloud or Load from cloud afterward.</p>
+      <p className="mt-3 text-xs text-slate-400">Signing in leaves your current collection in place. Choose Save to cloud or Load from cloud afterward.</p>
     </> : <div className="space-y-3">
       <p className="break-all text-sm">Signed in as <strong>{user.email ?? 'Google user'}</strong></p>
-      <p className="text-xs boop-cloud-muted">{snapshot === undefined ? 'Cloud info has not loaded yet.' : snapshot === null ? 'No cloud save yet. Save this device’s collection to get started.' : `Cloud save: ${new Date(snapshot.updated_at).toLocaleString()} · revision ${snapshot.revision}`}</p>
-      <p className="text-xs boop-cloud-secondary">Device saves are automatic. Cloud saves are manual: save before switching devices, then load on the other device.</p>
-      <div className="boop-cloud-sprite-library rounded-xl border p-3 space-y-2">
-        <h3 className="font-bold text-sm boop-cloud-section-title">Profile sprite library</h3>
-        <p className="text-xs boop-cloud-muted">Sprites upload automatically while signed in and become available for matching discoveries on your other devices. Game progress still uses Save to cloud and Load from cloud.</p>
-        <div className="boop-cloud-button-grid grid grid-cols-2 gap-2">
+      <p className="text-xs text-slate-300">{snapshot === undefined ? 'Cloud info has not loaded yet.' : snapshot === null ? 'No cloud save yet. Save this device’s collection to get started.' : `Cloud save: ${new Date(snapshot.updated_at).toLocaleString()} · revision ${snapshot.revision}`}</p>
+      <p className="text-xs text-slate-400">Device saves are automatic. Cloud saves are manual: save before switching devices, then load on the other device.</p>
+      <div className="rounded-lg border border-cyan-800/50 bg-cyan-950/20 p-3 space-y-2">
+        <h3 className="font-bold text-sm text-cyan-200">Profile sprite library</h3>
+        <p className="text-xs text-slate-300">Back up your uploaded, upgraded and cached AI-generated sprites to your private Google profile. Restore them on a different device without spending AI credits.</p>
+        <div className="grid grid-cols-2 gap-2">
           <button className={button} disabled={busy || isSynthesizing} onClick={() => run(async current => {
             const local = game.current.exportSaveData();
-            const result = await trackSpriteSync(() => syncProfileSprites(user.id, local, 'save'));
-            if (current()) { game.current.applyProfileSpriteChanges(result.changes); setSpriteStatus(`${result.count} sprites saved privately to your profile.`); }
+            const count = await saveProfileSprites(user.id, local);
+            if (current()) setSpriteStatus(`${count} sprites saved privately to your profile.`);
           })}>Save sprites</button>
           <button className={button} disabled={busy || isSynthesizing} onClick={() => run(async current => {
             const currentJson = game.current.exportSaveData();
@@ -154,21 +137,12 @@ export function CloudSaves({ open, onClose }: { open: boolean; onClose: () => vo
             setSpriteStatus(`Restored ${restored.count} sprites from your profile.`);
           })}>Restore sprites</button>
         </div>
-        <p role="status" className="text-xs boop-cloud-sync">{syncStatus.pending ? 'Syncing sprite artwork…' : syncStatus.error || spriteStatus || 'Sprite sync is automatic while signed in.'}</p>
-        <button className={button} disabled={busy || syncStatus.pending > 0} onClick={() => {
-          window.dispatchEvent(new Event('quarkpop-retry-sprites'));
-          setSpriteStatus('Retrying sprite sync…');
-        }}>Retry sprite sync</button>
+        <p role="status" className="text-xs text-cyan-300">{spriteStatus}</p>
       </div>
-      <div className="boop-cloud-button-grid grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-2">
         <button className={button} disabled={busy || snapshot === undefined || isSynthesizing} onClick={() => run(async current => {
           if (snapshot && !window.confirm(`Replace the cloud collection for ${user.email ?? 'this account'} with this device’s progress?`)) return;
-          const local = game.current.exportSaveData();
-          const sprites = await trackSpriteSync(() => syncProfileSprites(user.id, local, 'save'));
-          if (!current()) return;
-          game.current.applyProfileSpriteChanges(sprites.changes);
-          const json = JSON.stringify(applySpriteChanges(JSON.parse(local), sprites.changes));
-          const saved = await writeCloudSave(json, snapshot?.revision ?? 0, user.id);
+          const saved = await writeCloudSave(game.current.exportSaveData(), snapshot?.revision ?? 0, user.id);
           if (current()) { setSnapshot(saved); setMessage('Saved to your Google account.'); }
         })}>Save to cloud</button>
         <button className={button} disabled={busy || !snapshot || isSynthesizing} onClick={() => run(async current => {
@@ -195,9 +169,9 @@ export function CloudSaves({ open, onClose }: { open: boolean; onClose: () => vo
           if (error) throw new Error('Could not sign out. Please retry.');
         })}>Sign out</button>
       </div>
-      <p className="text-xs boop-cloud-secondary">Signing out keeps this device’s collection here. Other people using this browser can see it.</p>
+      <p className="text-xs text-slate-400">Signing out keeps this device’s collection here. Other people using this browser can see it.</p>
     </div>}
-    <p role="status" aria-live="polite" className="mt-3 text-sm boop-cloud-status">{busy ? 'Working…' : message}</p>
+    <p role="status" aria-live="polite" className="mt-3 text-sm text-amber-200">{busy ? 'Working…' : message}</p>
     <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-700 pt-3">
       <button className={button} onClick={() => downloadBackup(game.current.exportSaveData())}>Export device backup</button>
       {hasRecovery && <button className={button} onClick={() => {

@@ -19,7 +19,7 @@ await sharp({
     width: 2732,
     height: 2732,
     channels: 4,
-    background: '#f3f2ec',
+    background: '#ffffff',
   },
 })
   .composite([{ input: splashIcon, gravity: 'centre' }])
@@ -32,11 +32,11 @@ await sharp({
     width: 2732,
     height: 2732,
     channels: 4,
-    background: '#153d32',
+    background: '#111111',
   },
 })
   .composite([{ input: darkSplashIcon, gravity: 'centre' }])
   .png()
   .toFile(path.join(assets, 'splash-dark.png'));
 
-console.log('Prepared Boop Android icon and splash assets.');
+console.log('Prepared QuarkPop Android icon and splash assets.');

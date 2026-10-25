@@ -5,7 +5,6 @@
 
 import { Material, Process, Habitat } from '../types';
 import { EXTRA_PROCESSES } from './extraProcesses.js';
-import { FOUNDRY_ACTIONS } from './foundryActions.js';
 
 export const STARTER_MATERIALS: Material[] = [
   {
@@ -109,7 +108,6 @@ export const ALL_PROCESSES: Process[] = [
   { id: 'DARKEN', name: 'Darken', verb: 'secludes in void shielding away from radiation', description: 'Stimulates subterranean, cave-adapted, or anaerobic reactions.', category: 'Temporal', symbol: '🌑', unlocked: false },
   { id: 'CUT', name: 'Cut', verb: 'cleaves along cleavage planes', description: 'Slices fibrous or crystalline material into precision segments.', category: 'Mechanical', symbol: '✂️', unlocked: false },
   ...EXTRA_PROCESSES,
-  ...FOUNDRY_ACTIONS,
 ];
 
 export const INITIAL_HABITATS: Habitat[] = [

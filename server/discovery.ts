@@ -1,6 +1,5 @@
 import type { Material, Oddkin, Process } from '../src/types.js';
 import { record, text, color } from '../src/lib/validation.js';
-import { validNewElementName } from '../src/lib/infiniteCraftData.js';
 
 export type ConceptConnection =
   | 'science'
@@ -143,107 +142,6 @@ function lexicalOverlap(result: string, ingredient: string): boolean {
   return meaningfulTokens(ingredient).some(token => resultTokens.has(token));
 }
 
-/**
- * Independent quality gate for both freshly generated results and cache migration.
- * Rejects cosmetic recipes and single-parent renames before the scoring model
- * can reward them for repeating familiar ingredient tokens.
- *
- * This is intentionally narrow: real composite nouns such as "Sea Lion",
- * "Snow Globe" or "Fire Truck" are allowed when they are genuinely distinct.
- */
-const DIRECT_SYNONYM_FAMILIES = [
-  ['bbq', 'barbecue', 'barbeque', 'grill', 'grilling'],
-  ['tv', 'television'],
-  ['car', 'automobile'],
-  ['bike', 'bicycle'],
-  ['sofa', 'couch'],
-  ['phone', 'telephone', 'cellphone', 'cell phone'],
-  ['soda', 'soft drink', 'pop'],
-  ['tornado', 'twister'],
-  ['movie', 'film'],
-  ['photo', 'photograph'],
-];
-
-/**
- * The server cannot independently look up whether an arbitrary phrase is an
- * established compound noun, so allow a small, explicit set of known real
- * concepts instead of automatically trusting ALL vocabulary from the inputs.
- * Server-side canonical recipes bypass the AI heuristic.
- */
-const ESTABLISHED_COMPOUNDS = new Set([
-  'fire truck', 'sea lion', 'snow globe', 'ice cream', 'peanut butter',
-  'hot dog', 'french toast', 'apple pie', 'solar system', 'pot of gold',
-  'electric grill', 'cloud nine', 'dark web', 'turkish delight',
-  'coffee cake', 'rain forest', 'sand castle', 'salt water', 'blue moon',
-  'flying fish', 'black hole', 'sea horse', 'coffee table', 'rain bow',
-]);
-const GENERIC_RENAME_TERMS = new Set([
-  'delight','treat','special','surprise','dream','magic','mystery','wonder',
-  'creation','fusion','mix','blend','hybrid','style','version','twist','combo',
-]);
-
-export function lowValueConceptReason(result: string, first: string, second: string): string | null {
-  const clean = result.trim().replace(/[‐‑–—-]/g, ' ').replace(/\s+/g, ' ').toLowerCase();
-  const resultKey = normalize(clean);
-  const parents = [first, second].map(normalize);
-  if (!resultKey) return 'empty concept';
-  if (!validNewElementName(result)) return 'element name must contain one to three words';
-  if (parents.includes(resultKey)) return 'result only repeats an ingredient';
-
-  // E.g. BBQ + Rain => "Grill", or Television + Fire => "TV".
-  // Only an actual synonym of a parent is rejected, never a related object
-  // with additional functionality (BBQ + Electricity => "Electric Grill").
-  for (const family of DIRECT_SYNONYM_FAMILIES) {
-    const aliases = family.map(normalize);
-    if (aliases.includes(resultKey) && parents.some(parent => aliases.includes(parent))) {
-      return 'result only renames one ingredient';
-    }
-  }
-
-  // "Worm-Shaped Cloud" and "Cloud-Inspired Worm" do not create a
-  // new useful discovery: they merely visually decorate an input.
-  if (/\b(?:shaped|themed|inspired|like|styled|style|flavored|flavoured|infused|coated)\b/i.test(clean) &&
-      (lexicalOverlap(clean, first) || lexicalOverlap(clean, second))) {
-    return 'result is a cosmetic description of an ingredient';
-  }
-
-  // "Breakfast Food" + "Turkish Delight" -> "Breakfast Delight".
-  // It borrows the nouns from different parents but creates no distinct object.
-  // This was escaping the old validator because the words were not adjacent
-  // within either original ingredient name.
-  const firstWords = new Set(meaningfulTokens(first));
-  const secondWords = new Set(meaningfulTokens(second));
-  const outputWords = meaningfulTokens(clean);
-  const compoundName = clean.replace(/\s+/g, ' ').trim();
-  const borrowsFirst = outputWords.some(word => firstWords.has(word));
-  const borrowsSecond = outputWords.some(word => secondWords.has(word));
-  const allBorrowed = outputWords.length >= 2 && outputWords.every(word => firstWords.has(word) || secondWords.has(word));
-  if (borrowsFirst && borrowsSecond && allBorrowed && !ESTABLISHED_COMPOUNDS.has(compoundName)) {
-    return 'result stitches ingredient words without a distinct concept';
-  }
-
-  // Adding a generic advertising/rarity suffix to a borrowed ingredient name
-  // is not a discovery (Breakfast Treat, Turkish Surprise, Cloud Dream).
-  if (outputWords.length >= 2 && (borrowsFirst || borrowsSecond) &&
-      outputWords.some(word => GENERIC_RENAME_TERMS.has(word)) &&
-      outputWords.every(word => firstWords.has(word) || secondWords.has(word) || GENERIC_RENAME_TERMS.has(word))) {
-    return 'result decorates an ingredient with a generic label';
-  }
-
-  // Block raw combination plus a generic intensifier, but not normal
-  // compound nouns with new semantic identities.
-  const resultWords = meaningfulTokens(clean);
-  const newWords = resultWords.filter(token => !parents.some(parent => parent.includes(token)));
-  if (resultWords.length >= 2 && resultWords.length <= 4 && newWords.length > 0 &&
-      newWords.every(token =>
-        ['giant','tiny','little','magic','mystic','super','mega','ultra','cosmic','quantum','shiny','special','new','hybrid','fusion'].includes(token)
-      ) &&
-      resultWords.some(token => parents.some(parent => parent.includes(token)))) {
-    return 'result is an ingredient mashup with a generic modifier';
-  }
-  return null;
-}
-
 function lexicalSimilarity(a: string, b: string): number {
   const aa = new Set(meaningfulTokens(a));
   const bb = new Set(meaningfulTokens(b));
@@ -369,7 +267,7 @@ function validOptionalScore(value: unknown): boolean {
 }
 
 function candidateIsValid(c: unknown, first: string, second: string): c is Candidate {
-  if (!record(c) || !text(c.result) || !validNewElementName(c.result) || !text(c.emoji) || c.emoji.length > 32) return false;
+  if (!record(c) || !text(c.result) || c.result.length > 160 || !text(c.emoji) || c.emoji.length > 32) return false;
   if (!text(c.explanation) || c.explanation.length > 280 || !text(c.connection) || !CONNECTIONS.has(c.connection as ConceptConnection)) return false;
   if (![c.coherence, c.surprise, c.inputFit, c.recognizability, c.chainPotential, c.novelty].every(validOptionalScore)) return false;
   // Model scores are advisory, but very low fit is enough to reject a candidate early.
@@ -385,87 +283,7 @@ function candidateIsValid(c: unknown, first: string, second: string): c is Candi
   ]);
   if (!normalizedResult || literal.has(normalizedResult)) return false;
   if (normalizedResult === normalizedFirst || normalizedResult === normalizedSecond) return false;
-  if (lowValueConceptReason(c.result, first, second)) return false;
   return true;
-}
-
-
-/**
- * Human-readable reason a candidate failed validation, for server logs.
- * Mirrors candidateIsValid so on-call debugging can see which gate rejected what.
- */
-export function candidateRejectionReason(c: unknown, first: string, second: string): string | null {
-  if (!record(c)) return 'not an object';
-  if (!text(c.result)) return 'missing result';
-  if (c.result.length > 160) return `result too long (${c.result.length} chars)`;
-  if (!validNewElementName(c.result)) return 'element name must contain one to three words';
-  if (!text(c.emoji)) return 'missing emoji';
-  if (c.emoji.length > 32) return 'emoji too long';
-  if (!text(c.explanation)) return 'missing explanation';
-  if (c.explanation.length > 280) return `explanation too long (${c.explanation.length} chars)`;
-  if (!text(c.connection)) return 'missing connection';
-  if (!CONNECTIONS.has(c.connection as ConceptConnection)) return `unknown connection "${c.connection}"`;
-  if (![c.coherence, c.surprise, c.inputFit, c.recognizability, c.chainPotential, c.novelty].every(validOptionalScore)) return 'invalid optional score';
-  if (typeof c.coherence === 'number' && c.coherence < 3) return `coherence ${c.coherence} < 3`;
-  if (typeof c.inputFit === 'number' && c.inputFit < 3) return `inputFit ${c.inputFit} < 3`;
-  const normalizedResult = normalize(c.result);
-  if (!normalizedResult) return 'result normalizes to empty';
-  const literal = new Set([
-    normalize(first + second), normalize(second + first),
-    normalize(`${first} ${second}`), normalize(`${second} ${first}`),
-  ]);
-  if (literal.has(normalizedResult)) return 'result is a literal mashup of the inputs';
-  if (normalizedResult === normalize(first) || normalizedResult === normalize(second)) return 'result repeats an input';
-  return lowValueConceptReason(c.result, first, second);
-}
-
-/**
- * Repair harmless formatting differences from smaller/cheaper text models,
- * without relaxing the semantic checks that reject lazy word mashups.
- * This runs BEFORE accepting a provider response so another provider can be
- * tried if the first one returned valid JSON but invalid discoveries.
- */
-export function normalizeDiscoveryCandidates(raw: unknown, first: string, second: string): { candidates: Candidate[] } | undefined {
-  if (!record(raw)) return;
-  const entries: unknown[] = Array.isArray(raw.candidates) ? raw.candidates
-    : Array.isArray(raw.results) ? raw.results
-    : (typeof raw.result === 'string' || typeof raw.name === 'string') ? [raw] : [];
-  if (!entries.length) return;
-
-  const connections: Record<string, ConceptConnection> = {
-    nature: 'ecology', natural: 'ecology', weather: 'science',
-    alchemy: 'chemistry', invention: 'technology', engineering: 'technology',
-    culture: 'pop-culture', pop_culture: 'pop-culture', popculture: 'pop-culture',
-    humor: 'comedy', humour: 'comedy', joke: 'comedy', fantasy: 'mythology',
-    logic: 'function', practical: 'function', metaphor: 'wordplay',
-  };
-  const normalized: Candidate[] = [];
-  for (const entry of entries.slice(0, 6)) {
-    if (!record(entry)) continue;
-    const result = typeof entry.result === 'string' ? entry.result : typeof entry.name === 'string' ? entry.name : '';
-    const explanation = typeof entry.explanation === 'string' ? entry.explanation
-      : typeof entry.reason === 'string' ? entry.reason
-      : typeof entry.reasoning === 'string' ? entry.reasoning : '';
-    if (!result.trim() || !explanation.trim()) continue;
-    const originalRoute = typeof entry.connection === 'string' ? entry.connection
-      : typeof entry.category === 'string' ? entry.category : 'function';
-    const route = originalRoute.trim().toLowerCase().replace(/\s+/g, '-');
-    const connection: ConceptConnection = CONNECTIONS.has(route as ConceptConnection)
-      ? route as ConceptConnection : connections[route] || 'function';
-    const emoji = typeof entry.emoji === 'string' && entry.emoji.trim() ? entry.emoji.trim() : '✨';
-    const candidate: Candidate = {
-      result: result.trim(), emoji, connection, explanation: explanation.trim(),
-    };
-    for (const key of ['coherence', 'surprise', 'inputFit', 'recognizability', 'chainPotential', 'novelty'] as const) {
-      const score = entry[key];
-      // Optional model scores are hints, not a reason to throw away a useful
-      // result when one provider omits them or sends "4" instead of 4.
-      const number = typeof score === 'number' ? score : typeof score === 'string' ? Number(score) : NaN;
-      if (Number.isFinite(number) && number >= 1 && number <= 5) candidate[key] = Math.round(number);
-    }
-    if (!candidateRejectionReason(candidate, first, second)) normalized.push(candidate);
-  }
-  return normalized.length ? { candidates: normalized } : undefined;
 }
 
 function scoreCandidate(candidate: Candidate, first: string, second: string, routeFrequency: Map<string, number>): { score: number; dna: ConceptDNA } {
@@ -482,10 +300,8 @@ function scoreCandidate(candidate: Candidate, first: string, second: string, rou
   // Ingredient contribution is the highest-value signal.
   if (mentionsFirst) score += 18;
   if (mentionsSecond) score += 18;
-  // Naming an ingredient is not proof of a good two-parent transformation.
-  // Ingredient references belong in the explanation, not necessarily the noun.
-  if (overlapsFirst) score -= 2;
-  if (overlapsSecond) score -= 2;
+  if (overlapsFirst) score += 4;
+  if (overlapsSecond) score += 4;
   if (!mentionsFirst && !mentionsSecond && !overlapsFirst && !overlapsSecond) score -= 32;
   if ((mentionsFirst || overlapsFirst) !== (mentionsSecond || overlapsSecond)) score -= 8;
 
@@ -494,8 +310,7 @@ function scoreCandidate(candidate: Candidate, first: string, second: string, rou
   if (candidate.recognizability) score += candidate.recognizability * 1.5;
   if (candidate.chainPotential) score += candidate.chainPotential * 2;
   if (candidate.novelty) score += candidate.novelty;
-  if (candidate.coherence) score += candidate.coherence * 2;
-  if (candidate.surprise) score += candidate.surprise * 1.5;
+  if (candidate.coherence) score += candidate.coherence;
 
   // Reward results that are easy to recognize and useful in later recipes.
   if (resultWords.length >= 1 && resultWords.length <= 3) score += 10;
@@ -509,9 +324,6 @@ function scoreCandidate(candidate: Candidate, first: string, second: string, rou
 
   // Explanation quality matters, but verbosity does not.
   if (candidate.explanation.length >= 35 && candidate.explanation.length <= 220) score += 5;
-  // A sentence that explicitly grounds both input names beats an invented
-  // justification for what is essentially a renamed or decorated parent.
-  if (mentionsFirst && mentionsSecond && !overlapsFirst && !overlapsSecond) score += 10;
   if (candidate.explanation.length < 18) score -= 5;
 
   // Penalize dead-end generic mashups and odd formatting.
@@ -541,22 +353,16 @@ export function chooseConcept(parsed: unknown, first: string, second: string): C
 
   // Older model responses remain compatible.
   if (!Array.isArray(parsed.candidates)) {
-    if (!text(parsed.result) || !validNewElementName(parsed.result) || !text(parsed.emoji) || parsed.emoji.length > 32) return;
+    if (!text(parsed.result) || parsed.result.length > 160 || !text(parsed.emoji) || parsed.emoji.length > 32) return;
     const fallback: Candidate = {
       result: parsed.result.trim(),
       emoji: parsed.emoji.trim(),
       explanation: text(parsed.explanation) ? parsed.explanation.trim() : `${first} and ${second} combine into ${parsed.result.trim()}.`,
       connection: text(parsed.connection) && CONNECTIONS.has(parsed.connection as ConceptConnection) ? parsed.connection as ConceptConnection : 'science',
     };
-    if (!candidateIsValid(fallback, first, second)) {
-      console.warn(`[chooseConcept] ${first} + ${second}: single result rejected`, candidateRejectionReason(fallback, first, second));
-      return;
-    }
+    if (!candidateIsValid(fallback, first, second)) return;
     const { score, dna } = scoreCandidate(fallback, first, second, new Map([[fallback.connection, 1]]));
-    if (score < 18) {
-      console.warn(`[chooseConcept] ${first} + ${second}: single result scored ${Math.round(score)} < 18`, { result: fallback.result });
-      return;
-    }
+    if (score < 18) return;
     conceptRegistry.set(normalize(fallback.result), dna);
     resultUsage.set(normalize(fallback.result), (resultUsage.get(normalize(fallback.result)) || 0) + 1);
     rememberResult(fallback.result);
@@ -572,21 +378,8 @@ export function chooseConcept(parsed: unknown, first: string, second: string): C
   }
 
   // Accept a broad candidate set; ranking is fully server-side.
-  const rawCandidates: unknown[] = parsed.candidates.slice(0, 10);
-  const rejected: Array<{ result: string; reason: string }> = [];
-  const candidates = rawCandidates.filter((c: unknown): c is Candidate => {
-    if (candidateIsValid(c, first, second)) return true;
-    const maybeResult = (c as { result?: unknown } | null)?.result;
-    rejected.push({
-      result: typeof maybeResult === 'string' ? maybeResult.slice(0, 60) : '?',
-      reason: candidateRejectionReason(c, first, second) ?? 'unknown',
-    });
-    return false;
-  });
-  if (!candidates.length) {
-    console.warn(`[chooseConcept] ${first} + ${second}: all ${rawCandidates.length} candidates rejected`, rejected);
-    return;
-  }
+  const candidates = parsed.candidates.slice(0, 10).filter((c: unknown) => candidateIsValid(c, first, second)) as Candidate[];
+  if (!candidates.length) return;
 
   const routeFrequency = new Map<string, number>();
   for (const candidate of candidates) routeFrequency.set(candidate.connection, (routeFrequency.get(candidate.connection) || 0) + 1);
@@ -596,13 +389,7 @@ export function chooseConcept(parsed: unknown, first: string, second: string): C
     .sort((a, b) => b.score - a.score || b.dna.chainPotential - a.dna.chainPotential || a.candidate.result.localeCompare(b.candidate.result));
 
   const winner = ranked[0];
-  if (!winner || winner.score < 18) {
-    console.warn(
-      `[chooseConcept] ${first} + ${second}: best score ${winner ? Math.round(winner.score) : 'n/a'} < 18`,
-      ranked.map(r => ({ result: r.candidate.result, score: Math.round(r.score) })),
-    );
-    return;
-  }
+  if (!winner || winner.score < 18) return;
 
   const result = winner.candidate.result.trim();
   const key = normalize(result);

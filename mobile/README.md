@@ -1,10 +1,10 @@
-# Boop Android / Google Play
+# QuarkPop Android / Google Play
 
-This folder contains the Android packaging layer for the existing Boop web game.
+This folder contains the Android packaging layer for the existing QuarkPop web game.
 
 ## Architecture
 
-The Android app uses Capacitor 8 and loads the production Boop site from Cloudflare Workers over HTTPS inside a native Android shell. This keeps the existing Gemini API, Supabase cloud saves, live game updates, camera file input, audio, and browser storage behavior together instead of duplicating the backend inside the APK.
+The Android app uses Capacitor 8 and loads the production QuarkPop site from Cloudflare Workers over HTTPS inside a native Android shell. This keeps the existing Gemini API, Supabase cloud saves, live game updates, camera file input, audio, and browser storage behavior together instead of duplicating the backend inside the APK.
 
 Default application ID:
 

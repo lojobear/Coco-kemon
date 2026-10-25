@@ -16,6 +16,3 @@ mobile/android/
 mobile/upload-keystore.jks
 *.jks
 *.keystore
-
-# Supabase CLI transient metadata
-supabase/.temp/

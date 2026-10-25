@@ -1,11 +1,12 @@
-/** Boop - top bar header */
+/** QuarkPop - top bar header */
 
 import React, { useState, useEffect } from 'react';
 import { useGame } from '../lib/gameStore';
-import { Volume2, VolumeX, Mic, Camera, BookOpen, RotateCcw, Download, Upload, Sparkles, Zap, CheckCircle2, Smartphone, Vibrate, Settings2, Cloud, NotebookPen, X, Search, UserRound } from 'lucide-react';
+import { Volume2, VolumeX, Mic, Camera, BookOpen, RotateCcw, Download, Upload, Sparkles, Zap, CheckCircle2, Smartphone, Vibrate, Settings2, Cloud, NotebookPen, X } from 'lucide-react';
 import { sound } from '../lib/audio';
 import { haptics } from '../lib/haptics';
 import { PWAInstallButton } from './PWAInstallButton';
+import { CloudSaves } from './CloudSaves';
 
 const HEALTH_CACHE_TTL_MS = 60 * 1000;
 type AiHealth = { hasAiKey: boolean; hasGroqKey: boolean; primaryProvider?: string; primaryModel?: string };
@@ -28,16 +29,12 @@ function fetchAiStatus(): Promise<AiHealth | null> {
 export function Header({
   onOpenVoice,
   onOpenSeeds,
-  onOpenProfile,
-  onSearchCollection,
 }: {
   onOpenVoice: () => void;
   onOpenSeeds: () => void;
-  onOpenProfile: () => void;
-  onSearchCollection: (query: string) => void;
 }) {
   const {
-    progression,
+    materials,
     oddkinCollection,
     isMuted,
     toggleMute,
@@ -49,7 +46,7 @@ export function Header({
   } = useGame();
 
   const [showSettings, setShowSettings] = useState(false);
-  const [query, setQuery] = useState('');
+  const [showCloud, setShowCloud] = useState(false);
   const [aiHealth, setAiHealth] = useState<AiHealth>({ hasAiKey: false, hasGroqKey: false });
   const [hapticsOn, setHapticsOn] = useState<boolean>(() => haptics.isEnabled());
 
@@ -66,25 +63,23 @@ export function Header({
   return (
     <header className="collection-header">
       <div className="collection-header-inner">
-        <button className="collection-brand" aria-label="Boop home" onClick={() => setActiveTab('infinite-craft')}>
-          <img src="/icon.svg" alt="" /><span><strong>Boop</strong><small>DISCOVER THE UNEXPECTED</small></span>
+        <button className="collection-brand" aria-label="Open QuarkPop foundry" onClick={() => setActiveTab('foundry')}>
+          <img src="/icon.svg" alt="" /><span><strong>QUARKPOP</strong><small>MIX • MUTATE • DISCOVER</small></span>
         </button>
-        <form className="boop-header-search boop-search" role="search" onSubmit={event => { event.preventDefault(); onSearchCollection(query); }}><input aria-label="Search your collection" placeholder="Search your discoveries…" value={query} onChange={event => setQuery(event.target.value)} /><button aria-label="Search collection"><Search size={18} /></button></form>
-        <span className="boop-level-tag">Level {String(progression.level).padStart(2, '0')}</span>
         <div className="header-actions">
-          <button aria-label="Cloud saves and sign in" title="Cloud saves and sign in" onClick={onOpenProfile}><Cloud size={21} /></button>
-          <button className="boop-avatar" aria-label="Your profile" title="Your profile" onClick={() => setActiveTab('profile')}><UserRound size={18} /></button>
+          <button aria-label="Cloud saves and sign in" title="Cloud saves and sign in" onClick={() => setShowCloud(true)}><Cloud size={21} /></button>
           <button aria-label="Settings and tools" title="Settings and tools" onClick={() => setShowSettings(true)}><Settings2 size={21} /></button>
         </div>
       </div>
 
+      <CloudSaves open={showCloud} onClose={() => setShowCloud(false)} />
       {/* Settings / Save Modal dropdown */}
       {showSettings && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="boop-settings bg-[#181b20] border border-[#2e3440] rounded-2xl p-5 max-w-sm w-full shadow-2xl space-y-4 max-h-[90dvh] overflow-y-auto">
+          <div className="bg-[#181b20] border border-[#2e3440] rounded-2xl p-5 max-w-sm w-full shadow-2xl space-y-4 max-h-[90dvh] overflow-y-auto">
             <div className="flex items-center justify-between pb-2 border-b border-[#282d37]">
               <h3 className="text-sm font-bold font-mono text-[#f3f4f6] flex items-center gap-2">
-                <span>⚙️</span> BOOP SETTINGS & DATA
+                <span>⚙️</span> QUARKPOP SETTINGS & DATA
               </h3>
               <button
                 onClick={() => {
@@ -155,7 +150,7 @@ export function Header({
                     {aiHealth.hasGroqKey
                       ? `Groq is primary for text discoveries (${aiHealth.primaryModel || 'configured model'}); Cloudflare AI and Gemini remain fallbacks.`
                       : aiHealth.hasAiKey
-                        ? 'Groq is not configured yet, so Boop is currently using its fallback AI providers.'
+                        ? 'Groq is not configured yet, so QuarkPop is currently using its fallback AI providers.'
                         : 'Built-in recipes still work. Add GROQ_API_KEY for primary AI discoveries.'}
                   </p>
                 </div>
@@ -171,7 +166,7 @@ export function Header({
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
                     a.href = url;
-                    a.download = `boop-save-${new Date().toISOString().slice(0, 10)}.json`;
+                    a.download = `coco-kemon-save-${new Date().toISOString().slice(0, 10)}.json`;
                     a.click();
                     setTimeout(() => URL.revokeObjectURL(url), 1000);
                     sound.playDiscoveryChime();
