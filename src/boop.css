@@ -2378,3 +2378,262 @@ html.boop-native-shell .boop-app .boop-cloud-dialog {
   .boop-app .boop-board-layout .boop-board-item,
   .boop-app .boop-mobile-craft-dock * {transition:none!important;animation:none!important;}
 }
+
+/* BOOP / PIXEL 9 FOCUS MODE
+   Target the phone's ~412 CSS-pixel viewport, not physical display pixels.
+   Keep all secondary commands in the existing More menus. Original pixel
+   sprites remain full colour; the shell stays white / graphite. */
+@media (max-width: 480px) {
+  .boop-app .boop-board-toolbar--quiet {
+    display:flex!important;
+    justify-content:space-between;
+    gap:8px!important;
+    padding-inline:12px!important;
+  }
+  .boop-app .boop-board-toolbar--quiet .boop-board-heading {
+    flex:1 1 auto;
+    min-width:0;
+  }
+  .boop-app .boop-board-toolbar--quiet .boop-board-heading strong {
+    font-size:23px!important;
+    line-height:1.04;
+  }
+  .boop-app .boop-board-toolbar--quiet .boop-board-heading small {
+    font-size:10px;
+    color:#8b96a1;
+  }
+  /* Spawn and Browse remain available in More and the bottom Add dock. */
+  .boop-app .boop-board-toolbar--quiet .boop-quiet-spawn,
+  .boop-app .boop-board-toolbar--quiet .boop-board-library-toggle,
+  .boop-app .boop-board-toolbar--quiet .boop-board-actions--quiet > button[aria-label="Undo last board action"] {
+    display:none!important;
+  }
+  .boop-app .boop-board-toolbar--quiet .boop-board-actions--quiet {
+    flex:0 0 auto;
+    display:flex;
+    width:auto;
+    justify-content:flex-end;
+    margin:0!important;
+  }
+  .boop-app .boop-board-toolbar--quiet .boop-craft-mode-link {
+    flex:0 0 auto;
+    min-width:0;
+    min-height:38px;
+    border:0;
+    background:#f4f6f8;
+    color:#36424d;
+    font-weight:800;
+    padding:8px 13px;
+    white-space:nowrap;
+  }
+  .boop-app .boop-board-toolbar--quiet .boop-board-more > summary {
+    height:38px;
+    width:38px;
+    border-color:#e9edf1;
+    color:#505b66;
+  }
+  /* White spacious working world; don't clutter its center with instruction
+     labels once tiles exist. A subtle grid still supports spatial dragging. */
+  .boop-app .boop-board-world {
+    background-image:radial-gradient(circle,#ebedf0 .65px,transparent 1px)!important;
+    background-size:38px 38px!important;
+  }
+  .boop-app .boop-board-origin-hint {
+    white-space:nowrap;
+    font-size:11px;
+    letter-spacing:0;
+    text-transform:none;
+    font-weight:600;
+    color:#b4bdc6;
+  }
+  /* Native Android has its own navbar; keep primary action above safe area. */
+  .boop-app .boop-mobile-craft-dock {
+    bottom:max(8px,env(safe-area-inset-bottom));
+    left:12px;right:12px;
+    background:#fff;
+    padding:5px;
+    border-color:#e8ecf0;
+    border-radius:17px;
+    box-shadow:0 4px 20px #25334016;
+  }
+  .boop-app .boop-mobile-craft-dock .boop-mobile-craft-library {
+    min-height:51px;
+    background:#293540;
+    border-radius:12px;
+    letter-spacing:0;
+  }
+
+  /* COMBINE: the recipe, one decision, one obvious call to action.
+     Progress/utility controls are hidden in the existing details panel. */
+  .boop-app .collection-workbench {
+    max-width:480px!important;
+    gap:11px!important;
+    padding:11px 13px max(82px,env(safe-area-inset-bottom))!important;
+    background:#fff;
+  }
+  .boop-app .collection-workbench .boop-focus-intro {
+    align-items:center;
+    min-height:42px;
+    gap:6px;
+    margin:0;
+  }
+  .boop-app .collection-workbench .boop-focus-intro h1 {
+    font-size:26px!important;
+    letter-spacing:-.7px;
+  }
+  .boop-app .collection-workbench .boop-focus-intro p {
+    font-size:11px!important;
+    margin:2px 0 0;
+    color:#88929d;
+  }
+  .boop-app .collection-workbench .boop-workbench-craft-link {
+    border:0;
+    background:#f4f6f8;
+    min-height:38px;
+    padding:8px 11px;
+    white-space:nowrap;
+  }
+  .boop-app .collection-workbench .boop-focus-recipe {
+    gap:10px!important;
+    padding:12px 11px 10px!important;
+    border:1px solid #e8ecf0!important;
+    border-radius:19px!important;
+    background:#fafbfc!important;
+  }
+  .boop-app .collection-workbench .boop-focus-recipe .boop-pad-heading {
+    min-height:18px;
+    margin:0;
+  }
+  .boop-app .collection-workbench .boop-focus-recipe .boop-pad-heading >span:first-child {
+    letter-spacing:1.2px;
+    font-size:10px;
+    color:#9aa5b0;
+  }
+  .boop-app .collection-workbench .boop-focus-recipe .boop-ready-tag {
+    border:0;
+    background:#eef1f4;
+    font-size:10px;
+    padding:4px 7px;
+  }
+  .boop-app .collection-workbench .boop-focus-recipe .combine-inputs {
+    align-items:start;
+    gap:6px!important;
+  }
+  .boop-app .collection-workbench .boop-focus-recipe .ingredient {
+    gap:4px!important;
+  }
+  .boop-app .collection-workbench .boop-focus-recipe .ingredient-pick {
+    height:106px!important;
+    min-height:106px!important;
+    border-radius:15px!important;
+    box-shadow:0 2px 6px #26344008!important;
+    border-color:#e6ebef!important;
+  }
+  .boop-app .collection-workbench .boop-focus-recipe .ingredient-pick .element-emoji {
+    width:86px!important;height:86px!important;
+    max-width:86px!important;max-height:86px!important;
+  }
+  .boop-app .collection-workbench .boop-focus-recipe .ingredient-plus {
+    margin-top:42px;
+    width:19px;height:19px;
+  }
+  .boop-app .collection-workbench .boop-focus-recipe .ingredient>span {
+    font-size:11px;min-height:28px;
+    line-height:1.25;
+    max-height:2.6em;
+    overflow:hidden;
+  }
+  .boop-app .collection-workbench .boop-focus-recipe .combine-actions,
+  .boop-app .collection-workbench .boop-focus-recipe .combine-actions>button {
+    width:100%;
+  }
+  .boop-app .collection-workbench .boop-focus-recipe .combine-primary {
+    min-height:50px!important;height:50px!important;
+    border-radius:13px!important;
+    font-size:14px!important;
+    box-shadow:none!important;
+    letter-spacing:0;
+  }
+  .boop-app .collection-workbench .boop-focus-recipe .boop-combine-settings {
+    border:0;
+    padding:0!important;
+    margin:0;
+    gap:6px;
+  }
+  .boop-app .collection-workbench .boop-focus-recipe .boop-combine-settings > summary {
+    min-height:31px;
+    font-size:11px;
+    color:#74818e;
+    padding:4px 3px!important;
+    background:transparent!important;
+  }
+  /* Ingredient-name echo belongs in More, not between picker and result. */
+  .boop-app .collection-workbench .boop-combine-settings .recipe-tools {
+    display:flex;align-items:center;gap:8px;
+    width:100%;min-height:40px;
+    margin:2px 0 3px;
+    padding:5px 6px;
+    border:1px solid #e6eaf0;
+    border-radius:11px;
+    background:#fff;
+  }
+  .boop-app .collection-workbench .boop-combine-settings .recipe-tools>span {
+    flex:1;min-width:0;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+    font-size:11px;color:#707c89;
+  }
+  .boop-app .collection-workbench .boop-combine-settings .recipe-tools button {
+    min-width:35px;min-height:35px;
+    border-radius:9px;
+    color:#3c4854;
+  }
+  .boop-app .collection-workbench .boop-combine-browse-toggle {
+    min-height:53px;
+    padding:8px 13px;
+    border-radius:14px;
+    background:#fff;
+    border-color:#e5e9ee;
+    box-shadow:none;
+  }
+  .boop-app .collection-workbench .boop-combine-browse-toggle strong {font-size:13px;}
+  .boop-app .collection-workbench .boop-combine-inventory {
+    height:min(83dvh,735px);
+    border-radius:22px 22px 0 0;
+  }
+  .boop-app .collection-workbench .boop-combine-inventory .discovery-grid {
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    gap:7px!important;
+  }
+  .boop-app .collection-workbench .boop-combine-inventory .discovery-tile {
+    border-radius:12px!important;
+  }
+  .boop-app .collection-workbench .boop-combine-inventory .discovery-pick {
+    min-height:104px;
+    padding:6px;
+  }
+  .boop-app .collection-workbench .boop-combine-inventory .discovery-pick .element-emoji {
+    width:62px!important;height:62px!important;
+  }
+  .boop-app .collection-workbench .boop-combine-inventory .boop-combine-quick {
+    padding:0!important;
+  }
+  .boop-app .collection-workbench .boop-combine-inventory .boop-combine-quick-row button {
+    min-height:81px;height:81px;flex-basis:72px;
+  }
+  .boop-app .collection-workbench .boop-foundry-progress-details {
+    margin-top:1px;
+    opacity:.95;
+  }
+  /* Prevent Android overscroll bounce from dismissing the picker during swipe. */
+  .boop-app .collection-workbench .boop-combine-inventory .discovery-grid {
+    overscroll-behavior:contain;
+  }
+}
+@media(max-width:350px){
+  .boop-app .collection-workbench .boop-focus-recipe .ingredient-pick {
+    min-height:96px!important;height:96px!important;
+  }
+  .boop-app .collection-workbench .boop-focus-recipe .ingredient-pick .element-emoji {
+    width:75px!important;height:75px!important;
+  }
+}
