@@ -92,10 +92,12 @@ test('failed paid task is remembered and never recreated automatically',async()=
   assert.equal(requests,1);
 });
 
-test('Runway remains available as a separate module but the restored image chain does not call it',()=>{
+test('the sprite pipeline knows when Runway is still painting and respects opt-in',()=>{
   const backend=readFileSync(new URL('../server/gemini.ts',import.meta.url),'utf8');
-  assert.doesNotMatch(backend,/generateRunwaySprite|RUNWAYML_API_SECRET|RunwayPendingError/);
-  assert.match(backend,/await generateWorkersAiImage\(prompt\)/);
-  assert.match(backend,/process\.env\.GEMINI_API_KEY/);
+  const queue=readFileSync(new URL('../src/lib/artworkQueue.ts',import.meta.url),'utf8');
+  assert.match(backend,/generateRunwaySprite\(prompt\)/);
+  assert.match(backend,/new ApiFailure\(425, error.message\)/);
+  assert.match(queue,/Runway artwork is rendering/);
+  assert.match(queue,/nextAttemptAt=Date\.now\(\)\+12_000/);
   assert.match(readFileSync(new URL('../server/runway.ts',import.meta.url),'utf8'),/RUNWAY_SPRITES_ENABLED/);
 });

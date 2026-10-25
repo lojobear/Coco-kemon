@@ -1178,58 +1178,82 @@ html.boop-native-shell .boop-app .boop-cloud-dialog {
 .boop-app .boop-cloud-dialog .boop-cloud-button {background:#303741!important;border-color:#303741;color:#fff!important;box-shadow:0 2px 0 #1e252d;}
 .boop-app .boop-cloud-dialog .boop-cloud-button:not(:disabled):hover {background:#454f5a!important;}
 
-/* Instant Spawn: pick a count to spawn immediately, or repeat it with the main button. */
-.boop-app .boop-spawn-quick {
-  display:inline-flex;align-items:center;gap:5px;flex:0 0 auto;
-  border:1px solid #dde2e7;background:#fff;border-radius:14px;
-  padding:4px 5px;box-shadow:0 2px 0 #edf0f3;
+/* Random spawning: compact, tactile white split-dropdown for desktop/Android. */
+.boop-spawn-control {position:relative;z-index:13;flex:0 0 auto;}
+.boop-app .boop-spawn-control > .boop-random-button {
+  min-height:41px;min-width:95px;
+  display:inline-flex;align-items:center;gap:7px;
+  padding:5px 11px 6px 7px;
+  border:1px solid #c9cfd6;
+  border-radius:13px;
+  background:#fff!important;
+  color:#242b34!important;
+  box-shadow:0 3px 0 #d7dce2,0 5px 10px #2d37470b;
+  font-size:12px;font-weight:800;
+  transform:translateY(0);
+  transition:transform 85ms ease,box-shadow 85ms ease;
 }
-.boop-app .boop-spawn-quick .boop-spawn-now {
-  display:inline-flex;align-items:center;gap:7px;min-width:88px;min-height:38px;
-  padding:5px 11px 5px 6px;border:1px solid #28323d;border-radius:10px;
-  background:#303741!important;color:#fff!important;
-  box-shadow:0 3px 0 #1b212a!important;font-size:12px;font-weight:850;
-  transform:none;transition:transform 95ms ease,box-shadow 95ms ease;
+.boop-spawn-control > .boop-random-button .boop-random-icon {
+  background:#303741;
+  color:#fff;
+  border-radius:9px;
 }
-.boop-app .boop-spawn-quick .boop-spawn-now .boop-random-icon {
-  width:27px;height:27px;display:grid;place-items:center;
-  color:#303741;background:#fff;border-radius:7px;
+.boop-spawn-control > .boop-random-button .is-rotated {transform:rotate(180deg);}
+.boop-app .boop-spawn-control > .boop-random-button:not(:disabled):active {
+  transform:translateY(3px) scale(.98)!important;
+  box-shadow:0 0 0 #d7dce2,0 1px 3px #2d374713!important;
 }
-.boop-app .boop-spawn-quick .boop-spawn-now:active:not(:disabled) {
-  transform:translateY(2px)!important;box-shadow:0 1px 0 #1b212a!important;
+.boop-spawn-menu {
+  position:absolute;right:0;top:calc(100% + 10px);
+  width:min(338px,calc(100vw - 20px));
+  padding:15px;display:flex;flex-direction:column;gap:10px;
+  border:1px solid #e0e4e9;border-radius:18px;
+  background:#fff;color:#28323d;
+  box-shadow:0 14px 42px #1f29371e,0 3px 8px #1f29370d;
+  animation:boop-spawn-menu-in 140ms ease-out both;
 }
-.boop-app .boop-spawn-quick-counts {display:flex;align-items:center;gap:3px;}
-.boop-app .boop-spawn-quick-counts button {
-  display:grid;place-items:center;min-width:32px;height:35px;padding:3px 7px;
-  border:1px solid transparent;border-radius:9px;background:#f4f5f7;
-  color:#586471;font-size:13px;font-weight:850;font-variant-numeric:tabular-nums;
-  transition:transform 90ms ease,background-color 90ms ease;
+@keyframes boop-spawn-menu-in {from{opacity:0;transform:translateY(-5px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
+.boop-spawn-menu-heading {display:flex;flex-direction:column;gap:3px;}
+.boop-spawn-menu-heading strong {font-weight:850;font-size:15px;}
+.boop-spawn-menu-heading small {font-size:11px;color:#6c7681;}
+.boop-spawn-options-label {font-size:10px;color:#808994;font-weight:800;letter-spacing:1px;margin-top:3px;}
+.boop-spawn-count-grid {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;}
+.boop-spawn-count-grid button {
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  min-height:64px;padding:9px 3px;
+  background:#f8f9fa;color:#27313c;
+  border:1px solid #e5e8ec;border-radius:12px;
+  box-shadow:0 2px 0 #e4e8ed;
+  transition:transform 90ms ease,background-color 90ms ease,box-shadow 90ms ease;
 }
-.boop-app .boop-spawn-quick-counts button[aria-pressed="true"] {
-  color:#212b35;background:#e6ebf0;border-color:#bfc9d2;
-  box-shadow:inset 0 0 0 1px #cad2da;
+.boop-spawn-count-grid button:not(:disabled):active {transform:translateY(2px);box-shadow:none;background:#eef0f2;}
+.boop-spawn-count-grid button:disabled {opacity:.4;}
+.boop-spawn-count-number {font-size:20px;font-weight:900;line-height:1;}
+.boop-spawn-count-grid small {font-size:10px;color:#7a838f;}
+.boop-spawn-filter-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;}
+.boop-spawn-filter-grid button {
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  min-height:42px;padding:9px 11px;
+  background:#fff;color:#4a5561;
+  border:1px solid #e1e5ea;border-radius:10px;
+  font-size:12px;font-weight:750;
+  transition:background 90ms ease,border-color 90ms ease,transform 90ms ease;
 }
-.boop-app .boop-spawn-quick-counts button:active:not(:disabled) {transform:scale(.89);background:#d4dce4;}
-.boop-app .boop-spawn-quick-counts button:disabled,
-.boop-app .boop-spawn-quick .boop-spawn-now:disabled {opacity:.4;cursor:not-allowed;}
-.boop-board-layout .boop-board-item.is-random-spawn {
-  animation:boop-random-tile-pop 220ms cubic-bezier(.19,1.24,.28,1) both;
-  animation-delay:var(--spawn-delay,0ms);
-}
-@keyframes boop-random-tile-pop {
-  0%{opacity:.1;scale:.56}
-  70%{opacity:1;scale:1.08}
-  100%{opacity:1;scale:1}
-}
+.boop-spawn-filter-grid button[aria-pressed="true"] {color:#20252c;background:#f2f4f6;border-color:#89939e;box-shadow:inset 0 0 0 1px #89939e;}
+.boop-spawn-filter-grid button:disabled {opacity:.42;}
+.boop-spawn-filter-grid button:active {transform:scale(.98);}
+.boop-spawn-filter-grid small {color:#7f8893;font-size:10px;}
+.boop-spawn-note {font-size:10px;line-height:1.5;color:#808994;margin:0;}
+.boop-board-layout .boop-board-item.is-random-spawn {animation:boop-random-tile-pop 155ms cubic-bezier(.19,.82,.35,1) both;}
+@keyframes boop-random-tile-pop {from{opacity:.35;scale:.88}to{opacity:1;scale:1}}
 @media(max-width:760px) {
-  .boop-app .boop-spawn-quick {gap:3px;padding:3px;}
-  .boop-app .boop-spawn-quick .boop-spawn-now {min-width:37px;min-height:36px;padding:4px;gap:3px;}
-  .boop-app .boop-spawn-quick .boop-spawn-now .boop-random-icon {width:26px;height:26px;}
-  .boop-app .boop-spawn-quick .boop-spawn-now .boop-random-label {display:none!important;}
-  .boop-app .boop-spawn-quick-counts button {min-width:29px;height:33px;padding:3px 5px;font-size:12px;}
+  .boop-spawn-menu {position:fixed;top:auto;bottom:max(96px,env(safe-area-inset-bottom) + 95px);right:10px;left:10px;width:auto;max-width:440px;margin-left:auto;}
+  .boop-app .boop-spawn-control > .boop-random-button {min-width:41px;min-height:40px;padding:5px 7px;gap:3px;border-radius:11px;}
+  .boop-spawn-control > .boop-random-button .boop-random-icon {width:26px;height:26px;}
+  .boop-spawn-control > .boop-random-button .boop-random-label {display:none!important;}
 }
 @media(prefers-reduced-motion:reduce) {
-  .boop-board-layout .boop-board-item.is-random-spawn {animation:none!important;}
+  .boop-spawn-menu,.boop-board-layout .boop-board-item.is-random-spawn {animation:none!important;}
 }
 
 /* Collectible album: white pixel-art sticker book, deliberately consistent with
@@ -1434,9 +1458,3 @@ html.boop-native-shell .boop-app .boop-cloud-dialog {
   .boop-app .boop-artwork-queue {right:10px;left:10px;bottom:114px;max-width:none;}
   .boop-app .boop-board-actions >button {min-height:34px;min-width:34px;}
 }
-
-/* Missing artwork repair is opt-in, batch-limited, and does not change discoveries. */
-.boop-album-header-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.boop-album-repair-status{margin:0;color:#687480;background:#f7f8f9;border:1px solid #e6e9ec;border-radius:10px;padding:9px 12px;font-size:12px;line-height:1.4}
-.boop-album-header-actions button:disabled{opacity:.55;cursor:wait}
-@media(max-width:760px){.boop-album-header-actions{width:100%;gap:6px}.boop-album-header-actions button{flex:1;min-width:0;font-size:11px}}
