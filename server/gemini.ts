@@ -2,7 +2,6 @@ import { GoogleGenAI } from '@google/genai';
 import { conceptDNAFor, normalizeDiscoveryCandidates } from './discovery.js';
 import { getWorkersAiBinding } from './workersAi.js';
 import { generateRunwareSprite, isRunwareAuthenticationRejected } from './runware.js';
-import { generateRunwaySprite, RunwayPendingError } from './runway.js';
 
 export class ApiFailure extends Error {
   status: number;
@@ -504,18 +503,6 @@ export async function generateGeminiImage(
     // image payload shape, so all sprite caching and client logic still work.
     const runwareImage = await generateRunwareSprite(prompt);
     if (runwareImage) return runwareImage;
-    // Optional paid fallback. Off until RUNWAY_SPRITES_ENABLED=1 and a
-    // server-side RUNWAYML_API_SECRET is configured. Pending Runway tasks
-    // are polled on subsequent retries rather than creating new paid tasks.
-    try {
-      const runwayImage = await generateRunwaySprite(prompt);
-      if (runwayImage) return runwayImage;
-    } catch (error) {
-      if (error instanceof RunwayPendingError) {
-        throw new ApiFailure(425, error.message);
-      }
-      console.warn('Runway fallback unavailable; trying Gemini.');
-    }
   }
   if (!injectedClient && !process.env.GEMINI_API_KEY) {
     throw new ApiFailure(503, isRunwareAuthenticationRejected()
@@ -525,7 +512,7 @@ export async function generateGeminiImage(
   const ai = injectedClient ?? (client ??= new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! }));
   const models = getGeminiImageModels();
   // Leave enough of the client's 60s timeout for Runware + a final Gemini attempt.
-  const deadline = Date.now() + (!injectedClient && (process.env.RUNWARE_API_KEY || process.env.RUNWAYML_API_SECRET) ? 35_000 : 55_000);
+  const deadline = Date.now() + (!injectedClient && process.env.RUNWARE_API_KEY ? 35_000 : 55_000);
   let last: unknown;
 
   for (let attempt = 0; attempt < models.length; attempt++) {

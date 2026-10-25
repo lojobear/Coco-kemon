@@ -94,15 +94,8 @@ export async function pumpArtworkQueue(force=false): Promise<void> {
     if (!result) throw new Error('No sprite was generated.');
     tasks=readTasks().filter(x=>x!==entry);
   } catch(error) {
-    const message=error instanceof Error?error.message:'Image provider is unavailable.';
-    if (/Runway artwork is rendering/i.test(message)) {
-      // HTTP 425 means the same paid task is still rendering. Poll that ID,
-      // not a fresh generation. This is not a failed/charged retry.
-      attemptsThisSession=Math.max(0,attemptsThisSession-1);
-      entry.lastError=undefined;
-      entry.nextAttemptAt=Date.now()+12_000;
-    } else {
     entry.attempts++;
+    const message=error instanceof Error?error.message:'Image provider is unavailable.';
     // Provider credentials/quota problems affect every task. Do not flood
     // every subsequent discovery with the same expensive failed request.
     const credentialIssue=/runware|quota|allocation|unauthorized|API key|provider|503|429/i.test(message);
@@ -111,7 +104,6 @@ export async function pumpArtworkQueue(force=false): Promise<void> {
       ? 'Artwork providers are temporarily unavailable. Your discovery is saved.'
       : 'Artwork will be retried when the service is available.';
     entry.nextAttemptAt=Date.now()+Math.min(24*60*60_000,ARTWORK_FAILURE_DELAY_MS*Math.max(1,entry.attempts));
-    }
   } finally {
     running=false;broadcast();planNext();
   }

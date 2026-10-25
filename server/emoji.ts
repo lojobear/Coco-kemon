@@ -155,9 +155,7 @@ export function registerEmojiRoute(app: Express, generateImage: ImageGenerator =
           ? 'cloudflare-workers-ai-pixel-art'
           : image.model.startsWith('runware:')
             ? 'runware-flux-pixel-art'
-            : image.model === 'muse_image'
-              ? 'runway-muse-pixel-art'
-              : 'gemini-native-image-pixel-art',
+            : 'gemini-native-image-pixel-art',
         model: image.model,
         engineVersion: SPRITE_ENGINE_VERSION,
         shiny,
