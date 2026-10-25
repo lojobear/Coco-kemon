@@ -21,7 +21,24 @@ let running = false;
 let pausedUntil = 0;
 let timer: ReturnType<typeof setTimeout> | undefined;
 let attemptsThisSession = 0;
-const MAX_SESSION_ATTEMPTS = 4;
+// A per-session limit stopped all artwork after four attempts, even on long
+// sessions. Use a rolling window and automatically resume instead.
+export const ARTWORK_RATE_WINDOW_MS = 5 * 60_000;
+export const ARTWORK_RATE_MAX_ATTEMPTS = 6;
+let attemptsThisWindow = 0;
+let windowStartedAt = Date.now();
+
+export function artworkRateLimitDelay(attempts: number, windowStart: number, now: number): number {
+  return attempts >= ARTWORK_RATE_MAX_ATTEMPTS
+    ? Math.max(0, windowStart + ARTWORK_RATE_WINDOW_MS - now) : 0;
+}
+function rateLimitDelay(now = Date.now()): number {
+  if (now - windowStartedAt >= ARTWORK_RATE_WINDOW_MS) {
+    windowStartedAt = now;
+    attemptsThisWindow = 0;
+  }
+  return artworkRateLimitDelay(attemptsThisWindow, windowStartedAt, now);
+}
 
 export function parseArtworkTasks(raw: unknown): ArtworkTask[] {
   if (!Array.isArray(raw)) return [];
@@ -59,7 +76,7 @@ function broadcast() {
 export function artworkQueueStatus() {
   const entries=readTasks();
   return { pending: entries.length, running,
-    blocked: pausedUntil > Date.now(),
+    blocked: pausedUntil > Date.now() || rateLimitDelay() > 0,
     failures: entries.filter(x=>x.lastError).length };
 }
 export function enqueueArtwork(name: string, shiny = false): void {
@@ -67,8 +84,9 @@ export function enqueueArtwork(name: string, shiny = false): void {
   const trimmed=name.trim();
   if (!trimmed || trimmed.length > 160) return;
   if (!list.some(t=>t.shiny===shiny && t.name.toLowerCase()===trimmed.toLowerCase())) {
-    list.push({name:trimmed,shiny,attempts:0,nextAttemptAt:0});
-    if(list.length>120) list.shift();
+    // Recently crafted items should not sit behind a backlog of old artwork.
+    list.unshift({name:trimmed,shiny,attempts:0,nextAttemptAt:0});
+    if(list.length>120) list.pop();
     broadcast();
   }
   void pumpArtworkQueue();
@@ -108,18 +126,17 @@ export async function queueMissingArtwork(elements: readonly InfiniteElement[], 
 function planNext() {
   if (timer) clearTimeout(timer);
   if (running || !readTasks().length || typeof window==='undefined') return;
-  if (attemptsThisSession >= MAX_SESSION_ATTEMPTS) return;
-  const next=Math.max(pausedUntil,Math.min(...readTasks().map(t=>t.nextAttemptAt)));
+  const next=Math.max(pausedUntil,Math.min(...readTasks().map(t=>t.nextAttemptAt)),Date.now()+rateLimitDelay());
   // Long timers aren't needed if browser goes to sleep: online/focus also wake us.
   timer=setTimeout(()=>void pumpArtworkQueue(),Math.min(Math.max(1000,next-Date.now()),60_000));
 }
 export async function pumpArtworkQueue(force=false): Promise<void> {
   if (running || typeof window==='undefined') return;
   if (typeof navigator !== 'undefined' && !navigator.onLine) return;
-  if (!force && (pausedUntil>Date.now() || attemptsThisSession>=MAX_SESSION_ATTEMPTS)) return;
+  if (!force && (pausedUntil>Date.now() || rateLimitDelay()>0)) { planNext(); return; }
   const entry=readTasks().find(x=>force || x.nextAttemptAt<=Date.now());
   if (!entry) { planNext();return; }
-  running=true; attemptsThisSession++;
+  running=true; attemptsThisWindow++;
   broadcast();
   try {
     const result=force ? await retryElementEmoji(entry.name,entry.shiny)
@@ -131,7 +148,7 @@ export async function pumpArtworkQueue(force=false): Promise<void> {
     if (/Runway artwork is rendering/i.test(message)) {
       // HTTP 425 means the same paid task is still rendering. Poll that ID,
       // not a fresh generation. This is not a failed/charged retry.
-      attemptsThisSession=Math.max(0,attemptsThisSession-1);
+      attemptsThisWindow=Math.max(0,attemptsThisWindow-1);
       entry.lastError=undefined;
       entry.nextAttemptAt=Date.now()+12_000;
     } else {
@@ -152,7 +169,8 @@ export async function pumpArtworkQueue(force=false): Promise<void> {
 }
 export function retryPendingArtwork(): void {
   pausedUntil=0;
-  attemptsThisSession=0;
+  attemptsThisWindow=0;
+  windowStartedAt=Date.now();
   if (timer) clearTimeout(timer);
   for(const entry of readTasks()) { entry.nextAttemptAt=0;entry.lastError=undefined; }
   broadcast();void pumpArtworkQueue();
