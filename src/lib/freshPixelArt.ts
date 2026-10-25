@@ -15,7 +15,8 @@ type Form='fire'|'water'|'wind'|'earth'|'tree'|'flower'|'mushroom'|'fish'|'cat'|
   |'sushi'|'taco'|'icecream'|'cheese'|'berry'|'apple'|'phone'|'helicopter'
   |'dinosaur'|'cactus'|'castle'|'pancakes'|'umbrella'|'fox'|'bread'
   |'delight'|'cereal'|'cookie'|'donut'|'steak'|'pie'|'candle'|'sandwich'|'dumpling'|'soda'
-  |'owl'|'jellyfish'|'sailboat'|'balloon'|'campfire'|'potion'|'breakfast'|'hourglass'|'ring'|'lightning'|'chimera';
+  |'owl'|'jellyfish'|'sailboat'|'balloon'|'campfire'|'potion'|'breakfast'|'hourglass'|'ring'|'lightning'|'chimera'
+  |'strudel'|'gingerinfusion'|'casserole'|'turkishcoffee'|'aurora'|'kraken'|'bubbletea'|'hologram';
 type Palette={base:string;light:string;shade:string;accent:string;bright:string};
 const PALETTES:Record<string,Palette>={
  fire:{base:'#f87040',light:'#ffb76b',shade:'#b83f3a',accent:'#f7d36d',bright:'#fff4a4'},
@@ -30,6 +31,16 @@ const PALETTES:Record<string,Palette>={
  animal:{base:'#dfaa83',light:'#f9d9a7',shade:'#a77870',accent:'#e98086',bright:'#fff1c9'}
 };
 const PATTERNS:Array<[RegExp,Form,keyof typeof PALETTES]>=[
+  // Individually authored sprites win over vague category matches, so names
+  // such as Toaster Strudel do not display a generic toaster icon.
+  [/\b(?:toaster strudel|apple strudel|fruit strudel|strudel)\b/i,'strudel','food'],
+  [/\b(?:lime[- ]ginger infusion|ginger[- ]lime infusion|ginger infusion)\b/i,'gingerinfusion','nature'],
+  [/\b(?:cheesy steak casserole|steak casserole|baked casserole|casserole)\b/i,'casserole','food'],
+  [/\b(?:turkish coffee|cezve coffee|cezve)\b/i,'turkishcoffee','food'],
+  [/\b(?:aurora borealis|aurora australis|aurora|northern lights)\b/i,'aurora','cosmic'],
+  [/\b(?:kraken|giant squid|leviathan)\b/i,'kraken','water'],
+  [/\b(?:bubble tea|boba tea|boba)\b/i,'bubbletea','food'],
+  [/\b(?:hologram|holographic projection|holo projector)\b/i,'hologram','tech'],
   // Newly authored silhouettes for specific concepts before broad matching rules.
   [/\b(?:owl|barn owl|snowy owl|night owl)\b/i,'owl','animal'],
   [/\b(?:jellyfish|medusa|sea jelly)\b/i,'jellyfish','water'],
@@ -154,6 +165,59 @@ export function generateFreshPixelArt(name:string):string {
   const B=p.base,L=p.light,S=p.shade,A=p.accent,H=p.bright;
   const star=(x:number,y:number,size:number,c:string)=>{line(x-size,y,x+size,y,c);line(x,y-size,x,y+size,c);dot(x,y,H);};
   switch(form){
+    case 'strudel':
+      // Crimped pastry with a visible jam core, icing and toasted layers.
+      rect(3,11,18,9,S);rect(4,9,16,10,B);
+      rect(5,10,14,4,L);rect(5,14,14,4,A);
+      for(let x=6;x<=18;x+=4)line(x,9,x+2,12,H,1);
+      rect(8,15,7,2,S);rect(9,15,5,2,A);
+      rect(6,19,12,1,H);break;
+    case 'gingerinfusion':
+      // Clear herbal teapot, floating lime slice and ginger root.
+      rect(7,10,11,10,B);rect(8,11,9,7,L);
+      rect(10,8,6,3,S);rect(12,5,2,4,H);
+      line(17,12,21,11,S,2);line(21,11,21,17,S,2);line(21,17,18,18,S,2);
+      ellipse(11,15,3,3,A);line(11,12,11,18,H);
+      line(9,15,13,15,H);rect(5,16,3,3,A);rect(4,15,3,2,S);break;
+    case 'casserole':
+      // Ceramic casserole pan topped with visible bubbling golden cheese.
+      rect(4,12,16,9,S);rect(5,11,14,8,B);rect(3,14,3,3,A);rect(18,14,3,3,A);
+      ellipse(12,11,8,4,A);ellipse(10,10,4,2,L);
+      for(const [x,y] of [[7,11],[12,9],[16,12]])rect(x,y,2,2,H);
+      rect(7,17,11,2,L);break;
+    case 'turkishcoffee':
+      // Narrow copper cezve, curved handle and tiny cup on a saucer.
+      rect(7,7,9,11,S);rect(8,8,7,8,B);
+      rect(8,5,8,2,A);rect(9,4,6,2,L);rect(16,8,5,2,S);
+      line(18,10,21,6,A,2);rect(10,11,4,4,H);
+      rect(5,19,13,2,B);rect(7,16,9,3,L);
+      line(10,6,10,3,H);break;
+    case 'aurora':
+      // Stepped flowing light curtains across a miniature night sky.
+      for(let x=4;x<21;x+=3){const bend=(seed>>>x)&3;
+        line(x,5+bend,x+1,13+bend,(x%2)?A:L,2);
+        line(x+1,13+bend,x+2,18-bend,B,1);
+      }
+      star(7,5,1,H);star(18,6,1,H);rect(5,20,15,2,S);break;
+    case 'kraken':
+      // Squid mantle and six curling arms; expressive original monster sprite.
+      ellipse(12,8,6,6,B);ellipse(10,6,3,2,L);
+      rect(9,9,2,2,INK);rect(15,9,2,2,INK);
+      for(const x of [6,9,12,15,18])line(x,12,x+((x%3)-1)*3,20,S,2);
+      line(5,17,3,14,A,2);line(19,18,21,15,A,2);
+      star(12,4,1,H);break;
+    case 'bubbletea':
+      // Transparent boba cup, pearl layer and striped oversized straw.
+      rect(6,8,12,13,S);rect(7,9,10,10,L);
+      rect(5,6,14,3,B);rect(11,3,2,8,A);rect(13,4,2,3,H);
+      for(const [x,y] of [[9,14],[13,15],[16,17],[10,18]])ellipse(x,y,2,2,INK);
+      rect(8,10,8,2,H);break;
+    case 'hologram':
+      // Projector base and translucent floating faceted pyramid.
+      rect(6,18,12,4,S);rect(8,16,8,3,B);rect(10,19,4,1,A);
+      line(12,3,5,12,L,2);line(12,3,19,12,L,2);
+      line(5,12,12,16,B,2);line(19,12,12,16,B,2);
+      line(12,4,12,15,H,1);star(19,5,1,A);break;
     case 'fire':
       ellipse(12,15,6,6,B);line(7,15,10,6,B,4);line(11,15,14,4,S,3);line(16,16,18,9,B,3);ellipse(12,16,3,4,A);line(12,18,12,12,H,2);break;
     case 'water':
