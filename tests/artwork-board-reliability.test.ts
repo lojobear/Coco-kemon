@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { parseArtworkTasks, ARTWORK_FAILURE_DELAY_MS, ARTWORK_QUEUE_KEY, ARTWORK_RATE_WINDOW_MS, ARTWORK_RATE_MAX_ATTEMPTS, artworkRateLimitDelay } from '../src/lib/artworkQueue';
+import { parseArtworkTasks, ARTWORK_FAILURE_DELAY_MS, ARTWORK_QUEUE_KEY, ARTWORK_RATE_WINDOW_MS, ARTWORK_RATE_MAX_ATTEMPTS, artworkRateLimitDelay, nextArtworkQuotaResetUtc } from '../src/lib/artworkQueue';
 import { beginBoardHistory,recordBoardHistory,undoBoard,redoBoard,clampBoardZoom } from '../src/lib/boardHistory';
 
 test('artwork retries survive reload without duplicates or unsafe provider data',()=>{
@@ -75,4 +75,12 @@ test('Sprite Lab can repair previously missed discoveries and rare bonus crafts 
   assert.match(lab,/Retry queued art/);
   const craft=readFileSync(new URL('../src/components/InfiniteCraftView.tsx',import.meta.url),'utf8');
   assert.match(craft,/enqueueArtwork\(bonus\.result, false\)/);
+});
+
+test('quota-exhausted sprite jobs wait for the real Cloudflare UTC reset', () => {
+  assert.equal(nextArtworkQuotaResetUtc(Date.UTC(2026, 9, 25, 22, 30)), Date.UTC(2026, 9, 26));
+  assert.equal(nextArtworkQuotaResetUtc(Date.UTC(2026, 11, 31, 23, 59)), Date.UTC(2027, 0, 1));
+  const queue=readFileSync(new URL('../src/lib/artworkQueue.ts',import.meta.url),'utf8');
+  assert.match(queue,/Daily image allowance used up/);
+  assert.match(queue,/nextArtworkQuotaResetUtc\(\)/);
 });
