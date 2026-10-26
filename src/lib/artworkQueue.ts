@@ -9,6 +9,10 @@ import type { InfiniteElement } from './infiniteCraftData';
 export const ARTWORK_QUEUE_KEY = 'boop-artwork-pending-v1';
 export const ARTWORK_QUEUE_EVENT = 'boop-artwork-queue-updated';
 export const ARTWORK_FAILURE_DELAY_MS = 30 * 60_000;
+export function nextArtworkQuotaResetUtc(now = Date.now()): number {
+  const date = new Date(now);
+  return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate() + 1);
+}
 export interface ArtworkTask {
   name: string;
   shiny: boolean;
@@ -152,15 +156,25 @@ export async function pumpArtworkQueue(force=false): Promise<void> {
       entry.lastError=undefined;
       entry.nextAttemptAt=Date.now()+12_000;
     } else {
-    entry.attempts++;
-    // Provider credentials/quota problems affect every task. Do not flood
-    // every subsequent discovery with the same expensive failed request.
-    const credentialIssue=/runware|quota|allocation|unauthorized|API key|provider|503|429/i.test(message);
-    if (credentialIssue) pausedUntil=Date.now()+ARTWORK_FAILURE_DELAY_MS;
-    entry.lastError=credentialIssue
-      ? 'Artwork providers are temporarily unavailable. Your discovery is saved.'
-      : 'Artwork will be retried when the service is available.';
-    entry.nextAttemptAt=Date.now()+Math.min(24*60*60_000,ARTWORK_FAILURE_DELAY_MS*Math.max(1,entry.attempts));
+      entry.attempts++;
+      if (/Daily image allowance used up|Cloudflare resets at 00:00 UTC/i.test(message)) {
+        // All Cloudflare image calls would fail until the next UTC day. Stop
+        // hammering providers, but preserve the pending discovery and retry
+        // once allocation renews. The user can override after adding billing.
+        const resetAt = nextArtworkQuotaResetUtc() + 5_000;
+        pausedUntil = Math.max(pausedUntil, resetAt);
+        entry.lastError = 'Daily image allowance exhausted. Artwork will resume after 00:00 UTC.';
+        entry.nextAttemptAt = resetAt;
+      } else {
+        // Provider credentials/quota problems affect every task. Do not flood
+        // every subsequent discovery with the same expensive failed request.
+        const credentialIssue=/runware|quota|allocation|unauthorized|API key|provider|503|429/i.test(message);
+        if (credentialIssue) pausedUntil=Date.now()+ARTWORK_FAILURE_DELAY_MS;
+        entry.lastError=credentialIssue
+          ? 'Artwork providers are temporarily unavailable. Your discovery is saved.'
+          : 'Artwork will be retried when the service is available.';
+        entry.nextAttemptAt=Date.now()+Math.min(24*60*60_000,ARTWORK_FAILURE_DELAY_MS*Math.max(1,entry.attempts));
+      }
     }
   } finally {
     running=false;broadcast();planNext();
