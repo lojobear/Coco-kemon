@@ -415,6 +415,12 @@ export function compactSchnellImagePrompt(prompt: string): string {
 // Once Cloudflare's free neuron allowance is depleted, both FLUX models share
 // that exhausted pool. Avoid hammering them on every requested sprite.
 let workersImageQuotaBackoffUntil = 0;
+
+/** Workers AI free neurons refresh at 00:00 UTC, not every five minutes. */
+export function nextWorkersAiResetUtc(now = Date.now()): number {
+  const date = new Date(now);
+  return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate() + 1);
+}
 async function generateWorkersAiImage(prompt: string): Promise<GeminiImageResult | null> {
   const ai = getWorkersAiBinding();
   if (!ai?.run || Date.now() < workersImageQuotaBackoffUntil) return null;
@@ -454,9 +460,9 @@ async function generateWorkersAiImage(prompt: string): Promise<GeminiImageResult
     } catch (error) {
       last = error;
       const message = error instanceof Error ? error.message : String(error);
-      if (/4006.*(?:daily free allocation|neurons)|used up your daily free allocation/i.test(message)) {
-        workersImageQuotaBackoffUntil = Date.now() + 5 * 60_000;
-        console.warn('Cloudflare image quota exhausted; switching to Gemini fallback.');
+      if (/(?:3036|4006).*(?:daily|allocation|neuron)|used up your daily free allocation/i.test(message)) {
+        workersImageQuotaBackoffUntil = nextWorkersAiResetUtc() + 3_000;
+        console.warn('Cloudflare daily image allocation exhausted; pausing Workers AI until 00:00 UTC reset and trying independent fallbacks.');
         break;
       }
       if (model.includes('flux-2-klein-4b') && /3030|flagged/i.test(message)) {
@@ -577,7 +583,10 @@ export async function generateGeminiImage(
       const terminal = terminalGeminiFailure(error);
       if (terminal) {
         if (terminal.status === 429 && !injectedClient) {
-          throw new ApiFailure(503, 'Cloudflare image allocation is unavailable and Gemini image quota is exhausted. The discovery is saved; retry artwork when quota resets.');
+          const cloudflareExhausted = Date.now() < workersImageQuotaBackoffUntil;
+          throw new ApiFailure(503, cloudflareExhausted
+            ? 'Daily image allowance used up. Cloudflare resets at 00:00 UTC; Gemini image generation needs available paid API quota. Your discovery is saved and its sprite will retry.'
+            : 'Gemini image generation is unavailable at your current API quota or billing level. Your discovery is saved; Cloudflare or a configured backup provider may still generate artwork later.');
         }
         throw terminal;
       }
