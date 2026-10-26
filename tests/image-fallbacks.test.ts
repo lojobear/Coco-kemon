@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { compactSchnellImagePrompt, generateGeminiImage, getGeminiImageModels } from '../server/gemini.js';
+import { compactSchnellImagePrompt, generateGeminiImage, getGeminiImageModels, nextWorkersAiResetUtc } from '../server/gemini.js';
 import { setWorkersAiBinding } from '../server/workersAi.js';
 import { buildSpritePrompt } from '../server/emoji.js';
 
@@ -103,4 +103,9 @@ test('Gemini image retries a second image model after an unavailable first model
     if (original === undefined) delete process.env.GEMINI_IMAGE_MODEL;
     else process.env.GEMINI_IMAGE_MODEL = original;
   }
+});
+
+test('Workers AI quota cooldown ends at the next UTC midnight (also across year boundary)', () => {
+  assert.equal(nextWorkersAiResetUtc(Date.UTC(2026, 9, 25, 23, 45)), Date.UTC(2026, 9, 26));
+  assert.equal(nextWorkersAiResetUtc(Date.UTC(2026, 11, 31, 23, 59)), Date.UTC(2027, 0, 1));
 });
