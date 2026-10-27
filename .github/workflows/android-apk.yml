@@ -4,7 +4,7 @@ on:
   pull_request:
     paths: ['android-shell/**', 'src/**', 'server/**', 'server.ts', 'public/**', '.github/workflows/android-apk.yml']
   push:
-    branches: [main]
+    branches: [main, feat/pixel9-quiet-crafting-and-fresh-pixel-art]
     paths: ['android-shell/**', 'src/**', 'server/**', 'server.ts', 'public/**', '.github/workflows/android-apk.yml']
   workflow_dispatch:
 
