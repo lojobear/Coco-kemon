@@ -12,32 +12,47 @@ function verboseSpritePrompt() {
   ].join('\n');
 }
 
-test('Schnell prompt fits 2048 characters while preserving subject and sprite requirements', () => {
+test('Schnell prompt fits 2048 characters while preserving Boop reference style', () => {
   const prompt = compactSchnellImagePrompt(verboseSpritePrompt());
   assert.ok(prompt.length <= 2048);
   assert.match(prompt, /Obsidian Dragon/);
   assert.match(prompt, /upgrade-abc123/);
-  assert.match(prompt, /pixel art|pixel-art/i);
+  assert.match(prompt, /16-bit RPG item sprite/);
+  assert.match(prompt, /BLACK-NAVY #1C2232/);
+  assert.match(prompt, /48x48 or 64x64 logical grid/);
   assert.match(prompt, /#FF00FF/);
-  assert.match(prompt, /dark CHROMATIC outline/);
-  assert.match(prompt, /65-75%/);
-  assert.match(prompt, /No muddy browns/);
 });
 
-test('New native sprites request vibrant subject palettes without invalidating existing cache', () => {
+test('New native sprites use the user-supplied visual style without invalidating existing art', () => {
   const prompt = buildSpritePrompt('Sunflower');
   assert.match(prompt, /Sunflower/);
-  assert.match(prompt, /COLOR IS THE HERO/);
-  assert.match(prompt, /65-75%/);
-  assert.match(prompt, /deep saturated version of the subject color/i);
-  assert.match(prompt, /do NOT coat unrelated subjects with the same brown/i);
+  assert.match(prompt, /LOCKED BOOP PIXEL ART STYLE/);
+  assert.match(prompt, /thick nearly-black NAVY outer outline #1C2232/);
+  assert.match(prompt, /Large connected blocks of saturated flat colors/);
+  assert.match(prompt, /no soft gradients/i);
   assert.match(prompt, /#FF00FF/);
   const reroll = buildSpritePrompt('Sunflower', 'new-colors');
   assert.match(reroll, /Variation token: "new-colors"/);
   const compact = compactSchnellImagePrompt(prompt);
   assert.ok(compact.length <= 2048);
-  assert.match(compact, /Sunflower/);
-  assert.match(compact, /No muddy browns/);
+  assert.match(compact, /#1C2232/);
+});
+
+test('Shiny and compound sprites retain locked style across image providers', () => {
+  const shiny = buildSpritePrompt('Moonstone Battery', '', true);
+  assert.match(shiny, /SHINY \/ ALTERNATE COLORWAY/);
+  assert.match(shiny, /#1C2232/);
+  const shinySchnell = compactSchnellImagePrompt(shiny);
+  assert.match(shinySchnell, /SHINY: switch the actual subject surface colors/);
+  assert.match(shinySchnell, /#1C2232/);
+  assert.ok(shinySchnell.length <= 2048);
+
+  const reroll = buildSpritePrompt('Cheeseburger Combo', 'another-angle');
+  assert.match(reroll, /Variation token: "another-angle"/);
+  assert.match(reroll, /named meal\/set\/combination/);
+  assert.match(reroll, /#FF00FF/);
+  assert.match(reroll, /nearest-neighbor/);
+  assert.match(compactSchnellImagePrompt(reroll), /another-angle/);
 });
 
 test('FLUX.2 receives the original detailed prompt; Schnell fallback receives the compact one', async () => {
