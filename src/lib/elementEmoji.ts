@@ -135,17 +135,30 @@ async function normalizeGeneratedImage(imageBase64: string, mimeType: string): P
   image.src = `data:${mimeType};base64,${imageBase64}`;
   await image.decode();
 
-  // Keep substantially more detail than the old 64px renderer while limiting IndexedDB growth.
-  const size = 512;
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = size;
-  const context = canvas.getContext('2d');
-  if (!context) throw new Error('Could not process generated art.');
+  // User's four locked reference sprites use large, consistently square 16-bit
+  // pixel clusters. Normalize all future AI images (regardless of provider) to
+  // one hard 64x64 pixel grid, then nearest-neighbor scale to a 512px PNG.
+  // Existing cached and hand-uploaded art is returned untouched by this path.
+  const logicalSize = 64;
+  const width = 512;
+  const pixels = document.createElement('canvas');
+  pixels.width = pixels.height = logicalSize;
+  const pixelContext = pixels.getContext('2d');
+  if (!pixelContext) throw new Error('Could not process generated pixel art.');
+  pixelContext.imageSmoothingEnabled = false;
+  pixelContext.clearRect(0, 0, logicalSize, logicalSize);
+  pixelContext.drawImage(image, 0, 0, logicalSize, logicalSize);
+  // Remove the generated chroma-magenta or white backdrop *before* upscaling.
+  // The silhouette's deep navy edge stays opaque and sharply pixelated.
+  clearFlatEdgeBackground(pixelContext, logicalSize);
 
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = width;
+  const context = canvas.getContext('2d');
+  if (!context) throw new Error('Could not upscale generated pixel art.');
   context.imageSmoothingEnabled = false;
-  context.clearRect(0, 0, size, size);
-  context.drawImage(image, 0, 0, size, size);
-  clearFlatEdgeBackground(context, size);
+  context.clearRect(0, 0, width, width);
+  context.drawImage(pixels, 0, 0, width, width);
   return canvas.toDataURL('image/png');
 }
 
