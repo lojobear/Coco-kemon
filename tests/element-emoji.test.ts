@@ -98,6 +98,16 @@ test('endpoint generates once for simultaneous and repeated canonical names', as
   }
 });
 
+test('future image normalization enforces a 64x64 hard pixel grid without touching cached sprites', async () => {
+  const { readFileSync } = await import('node:fs');
+  const code = readFileSync(new URL('../src/lib/elementEmoji.ts', import.meta.url), 'utf8');
+  assert.match(code, /const logicalSize = 64/);
+  assert.match(code, /pixelContext\.imageSmoothingEnabled = false/);
+  assert.match(code, /clearFlatEdgeBackground\(pixelContext, logicalSize\)/);
+  assert.match(code, /context\.imageSmoothingEnabled = false/);
+  assert.match(code, /context\.drawImage\(pixels, 0, 0, width, width\)/);
+});
+
 test('client deduplicates, persists normalized high-resolution art, and supports rerolls', async () => {
   const records = new Map<string, string>();
   const oldIndexedDB = globalThis.indexedDB;
