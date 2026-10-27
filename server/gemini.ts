@@ -3,6 +3,7 @@ import { conceptDNAFor, normalizeDiscoveryCandidates } from './discovery.js';
 import { getWorkersAiBinding } from './workersAi.js';
 import { generateRunwareSprite } from './runware.js';
 import { generateRunwaySprite, RunwayPendingError } from './runway.js';
+import { BOOP_SPRITE_STYLE_COMPACT } from './spriteStyle.js';
 
 export class ApiFailure extends Error {
   status: number;
@@ -396,18 +397,12 @@ export function compactSchnellImagePrompt(prompt: string): string {
     ? firstLine.slice(0, 400)
     : `Create one pixel-art inventory sprite of: ${JSON.stringify(prompt.slice(0, 180))}.`;
   const rerollToken = prompt.match(/Variation token: ([^\n]+)\./)?.[1]?.slice(0, 100);
+  const isShiny = /SHINY \/ ALTERNATE COLORWAY/.test(prompt);
   const concise = [
     subject,
     rerollToken ? `Reroll variant ${rerollToken}: change angle, pose or silhouette; preserve subject identity.` : '',
-    'Premium 32-bit RPG inventory pixel art. One recognizable subject, centered and large (75-80%) in a square canvas.',
-    'Subtle 3/4 isometric perspective, a narrow dark CHROMATIC outline in the subject hue (not black/brown), colorful stepped bevels and layered 2.5D volume.',
-    'Bright colorful collectible sprite: 65-75% of visible sprite in vivid subject-appropriate midtones/highlights, with only small colored occlusion shadows. No muddy browns, sepia, charcoal cast, low exposure or dull/desaturated palette.',
-    'Distinct hues for each subject: emerald leaves, azure ice/water, golden flame, vibrant purple magic, clean silver-blue metal; earthy objects may retain real brown material colors but stay well-lit.',
-    'Crisp 96x96 implied pixel grid, square pixel clusters, faceted materials, bright upper-left highlights and readable 4-6 step hue-shifted color ramps.',
-    'Accurate literal form: recognizable creature anatomy or object shape. No unrelated crystal/orb/slime, no extra limbs or faces on inanimate things.',
-    'Absolutely no text, logos, cards, scenery, cast shadow, aura, particles, duplicate subjects or blurry/soft illustration.',
-    'Perfectly flat SOLID #FF00FF magenta background across entire canvas; no gradients or noise, no magenta inside the subject. Leave clear edge padding.',
-    'Output only one detailed pixel-art item, instantly readable at thumbnail size.',
+    isShiny ? 'SHINY: switch the actual subject surface colors to striking alternate saturated pigments, retaining the same dark outline and anatomy; not just sparkles.' : '',
+    BOOP_SPRITE_STYLE_COMPACT,
   ].filter(Boolean).join('\n');
   return concise.slice(0, 2048);
 }
@@ -473,7 +468,7 @@ async function generateWorkersAiImage(prompt: string): Promise<GeminiImageResult
         if (subject && !/violence|weapon|sexual|nude|gore/i.test(subject)) {
           try {
             const form = new FormData();
-            form.append('prompt', `A simple colorful pixel-art inventory icon of ${subject}. Single centered object, plain magenta background, no text.`);
+            form.append('prompt', `A crisp 16-bit pixel-art inventory icon of ${subject}; thick dark navy #1C2232 square-pixel outline, vibrant stepped colors, hard highlights, one centered recognizable item on flat solid #FF00FF magenta background, no text, no scene.`);
             form.append('width', '512');
             form.append('height', '512');
             const serialized = new Response(form);
