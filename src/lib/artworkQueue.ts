@@ -77,6 +77,11 @@ function broadcast() {
     window.dispatchEvent(new Event(ARTWORK_QUEUE_EVENT));
   } catch { /* Browsing remains playable even if local storage is full. */ }
 }
+/** Read-only view for the Missing Sprites screen. Never silently queue art while browsing. */
+export function artworkQueueEntries(): ArtworkTask[] {
+  return readTasks().map(entry => ({ ...entry }));
+}
+
 export function artworkQueueStatus() {
   const entries=readTasks();
   return { pending: entries.length, running,
