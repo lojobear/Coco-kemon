@@ -1692,3 +1692,65 @@ html.boop-native-shell .boop-app .boop-cloud-dialog {
   font-size: 11px;
   color: #71808e;
 }
+
+/* Missing AI artwork ledger: compact, neutral, touch-friendly on Pixel 9. */
+.boop-app .boop-missing-sprites {
+  display:flex; flex-direction:column; gap:12px; min-width:0;
+  padding:15px 13px; border:1px solid #e2e6ea; border-radius:16px;
+  background:#f9fafb; color:#313842;
+}
+.boop-app .boop-missing-heading {
+  display:flex; align-items:flex-start; justify-content:space-between; gap:10px;
+}
+.boop-app .boop-missing-heading h2 {
+  font-size:16px; font-weight:800; margin:0 0 3px; color:#262e38;
+}
+.boop-app .boop-missing-heading p {
+  font-size:11px; line-height:1.5; margin:0; color:#65717c;
+}
+.boop-app .boop-missing-total {
+  flex:none; border:1px solid #dfe4e9; border-radius:99px;
+  padding:5px 8px; font-size:11px; font-weight:800; background:#fff;
+  white-space:nowrap;
+}
+.boop-app .boop-missing-stats { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px; }
+.boop-app .boop-missing-stats > div {
+  background:white;border:1px solid #e8eaef;border-radius:10px;
+  padding:9px 6px;display:flex;flex-direction:column;align-items:center;gap:2px;
+}
+.boop-app .boop-missing-stats strong {font-size:18px;line-height:1.2;font-variant-numeric:tabular-nums;}
+.boop-app .boop-missing-stats span {font-size:9px;color:#687480;text-align:center;line-height:1.3;}
+.boop-app .boop-missing-tools{display:flex;flex-direction:column;gap:8px;}
+.boop-app .boop-missing-search{display:flex;align-items:center;gap:7px;background:#fff;border:1px solid #dfe3e9;border-radius:10px;padding:0 10px;min-height:41px;}
+.boop-app .boop-missing-search input{width:100%;min-width:0;border:0;outline:0;background:transparent;font-size:13px;color:#29313a;}
+.boop-app .boop-missing-switch{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;}
+.boop-app .boop-missing-switch button{min-height:36px;padding:6px 4px;border:1px solid #e2e5eb;border-radius:9px;background:#fff;color:#505d6b;font-size:11px;font-weight:700;}
+.boop-app .boop-missing-switch button[aria-pressed="true"]{background:#303741;border-color:#303741;color:#fff;}
+.boop-app .boop-missing-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px;}
+.boop-app .boop-missing-actions button,.boop-app .boop-missing-queue {
+  padding:8px 10px;border-radius:9px;border:1px solid #303741;
+  background:#303741;color:#fff;font-size:11px;font-weight:700;min-height:36px;
+}
+.boop-app .boop-missing-actions button:disabled{opacity:.5;cursor:not-allowed;}
+.boop-app .boop-missing-actions small{font-size:10px;color:#65717c;}
+.boop-app .boop-missing-message{font-size:11px;color:#4c5a67;margin:0;}
+.boop-app .boop-missing-list{display:flex;flex-direction:column;gap:5px;min-width:0;}
+.boop-app .boop-missing-row{
+  display:flex;align-items:center;gap:9px;min-width:0;
+  border:1px solid #e8eaf0;background:#fff;border-radius:10px;padding:7px 8px;
+}
+.boop-app .boop-missing-marker{flex:none;display:grid;place-items:center;width:30px;height:30px;border-radius:8px;background:#f1f3f5;color:#6b7280;}
+.boop-app .boop-missing-name{flex:1;min-width:0;text-align:left;border:0;background:none;padding:3px 0;color:#303741;}
+.boop-app .boop-missing-name strong{display:block;font-size:12px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
+.boop-app .boop-missing-name small{display:block;font-size:10px;color:#718090;margin-top:2px;}
+.boop-app .boop-missing-state{flex:none;font-size:10px;font-weight:700;border-radius:99px;padding:5px 7px;background:#edf0f3;color:#576574;}
+.boop-app .boop-missing-state--ready{background:#eaf1ea;color:#396b47;}
+.boop-app .boop-missing-state--retry{background:#fbefdf;color:#925c24;}
+.boop-app .boop-missing-more{min-height:36px;border:1px solid #dce2e7;border-radius:10px;background:#fff;color:#303741;font-size:12px;font-weight:700;}
+.boop-app .boop-missing-empty{text-align:center;color:#718090;font-size:12px;padding:18px 8px;}
+.boop-app .boop-missing-footnote{margin:0;font-size:10px;line-height:1.5;color:#87919e;}
+@media (max-width:550px) {
+  .boop-app .boop-missing-heading {flex-wrap:wrap;}
+  .boop-app .boop-missing-total {font-size:10px;}
+  .boop-app .boop-sprite-picker {padding:12px;gap:12px;}
+}
