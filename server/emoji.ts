@@ -3,8 +3,10 @@ import { generateGeminiImage, publicFailure, ApiFailure, type GeminiImageResult 
 import { emojiKey } from '../src/lib/emojiGeometry.js';
 import { cachedWork } from './persistentCache.js';
 import { clientId, takeAiBudget } from './rateLimit.js';
+import { BOOP_SPRITE_ART_STYLE } from './spriteStyle.js';
 
-const SPRITE_ENGINE_VERSION = 'v9-hq-2p5d-pixel';
+// New model generations use the locked pixel style. Existing local/owned art remains saved.
+const SPRITE_ENGINE_VERSION = 'v10-bold-navy-pixel-16bit';
 
 type ImageGenerator = (prompt: string) => Promise<GeminiImageResult>;
 
@@ -26,27 +28,7 @@ export function buildSpritePrompt(key: string, variation = '', shiny = false): s
       ? `This is a reroll. Variation token: ${JSON.stringify(variation)}. Keep the exact subject identity and the same art direction, but change the pose, orientation, silhouette emphasis, or secondary pixel details enough to be visibly different.`
       : '',
     '',
-    'REFERENCE ART DIRECTION',
-    '- High-end 32-bit pixel-art inventory icon quality with a premium 2.5D game-item finish, like a polished crafting/RPG sprite sheet.',
-    '- The subject is centered and large, occupying roughly 72-82% of the square canvas.',
-    '- A clean, readable 1-2 logical pixel outline chosen from a DEEP SATURATED VERSION OF THE SUBJECT COLOR (e.g. navy for blue ice, forest green for leaves, dark plum for purple fabric); avoid default black or brown outlines.',
-    '- COLOR IS THE HERO: use clear, luminous subject-appropriate hues and generous rich midtones. Keep about 65-75% of the visible sprite in bright or medium-light local colors, not brown/charcoal shadows.',
-    '- Vibrant collectible-game palette with 4-6 clean hue-shifted color steps: saturated local color, lighter chromatic midtones, crisp highlights, and SMALL colored shadow accents; no sepia, muddy brown casts, washed-out grey, or uniformly dark exposure.',
-    '- Choose colors by the literal subject: bright emerald for plants, turquoise/azure for water and ice, coral/orange/gold for flame, luminous violet for magic, clean silver-blue for metal. Earth, bark, leather, and stone can be naturally brown but should still have warm clear highlights and visible texture.',
-    '- Different discoveries need visibly distinct dominant palettes; do NOT coat unrelated subjects with the same brown or dark-gold filter.',
-    '- Bright, evenly legible upper-left lighting: broad illuminated midtones and crisp rectangular highlight clusters. Reserve deep shadows for narrow recesses and a small section of lower-right planes; never darken the whole sprite.',
-    '- Faceted gems, crystals, metal, stone, robots, tools, plants, fossils, devices, and other objects should each use material-appropriate pixel shading.',
-    '- Prefer a subtle 3/4 or isometric presentation when physically sensible: show a readable top plane plus one side/front plane so the object has real volume.',
-    '- Build convincing 2.5D depth with bright pixel-stepped bevels, clean visible thickness, overlapping planes, colored edge highlights and LIMITED narrow occlusion shadows. Keep it pixel art, not smooth 3D.',
-    '- Crisp hand-placed pixel clusters, not smooth vector curves, painterly brushwork, soft airbrushing, or low-detail emoji art.',
-    '',
-    'PIXEL GRID / QUALITY',
-    '- Design on an implied 96x96 logical pixel grid, then upscale cleanly for the final 1:1 image. Use the extra resolution for richer facets, bevels, joints, cracks, material texture, and silhouette refinement.',
-    '- Pixel blocks must be square and consistent in size. No anti-aliased fuzzy edges, no subpixel-looking diagonal blur, no JPEG artifacts.',
-    '- Use enough internal detail to feel premium: 4-6 distinct well-lit COLOR steps, bevels, cracks, facets, seams, inset panels, reflections, joints, leaf veins, tiny edge chips, or material texture only when appropriate to the subject.',
-    '- Surfaces should have intentional plane changes. Gems should show multiple facets, metal should show edge shine and recesses, stone should show depth cracks, devices should show inset screens/panels, and robots should show layered body plates and joints.',
-    '- Keep details purposeful, colorful and easy to read. The sprite should look hand-authored by an experienced pixel artist, not procedurally noisy.',
-    '- Avoid giant empty areas inside the subject, dark monochrome patches, and desaturated shading. Avoid oversimplified 16-bit blob silhouettes, flat front-on clip-art shapes, and single-shade interiors.',
+    BOOP_SPRITE_ART_STYLE,
     '',
     'SUBJECT FIDELITY',
     '- First identify the clearest literal visual interpretation of the name, then draw that.',
@@ -56,19 +38,10 @@ export function buildSpritePrompt(key: string, variation = '', shiny = false): s
     '- Inanimate objects do not get eyes, mouths, teeth, arms, or legs unless the concept explicitly requires them.',
     '- Creatures need coherent anatomy and a normal limb count for their implied body plan unless the concept explicitly says otherwise.',
     '',
-    'ANTI-AI-WEIRDNESS',
-    '- No extra limbs, duplicated appendages, melted geometry, floating fragments, accidental asymmetry, random horns, gratuitous wings, human teeth, giant glassy eyes, creepy grin, or decorative clutter.',
-    '- No text, letters, logos, UI frame, card border, scenery, floor, cast shadow, particles, aura, watermark-like marks, or multiple subjects.',
-    '',
-    'BACKGROUND',
-    '- Use one perfectly flat solid #FF00FF background from edge to edge, with absolutely no gradient, noise, texture, shadow, glow, or vignette.',
-    '- Do not use #FF00FF anywhere inside the sprite itself unless unavoidable; prefer nearby pinks or purples instead.',
-    '- Keep at least 8% clear background padding around the sprite so it never touches the canvas edge.',
-    '',
     'FINAL CHECK',
-    '- The silhouette must be recognizable instantly at thumbnail size.',
-    '- Final image must POP at thumbnail size: colorful polished collectible sprite, immediately readable subject colors, bright pixel clusters, crisp silhouette, layered depth, material-aware micro-detail, no muddy/sepia/dark-brown wash.',
-    '- Output only the image.',
+    '- Match reference icon style: thick square dark navy outlines, saturated chunky pixel clusters, high-contrast highlights, flat key-magenta background removed to transparency.',
+    '- Do not overrender: prioritize crisp pixel shape, legibility and palette consistency over tiny realistic details.',
+    '- Output image only.',
   ].filter(Boolean).join('\n');
 }
 
