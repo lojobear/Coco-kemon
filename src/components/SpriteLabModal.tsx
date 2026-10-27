@@ -12,6 +12,7 @@ import { sound } from '../lib/audio';
 import { ElementSprite, MaterialSprite } from './ElementSprite';
 import { retryElementEmoji, upgradeElementEmoji } from '../lib/elementEmoji';
 import { ARTWORK_QUEUE_EVENT, artworkQueueStatus, queueMissingArtwork, retryPendingArtwork } from '../lib/artworkQueue';
+import { MissingSpritesList } from './MissingSpritesList';
 
 type LabItem =
   | { type: 'craft'; id: string; name: string; sprite?: string; item: InfiniteElement }
@@ -271,6 +272,12 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
                 <button type="button" disabled={uploading || artworkStatus.running} onClick={retryPendingArtwork}>Retry queued art</button>
               </>}
             </div>
+            <MissingSpritesList elements={craftElements} onSelect={id => {
+              setFilter('craft');
+              setQuery('');
+              setSelectedKey(`craft:${id}`);
+              setStatus(null);
+            }} />
             <div className="boop-sprite-picker-grid">{items.map(item => {
               const key = `${item.type}:${item.id}`;
               return <button key={key} disabled={uploading} aria-pressed={selected?.id === item.id && selected?.type === item.type} onClick={() => { sound.playClick(); setSelectedKey(key); setStatus(null); }}><LabSprite target={item} className="boop-picker-sprite" /><strong>{item.name}</strong><small>{item.type}</small></button>;
