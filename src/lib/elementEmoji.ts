@@ -135,11 +135,13 @@ async function normalizeGeneratedImage(imageBase64: string, mimeType: string): P
   image.src = `data:${mimeType};base64,${imageBase64}`;
   await image.decode();
 
-  // User's four locked reference sprites use large, consistently square 16-bit
-  // pixel clusters. Normalize all future AI images (regardless of provider) to
-  // one hard 64x64 pixel grid, then nearest-neighbor scale to a 512px PNG.
-  // Existing cached and hand-uploaded art is returned untouched by this path.
-  const logicalSize = 64;
+  // Habbo-like furni needs delicate 1-pixel diagonal steps, small details and
+  // subject-specific materials. The previous 64px pixel resampling flattened
+  // distinct creations into repetitive chunky shapes.
+  // 128x128 is an intentional detail-preserving catalogue-sprite grid. Keep
+  // anti-aliasing OFF when scaling to 512px and preserve the full outline.
+  // Existing cached artwork and uploads are never re-processed.
+  const logicalSize = 128;
   const width = 512;
   const pixels = document.createElement('canvas');
   pixels.width = pixels.height = logicalSize;
@@ -148,8 +150,6 @@ async function normalizeGeneratedImage(imageBase64: string, mimeType: string): P
   pixelContext.imageSmoothingEnabled = false;
   pixelContext.clearRect(0, 0, logicalSize, logicalSize);
   pixelContext.drawImage(image, 0, 0, logicalSize, logicalSize);
-  // Remove the generated chroma-magenta or white backdrop *before* upscaling.
-  // The silhouette's deep navy edge stays opaque and sharply pixelated.
   clearFlatEdgeBackground(pixelContext, logicalSize);
 
   const canvas = document.createElement('canvas');
