@@ -12,6 +12,9 @@
     ]
   },
   "keep_vars": true,
+  "vars": {
+    "BOOP_SAFE_SPENDING": "1"
+  },
   "ai": {
     "binding": "AI"
   },
