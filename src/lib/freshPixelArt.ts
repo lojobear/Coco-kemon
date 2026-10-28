@@ -10,7 +10,7 @@ type Form='fire'|'water'|'wind'|'earth'|'tree'|'flower'|'mushroom'|'fish'|'cat'|
   |'cake'|'pizza'|'coffee'|'robot'|'rocket'|'cloud'|'sun'|'moon'|'star'|'gem'
   |'book'|'sword'|'heart'|'house'|'mountain'|'burger'|'snow'|'bird'|'butterfly'
   |'clock'|'bottle'|'egg'|'leaf'|'ghost'|'battery'|'planet'|'shell'|'key'
-  |'curio'|'relic'|'creature'|'mechanism'|'crystal';
+  |'curio'|'relic'|'creature'|'mechanism'|'crystal'|'chair'|'sofa'|'table'|'lamp'|'arcade'|'cabinet'|'aquarium'|'bed'|'television';
 type Palette={base:string;light:string;shade:string;accent:string;bright:string};
 const PALETTES:Record<string,Palette>={
  fire:{base:'#f87040',light:'#ffb76b',shade:'#b83f3a',accent:'#f7d36d',bright:'#fff4a4'},
@@ -22,9 +22,20 @@ const PALETTES:Record<string,Palette>={
  tech:{base:'#899cb7',light:'#dbe4f0',shade:'#526883',accent:'#6ed3e0',bright:'#ffffff'},
  ice:{base:'#8ee1ec',light:'#e6fbff',shade:'#55b7ce',accent:'#b0a7eb',bright:'#ffffff'},
  cosmic:{base:'#9c8adb',light:'#e5cfff',shade:'#53589a',accent:'#ffc974',bright:'#fff6ba'},
- animal:{base:'#dfaa83',light:'#f9d9a7',shade:'#a77870',accent:'#e98086',bright:'#fff1c9'}
+ animal:{base:'#dfaa83',light:'#f9d9a7',shade:'#a77870',accent:'#e98086',bright:'#fff1c9'},
+  furni:{base:'#38b5bd',light:'#abf1ee',shade:'#277887',accent:'#fb8bc0',bright:'#f8fffd'},
+  lounge:{base:'#ba78ce',light:'#e4adf3',shade:'#694ca2',accent:'#7fddc9',bright:'#ffffff'}
 };
 const PATTERNS:Array<[RegExp,Form,keyof typeof PALETTES]>=[
+ [/\\b(?:chair|stool|armchair|throne|seat)\\b/i,'chair','lounge'],
+ [/\\b(?:sofa|couch|loveseat|settee)\\b/i,'sofa','lounge'],
+ [/\\b(?:table|desk|countertop|workbench)\\b/i,'table','furni'],
+ [/\\b(?:lamp|lantern|lightbulb|light fixture)\\b/i,'lamp','furni'],
+ [/\\b(?:arcade|pinball|slot cabinet|game machine)\\b/i,'arcade','tech'],
+ [/\\b(?:cabinet|wardrobe|dresser|cupboard|shelf)\\b/i,'cabinet','lounge'],
+ [/\\b(?:aquarium|fish tank|terrarium)\\b/i,'aquarium','water'],
+ [/\\b(?:bed|mattress|bunk)\\b/i,'bed','lounge'],
+ [/\\b(?:television|tv|monitor|display screen)\\b/i,'television','tech'],
  [/\b(?:fire|flame|lava|ember|inferno|volcano)\b/i,'fire','fire'],
  [/\b(?:water|ocean|river|sea|lake|rain|tidal)\b/i,'water','water'],
  [/\b(?:wind|breeze|tornado|air|gust)\b/i,'wind','ice'],
@@ -97,6 +108,41 @@ export function generateFreshPixelArt(name:string):string {
   const B=p.base,L=p.light,S=p.shade,A=p.accent,H=p.bright;
   const star=(x:number,y:number,size:number,c:string)=>{line(x-size,y,x+size,y,c);line(x,y-size,x,y+size,c);dot(x,y,H);};
   switch(form){
+    // Habbo-like local previews for recognizable furni nouns. This is only a
+    // temporary client-side icon, not a completed or saved AI generation.
+    case 'chair':
+      rect(7,6,10,11,S);rect(8,6,8,8,B);rect(9,7,6,3,L);
+      rect(7,14,11,3,B);rect(7,17,3,5,S);rect(15,17,3,5,S);
+      rect(8,13,3,2,L);break;
+    case 'sofa':
+      rect(4,9,16,9,S);rect(5,8,14,6,B);rect(6,8,6,4,L);rect(13,8,5,4,A);
+      rect(3,13,18,6,B);rect(5,18,3,4,S);rect(17,18,3,4,S);
+      rect(6,14,12,2,L);break;
+    case 'table':
+      line(4,11,12,6,L,3);line(12,6,20,11,L,3);
+      line(4,11,12,16,B,3);line(12,16,20,11,B,3);
+      rect(5,14,3,7,S);rect(16,14,3,7,S);line(11,10,16,12,H);break;
+    case 'lamp':
+      ellipse(12,10,7,4,B);rect(6,8,12,2,L);rect(11,13,2,7,S);
+      ellipse(12,20,6,2,B);rect(9,7,6,2,H);break;
+    case 'arcade':
+      rect(6,5,12,16,S);rect(7,6,9,10,B);rect(8,7,7,6,A);
+      rect(8,8,5,4,H);rect(7,15,10,4,L);rect(10,16,2,2,INK);
+      rect(9,20,2,2,S);rect(15,20,2,2,S);break;
+    case 'cabinet':
+      rect(5,6,14,15,S);rect(6,5,12,2,L);rect(6,8,5,11,B);
+      rect(12,8,6,11,A);rect(9,13,1,3,H);rect(13,13,1,3,H);
+      rect(6,20,3,2,S);rect(16,20,3,2,S);break;
+    case 'aquarium':
+      rect(4,7,16,14,S);rect(5,8,14,11,B);rect(7,9,10,7,L);
+      ellipse(12,13,4,2,A);rect(8,12,2,1,H);rect(5,20,14,2,INK);break;
+    case 'bed':
+      rect(5,7,5,12,S);rect(8,9,12,9,B);rect(9,11,10,6,L);
+      rect(9,10,5,4,H);rect(5,18,15,3,S);rect(6,20,2,2,S);
+      rect(18,20,2,2,S);break;
+    case 'television':
+      rect(5,6,14,13,S);rect(7,8,10,9,B);rect(8,9,8,6,A);
+      rect(9,10,4,3,H);rect(10,19,4,2,INK);rect(7,21,10,1,S);break;
     case 'fire':
       ellipse(12,15,6,6,B);line(7,15,10,6,B,4);line(11,15,14,4,S,3);line(16,16,18,9,B,3);ellipse(12,16,3,4,A);line(12,18,12,12,H,2);break;
     case 'water':
