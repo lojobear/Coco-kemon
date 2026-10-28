@@ -8,10 +8,10 @@ import { getPersistentCacheBinding } from './cacheBinding.js';
  *
  * This cannot restrict other Workers, products, taxes or exchange rates.
  * KV writes are eventually consistent and other Workers may use neurons;
- * 7,000 leaves 3,000 neurons of headroom below the 10,000 daily account quota.
+ * 5,000 leaves 5,000 neurons of headroom below the 10,000 daily account quota.
  * This is a cost-reduction guard, not an account-wide billing guarantee.
  */
-export const BOOP_DAILY_IMAGE_NEURON_LIMIT = 7000;
+export const BOOP_DAILY_IMAGE_NEURON_LIMIT = 5000;
 export const FLUX2_KLEIN_512_NEURONS = 26.05;
 export const FLUX1_SCHNELL_8STEP_NEURONS = 4.8 + 8 * 9.6;
 const inMemory = new Map<string, number>();
