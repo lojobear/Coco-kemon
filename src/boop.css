@@ -1754,3 +1754,15 @@ html.boop-native-shell .boop-app .boop-cloud-dialog {
   .boop-app .boop-missing-total {font-size:10px;}
   .boop-app .boop-sprite-picker {padding:12px;gap:12px;}
 }
+
+/* Explain temporary procedural previews without confusing them for AI results. */
+.boop-app .boop-preview-notice {
+  margin: -2px 0 12px;
+  padding: 10px 12px;
+  border: 1px solid #e7e9ee;
+  border-radius: 11px;
+  background: #f7f8fa;
+  color: #65717c;
+  font-size: 12px;
+  line-height: 1.5;
+}
