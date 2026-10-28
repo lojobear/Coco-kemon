@@ -399,9 +399,11 @@ export function compactSchnellImagePrompt(prompt: string): string {
   const rerollToken = prompt.match(/Variation token: ([^\n]+)\./)?.[1]?.slice(0, 100);
   const isShiny = /SHINY \/ ALTERNATE COLORWAY/.test(prompt);
   const paletteLine = prompt.match(/^SUBJECT-BASED PALETTE:\s*(.+)$/m)?.[1]?.slice(0, 350);
+  const subjectDesign = prompt.match(/^SUBJECT DESIGN:\s*(.+)$/m)?.[1]?.slice(0, 620);
 
   const concise = [
     subject,
+    subjectDesign ? `RECOGNIZABLE SUBJECT, NOT GEOMETRIC PLACEHOLDER: ${subjectDesign}` : '',
     paletteLine ? `Distinct subject material colours: ${paletteLine}` : '',
     rerollToken ? `Reroll variant ${rerollToken}: change angle, pose or silhouette; preserve subject identity.` : '',
     isShiny ? 'SHINY: change the actual surface pigments to a clearly different colourway while preserving object shape, clean local-colour outlines and isometric geometry, not merely adding glitter.' : '',
