@@ -398,10 +398,13 @@ export function compactSchnellImagePrompt(prompt: string): string {
     : `Create one pixel-art inventory sprite of: ${JSON.stringify(prompt.slice(0, 180))}.`;
   const rerollToken = prompt.match(/Variation token: ([^\n]+)\./)?.[1]?.slice(0, 100);
   const isShiny = /SHINY \/ ALTERNATE COLORWAY/.test(prompt);
+  const paletteLine = prompt.match(/^SUBJECT-BASED PALETTE:\s*(.+)$/m)?.[1]?.slice(0, 350);
+
   const concise = [
     subject,
+    paletteLine ? `Distinct subject material colours: ${paletteLine}` : '',
     rerollToken ? `Reroll variant ${rerollToken}: change angle, pose or silhouette; preserve subject identity.` : '',
-    isShiny ? 'SHINY: switch the actual subject surface colors to striking alternate saturated pigments, retaining the same dark outline and anatomy; not just sparkles.' : '',
+    isShiny ? 'SHINY: change the actual surface pigments to a clearly different colourway while preserving object shape, clean local-colour outlines and isometric geometry, not merely adding glitter.' : '',
     BOOP_SPRITE_STYLE_COMPACT,
   ].filter(Boolean).join('\n');
   return concise.slice(0, 2048);
@@ -468,7 +471,7 @@ async function generateWorkersAiImage(prompt: string): Promise<GeminiImageResult
         if (subject && !/violence|weapon|sexual|nude|gore/i.test(subject)) {
           try {
             const form = new FormData();
-            form.append('prompt', `A crisp 16-bit pixel-art inventory icon of ${subject}; thick dark navy #1C2232 square-pixel outline, vibrant stepped colors, hard highlights, one centered recognizable item on flat solid #FF00FF magenta background, no text, no scene.`);
+            form.append('prompt', `An original classic Habbo Hotel furni-inspired isometric pixel-art collectible of ${subject}; accurate unique silhouette, 2:1 isometric stair-stepped geometry, thin local-color outlines, true bright material palette, no sepia or brown unless naturally wooden, single centered object on flat #FF00FF magenta chroma background, no text or scene.`);
             form.append('width', '512');
             form.append('height', '512');
             const serialized = new Response(form);
