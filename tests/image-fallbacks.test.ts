@@ -12,47 +12,51 @@ function verboseSpritePrompt() {
   ].join('\n');
 }
 
-test('Schnell prompt fits 2048 characters while preserving Boop reference style', () => {
+test('Schnell compact prompt fits model limit and keeps accurate Habbo-like isometric style', () => {
   const prompt = compactSchnellImagePrompt(verboseSpritePrompt());
   assert.ok(prompt.length <= 2048);
   assert.match(prompt, /Obsidian Dragon/);
   assert.match(prompt, /upgrade-abc123/);
-  assert.match(prompt, /16-bit RPG item sprite/);
-  assert.match(prompt, /BLACK-NAVY #1C2232/);
-  assert.match(prompt, /48x48 or 64x64 logical grid/);
+  assert.match(prompt, /isometric/i);
+  assert.match(prompt, /2:1/);
+  assert.match(prompt, /true subject colours/i);
   assert.match(prompt, /#FF00FF/);
+  assert.doesNotMatch(prompt, /BLACK-NAVY #1C2232/);
 });
 
-test('New native sprites use the user-supplied visual style without invalidating existing art', () => {
-  const prompt = buildSpritePrompt('Sunflower');
-  assert.match(prompt, /Sunflower/);
-  assert.match(prompt, /LOCKED BOOP PIXEL ART STYLE/);
-  assert.match(prompt, /thick nearly-black NAVY outer outline #1C2232/);
-  assert.match(prompt, /Large connected blocks of saturated flat colors/);
-  assert.match(prompt, /no soft gradients/i);
+test('Subject-specific art direction avoids global brown cast and repeated generic shape', async () => {
+  const { spriteColorDirection } = await import('../server/spriteStyle.js');
+  const lake = spriteColorDirection('Ice Lake');
+  const leaf = spriteColorDirection('Green Leaf');
+  const battery = spriteColorDirection('Electric Battery');
+  const bread = spriteColorDirection('Toasted Bread');
+  assert.match(lake, /azure|cyan|teal/i);
+  assert.match(leaf, /green|emerald/i);
+  assert.match(battery, /silver|cyan/i);
+  assert.match(bread, /brown/i);
+  assert.notEqual(lake, leaf);
+  assert.notEqual(lake, battery);
+  const prompt = buildSpritePrompt('Ice Lake');
+  assert.match(prompt, /original classic virtual-hotel FURNI/i);
+  assert.match(prompt, /orthographic ISOMETRIC 2:1/);
+  assert.match(prompt, /Most non-wooden sprites must contain NO brown/);
+  assert.match(prompt, /SUBJECT-BASED PALETTE:.*Aquatic or ice elements/);
   assert.match(prompt, /#FF00FF/);
-  const reroll = buildSpritePrompt('Sunflower', 'new-colors');
-  assert.match(reroll, /Variation token: "new-colors"/);
+  assert.doesNotMatch(prompt, /thick nearly-black NAVY outer outline/);
   const compact = compactSchnellImagePrompt(prompt);
   assert.ok(compact.length <= 2048);
-  assert.match(compact, /#1C2232/);
+  assert.match(compact, /Aquatic or ice elements/);
 });
 
-test('Shiny and compound sprites retain locked style across image providers', () => {
-  const shiny = buildSpritePrompt('Moonstone Battery', '', true);
+test('Shiny and reroll keep the same object but different palette and geometry', () => {
+  const shiny = buildSpritePrompt('Cobalt Battery', '', true);
   assert.match(shiny, /SHINY \/ ALTERNATE COLORWAY/);
-  assert.match(shiny, /#1C2232/);
-  const shinySchnell = compactSchnellImagePrompt(shiny);
-  assert.match(shinySchnell, /SHINY: switch the actual subject surface colors/);
-  assert.match(shinySchnell, /#1C2232/);
-  assert.ok(shinySchnell.length <= 2048);
-
-  const reroll = buildSpritePrompt('Cheeseburger Combo', 'another-angle');
-  assert.match(reroll, /Variation token: "another-angle"/);
-  assert.match(reroll, /named meal\/set\/combination/);
-  assert.match(reroll, /#FF00FF/);
-  assert.match(reroll, /nearest-neighbor/);
-  assert.match(compactSchnellImagePrompt(reroll), /another-angle/);
+  const snabb = compactSchnellImagePrompt(shiny);
+  assert.match(snabb, /SHINY: change/);
+  assert.match(snabb, /cool silver\/graphite casing/);
+  const reroll = buildSpritePrompt('Chess Table', 'new-angle');
+  assert.match(reroll, /Variation token: "new-angle"/);
+  assert.match(compactSchnellImagePrompt(reroll), /new-angle/);
 });
 
 test('FLUX.2 receives the original detailed prompt; Schnell fallback receives the compact one', async () => {
