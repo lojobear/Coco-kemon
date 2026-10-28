@@ -1,5 +1,4 @@
 import { getPersistentCacheBinding } from './cacheBinding.js';
-import { ApiFailure } from './gemini.js';
 
 /**
  * BOOP SPENDING GUARD
@@ -8,10 +7,11 @@ import { ApiFailure } from './gemini.js';
  * and disable paid image-provider fallbacks in gemini.ts.
  *
  * This cannot restrict other Workers, products, taxes or exchange rates.
- * KV writes are eventually consistent, so it is intentionally far below
- * Cloudflare's 10,000-free-neuron account threshold.
+ * KV writes are eventually consistent and other Workers may use neurons;
+ * 7,000 leaves 3,000 neurons of headroom below the 10,000 daily account quota.
+ * This is a cost-reduction guard, not an account-wide billing guarantee.
  */
-export const BOOP_DAILY_IMAGE_NEURON_LIMIT = 3000;
+export const BOOP_DAILY_IMAGE_NEURON_LIMIT = 7000;
 export const FLUX2_KLEIN_512_NEURONS = 26.05;
 export const FLUX1_SCHNELL_8STEP_NEURONS = 4.8 + 8 * 9.6;
 const inMemory = new Map<string, number>();
@@ -24,9 +24,10 @@ export function utcBudgetDay(now = Date.now()): string {
   return new Date(now).toISOString().slice(0, 10);
 }
 
-export class ImageBudgetExceeded extends ApiFailure {
+export class ImageBudgetExceeded extends Error {
+  readonly status = 429;
   constructor() {
-    super(429, 'Boop image spending guard: the safe free daily image allowance has been reached. No paid image request was made. Artwork is saved and can retry after 00:00 UTC.');
+    super('Boop safe daily image allowance reached. No paid image request was made. Your artwork is queued for the free allowance to reset at 00:00 UTC.');
     this.name = 'ImageBudgetExceeded';
   }
 }
