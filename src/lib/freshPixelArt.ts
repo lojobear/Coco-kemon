@@ -286,15 +286,16 @@ export function generateFreshPixelArt(name:string):string {
     case 'key':
       ellipse(8,8,5,5,B);ellipse(8,8,2,2,H);line(11,12,19,20,S,3);rect(17,18,4,2,A);break;
     case 'curio':case 'relic':case 'creature':case 'mechanism':case 'crystal':{
-      // Unrecognized elements still receive *different, named original pixel
-      // illustrations*, not the same placeholder or emoji.
-      const variant=seed%5,accentOffset=(seed>>>8)%5;
-      if(variant===0){rect(6,9,12,11,B);ellipse(12,8,6,5,L);rect(9,12,6,5,A);star(12,14,2,H);}
-      else if(variant===1){ellipse(12,12,8,8,B);ellipse(9,9,5,4,L);rect(8,15,8,3,S);star(15,8,2,A);}
-      else if(variant===2){rect(6,7,12,13,S);rect(8,9,8,9,B);rect(11,3,3,5,L);rect(9,12,2,2,A);rect(14,12,2,2,A);}
-      else if(variant===3){ellipse(12,13,7,6,B);rect(8,4,8,7,S);ellipse(12,7,4,4,L);rect(9,15,6,3,A);}
-      else {line(5,17,12,4,B,5);line(12,4,19,17,S,5);ellipse(12,14,5,5,A);star(12,14,2,H);}
-      dot(8+accentOffset,6,H);dot(16-accentOffset,19,A);break;
+      // Unknown concepts are NOT representable using 5 random shapes. The
+      // previous fallback made unrelated items look like cubes/plates/gems.
+      // Display an intentionally recognizable "artwork not ready" brush
+      // emblem rather than pretending we generated a meaningful sprite.
+      const accent = seed % 2 ? A : B;
+      rect(5,6,14,14,S);rect(6,7,12,12,L);
+      rect(7,8,10,8,H);rect(8,9,7,6,B);
+      line(7,17,17,8,INK,3);line(9,18,19,8,accent,2);
+      rect(16,5,3,3,H);dot(18,4,accent);
+      break;
     }
   }
   // One-pixel ink border, precise readable silhouette at 24/48/96px.
