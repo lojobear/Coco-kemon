@@ -79,7 +79,7 @@ test('endpoint generates once for simultaneous and repeated canonical names', as
     const firstReply = await replies[0].json() as any;
     const secondReply = await replies[1].json() as any;
     assert.deepEqual(firstReply, secondReply);
-    assert.equal(firstReply.engineVersion, 'v10-bold-navy-pixel-16bit');
+    assert.equal(firstReply.engineVersion, 'v11-isometric-furni-colourful');
     assert.equal(firstReply.provenance, 'gemini-native-image-pixel-art');
     assert.equal(firstReply.mimeType, 'image/png');
     assert.equal(firstReply.imageBase64, fakeImage.data);
@@ -98,10 +98,10 @@ test('endpoint generates once for simultaneous and repeated canonical names', as
   }
 });
 
-test('future image normalization enforces a 64x64 hard pixel grid without touching cached sprites', async () => {
+test('future isometric furni normalization preserves 128px detail without changing existing cached sprites', async () => {
   const { readFileSync } = await import('node:fs');
   const code = readFileSync(new URL('../src/lib/elementEmoji.ts', import.meta.url), 'utf8');
-  assert.match(code, /const logicalSize = 64/);
+  assert.match(code, /const logicalSize = 128/);
   assert.match(code, /pixelContext\.imageSmoothingEnabled = false/);
   assert.match(code, /clearFlatEdgeBackground\(pixelContext, logicalSize\)/);
   assert.match(code, /context\.imageSmoothingEnabled = false/);
