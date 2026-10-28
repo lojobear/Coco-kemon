@@ -61,3 +61,25 @@ test('Combine screen puts the real ingredient panel first and hides advanced pro
   assert.match(styles,/\.boop-app \.boop-board-toolbar--quiet/);
   assert.match(styles,/max-width:760px/);
 });
+
+
+test('Glassblowing and Space Rations no longer use random cube/diamond fallback shapes', () => {
+  assert.equal(pixelArtFormFor('Glassblowing'), 'glassblowing');
+  assert.equal(pixelArtFormFor('Space Rations'), 'rations');
+  assert.equal(pixelArtFormFor('Glassblown Vase'), 'glassblowing');
+  assert.equal(pixelArtFormFor('Artist Camera'), 'camera');
+  assert.notEqual(generateFreshPixelArt('Glassblowing'), generateFreshPixelArt('Space Rations'));
+  const art=read('src/lib/freshPixelArt.ts');
+  assert.match(art, /case 'glassblowing'/);
+  assert.match(art, /case 'rations'/);
+  assert.doesNotMatch(art, /const variant=seed%5/);
+});
+
+test('Sprite Lab distinguishes pending placeholder artwork from a completed saved AI sprite', () => {
+  const src=read('src/components/SpriteLabModal.tsx');
+  assert.match(src,/TEMPORARY PLACEHOLDER/);
+  assert.match(src,/ARTWORK QUEUED · PLACEHOLDER/);
+  assert.match(src,/SAVED SPRITE/);
+  assert.match(src,/This is a temporary offline icon, not finished AI artwork/);
+  assert.doesNotMatch(src,/>LIVE PREVIEW</);
+});
