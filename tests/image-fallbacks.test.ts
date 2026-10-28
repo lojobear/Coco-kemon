@@ -131,3 +131,19 @@ test('Workers AI quota cooldown ends at the next UTC midnight (also across year 
   assert.equal(nextWorkersAiResetUtc(Date.UTC(2026, 9, 25, 23, 45)), Date.UTC(2026, 9, 26));
   assert.equal(nextWorkersAiResetUtc(Date.UTC(2026, 11, 31, 23, 59)), Date.UTC(2027, 0, 1));
 });
+
+
+test('concrete semantic subjects survive premium and compact fallback prompts', async () => {
+  const {spriteSubjectDirection}=await import('../server/spriteStyle.js');
+  assert.match(spriteSubjectDirection('Glassblowing'), /long metal blowpipe/);
+  assert.match(spriteSubjectDirection('Space Rations'), /open silver foil pouch/);
+  for (const [name, detail] of [['Glassblowing',/blowpipe/],['Space Rations',/food ration KIT/]] as const) {
+    const premium=buildSpritePrompt(name);
+    assert.match(premium,/SUBJECT DESIGN:/);
+    assert.match(premium,detail);
+    const compact=compactSchnellImagePrompt(premium);
+    assert.ok(compact.length<=2048);
+    assert.match(compact,detail);
+    assert.match(compact,/RECOGNIZABLE SUBJECT, NOT GEOMETRIC PLACEHOLDER/);
+  }
+});
