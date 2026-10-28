@@ -31,17 +31,17 @@ const PALETTES:Record<string,Palette>={
 };
 const PATTERNS:Array<[RegExp,Form,keyof typeof PALETTES]>=[
 
- [/\\b(?:glassblow(?:ing|er|n)?|blowpipe|molten glass|glass furnace)\\b/i,'glassblowing','glass'],
- [/\\b(?:space rations?|astronaut (?:food|meal)|ration packs?|survival rations?|meal ready to eat|mre)\\b/i,'rations','rations'],
- [/\\b(?:glassware|vase|decanter|carafe|goblet|wineglass|tumbler|flask|beaker)\\b/i,'glassware','glass'],
- [/\\b(?:meal|dinner|lunch|supper|breakfast platter|feast|snack|bento|rations?|cuisine|banquet)\\b/i,'meal','food'],
- [/\\b(?:violin|guitar|ukulele|drum|harp|flute|trumpet|harmonica|piano|instrument)\\b/i,'instrument','lounge'],
- [/\\b(?:painting|portrait|artwork|canvas|easel|mural)\\b/i,'painting','stationery'],
- [/\\b(?:camera|photograph|video recorder)\\b/i,'camera','tech'],
- [/\\b(?:car|truck|train|bicycle|motorcycle|bus|vehicle|boat|wagon)\\b/i,'vehicle','tech'],
- [/\\b(?:telescope|observatory|microscope|lens|binoculars)\\b/i,'telescope','tech'],
- [/\\b(?:tools?|wrench|hammer|saw|drill|screwdriver|workshop|forging|smithing)\\b/i,'toolkit','tech'],
- [/\\b(?:present|gift|surprise|parcel|package|wrapped)\\b/i,'gift','stationery'],
+ [/\b(?:glassblow(?:ing|er|n)?|blowpipe|molten glass|glass furnace)\b/i,'glassblowing','glass'],
+ [/\b(?:space rations?|astronaut (?:food|meal)|ration packs?|survival rations?|meal ready to eat|mre)\b/i,'rations','rations'],
+ [/\b(?:glassware|vase|decanter|carafe|goblet|wineglass|tumbler|flask|beaker)\b/i,'glassware','glass'],
+ [/\b(?:meal|dinner|lunch|supper|breakfast platter|feast|snack|bento|rations?|cuisine|banquet)\b/i,'meal','food'],
+ [/\b(?:violin|guitar|ukulele|drum|harp|flute|trumpet|harmonica|piano|instrument)\b/i,'instrument','lounge'],
+ [/\b(?:painting|portrait|artwork|canvas|easel|mural)\b/i,'painting','stationery'],
+ [/\b(?:camera|photograph|video recorder)\b/i,'camera','tech'],
+ [/\b(?:car|truck|train|bicycle|motorcycle|bus|vehicle|boat|wagon)\b/i,'vehicle','tech'],
+ [/\b(?:telescope|observatory|microscope|lens|binoculars)\b/i,'telescope','tech'],
+ [/\b(?:tools?|wrench|hammer|saw|drill|screwdriver|workshop|forging|smithing)\b/i,'toolkit','tech'],
+ [/\b(?:present|gift|surprise|parcel|package|wrapped)\b/i,'gift','stationery'],
 
  [/\b(?:chair|stool|armchair|throne|seat)\b/i,'chair','lounge'],
  [/\b(?:sofa|couch|loveseat|settee)\b/i,'sofa','lounge'],
