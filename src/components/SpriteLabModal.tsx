@@ -10,9 +10,10 @@ import { readCraftElements, saveCraftElements, SAVE_IMPORTED_EVENT, getSaveError
 import { InfiniteElement } from '../lib/infiniteCraftData';
 import { sound } from '../lib/audio';
 import { ElementSprite, MaterialSprite } from './ElementSprite';
-import { retryElementEmoji, upgradeElementEmoji } from '../lib/elementEmoji';
-import { ARTWORK_QUEUE_EVENT, artworkQueueStatus, queueMissingArtwork, retryPendingArtwork } from '../lib/artworkQueue';
+import { getElementEmoji, retryElementEmoji, upgradeElementEmoji } from '../lib/elementEmoji';
+import { ARTWORK_QUEUE_EVENT, artworkQueueEntries, artworkQueueStatus, queueMissingArtwork, retryPendingArtwork } from '../lib/artworkQueue';
 import { MissingSpritesList } from './MissingSpritesList';
+import { spriteVariantKey } from '../lib/spriteVariant';
 
 type LabItem =
   | { type: 'craft'; id: string; name: string; sprite?: string; item: InfiniteElement }
@@ -108,6 +109,50 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
     () => items.find(item => `${item.type}:${item.id}` === selectedKey) || items[0] || null,
     [items, selectedKey]
   );
+
+  // Show whether the preview is actual saved artwork or just a temporary
+  // offline placeholder. The old "LIVE PREVIEW" label was misleading.
+  const [savedPreview, setSavedPreview] = useState(false);
+  const [previewChecked, setPreviewChecked] = useState(false);
+  useEffect(() => {
+    let disposed = false;
+    const refresh = () => {
+      if (selected?.type !== 'craft' || selected.sprite) {
+        setSavedPreview(false);
+        setPreviewChecked(true);
+        return;
+      }
+      void getElementEmoji(selected.name, false, '', false)
+        .then(sprite => { if (!disposed) { setSavedPreview(Boolean(sprite)); setPreviewChecked(true); } })
+        .catch(() => { if (!disposed) { setSavedPreview(false); setPreviewChecked(true); } });
+    };
+    setSavedPreview(false);
+    setPreviewChecked(false);
+    refresh();
+    const onSprite = (event: Event) => {
+      const key = (event as CustomEvent<string>).detail;
+      if (selected?.type === 'craft' && key === spriteVariantKey(selected.name)) refresh();
+    };
+    window.addEventListener('oddkin-emoji-retry', onSprite);
+    window.addEventListener(PROFILE_SPRITES_UPDATED, refresh);
+    return () => {
+      disposed = true;
+      window.removeEventListener('oddkin-emoji-retry', onSprite);
+      window.removeEventListener(PROFILE_SPRITES_UPDATED, refresh);
+    };
+  }, [selected?.id, selected?.name, selected?.type, selected?.sprite]);
+
+  const previewQueued = selected?.type === 'craft' && artworkQueueEntries()
+    .some(item => !item.shiny && item.name.toLowerCase() === selected.name.toLowerCase());
+  const previewLabel = selected?.sprite
+    ? 'CUSTOM SPRITE'
+    : selected?.type !== 'craft'
+      ? 'ITEM PREVIEW'
+      : !previewChecked
+        ? 'CHECKING ARTWORK'
+        : savedPreview
+          ? 'SAVED SPRITE'
+          : previewQueued ? 'ARTWORK QUEUED · PLACEHOLDER' : 'TEMPORARY PLACEHOLDER';
 
   useEffect(() => {
     const update = () => setCraftElements(readCraftElements());
@@ -248,7 +293,10 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
         <div className="boop-lab-layout">
           <aside className="boop-sprite-editor">
             {selected ? <>
-              <div className="boop-sprite-preview"><span className="boop-preview-tag">LIVE PREVIEW</span><LabSprite target={selected} className="boop-editor-sprite" /></div>
+              <div className="boop-sprite-preview"><span className="boop-preview-tag">{previewLabel}</span><LabSprite target={selected} className="boop-editor-sprite" /></div>
+              {selected.type === 'craft' && previewChecked && !selected.sprite && !savedPreview && <p className="boop-preview-notice" role="status">
+                This is a temporary offline icon, not finished AI artwork. Its unique sprite still needs generating.
+              </p>}
               <div className="boop-sprite-identity"><h2>{selected.name}</h2><span className="boop-category-tag">{selected.type === 'craft' ? 'Discovery' : selected.type === 'oddkin' ? 'Oddkin' : selected.item.rarity.toLowerCase()}</span><span className="boop-category-tag">Your collection</span></div>
               <div className="boop-sprite-actions"><button className="boop-primary" disabled={uploading} onClick={() => uploadRef.current?.click()}><Upload size={18} />Upload artwork</button><button className="boop-secondary" disabled={uploading} onClick={() => void reroll(selected)}><RefreshCw size={18} />{uploading ? 'Working…' : 'Reroll sprite'}</button></div>
               <input ref={uploadRef} type="file" accept="image/png,image/webp,image/jpeg" className="hidden" onChange={event => void uploadCustom(event.target.files?.[0])} />
