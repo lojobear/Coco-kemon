@@ -3,16 +3,17 @@ import { generateGeminiImage, publicFailure, ApiFailure, type GeminiImageResult 
 import { emojiKey } from '../src/lib/emojiGeometry.js';
 import { cachedWork } from './persistentCache.js';
 import { clientId, takeAiBudget } from './rateLimit.js';
-import { BOOP_SPRITE_ART_STYLE, spriteColorDirection } from './spriteStyle.js';
+import { BOOP_SPRITE_ART_STYLE, spriteColorDirection, spriteSubjectDirection } from './spriteStyle.js';
 
 // New model generations use the locked pixel style. Existing local/owned art remains saved.
-const SPRITE_ENGINE_VERSION = 'v12-bold-clean-furni';
+const SPRITE_ENGINE_VERSION = 'v13-semantic-object-furni';
 
 type ImageGenerator = (prompt: string) => Promise<GeminiImageResult>;
 
 export function buildSpritePrompt(key: string, variation = '', shiny = false): string {
   return [
     `Create one premium pixel-art inventory sprite for this exact subject: ${JSON.stringify(key)}.`,
+    `SUBJECT DESIGN: ${spriteSubjectDirection(key)}`,
     `SUBJECT-BASED PALETTE: ${spriteColorDirection(key)}`,
     shiny
       ? [
@@ -33,6 +34,7 @@ export function buildSpritePrompt(key: string, variation = '', shiny = false): s
     '',
     'SUBJECT FIDELITY',
     '- First identify the clearest literal visual interpretation of the name, then draw that.',
+    '- The distinctive real-world parts named in SUBJECT DESIGN must be present; no cube, slab or geometric placeholder is allowed unless the actual subject is specifically a cube.',
     '- A sword must unmistakably be a sword; dirt a mound of dirt; a robot a coherent robot; a gemstone a faceted gemstone; a fossil a fossil; a tablet/device a device.',
     '- For compound or fictional concepts, combine only the strongest recognizable visual cues into one coherent sprite.',
     '- Do not invent a crystal, orb, mascot, slime, or magic blob unless the subject actually calls for one.',
