@@ -54,7 +54,7 @@ test('Combine screen puts the real ingredient panel first and hides advanced pro
   assert.ok(src.indexOf('className={`combine-dock') < src.indexOf('className="discovery-heading"'));
   assert.match(src,/<h1>Combine\.<\/h1>/);
   assert.match(src,/<details className="boop-foundry-progress-details">/);
-  assert.match(src,/generateFreshPixelArt\(item\.name\)/);
+  assert.match(src,/<MaterialSprite material=\{item\} className="discovery-emoji"\s*\/>/);
   assert.match(src,/runSynthesis\(\)/);
   const styles=read('src/boop.css');
   assert.match(styles,/\.boop-app \.collection-workbench \.discovery-grid \{grid-template-columns:repeat\(3/);
