@@ -39,6 +39,9 @@ test('Subject-specific art direction avoids global brown cast and repeated gener
   const prompt = buildSpritePrompt('Ice Lake');
   assert.match(prompt, /original classic virtual-hotel FURNI/i);
   assert.match(prompt, /orthographic ISOMETRIC 2:1/);
+  assert.match(prompt, /BOLD BUT PRECISE FURNI READABILITY/);
+  assert.match(prompt, /NO glitch-like artifacts/);
+  assert.match(prompt, /broken outlines, stray pixels/);
   assert.match(prompt, /Most non-wooden sprites must contain NO brown/);
   assert.match(prompt, /SUBJECT-BASED PALETTE:.*Aquatic or ice elements/);
   assert.match(prompt, /#FF00FF/);
