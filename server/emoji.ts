@@ -3,23 +3,24 @@ import { generateGeminiImage, publicFailure, ApiFailure, type GeminiImageResult 
 import { emojiKey } from '../src/lib/emojiGeometry.js';
 import { cachedWork } from './persistentCache.js';
 import { clientId, takeAiBudget } from './rateLimit.js';
-import { BOOP_SPRITE_ART_STYLE } from './spriteStyle.js';
+import { BOOP_SPRITE_ART_STYLE, spriteColorDirection } from './spriteStyle.js';
 
 // New model generations use the locked pixel style. Existing local/owned art remains saved.
-const SPRITE_ENGINE_VERSION = 'v10-bold-navy-pixel-16bit';
+const SPRITE_ENGINE_VERSION = 'v11-isometric-furni-colourful';
 
 type ImageGenerator = (prompt: string) => Promise<GeminiImageResult>;
 
 export function buildSpritePrompt(key: string, variation = '', shiny = false): string {
   return [
     `Create one premium pixel-art inventory sprite for this exact subject: ${JSON.stringify(key)}.`,
+    `SUBJECT-BASED PALETTE: ${spriteColorDirection(key)}`,
     shiny
       ? [
         'SHINY / ALTERNATE COLORWAY: This is a RARE SHINY variant of the SAME item, not a different subject.',
         'Change the primary and secondary pigment colors substantially from its ordinary real-world palette.',
         'Use an unmistakable alternative colorway: luminous violet/cyan/rose/gold accents selected for contrast and collector appeal.',
         'Keep the characteristic silhouette and recognizable object parts intact. Do not just add glitter or a golden border.',
-        'Draw the changed pigments across the actual subject surfaces; it must look distinctly different at 48px.',
+        'Draw the changed pigments across the actual subject surfaces; it must look distinctly different at thumbnail size.',
         'Use a few sharp iridescent pixel highlights only within the subject, with NO external glow or particles.',
         'Never write SHINY or any words.',
       ].join('\n')
@@ -39,8 +40,8 @@ export function buildSpritePrompt(key: string, variation = '', shiny = false): s
     '- Creatures need coherent anatomy and a normal limb count for their implied body plan unless the concept explicitly says otherwise.',
     '',
     'FINAL CHECK',
-    '- Match reference icon style: thick square dark navy outlines, saturated chunky pixel clusters, high-contrast highlights, flat key-magenta background removed to transparency.',
-    '- Do not overrender: prioritize crisp pixel shape, legibility and palette consistency over tiny realistic details.',
+    '- Match classic virtual-hotel furni pixel art: fine local-colour contours, clean 2:1 isometric geometry, bright individual palettes and credible object materials.',
+    '- Do not use any single universal palette, brown filter or reused silhouette: every discovered item must look like its uniquely named subject.',
     '- Output image only.',
   ].filter(Boolean).join('\n');
 }
