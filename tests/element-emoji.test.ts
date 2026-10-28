@@ -103,7 +103,8 @@ test('future isometric furni normalization preserves 128px detail without changi
   const code = readFileSync(new URL('../src/lib/elementEmoji.ts', import.meta.url), 'utf8');
   assert.match(code, /const logicalSize = 128/);
   assert.match(code, /pixelContext\.imageSmoothingEnabled = false/);
-  assert.match(code, /clearFlatEdgeBackground\(pixelContext, logicalSize\)/);
+  assert.match(code, /removeEdgeConnectedBackground\(sourcePixels.data, sourceSize, sourceSize\)/);
+  assert.match(code, /tidyGeneratedSpritePixels\(pixelData.data, logicalSize, logicalSize\)/);
   assert.match(code, /context\.imageSmoothingEnabled = false/);
   assert.match(code, /context\.drawImage\(pixels, 0, 0, width, width\)/);
 });
