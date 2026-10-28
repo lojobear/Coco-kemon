@@ -10,7 +10,7 @@ type Form='fire'|'water'|'wind'|'earth'|'tree'|'flower'|'mushroom'|'fish'|'cat'|
   |'cake'|'pizza'|'coffee'|'robot'|'rocket'|'cloud'|'sun'|'moon'|'star'|'gem'
   |'book'|'sword'|'heart'|'house'|'mountain'|'burger'|'snow'|'bird'|'butterfly'
   |'clock'|'bottle'|'egg'|'leaf'|'ghost'|'battery'|'planet'|'shell'|'key'
-  |'curio'|'relic'|'creature'|'mechanism'|'crystal'|'chair'|'sofa'|'table'|'lamp'|'arcade'|'cabinet'|'aquarium'|'bed'|'television';
+  |'curio'|'relic'|'creature'|'mechanism'|'crystal'|'chair'|'sofa'|'table'|'lamp'|'arcade'|'cabinet'|'aquarium'|'bed'|'television'|'glassblowing'|'rations'|'glassware'|'meal'|'instrument'|'painting'|'camera'|'vehicle'|'telescope'|'toolkit'|'gift';
 type Palette={base:string;light:string;shade:string;accent:string;bright:string};
 const PALETTES:Record<string,Palette>={
  fire:{base:'#f87040',light:'#ffb76b',shade:'#b83f3a',accent:'#f7d36d',bright:'#fff4a4'},
@@ -24,18 +24,34 @@ const PALETTES:Record<string,Palette>={
  cosmic:{base:'#9c8adb',light:'#e5cfff',shade:'#53589a',accent:'#ffc974',bright:'#fff6ba'},
  animal:{base:'#dfaa83',light:'#f9d9a7',shade:'#a77870',accent:'#e98086',bright:'#fff1c9'},
   furni:{base:'#38b5bd',light:'#abf1ee',shade:'#277887',accent:'#fb8bc0',bright:'#f8fffd'},
-  lounge:{base:'#ba78ce',light:'#e4adf3',shade:'#694ca2',accent:'#7fddc9',bright:'#ffffff'}
+  lounge:{base:'#ba78ce',light:'#e4adf3',shade:'#694ca2',accent:'#7fddc9',bright:'#ffffff'},
+  glass:{base:'#49cfda',light:'#d4fcff',shade:'#3986c2',accent:'#f27343',bright:'#ffffff'},
+  rations:{base:'#6db4d8',light:'#d7f6ed',shade:'#344b8b',accent:'#f3bc4d',bright:'#ffffff'},
+  stationery:{base:'#f0739e',light:'#fce4ec',shade:'#a74694',accent:'#ffd65e',bright:'#ffffff'}
 };
 const PATTERNS:Array<[RegExp,Form,keyof typeof PALETTES]>=[
- [/\\b(?:chair|stool|armchair|throne|seat)\\b/i,'chair','lounge'],
- [/\\b(?:sofa|couch|loveseat|settee)\\b/i,'sofa','lounge'],
- [/\\b(?:table|desk|countertop|workbench)\\b/i,'table','furni'],
- [/\\b(?:lamp|lantern|lightbulb|light fixture)\\b/i,'lamp','furni'],
- [/\\b(?:arcade|pinball|slot cabinet|game machine)\\b/i,'arcade','tech'],
- [/\\b(?:cabinet|wardrobe|dresser|cupboard|shelf)\\b/i,'cabinet','lounge'],
- [/\\b(?:aquarium|fish tank|terrarium)\\b/i,'aquarium','water'],
- [/\\b(?:bed|mattress|bunk)\\b/i,'bed','lounge'],
- [/\\b(?:television|tv|monitor|display screen)\\b/i,'television','tech'],
+
+ [/\\b(?:glassblow(?:ing|er|n)?|blowpipe|molten glass|glass furnace)\\b/i,'glassblowing','glass'],
+ [/\\b(?:space rations?|astronaut (?:food|meal)|ration packs?|survival rations?|meal ready to eat|mre)\\b/i,'rations','rations'],
+ [/\\b(?:glassware|vase|decanter|carafe|goblet|wineglass|tumbler|flask|beaker)\\b/i,'glassware','glass'],
+ [/\\b(?:meal|dinner|lunch|supper|breakfast platter|feast|snack|bento|rations?|cuisine|banquet)\\b/i,'meal','food'],
+ [/\\b(?:violin|guitar|ukulele|drum|harp|flute|trumpet|harmonica|piano|instrument)\\b/i,'instrument','lounge'],
+ [/\\b(?:painting|portrait|artwork|canvas|easel|mural)\\b/i,'painting','stationery'],
+ [/\\b(?:camera|photograph|video recorder)\\b/i,'camera','tech'],
+ [/\\b(?:car|truck|train|bicycle|motorcycle|bus|vehicle|boat|wagon)\\b/i,'vehicle','tech'],
+ [/\\b(?:telescope|observatory|microscope|lens|binoculars)\\b/i,'telescope','tech'],
+ [/\\b(?:tools?|wrench|hammer|saw|drill|screwdriver|workshop|forging|smithing)\\b/i,'toolkit','tech'],
+ [/\\b(?:present|gift|surprise|parcel|package|wrapped)\\b/i,'gift','stationery'],
+
+ [/\b(?:chair|stool|armchair|throne|seat)\b/i,'chair','lounge'],
+ [/\b(?:sofa|couch|loveseat|settee)\b/i,'sofa','lounge'],
+ [/\b(?:table|desk|countertop|workbench)\b/i,'table','furni'],
+ [/\b(?:lamp|lantern|lightbulb|light fixture)\b/i,'lamp','furni'],
+ [/\b(?:arcade|pinball|slot cabinet|game machine)\b/i,'arcade','tech'],
+ [/\b(?:cabinet|wardrobe|dresser|cupboard|shelf)\b/i,'cabinet','lounge'],
+ [/\b(?:aquarium|fish tank|terrarium)\b/i,'aquarium','water'],
+ [/\b(?:bed|mattress|bunk)\b/i,'bed','lounge'],
+ [/\b(?:television|tv|monitor|display screen)\b/i,'television','tech'],
  [/\b(?:fire|flame|lava|ember|inferno|volcano)\b/i,'fire','fire'],
  [/\b(?:water|ocean|river|sea|lake|rain|tidal)\b/i,'water','water'],
  [/\b(?:wind|breeze|tornado|air|gust)\b/i,'wind','ice'],
@@ -108,6 +124,59 @@ export function generateFreshPixelArt(name:string):string {
   const B=p.base,L=p.light,S=p.shade,A=p.accent,H=p.bright;
   const star=(x:number,y:number,size:number,c:string)=>{line(x-size,y,x+size,y,c);line(x,y-size,x,y+size,c);dot(x,y,H);};
   switch(form){
+    // Semantic temporary previews: do not swap an unknown discovery for
+    // a random cube, diamond or generic furniture icon.
+    case 'glassblowing':
+      // Long diagonal blowpipe with the molten orange glass bulb and two
+      // reflective cyan-glass flares, not a solid cube.
+      line(4,5,15,15,S,2);line(5,4,16,14,H);
+      ellipse(17,16,4,4,A);ellipse(16,15,3,3,B);
+      rect(15,13,2,2,L);rect(18,18,2,1,H);
+      line(12,10,17,16,S);break;
+    case 'rations':
+      // An open foil food pouch, yellow nutrient block and distinct blue water
+      // sachet, rather than a generic space diamond/plate.
+      rect(5,7,11,12,S);rect(6,8,9,10,B);
+      rect(7,9,7,3,H);rect(8,13,6,4,A);
+      rect(5,6,11,2,L);rect(16,10,5,9,S);
+      rect(17,11,3,6,L);rect(17,13,2,2,H);
+      rect(7,10,3,1,INK);break;
+    case 'glassware':
+      ellipse(12,7,6,3,S);rect(7,7,11,10,B);
+      rect(8,11,9,4,L);ellipse(12,17,5,3,S);
+      rect(9,8,2,5,H);rect(15,10,1,5,H);break;
+    case 'meal':
+      ellipse(12,15,9,5,S);ellipse(12,14,7,3,L);
+      ellipse(9,12,3,3,B);ellipse(15,12,3,2,A);
+      rect(6,9,4,2,H);rect(13,10,3,2,B);break;
+    case 'instrument':
+      ellipse(11,14,6,7,B);ellipse(11,11,4,4,L);
+      rect(12,3,3,9,S);rect(13,4,1,7,H);
+      rect(10,10,1,8,INK);rect(15,12,1,7,INK);break;
+    case 'painting':
+      rect(4,6,16,13,S);rect(6,8,12,9,L);
+      line(7,15,12,9,B,3);line(12,9,18,15,A,3);
+      rect(7,9,3,2,H);line(12,19,8,22,B);line(12,19,16,22,B);break;
+    case 'camera':
+      rect(4,9,16,11,S);rect(5,10,14,8,B);
+      ellipse(12,13,5,5,INK);ellipse(12,13,3,3,A);
+      rect(5,7,6,3,L);rect(17,10,2,2,H);break;
+    case 'vehicle':
+      rect(4,10,16,8,B);rect(7,7,9,5,L);
+      rect(9,8,5,3,H);ellipse(8,18,3,3,INK);
+      ellipse(17,18,3,3,INK);rect(20,13,2,3,A);break;
+    case 'telescope':
+      line(5,8,17,13,B,4);line(15,13,21,15,L,3);
+      line(11,12,11,20,S,2);line(11,14,6,21,S);
+      line(11,14,16,21,S);rect(5,7,2,3,H);break;
+    case 'toolkit':
+      rect(4,11,16,10,B);rect(5,12,14,8,S);
+      rect(8,7,8,4,L);rect(9,8,6,2,H);
+      rect(6,13,12,3,A);rect(11,14,2,2,INK);break;
+    case 'gift':
+      rect(5,9,14,12,B);rect(4,8,16,4,L);
+      rect(10,9,4,12,A);rect(4,8,16,2,H);
+      ellipse(9,6,4,3,A);ellipse(15,6,4,3,A);break;
     // Habbo-like local previews for recognizable furni nouns. This is only a
     // temporary client-side icon, not a completed or saved AI generation.
     case 'chair':
