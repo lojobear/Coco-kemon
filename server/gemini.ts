@@ -4,6 +4,7 @@ import { getWorkersAiBinding } from './workersAi.js';
 import { generateRunwareSprite } from './runware.js';
 import { generateRunwaySprite, RunwayPendingError } from './runway.js';
 import { BOOP_SPRITE_STYLE_COMPACT } from './spriteStyle.js';
+import { ImageBudgetExceeded, safeImageSpendingEnabled, reserveFreeImageNeurons, FLUX2_KLEIN_512_NEURONS, FLUX1_SCHNELL_8STEP_NEURONS } from './imageSpendingGuard.js';
 
 export class ApiFailure extends Error {
   status: number;
@@ -17,6 +18,7 @@ export function publicFailure(error: unknown): { status: number; error: string }
   // 425 is a normal async Runway task still processing. The artwork queue
   // polls its persisted task ID without creating or charging for another job.
   if (error instanceof RunwayPendingError) return { status: 425, error: error.message };
+  if (error instanceof ImageBudgetExceeded) return { status: error.status, error: error.message };
   return error instanceof ApiFailure
     ? { status: error.status, error: error.message }
     : { status: 502, error: 'The AI returned an invalid result. Please retry.' };
@@ -435,6 +437,7 @@ async function generateWorkersAiImage(prompt: string): Promise<GeminiImageResult
     try {
       let response: any;
       if (model.includes('flux-2-klein-4b')) {
+        await reserveFreeImageNeurons(FLUX2_KLEIN_512_NEURONS);
         const form = new FormData();
         form.append('prompt', prompt);
         form.append('width', '512');
@@ -448,6 +451,7 @@ async function generateWorkersAiImage(prompt: string): Promise<GeminiImageResult
           },
         });
       } else {
+        await reserveFreeImageNeurons(FLUX1_SCHNELL_8STEP_NEURONS);
         response = await ai.run(model, { prompt: compactSchnellImagePrompt(prompt), steps: 8 });
       }
 
@@ -458,6 +462,7 @@ async function generateWorkersAiImage(prompt: string): Promise<GeminiImageResult
       }
       throw new Error('Workers AI returned no usable image payload.');
     } catch (error) {
+      if (error instanceof ImageBudgetExceeded) throw error;
       last = error;
       const message = error instanceof Error ? error.message : String(error);
       if (/(?:3036|4006).*(?:daily|allocation|neuron)|used up your daily free allocation/i.test(message)) {
@@ -477,10 +482,12 @@ async function generateWorkersAiImage(prompt: string): Promise<GeminiImageResult
             form.append('width', '512');
             form.append('height', '512');
             const serialized = new Response(form);
+            await reserveFreeImageNeurons(FLUX2_KLEIN_512_NEURONS);
             const retry = await ai.run(model, { multipart: { body: serialized.body, contentType: serialized.headers.get('content-type') } });
             const normalized = await normalizeWorkersImagePayload(retry);
             if (normalized?.data && normalized.data.length >= 100 && normalized.data.length <= 16_000_000) return { ...normalized, model };
           } catch (retryError) {
+            if (retryError instanceof ImageBudgetExceeded) throw retryError;
             console.warn(`Simplified FLUX image retry failed: ${String(retryError).slice(0, 180)}`);
           }
         }
@@ -508,6 +515,8 @@ export async function generateGeminiImage(
   if (!injectedClient) {
     const workersImage = await generateWorkersAiImage(prompt);
     if (workersImage) return workersImage;
+    // Prevent paid inference with Gemini, Runware or Runway in free-only mode.
+    if (safeImageSpendingEnabled()) throw new ImageBudgetExceeded();
 
     // The independent Runware API is optional: its key must be a real Runware
     // secret, never a copy of GEMINI_API_KEY. Failures leave Gemini available.
