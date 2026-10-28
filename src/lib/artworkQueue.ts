@@ -162,13 +162,13 @@ export async function pumpArtworkQueue(force=false): Promise<void> {
       entry.nextAttemptAt=Date.now()+12_000;
     } else {
       entry.attempts++;
-      if (/Daily image allowance used up|Cloudflare resets at 00:00 UTC/i.test(message)) {
+      if (/Daily image allowance used up|Cloudflare resets at 00:00 UTC|Boop safe daily image allowance reached|Boop image spending guard/i.test(message)) {
         // All Cloudflare image calls would fail until the next UTC day. Stop
         // hammering providers, but preserve the pending discovery and retry
         // once allocation renews. The user can override after adding billing.
         const resetAt = nextArtworkQuotaResetUtc() + 5_000;
         pausedUntil = Math.max(pausedUntil, resetAt);
-        entry.lastError = 'Daily image allowance exhausted. Artwork will resume after 00:00 UTC.';
+        entry.lastError = 'Daily free-image allowance reserved. Artwork will resume after 00:00 UTC without paid overages.';
         entry.nextAttemptAt = resetAt;
       } else {
         // Provider credentials/quota problems affect every task. Do not flood
