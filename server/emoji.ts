@@ -6,7 +6,7 @@ import { clientId, takeAiBudget } from './rateLimit.js';
 import { BOOP_SPRITE_ART_STYLE, spriteColorDirection } from './spriteStyle.js';
 
 // New model generations use the locked pixel style. Existing local/owned art remains saved.
-const SPRITE_ENGINE_VERSION = 'v11-isometric-furni-colourful';
+const SPRITE_ENGINE_VERSION = 'v12-bold-clean-furni';
 
 type ImageGenerator = (prompt: string) => Promise<GeminiImageResult>;
 
@@ -40,7 +40,7 @@ export function buildSpritePrompt(key: string, variation = '', shiny = false): s
     '- Creatures need coherent anatomy and a normal limb count for their implied body plan unless the concept explicitly says otherwise.',
     '',
     'FINAL CHECK',
-    '- Match classic virtual-hotel furni pixel art: fine local-colour contours, clean 2:1 isometric geometry, bright individual palettes and credible object materials.',
+    '- Quality gate: bold continuous 1-2-pixel darker-local-colour silhouette contours, vivid planes, solid unbroken geometry, absolutely no detached glitched pixels, corrupted seams or torn edges.',
     '- Do not use any single universal palette, brown filter or reused silhouette: every discovered item must look like its uniquely named subject.',
     '- Output image only.',
   ].filter(Boolean).join('\n');
