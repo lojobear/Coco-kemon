@@ -79,7 +79,7 @@ test('endpoint generates once for simultaneous and repeated canonical names', as
     const firstReply = await replies[0].json() as any;
     const secondReply = await replies[1].json() as any;
     assert.deepEqual(firstReply, secondReply);
-    assert.equal(firstReply.engineVersion, 'v12-bold-clean-furni');
+    assert.equal(firstReply.engineVersion, 'v13-semantic-object-furni');
     assert.equal(firstReply.provenance, 'gemini-native-image-pixel-art');
     assert.equal(firstReply.mimeType, 'image/png');
     assert.equal(firstReply.imageBase64, fakeImage.data);
