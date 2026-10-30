@@ -4,7 +4,7 @@ import type { InfiniteElement } from './infiniteCraftData';
 /**
  * Best-effort artwork queue for new discoveries. No credits are spent on album
  * previews; discoveries are saved independently of image generation.
- * Work resumes when the browser/app is open and online, never in the background.
+ * Browser work resumes while open; Cloudflare Cron also recovers missing art while closed.
  */
 export const ARTWORK_QUEUE_KEY = 'boop-artwork-pending-v1';
 export const ARTWORK_QUEUE_EVENT = 'boop-artwork-queue-updated';
@@ -48,7 +48,7 @@ export function parseArtworkTasks(raw: unknown): ArtworkTask[] {
   if (!Array.isArray(raw)) return [];
   const seen = new Set<string>();
   const valid: ArtworkTask[] = [];
-  for (const entry of raw.slice(0, 150)) {
+  for (const entry of raw.slice(0, 500)) {
     if (!entry || typeof entry !== 'object') continue;
     const item = entry as Partial<ArtworkTask>;
     if (typeof item.name !== 'string' || !item.name.trim() || item.name.length > 160) continue;
@@ -62,7 +62,7 @@ export function parseArtworkTasks(raw: unknown): ArtworkTask[] {
       nextAttemptAt: Number.isFinite(item.nextAttemptAt) ? Math.max(0, item.nextAttemptAt!) : 0,
       lastError: typeof item.lastError === 'string' ? item.lastError.slice(0, 200) : undefined });
   }
-  return valid.slice(0, 120);
+  return valid.slice(0, 400);
 }
 
 function readTasks() {
@@ -95,7 +95,7 @@ export function enqueueArtwork(name: string, shiny = false): void {
   if (!list.some(t=>t.shiny===shiny && t.name.toLowerCase()===trimmed.toLowerCase())) {
     // Recently crafted items should not sit behind a backlog of old artwork.
     list.unshift({name:trimmed,shiny,attempts:0,nextAttemptAt:0});
-    if(list.length>120) list.pop();
+    if(list.length>400) list.pop();
     broadcast();
   }
   void pumpArtworkQueue();
