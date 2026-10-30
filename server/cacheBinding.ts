@@ -1,7 +1,7 @@
 type KvBinding = {
   get(key: string, type?: 'text' | 'json'): Promise<any>;
-  put(key: string, value: string, options?: { expirationTtl?: number }): Promise<void>;
-  list?(options?: { prefix?: string; limit?: number; cursor?: string }): Promise<{ keys: { name: string }[]; list_complete?: boolean; cursor?: string }>;
+  put(key: string, value: string, options?: { expirationTtl?: number; metadata?: Record<string, unknown> }): Promise<void>;
+  list?(options?: { prefix?: string; limit?: number; cursor?: string }): Promise<{ keys: { name: string; metadata?: Record<string, unknown> }[]; list_complete?: boolean; cursor?: string }>;
   delete?(key:string):Promise<void>;
 };
 
