@@ -65,7 +65,7 @@ export async function registerRecoveryBatch(values: unknown) {
     if (previous && typeof previous.firstSeenAt === 'number') { waiting++; continue; }
     const task: RecoveryTask = { ...input, key, state:'pending',
       firstSeenAt:Date.now(), attempts:0, nextAttemptAt:0 };
-    await kv.put(id, JSON.stringify(task), { expirationTtl:TASK_LIFETIME });
+    await kv.put(id, JSON.stringify(task), { expirationTtl:TASK_LIFETIME, metadata:task });
     added++;
   }
   return { added, waiting, ready };
@@ -80,7 +80,8 @@ async function pendingTasks(max = MAX_SCANNED): Promise<RecoveryTask[]> {
     const page = await kv.list({ prefix:PREFIX, limit: Math.min(1000, max-seen), ...(cursor ? {cursor} : {}) });
     for (const item of page.keys || []) {
       if (++seen > max) break;
-      const task = await kv.get(item.name, 'json') as RecoveryTask | null;
+      const task = (item.metadata && typeof item.metadata.key === 'string'
+        ? item.metadata : await kv.get(item.name, 'json')) as RecoveryTask | null;
       if (task && typeof task.key === 'string' && (task.state === 'pending' || task.state === 'retry'))
         result.push(task);
     }
@@ -96,7 +97,7 @@ async function markTask(task: RecoveryTask): Promise<void> {
     await kv.delete(taskKey(task.key));
     return;
   }
-  await kv.put(taskKey(task.key), JSON.stringify(task), { expirationTtl:TASK_LIFETIME });
+  await kv.put(taskKey(task.key), JSON.stringify(task), { expirationTtl:TASK_LIFETIME, metadata:task });
 }
 export function nextUtcReset(now = Date.now()) {
   const date = new Date(now);
@@ -118,7 +119,10 @@ export async function runRecoveryPass(limit = RECOVERY_IMAGES_PER_CRON) {
   let generated = 0, ready = 0, retries = 0;
   const now = Date.now();
   const tasks = await pendingTasks();
-  for (const task of tasks.filter(x=>x.nextAttemptAt<=now).slice(0, Math.min(3,Math.max(1,limit)))) {
+  const due=tasks.filter(x=>x.nextAttemptAt<=now);
+  // Alternate old and new so backlog clears without starving discoveries.
+  const picks = due.length && limit >= 2 ? [due[0], due[due.length-1]] : due.slice(0,1);
+  for (const task of [...new Map(picks.map(x=>[x.key,x])).values()].slice(0, Math.min(3,Math.max(1,limit)))) {
     try {
       if (await findRecoveryArt(task.name, task.shiny)) {
         task.state = 'ready'; task.lastError = undefined;
