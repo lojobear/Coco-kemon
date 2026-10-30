@@ -13,6 +13,7 @@ if ((globalThis as unknown as { __dirname?: string }).__dirname === '.') {
 import express from 'express';
 import { registerKitchenRoute } from './server/kitchen.js';
 import { registerEmojiRoute } from './server/emoji.js';
+import { registerSpriteRecoveryRoutes } from './server/spriteRecovery.js';
 import path from 'path';
 import dotenv from 'dotenv';
 import { callGeminiStructured, ApiFailure, publicFailure, getGeminiModels, getGroqModels } from './server/gemini.js';
@@ -41,6 +42,7 @@ app.use((error: any, _req: express.Request, res: express.Response, next: express
   next(error);
 });
 registerEmojiRoute(app);
+registerSpriteRecoveryRoutes(app);
 registerKitchenRoute(app);
 
 // Health check
