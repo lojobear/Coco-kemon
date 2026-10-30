@@ -46,7 +46,11 @@ function GameContent() {
   useEffect(() => {
     let disposed = false;
     let stopQueue: (() => void) | undefined;
+    let stopRecovery: (() => void) | undefined;
     const timer = window.setTimeout(() => {
+      void import('./lib/spriteRecoveryClient').then(({ startSpriteRecovery }) => {
+        if (!disposed) stopRecovery = startSpriteRecovery();
+      }).catch(() => { /* Keep browsing if background recovery is offline. */ });
       void import('./lib/artworkQueue').then(({ startArtworkQueue }) => {
         if (!disposed) stopQueue = startArtworkQueue();
       }).catch(() => { /* Offline artwork stays queued for the next launch. */ });
@@ -55,6 +59,7 @@ function GameContent() {
       disposed = true;
       window.clearTimeout(timer);
       stopQueue?.();
+      stopRecovery?.();
     };
   }, []);
 
