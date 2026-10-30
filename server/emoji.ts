@@ -6,7 +6,7 @@ import { clientId, takeAiBudget } from './rateLimit.js';
 import { BOOP_SPRITE_ART_STYLE, spriteColorDirection, spriteSubjectDirection } from './spriteStyle.js';
 
 // New model generations use the locked pixel style. Existing local/owned art remains saved.
-const SPRITE_ENGINE_VERSION = 'v13-semantic-object-furni';
+export const SPRITE_ENGINE_VERSION = 'v13-semantic-object-furni';
 
 type ImageGenerator = (prompt: string) => Promise<GeminiImageResult>;
 
