@@ -32,7 +32,9 @@ export async function recoveryBudgetStatus() {
  * Submits only public discovery names, never account IDs or save data.
  */
 export async function scanAndRecoverSprites(isCancelled:()=>boolean=()=>false) {
-  const variants=spriteInventoryItems(readCraftElements()).filter(x=>!x.customArt);
+  const variants=spriteInventoryItems(readCraftElements())
+    .filter(x=>!x.customArt)
+    .sort((a,b)=>a.discoveredAt-b.discoveredAt || a.name.localeCompare(b.name));
   let checked=0,queued=0,restored=0;
   publish({checked:0,total:variants.length,queued:0,restored:0,active:true,error:undefined});
   try {
