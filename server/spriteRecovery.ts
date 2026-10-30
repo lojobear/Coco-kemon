@@ -92,6 +92,10 @@ async function pendingTasks(max = MAX_SCANNED): Promise<RecoveryTask[]> {
 async function markTask(task: RecoveryTask): Promise<void> {
   const kv = getPersistentCacheBinding();
   if (!kv?.put) throw new Error('Artwork queue storage unavailable');
+  if (task.state === 'ready' && kv.delete) {
+    await kv.delete(taskKey(task.key));
+    return;
+  }
   await kv.put(taskKey(task.key), JSON.stringify(task), { expirationTtl:TASK_LIFETIME });
 }
 export function nextUtcReset(now = Date.now()) {
