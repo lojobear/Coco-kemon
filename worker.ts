@@ -2,6 +2,7 @@ import { handleAsNodeRequest } from 'cloudflare:node';
 import { app } from './server.js';
 import { setWorkersAiBinding } from './server/workersAi.js';
 import { setPersistentCacheBinding } from './server/cacheBinding.js';
+import { runRecoveryPass } from './server/spriteRecovery.js';
 
 // nodejs_compat populates process.env from text/secret bindings at this compatibility date.
 // Workers AI is an object binding, so expose it to the shared Express server explicitly.
@@ -17,5 +18,11 @@ export default {
     setWorkersAiBinding(env.AI);
     setPersistentCacheBinding(env.QUARKPOP_CACHE);
     return handleAsNodeRequest(3000, request);
+  },
+  scheduled(_event: unknown, env: { AI?: any; QUARKPOP_CACHE?: any }, ctx: { waitUntil(p: Promise<unknown>):void }) {
+    setWorkersAiBinding(env.AI);
+    setPersistentCacheBinding(env.QUARKPOP_CACHE);
+    ctx.waitUntil(runRecoveryPass().then(report => console.info('Boop scheduled sprite recovery', report))
+      .catch(error => console.warn('Boop scheduled recovery retry pending:', String(error).slice(0,220))));
   },
 };
