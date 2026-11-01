@@ -1,6 +1,7 @@
 import { isSpriteReference } from './spriteReference';
 import { validKitchenRecipe } from './kitchen/engine';
 import { STARTER_ELEMENTS, type InfiniteElement } from './infiniteCraftData';
+import { mergeFoundryIntoCraft } from './unifiedCollection';
 import { sanitizeTrophyRoom, type TrophyRoom } from './collectorData';
 import { loadBoardLayout, parseBoardLayout, saveBoardLayout, type SavedBoardTile } from './boardLayout';
 import { ALL_PROCESSES, INITIAL_HABITATS } from './starterData';
@@ -86,7 +87,7 @@ export function readCraftElements(): InfiniteElement[] {
   try {
     const v = storedEnvelope()?.crafting ?? JSON.parse(localStorage.getItem(LEGACY_CRAFT) || 'null') ?? STARTER_ELEMENTS;
     if (!validateCraft(v)) throw new Error('Invalid crafting collection');
-    return craftMemory = v;
+    return craftMemory = mergeFoundryIntoCraft(v, storedEnvelope()?.foundry);
   } catch { recoveryRequired = true; status('Crafting save could not be loaded. Import a valid backup to recover.'); return STARTER_ELEMENTS; }
 }
 function write(foundry: any, crafting: InfiniteElement[], force = false, collectorRoom?: TrophyRoom, boardLayout?: SavedBoardTile[] | null) {
@@ -95,11 +96,14 @@ function write(foundry: any, crafting: InfiniteElement[], force = false, collect
     status(STALE_TAB_MESSAGE);
     throw new StaleSaveError(STALE_TAB_MESSAGE);
   }
+  // One shared discovery inventory. Foundry's full metadata is retained separately.
+  const unifiedCrafting = mergeFoundryIntoCraft(crafting, foundry);
+  craftMemory = unifiedCrafting;
   const savedAt = Math.max(Date.now(), (lastSeenSavedAt ?? 0) + 1);
   // One setItem commits both collections atomically. Quota failures leave the old save intact.
   const previousRoom = collectorRoom ?? storedEnvelope()?.collectorRoom;
-  localStorage.setItem(SAVE_KEY, JSON.stringify({ version: 2, savedAt, foundry, crafting,
-    collectorRoom: sanitizeTrophyRoom(previousRoom, crafting),
+  localStorage.setItem(SAVE_KEY, JSON.stringify({ version: 2, savedAt, foundry, crafting: unifiedCrafting,
+    collectorRoom: sanitizeTrophyRoom(previousRoom, unifiedCrafting),
     boardLayout: boardLayout ?? loadBoardLayout(crafting) ?? [] }));
   lastSeenSavedAt = savedAt;
   invalidateStoredEnvelope();
@@ -170,7 +174,7 @@ export function importCompleteSave(json: string) {
   write(parsed.foundry, parsed.crafting, true, parsed.collectorRoom, parsed.boardLayout);
   if (parsed.boardLayout !== null) saveBoardLayout(parsed.boardLayout);
   recoveryRequired = false;
-  craftMemory = parsed.crafting;
+  craftMemory = mergeFoundryIntoCraft(parsed.crafting, parsed.foundry);
   window.dispatchEvent(new Event(SAVE_IMPORTED_EVENT));
   return parsed.foundry;
 }
