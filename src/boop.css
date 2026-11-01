@@ -1766,3 +1766,35 @@ html.boop-native-shell .boop-app .boop-cloud-dialog {
   font-size: 12px;
   line-height: 1.5;
 }
+
+
+/* Large catalog of Foundry transformations remains usable on Pixel 9. */
+.boop-app .collection-workbench .combine-dock .process-control input {
+  width:100%;max-width:100%;min-width:0;padding:9px 11px;
+  border:1px solid #dfe5ea;border-radius:10px;background:#fff;color:#34414e;
+  font-size:12px;min-height:38px;
+}
+.boop-app .collection-workbench .combine-dock .process-control > small {
+  display:block;font-size:10px;line-height:1.3;color:#778592;
+  overflow:hidden;text-overflow:ellipsis;max-width:100%;
+}
+.boop-app .collection-workbench .combine-dock .process-control label small {
+  font-size:9px;color:#84919f;font-weight:550;
+}
+@media(max-width:760px) {
+  .boop-app .collection-workbench .combine-dock .process-control {
+    display:grid!important;grid-template-columns:minmax(0,1fr) auto;
+    align-items:center;gap:6px 8px;min-width:0;
+  }
+  .boop-app .collection-workbench .combine-dock .process-control label,
+  .boop-app .collection-workbench .combine-dock .process-control input,
+  .boop-app .collection-workbench .combine-dock .process-control > small {
+    grid-column:1 / -1;min-width:0;
+  }
+  .boop-app .collection-workbench .combine-dock .process-control select {
+    grid-column:1;min-width:0;width:100%;
+  }
+  .boop-app .collection-workbench .combine-dock .process-control .random-process {
+    grid-column:2;min-width:36px;
+  }
+}
