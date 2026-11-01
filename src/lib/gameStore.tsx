@@ -14,6 +14,7 @@ import { getElementEmoji } from './elementEmoji';
 import { validMaterial, validOddkin } from './validation';
 import { readFoundrySave, saveFoundry, exportCompleteSave, importCompleteSave, readCraftElements, saveCraftElements } from './saveData';
 import { sound } from './audio';
+import { discoveryIdentity } from './unifiedCollection';
 import { matchesFoundryRecipe, validSynthesisResult, resolveMaterialDiscovery } from './foundryRecipes';
 import { dailyGoals, discoveryStreak, levelFromXp, nearMissHint, nextStreakMilestone, progressionXp, rollMaterialVariant, setProgress, streakReward } from './progression';
 
@@ -423,7 +424,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
       } else if ((data.status === 'new_material' || data.status === 'existing_material') && data.material) {
         const alreadyInCraft = readCraftElements().some(item =>
-          item.name.normalize('NFKC').trim().toLowerCase() === data.material!.displayName.normalize('NFKC').trim().toLowerCase());
+          discoveryIdentity(item.name) === discoveryIdentity(data.material!.displayName));
         const discovery = resolveMaterialDiscovery(data.material, materials, data.status);
         const firstAcrossCollection = discovery.isNew && !alreadyInCraft;
         const variant = discovery.isNew ? rollMaterialVariant(discovery.material.rarity) : discovery.material.variant;
