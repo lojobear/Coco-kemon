@@ -16,6 +16,7 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
     setSelectedProcess, runSynthesis, isSynthesizing, synthesisStage, setActiveTab, clearSlots, progression } = useGame();
   const [craftItems, setCraftItems] = useState(readCraftElements);
   const [search, setSearch] = useState('');
+  const [processQuery, setProcessQuery] = useState('');
   const [category, setCategory] = useState('all');
   const [sort, setSort] = useState<'collection' | 'recent' | 'name'>('collection');
   const [picker, setPicker] = useState<'A' | 'B' | null>(null);
@@ -40,6 +41,18 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
   const availableProcesses = useMemo(() => [...processes, ...EXTRA_PROCESSES.filter(extra => !processes.some(p => p.id === extra.id)), ...FOUNDRY_ACTIONS.filter(action => ![...processes, ...EXTRA_PROCESSES].some(p => p.id === action.id))].filter(p => p.unlocked), [processes]);
   // Mix is the useful default; all unlocked transformations remain available.
   const process = selectedProcess || availableProcesses.find(p => p.id === 'MIX') || availableProcesses[0];
+  const processGroups = useMemo(() => {
+    const q = processQuery.trim().toLowerCase();
+    const choices = availableProcesses.filter(p => !q ||
+      `${p.name} ${p.category} ${p.description} ${p.verb}`.toLowerCase().includes(q));
+    // Keep the active selection in the dropdown when searching by other terms.
+    if (process && !choices.some(p => p.id === process.id)) choices.unshift(process);
+    const groups = new Map<string, typeof choices>();
+    for (const entry of choices) groups.set(entry.category, [...(groups.get(entry.category) || []),entry]);
+    return [...groups].map(([category, entries]) => ({category, entries:entries.sort((a,b)=>a.name.localeCompare(b.name))}))
+      .sort((a,b)=>a.category.localeCompare(b.category));
+  }, [availableProcesses, processQuery, process]);
+
   const categories = useMemo(() => [...new Set<string>(materials.map(m => m.category))].sort((a,b) => a.localeCompare(b)), [materials]);
   const filtered = useMemo(() => {
     const query = deferredSearch.trim().toLowerCase();
@@ -98,10 +111,15 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
             </div>
           </React.Fragment>;
         })}
-        <div className="process-control"><label htmlFor="foundry-process">Process</label>
+        <div className="process-control"><label htmlFor="foundry-process">Process <small>· {availableProcesses.length} transformations</small></label>
+          <input aria-label="Find a Foundry process" placeholder="Search processes…" value={processQuery}
+            onChange={event => setProcessQuery(event.target.value)} disabled={isSynthesizing} />
           <select id="foundry-process" value={process?.id || ''} disabled={isSynthesizing} onChange={e => setSelectedProcess(availableProcesses.find(p => p.id === e.target.value) || null)}>
-            {availableProcesses.map(p => <option value={p.id} key={p.id}>{p.name}</option>)}
+            {processGroups.map(group => <optgroup label={group.category} key={group.category}>
+              {group.entries.map(p => <option value={p.id} key={p.id}>{p.symbol} {p.name}</option>)}
+            </optgroup>)}
           </select>
+          <small>{process?.description}</small>
           <button className="random-process" disabled={isSynthesizing || !availableProcesses.length} onClick={() => setSelectedProcess(chooseRandomProcess(availableProcesses, process?.id))}><Shuffle size={13} /> Random process</button>
         </div>
       </div>
