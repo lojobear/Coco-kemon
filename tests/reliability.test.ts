@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { once } from 'node:events';
 import { STARTER_MATERIALS, ALL_PROCESSES, INITIAL_HABITATS } from '../src/lib/starterData';
 import { STARTER_ELEMENTS } from '../src/lib/infiniteCraftData';
+import { mergeFoundryIntoCraft } from '../src/lib/unifiedCollection';
 import { validMaterial } from '../src/lib/validation';
 import { requestJson } from '../src/lib/api';
 import { callGeminiStructured, ApiFailure } from '../server/gemini';
@@ -27,9 +28,9 @@ test('complete backup round trip retains both collections and recipe history', (
   const restored = importCompleteSave(JSON.stringify(complete));
   const exported = JSON.parse(exportCompleteSave(restored));
   assert.deepEqual(exported.foundry.materials, STARTER_MATERIALS);
-  assert.deepEqual(exported.crafting, crafting);
+  assert.deepEqual(exported.crafting, mergeFoundryIntoCraft(crafting, foundry));
   assert.deepEqual(parseSave(JSON.stringify(exported)), {
-    foundry, crafting, collectorRoom: { theme: 'gallery', slots: Array(12).fill(null) },
+    foundry, crafting: mergeFoundryIntoCraft(crafting, foundry), collectorRoom: { theme: 'gallery', slots: Array(12).fill(null) },
     boardLayout: [],
   });
 });
@@ -49,7 +50,7 @@ test('board placement survives cloud-compatible export and import without unlock
 
 test('legacy backup preserves the current crafting collection', () => {
   const parsed = parseSave(JSON.stringify(foundry));
-  assert.deepEqual(parsed.crafting, crafting);
+  assert.deepEqual(parsed.crafting, mergeFoundryIntoCraft(crafting, foundry));
   assert.deepEqual(parsed.foundry.materials, STARTER_MATERIALS);
 });
 
@@ -69,7 +70,7 @@ test('quota failure is visible, preserves old save, and new crafting progress re
   saveCraftElements(more);
   assert.match(getSaveError()!, /could not be saved/);
   assert.equal(storage.getItem(SAVE_KEY), before);
-  assert.deepEqual(JSON.parse(exportCompleteSave(foundry)).crafting, more);
+  assert.deepEqual(JSON.parse(exportCompleteSave(foundry)).crafting, mergeFoundryIntoCraft(more, foundry));
   storage.fail = false;
   importCompleteSave(JSON.stringify(complete));
   assert.equal(getSaveError(), null);
@@ -200,7 +201,7 @@ test('custom craft sprites survive backup round trips and reject unsafe image UR
   const png = 'data:image/png;base64,iVBORw0KGgo=';
   const personalized = { ...complete, crafting: crafting.map(item => ({ ...item, customSpriteUrl: png })) };
   const restored = importCompleteSave(JSON.stringify(personalized));
-  assert.deepEqual(parseSave(exportCompleteSave(restored)).crafting, personalized.crafting);
+  assert.deepEqual(parseSave(exportCompleteSave(restored)).crafting, mergeFoundryIntoCraft(personalized.crafting, foundry));
   for (const customSpriteUrl of ['javascript:alert(1)', 'https://example.com/tracker.png', 'data:image/svg+xml;base64,AAAA', 'data:image/png;base64,' + 'a'.repeat(100001)]) {
     assert.throws(() => parseSave(JSON.stringify({ ...complete, crafting: [{ ...crafting[0], customSpriteUrl }] })));
   }
