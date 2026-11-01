@@ -42,7 +42,10 @@ export function mergeFoundryIntoCraft(
     let id = 'foundry_' + encodeURIComponent(key);
     while(seenIds.has(id.toLowerCase())) id += '_x';
     seenIds.add(id.toLowerCase());
-    additions.push({ id, name: clean, emoji, ...details });
+    // JSON saves omit undefined fields. Avoid creating non-round-trippable
+    // phantom properties in the migration projection.
+    const defined = Object.fromEntries(Object.entries(details).filter(([,value]) => value !== undefined));
+    additions.push({ id, name: clean, emoji, ...defined });
   };
   for(const mat of foundry?.materials || []) {
     if (!mat?.displayName) continue;
