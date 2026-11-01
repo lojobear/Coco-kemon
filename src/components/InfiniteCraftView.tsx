@@ -25,6 +25,7 @@ import { BOARD_WIDTH, BOARD_HEIGHT, BOARD_START_X, BOARD_START_Y, boardCenter, c
 import { loadBoardLayout, saveBoardLayout } from '../lib/boardLayout';
 import { spawnSourcePool, chooseSpawnElements, spawnPositions, spreadSpawnPositions, SPAWN_COUNTS, type SpawnCount } from '../lib/randomSpawn';
 import { saveCraftElements, readCraftElements, SAVE_IMPORTED_EVENT, SAVE_CHANGED_EVENT } from '../lib/saveData';
+import { discoveryIdentity } from '../lib/unifiedCollection';
 import { sound } from '../lib/audio';
 import { haptics } from '../lib/haptics';
 import type { ActiveCombination } from './CombineAnimationOverlay';
@@ -111,7 +112,7 @@ export function sanitizeElements(list: InfiniteElement[]): InfiniteElement[] {
   for (const item of list) {
     if (!item || !item.name) continue;
     const cleanName = item.name.trim();
-    const normName = cleanName.toLowerCase();
+    const normName = discoveryIdentity(cleanName);
     const cleanId = (item.id || normName.replace(/[^a-z0-9]/g, '_')).toLowerCase();
 
     if (!seenNames.has(normName) && !seenIds.has(cleanId)) {
@@ -127,7 +128,7 @@ export function sanitizeElements(list: InfiniteElement[]): InfiniteElement[] {
   }
 
   for (const starter of STARTER_ELEMENTS) {
-    const starterNorm = starter.name.trim().toLowerCase();
+    const starterNorm = discoveryIdentity(starter.name);
     const starterCleanId = starter.id.toLowerCase();
     if (!seenNames.has(starterNorm) && !seenIds.has(starterCleanId)) {
       seenNames.add(starterNorm);
@@ -182,8 +183,8 @@ export function InfiniteCraftView() {
     const update = () => {
       const persisted = readCraftElements();
       setElements(current => {
-        const known = new Set(current.map(item => item.name.normalize('NFKC').trim().toLowerCase()));
-        const missing = persisted.filter(item => !known.has(item.name.normalize('NFKC').trim().toLowerCase()));
+        const known = new Set(current.map(item => discoveryIdentity(item.name)));
+        const missing = persisted.filter(item => !known.has(discoveryIdentity(item.name)));
         return missing.length ? sanitizeElements([...current, ...missing]) : current;
       });
     };
