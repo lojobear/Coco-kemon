@@ -24,7 +24,7 @@ import { findCraftDropTarget } from '../lib/craftCollision';
 import { BOARD_WIDTH, BOARD_HEIGHT, BOARD_START_X, BOARD_START_Y, boardCenter, clampBoardTile } from '../lib/boardGeometry';
 import { loadBoardLayout, saveBoardLayout } from '../lib/boardLayout';
 import { spawnSourcePool, chooseSpawnElements, spawnPositions, spreadSpawnPositions, SPAWN_COUNTS, type SpawnCount } from '../lib/randomSpawn';
-import { saveCraftElements, readCraftElements, SAVE_IMPORTED_EVENT } from '../lib/saveData';
+import { saveCraftElements, readCraftElements, SAVE_IMPORTED_EVENT, SAVE_CHANGED_EVENT } from '../lib/saveData';
 import { sound } from '../lib/audio';
 import { haptics } from '../lib/haptics';
 import type { ActiveCombination } from './CombineAnimationOverlay';
@@ -173,6 +173,22 @@ export function InfiniteCraftView() {
     };
     window.addEventListener(SAVE_IMPORTED_EVENT, reload);
     return () => window.removeEventListener(SAVE_IMPORTED_EVENT, reload);
+  }, []);
+
+  // Foundry saves can introduce discoveries while Craft is mounted. Add only
+  // genuinely new names, never clobber local Craft mastery, rare variants or
+  // in-progress combination state.
+  useEffect(() => {
+    const update = () => {
+      const persisted = readCraftElements();
+      setElements(current => {
+        const known = new Set(current.map(item => item.name.normalize('NFKC').trim().toLowerCase()));
+        const missing = persisted.filter(item => !known.has(item.name.normalize('NFKC').trim().toLowerCase()));
+        return missing.length ? sanitizeElements([...current, ...missing]) : current;
+      });
+    };
+    window.addEventListener(SAVE_CHANGED_EVENT, update);
+    return () => window.removeEventListener(SAVE_CHANGED_EVENT, update);
   }, []);
 
   useEffect(() => {
