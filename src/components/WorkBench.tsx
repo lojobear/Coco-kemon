@@ -2,7 +2,7 @@ import React, { useDeferredValue, useEffect, useMemo, useRef, useState } from 'r
 import { FlaskConical, Hammer, Search, Plus, X, Dice5, Sparkles, Info, Shuffle, ArrowLeftRight, RotateCcw, Trophy, Target, Layers3, Flame } from 'lucide-react';
 import { useGame } from '../lib/gameStore';
 import type { Material } from '../types';
-import { readCraftElements, SAVE_IMPORTED_EVENT } from '../lib/saveData';
+import { readCraftElements, SAVE_IMPORTED_EVENT, SAVE_CHANGED_EVENT } from '../lib/saveData';
 import { conceptMaterial } from '../lib/conceptMaterial';
 import { MaterialSprite } from './ElementSprite';
 import { chooseRandomProcess } from '../lib/randomProcess';
@@ -27,7 +27,8 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
   useEffect(() => {
     const reload = () => setCraftItems(readCraftElements());
     window.addEventListener(SAVE_IMPORTED_EVENT, reload);
-    return () => window.removeEventListener(SAVE_IMPORTED_EVENT, reload);
+    window.addEventListener(SAVE_CHANGED_EVENT, reload);
+    return () => { window.removeEventListener(SAVE_IMPORTED_EVENT, reload); window.removeEventListener(SAVE_CHANGED_EVENT, reload); };
   }, []);
   const materials = useMemo(() => {
     const names = new Set(foundryMaterials.map(item => item.displayName.trim().toLowerCase()));
