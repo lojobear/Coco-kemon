@@ -4,6 +4,7 @@ import { useGame } from '../lib/gameStore';
 import type { Material } from '../types';
 import { readCraftElements, SAVE_IMPORTED_EVENT, SAVE_CHANGED_EVENT } from '../lib/saveData';
 import { conceptMaterial } from '../lib/conceptMaterial';
+import { discoveryIdentity } from '../lib/unifiedCollection';
 import { MaterialSprite } from './ElementSprite';
 import { chooseRandomProcess } from '../lib/randomProcess';
 import { EXTRA_PROCESSES } from '../lib/extraProcesses';
@@ -32,8 +33,16 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
     return () => { window.removeEventListener(SAVE_IMPORTED_EVENT, reload); window.removeEventListener(SAVE_CHANGED_EVENT, reload); };
   }, []);
   const materials = useMemo(() => {
-    const names = new Set(foundryMaterials.map(item => item.displayName.trim().toLowerCase()));
-    return [...foundryMaterials, ...craftItems.filter(item => !names.has(item.name.trim().toLowerCase())).map(item => {
+    // Do not delete legacy records: display one representative per canonical
+    // concept while preserving all underlying Foundry lineage in the save.
+    const seen = new Set<string>();
+    const uniqueFoundry = foundryMaterials.filter(item => {
+      const name = discoveryIdentity(item.displayName);
+      if (seen.has(name)) return false;
+      seen.add(name);
+      return true;
+    });
+    return [...uniqueFoundry, ...craftItems.filter(item => !seen.has(discoveryIdentity(item.name))).map(item => {
       const material = conceptMaterial({ result: item.name, emoji: item.emoji, explanation: item.explanation, connection: item.connection });
       return { ...material, discoveredAt: item.discoveredAt || 0, customSpriteUrl: item.customSpriteUrl };
     })];
