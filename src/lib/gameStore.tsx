@@ -275,7 +275,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     sound.startMachineHum();
 
     // Preserve both ingredient multiplicity and process identity.
-    const existingMatch = materials.find(m => matchesFoundryRecipe(m, slotA, slotB, selectedProcess.id));
+    // MIX must resolve through the same canonical pair engine as Craft.
+    // Historical Foundry-local recipes must never override that result.
+    const existingMatch = selectedProcess.id === 'MIX' ? undefined
+      : materials.find(m => matchesFoundryRecipe(m, slotA, slotB, selectedProcess.id));
 
     // Start the network work immediately for new recipes. The machine animation now runs
     // in parallel instead of adding ~1.4s before the request even begins.
@@ -419,7 +422,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         });
 
       } else if ((data.status === 'new_material' || data.status === 'existing_material') && data.material) {
+        const alreadyInCraft = readCraftElements().some(item =>
+          item.name.normalize('NFKC').trim().toLowerCase() === data.material!.displayName.normalize('NFKC').trim().toLowerCase());
         const discovery = resolveMaterialDiscovery(data.material, materials, data.status);
+        const firstAcrossCollection = discovery.isNew && !alreadyInCraft;
         const variant = discovery.isNew ? rollMaterialVariant(discovery.material.rarity) : discovery.material.variant;
         const newMat: Material = {
           ...discovery.material,
@@ -431,7 +437,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         sound.playDiscoveryChime(newMat.rarity);
         setMaterials(prev => deduplicateMaterials([newMat, ...prev]));
         // Only genuinely new Foundry material discoveries spend image AI quota.
-        if (discovery.isNew) void getElementEmoji(newMat.displayName).catch(() => undefined);
+        if (firstAcrossCollection) void getElementEmoji(newMat.displayName).catch(() => undefined);
 
         // Unlock processes based on discoveries (e.g. Glass unlocks POLISH, Spark unlocks CHARGE, etc.)
         if (newMat.canonicalName.includes('GLASS') || newMat.canonicalName.includes('CERAMIC')) {
