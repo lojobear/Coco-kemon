@@ -7,6 +7,9 @@
  * NEVER turn unrelated discoveries into the same brown wooden item.
  */
 export const BOOP_SPRITE_ART_STYLE = [
+  'REFERENCE LOOK: richly rendered collectible game pixel art with the crisp stepped outlines and dimensional shading of a detailed isometric grandfather clock or colourful themed sushi; these are style examples only, not subjects to copy.',
+  'Use a clear, darker 1–2 pixel outline, confident pixel clusters, layered midtones, highlights and deep shadow planes. Show carefully chosen material details such as polished wood grain, gold trim, glass reflections, metal bevels or food texture ONLY where appropriate to the named subject.',
+  'Saturated, varied subject-led colours with balanced light and dark values; a polished miniature collectible with a three-quarter view, convincing depth, clean silhouette and authentic hand-placed pixel texture. Preserve recognizable natural shapes; do not force unrelated items into the sushi reference\'s cube shapes.',
   'STYLE: original classic virtual-hotel FURNI / early-2000s social-room pixel art, like the tiny individually designed collectible furnishings in Habbo Hotel.',
   'Render the EXACT named discovery as its own unique recognizable OBJECT, creature, food or collectible. The name decides what it looks like. Do NOT turn arbitrary concepts into generic furniture, wooden chests, relics, mugs, boxes or machines.',
   'Clean orthographic ISOMETRIC 2:1 pixel-art perspective for solid objects: top surfaces as diamonds, left and right faces visibly distinct, parallel pixel stair-step edges. Not a front-facing emoji, not a perspective photograph, not a low-poly 3D render.',
@@ -26,14 +29,13 @@ export const BOOP_SPRITE_ART_STYLE = [
 
 /** FLUX.1 Schnell is restricted to 2,048 characters. */
 export const BOOP_SPRITE_STYLE_COMPACT = [
-  'Original classic Habbo Hotel FURNI-like isometric pixel art. Accurate exact SUBJECT, unique silhouette, not a generic chest, brown relic, wooden box or orb.',
-  'Clean orthographic 2:1 isometric view: stepped pixel diagonal diamond top, visible side faces; organic/creature anatomy preserved in 3/4 view.',
-  'BOLD, clean continuous outer contour 1-2 logical pixels thick, with dark MATERIAL-COLOUR outlines (not uniform black/navy); thinner internal seams. Strong subject-specific contrast, 4-6 solid colours per material. Crisp stepped edges, top face light and side faces clearly darker. Not smooth 3D.',
-  'VIBRANT TRUE SUBJECT COLOURS. No shared brown, sepia, copper or ochre cast. Wood may be brown ONLY if the exact object is wooden. Blues for water, greens for plants, silver for metal, red for berries, etc.',
-  'Every element looks distinct; capture distinctive named parts and material, not a reused template. One centered collectible filling 72-84% of canvas.',
-  'Perfectly flat SOLID #FF00FF magenta chroma background for transparency removal, never magenta inside subject.',
-  'NO visual glitches: no stray or isolated pixels, broken outline segments, floating parts, mismatched isometric diagonals, repeated edges, noisy speckle, corrupt checkerboards, hollow holes or melted parts. Surfaces solid and connected.',
-  'No floor, ground shadow, text, cards, extra objects, blur, painterly gradients, glow, low-poly render or logos.',
+  'Detailed collectible game pixel art: crisp isometric or natural 3/4 view, bold dark 1-2 pixel outlines and hand-placed pixel clusters.',
+  'Rich layered shading and material detail: bright highlights, saturated TRUE SUBJECT COLOURS, clear midtones and deep shadow planes. Show natural wood grain, metal shine, glass or food textures only when appropriate.',
+  'Exact recognizable SUBJECT with a unique natural silhouette; do not turn unrelated objects or living things into cubes, boxes, tiles, plates or sushi.',
+  'Use orthographic 2:1 isometric depth for solid objects, with visible top and side planes; preserve natural anatomy and form for organic subjects.',
+  'One centered object fills 72-84% of canvas. No repeated objects, stand, cast shadow, scenery, text, logos or border.',
+  'Uniform solid #FF00FF magenta background for transparency removal; no magenta inside the subject.',
+  'Crisp connected outlines and surfaces, no blur, broken seams, stray pixels, glitches, muddy brown filter or smooth 3D.',
 ].join('\n');
 
 /**
