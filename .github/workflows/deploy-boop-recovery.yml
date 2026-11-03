@@ -1,0 +1,38 @@
+name: Deploy Boop to Cloudflare (manual recovery)
+on:
+  push:
+    branches: ['codex/deploy-boop-20261103']
+permissions:
+  contents: read
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.CF_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: 'aee94a23af1280ab7c1ed026ef083969'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 'bdb8f7d9cbf50c0c32c48cd165bae7fcd91c6ac1'
+      - name: Check Cloudflare deployment credential
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "::error::Cloudflare deployment credential is not configured for this repository."
+            exit 1
+          fi
+      - name: Confirm target commit is still main
+        run: |
+          test "$(git ls-remote origin refs/heads/main | cut -f1)" = 'bdb8f7d9cbf50c0c32c48cd165bae7fcd91c6ac1' || { echo "::error::The main branch moved; no deployment was made."; exit 1; }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+      - name: Validate Worker deployment
+        run: npx wrangler deploy --dry-run
+      - name: Deploy Boop
+        run: npx wrangler deploy
