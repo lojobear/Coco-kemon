@@ -32,7 +32,9 @@ export function ElementSprite({ name, custom, fallback, className = '', alt = ''
     return () => { cancelled = true; observer.disconnect(); };
   }, [key, custom, retry]);
   const url = custom || (art?.key === key ? art.url : undefined);
-  return <span ref={host} className={`element-emoji${idle ? ' sprite-idle' : ''} ${className}`} title={error ? `Emoji unavailable: ${error} Retry in Sprites.` : undefined}>
+  const pendingLabel = !url ? (error ? 'Artwork unavailable' : 'Artwork pending') : undefined;
+  return <span ref={host} className={`element-emoji${idle ? ' sprite-idle' : ''} ${className}`} title={error ? `Artwork unavailable: ${error} Retry in Sprites.` : pendingLabel}>
+    {pendingLabel && <span className="sprite-status" aria-label={pendingLabel}>{error ? '!' : '…'}</span>}
     {url ? <img src={url} alt={alt} draggable={false} decoding="async" /> : fallback?.startsWith('data:') || fallback?.startsWith('/')
       ? <img src={fallback} alt={alt} draggable={false} />
       : <span role={alt ? 'img' : undefined} aria-label={alt || undefined}>{fallback || '◌'}</span>}
