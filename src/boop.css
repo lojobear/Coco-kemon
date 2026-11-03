@@ -1873,3 +1873,8 @@ html.boop-native-shell .boop-app .boop-cloud-dialog {
 
 .boop-app .element-emoji { position:relative; }
 .boop-app .element-emoji > .boop-preview-cue { position:absolute; right:2px; bottom:2px; z-index:1; display:grid; place-items:center; width:16px; height:16px; border-radius:50%; background:#3d5e4a; color:white; font:700 11px/1 system-ui; }
+
+/* Five destination tabs must remain on a single mobile/tablet row. */
+@media (max-width:1099px) {
+  .boop-app .boop-navigation .boop-nav-items { grid-template-columns:repeat(5,minmax(0,1fr)); }
+}
