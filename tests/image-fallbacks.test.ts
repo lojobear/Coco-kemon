@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { compactSchnellImagePrompt, generateGeminiImage, getGeminiImageModels } from '../server/gemini.js';
+import { compactSchnellImagePrompt, generateGeminiImage, getGeminiImageModels, nextWorkersAiResetUtc } from '../server/gemini.js';
 import { setWorkersAiBinding } from '../server/workersAi.js';
 import { buildSpritePrompt } from '../server/emoji.js';
 
@@ -12,32 +12,54 @@ function verboseSpritePrompt() {
   ].join('\n');
 }
 
-test('Schnell prompt fits 2048 characters while preserving subject and sprite requirements', () => {
+test('Schnell compact prompt fits model limit and keeps accurate Habbo-like isometric style', () => {
   const prompt = compactSchnellImagePrompt(verboseSpritePrompt());
   assert.ok(prompt.length <= 2048);
   assert.match(prompt, /Obsidian Dragon/);
   assert.match(prompt, /upgrade-abc123/);
-  assert.match(prompt, /pixel art|pixel-art/i);
+  assert.match(prompt, /isometric/i);
+  assert.match(prompt, /2:1/);
+  assert.match(prompt, /true subject colours/i);
   assert.match(prompt, /#FF00FF/);
-  assert.match(prompt, /dark CHROMATIC outline/);
-  assert.match(prompt, /65-75%/);
-  assert.match(prompt, /No muddy browns/);
+  assert.doesNotMatch(prompt, /BLACK-NAVY #1C2232/);
 });
 
-test('New native sprites request vibrant subject palettes without invalidating existing cache', () => {
-  const prompt = buildSpritePrompt('Sunflower');
-  assert.match(prompt, /Sunflower/);
-  assert.match(prompt, /COLOR IS THE HERO/);
-  assert.match(prompt, /65-75%/);
-  assert.match(prompt, /deep saturated version of the subject color/i);
-  assert.match(prompt, /do NOT coat unrelated subjects with the same brown/i);
+test('Subject-specific art direction avoids global brown cast and repeated generic shape', async () => {
+  const { spriteColorDirection } = await import('../server/spriteStyle.js');
+  const lake = spriteColorDirection('Ice Lake');
+  const leaf = spriteColorDirection('Green Leaf');
+  const battery = spriteColorDirection('Electric Battery');
+  const bread = spriteColorDirection('Toasted Bread');
+  assert.match(lake, /azure|cyan|teal/i);
+  assert.match(leaf, /green|emerald/i);
+  assert.match(battery, /silver|cyan/i);
+  assert.match(bread, /brown/i);
+  assert.notEqual(lake, leaf);
+  assert.notEqual(lake, battery);
+  const prompt = buildSpritePrompt('Ice Lake');
+  assert.match(prompt, /original classic virtual-hotel FURNI/i);
+  assert.match(prompt, /orthographic ISOMETRIC 2:1/);
+  assert.match(prompt, /BOLD BUT PRECISE FURNI READABILITY/);
+  assert.match(prompt, /NO glitch-like artifacts/);
+  assert.match(prompt, /broken outlines, stray pixels/);
+  assert.match(prompt, /Most non-wooden sprites must contain NO brown/);
+  assert.match(prompt, /SUBJECT-BASED PALETTE:.*Aquatic or ice elements/);
   assert.match(prompt, /#FF00FF/);
-  const reroll = buildSpritePrompt('Sunflower', 'new-colors');
-  assert.match(reroll, /Variation token: "new-colors"/);
+  assert.doesNotMatch(prompt, /thick nearly-black NAVY outer outline/);
   const compact = compactSchnellImagePrompt(prompt);
   assert.ok(compact.length <= 2048);
-  assert.match(compact, /Sunflower/);
-  assert.match(compact, /No muddy browns/);
+  assert.match(compact, /Aquatic or ice elements/);
+});
+
+test('Shiny and reroll keep the same object but different palette and geometry', () => {
+  const shiny = buildSpritePrompt('Cobalt Battery', '', true);
+  assert.match(shiny, /SHINY \/ ALTERNATE COLORWAY/);
+  const snabb = compactSchnellImagePrompt(shiny);
+  assert.match(snabb, /SHINY: change/);
+  assert.match(snabb, /cool silver\/graphite casing/);
+  const reroll = buildSpritePrompt('Chess Table', 'new-angle');
+  assert.match(reroll, /Variation token: "new-angle"/);
+  assert.match(compactSchnellImagePrompt(reroll), /new-angle/);
 });
 
 test('FLUX.2 receives the original detailed prompt; Schnell fallback receives the compact one', async () => {
@@ -102,5 +124,26 @@ test('Gemini image retries a second image model after an unavailable first model
   } finally {
     if (original === undefined) delete process.env.GEMINI_IMAGE_MODEL;
     else process.env.GEMINI_IMAGE_MODEL = original;
+  }
+});
+
+test('Workers AI quota cooldown ends at the next UTC midnight (also across year boundary)', () => {
+  assert.equal(nextWorkersAiResetUtc(Date.UTC(2026, 9, 25, 23, 45)), Date.UTC(2026, 9, 26));
+  assert.equal(nextWorkersAiResetUtc(Date.UTC(2026, 11, 31, 23, 59)), Date.UTC(2027, 0, 1));
+});
+
+
+test('concrete semantic subjects survive premium and compact fallback prompts', async () => {
+  const {spriteSubjectDirection}=await import('../server/spriteStyle.js');
+  assert.match(spriteSubjectDirection('Glassblowing'), /long metal blowpipe/);
+  assert.match(spriteSubjectDirection('Space Rations'), /open silver foil pouch/);
+  for (const [name, detail] of [['Glassblowing',/blowpipe/],['Space Rations',/food ration KIT/]] as const) {
+    const premium=buildSpritePrompt(name);
+    assert.match(premium,/SUBJECT DESIGN:/);
+    assert.match(premium,detail);
+    const compact=compactSchnellImagePrompt(premium);
+    assert.ok(compact.length<=2048);
+    assert.match(compact,detail);
+    assert.match(compact,/RECOGNIZABLE SUBJECT, NOT GEOMETRIC PLACEHOLDER/);
   }
 });

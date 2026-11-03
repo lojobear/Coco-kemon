@@ -5,6 +5,7 @@ import { createCraftingPlan } from '../lib/kitchen/originalPlanner';
 import { collectKitchenStep, runKitchenStep, sourceInventory, validKitchenPlan, validKitchenRecipe, type KitchenRecipe } from '../lib/kitchen/engine';
 import { readCraftElements, saveCraftElements, SAVE_IMPORTED_EVENT, getSaveError } from '../lib/saveData';
 import { requestJson } from '../lib/api';
+import { getElementEmoji } from '../lib/elementEmoji';
 import { useGame } from '../lib/gameStore';
 import { ElementSprite } from './ElementSprite';
 
@@ -79,9 +80,15 @@ export function KitchenView({ visible }: { visible: boolean }) {
         if (stop.current || !alive.current) break;
         const step = recipe.steps[count];
         inventory = runKitchenStep(step, inventory);
-        const next = collectKitchenStep(readCraftElements(), step, count === recipe.steps.length - 1 ? recipe : undefined);
+        const known = readCraftElements();
+        const next = collectKitchenStep(known, step, count === recipe.steps.length - 1 ? recipe : undefined);
         saveCraftElements(next); setElements(next);
         if (getSaveError()) throw new Error(getSaveError()!);
+        // Each completed recipe may create one new AI sprite for its final result;
+        // recipe timelines and the full kitchen gallery only display cached art.
+        if (count === recipe.steps.length - 1 && !known.some(el => el.name.toLowerCase() === step.outputName.toLowerCase())) {
+          void getElementEmoji(step.outputName).catch(() => undefined);
+        }
         count++; setCompleted(count); saveDraft(recipe, count);
         // Let the completed step paint before the next real local state transition.
         if (all && count < recipe.steps.length) await new Promise(resolve => setTimeout(resolve, 350));

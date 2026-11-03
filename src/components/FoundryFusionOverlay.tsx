@@ -50,12 +50,12 @@ export function FoundryFusionOverlay() {
       <div className="fusion-ring fusion-ring-two" />
 
       <div className="fusion-material fusion-material-a">
-        <MaterialSprite material={slotA} className="fusion-material-art" />
+        <MaterialSprite material={slotA} className="fusion-material-art" idle={false} />
         <span>{slotA.displayName}</span>
       </div>
 
       {slotB && <div className="fusion-material fusion-material-b">
-        <MaterialSprite material={slotB} className="fusion-material-art" />
+        <MaterialSprite material={slotB} className="fusion-material-art" idle={false} />
         <span>{slotB.displayName}</span>
       </div>}
 

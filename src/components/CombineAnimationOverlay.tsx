@@ -1,3 +1,4 @@
+import { CraftSprite } from './CraftSprite';
 import React, { useEffect, useState } from 'react';
 import { Sparkles, Atom, Zap } from 'lucide-react';
 
@@ -56,11 +57,11 @@ export function CombineAnimationOverlay({ combination }: CombineAnimationOverlay
       </div>
 
       <div className="craft-fusion-item item-a">
-        <div className="craft-fusion-emoji">{emojiA}</div>
+        <div className="craft-fusion-emoji"><CraftSprite name={nameA} emoji={emojiA} className="craft-fusion-sprite" idle={false} /></div>
         <span>{nameA}</span>
       </div>
       <div className="craft-fusion-item item-b">
-        <div className="craft-fusion-emoji">{emojiB}</div>
+        <div className="craft-fusion-emoji"><CraftSprite name={nameB} emoji={emojiB} className="craft-fusion-sprite" idle={false} /></div>
         <span>{nameB}</span>
       </div>
 
@@ -71,7 +72,7 @@ export function CombineAnimationOverlay({ combination }: CombineAnimationOverlay
       </div>
 
       <div className="craft-fusion-copy">
-        <div><Sparkles size={16} /><strong>QUARKPOP REACTION</strong><span>{elapsed}s</span></div>
+        <div><Sparkles size={16} /><strong>BOOP REACTION</strong><span>{elapsed}s</span></div>
         <p>{line}</p>
         <div className="craft-fusion-loader"><span /></div>
       </div>
