@@ -73,7 +73,8 @@ export function ElementSprite({ name, custom, fallback, className = '', alt = ''
     || (art?.key === key || (isShiny && art?.key === normalKey) ? art?.url : undefined)
     || (temporary?.key === key ? temporary.url : undefined);
   return <span ref={host} className={`element-emoji${idle ? ' sprite-idle' : ''}${isShiny ? ' boop-shiny-sprite' : ''}${ownShiny ? ' boop-shiny-authored' : ''} ${className}`} title={error ? `Sprite unavailable: ${error} Retry in Sprites.` : isShiny ? `Shiny variant of ${name}` : undefined}>
-    {<SpriteImage src={url || ((fallback?.startsWith('data:') || fallback?.startsWith('/')) ? fallback : freshArt)} alt={alt || name} draggable={false} decoding="async" />}
+    <SpriteImage src={url || ((fallback?.startsWith('data:') || fallback?.startsWith('/')) ? fallback : freshArt)} alt={alt || name} draggable={false} decoding="async" />
+    {!url && <span className="boop-preview-cue" title={error ? 'Artwork unavailable. Retry in Sprites.' : 'Preview artwork. Check Sprites for availability.'} aria-label={error ? 'Artwork unavailable' : 'Preview artwork'}>{error ? '!' : '…'}</span>}
   </span>;
 }
 export const MaterialSprite = React.memo(function MaterialSprite({ material, className, alt = '', idle = true }: { material: Material; className?: string; alt?: string; idle?: boolean }) {

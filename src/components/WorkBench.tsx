@@ -153,7 +153,7 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
           <MaterialSprite material={item} className="discovery-emoji" /><span>{item.displayName}</span>
         </button>
         {(slotA?.id === item.id || slotB?.id === item.id) && <span className="ingredient-badge">{[slotA?.id === item.id ? 'A' : '', slotB?.id === item.id ? 'B' : ''].filter(Boolean).join(' + ')}</span>}
-        {item.variant && <span className={`variant-badge variant-${item.variant}`}>{item.variant}</span>}
+        {item.variant && slotA?.id !== item.id && slotB?.id !== item.id && <span className={`variant-badge variant-${item.variant}`}>{item.variant}</span>}
         <button className="discovery-info" aria-label={`Details for ${item.displayName}`} onClick={() => { onInspectMaterial(item); setActiveTab('archive'); }}><Info size={15} /></button>
       </div>)}
       {!filtered.length && <p className="collection-empty">No discoveries match these filters. <button onClick={() => { setSearch(''); setCategory('all'); }}>Clear filters</button></p>}

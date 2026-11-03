@@ -482,7 +482,7 @@ export function InfiniteCraftView() {
       const currentRecipe = { first: itemA.name, second: itemB.name };
       const standardPhysicalData = generatePhysicalData(cleanName, emoji || '✨', false);
       const shinyPhysicalData = isShinyEncounter ? generatePhysicalData(cleanName, emoji || '✨', true) : undefined;
-      spawnRevealBurst(isShinyEncounter || firstInCollection);
+      if (isShinyEncounter || firstInCollection) spawnRevealBurst(true);
 
       const newElemObj: InfiniteElement = {
         id: cleanId,
@@ -914,7 +914,7 @@ export function InfiniteCraftView() {
           </div>
         </div>
         {activeCombination && <div className="boop-board-status" role="status"><span className="boop-inline-spinner"/>Combining {activeCombination.nameA} + {activeCombination.nameB}… <small>Keep moving tiles</small></div>}
-        {lastResult && <div className="boop-board-result" key={lastResult.discoveredAt} role="status"><CraftSprite name={lastResult.name} emoji={lastResult.emoji} isShiny={lastResult.isShiny}/><div><small>{lastResult.isNew ? '✦ NEW DISCOVERY' : 'CREATED'}</small><strong>{lastResult.name}</strong></div><button onClick={()=>spawnOnCanvas(lastResult.name,lastResult.emoji,Boolean(lastResult.isShiny))}>Add to board <Plus size={15}/></button><button aria-label="Dismiss result" onClick={()=>setLastResult(null)}><X size={16}/></button></div>}
+        {lastResult && <div className={`boop-board-result ${lastResult.isNew ? "boop-board-result-new" : "boop-board-result-repeat"}`} key={lastResult.discoveredAt} role="status"><CraftSprite name={lastResult.name} emoji={lastResult.emoji} isShiny={lastResult.isShiny}/><div><small>{lastResult.isNew ? '✦ NEW DISCOVERY' : 'CREATED'}</small><strong>{lastResult.name}</strong></div><button onClick={()=>spawnOnCanvas(lastResult.name,lastResult.emoji,Boolean(lastResult.isShiny))}>Add to board <Plus size={15}/></button><button aria-label="Dismiss result" onClick={()=>setLastResult(null)}><X size={16}/></button></div>}
         {combineError && <div className="boop-board-alert" role="alert">{combineError}<button onClick={()=>{if(lastPairRef.current)void handleCombine(lastPairRef.current[0],lastPairRef.current[1]);}}>Retry</button><button onClick={()=>setCombineError(null)}>Dismiss</button></div>}
         {spawnToast && <div className="boop-board-toast" role="status">{spawnToast}</div>}
         <button className="boop-board-mobile-library" onClick={()=>setIsSidebarOpen(true)} aria-label="Open element library"><Plus size={21}/> Add an element</button>
