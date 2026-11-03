@@ -232,7 +232,9 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     setMaterials(prev => {
       let changed = false;
       const next = prev.map(m => {
-        if (m.customSpriteUrl && m.spriteRendererVersion === MATERIAL_SPRITE_RENDERER_VERSION) return m;
+        // Legacy saves do not identify uploaded artwork separately. Preserve every
+        // existing image rather than guessing whether it is safe to replace.
+        if (m.customSpriteUrl) return m;
         changed = true;
         return {
           ...m,

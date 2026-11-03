@@ -3168,3 +3168,24 @@ body:has(.collection-app[data-theme="paper-lab"]) {
 .collection-app[data-theme="paper-lab"] ::-webkit-scrollbar-thumb:hover {
   background: #b8ab8f;
 }
+
+/* Readable mobile controls and explicit sprite state. */
+.element-emoji { position: relative; }
+.element-emoji > .sprite-status {
+  position: absolute; z-index: 1; top: 0; right: 0; min-width: 16px; height: 16px;
+  padding: 0 3px; border-radius: 8px; background: #fffdf7; color: #684f31;
+  border: 1px solid #d4c7ae; font: 700 11px/14px system-ui, sans-serif; text-align: center;
+}
+.mode-explainer { color: #6f6759; font-size: 12px; line-height: 1.3; margin: 0; }
+.load-more-discoveries { grid-column: 1 / -1; min-height: 44px; padding: 8px; border: 1px solid #cfc4ae; border-radius: 10px; background: #fffdf7; color: #211d16; font-size: 13px; }
+@media (max-width: 520px) {
+  .collection-app .discovery-pick span { font-size: 12px !important; }
+  .collection-app .collection-filters select { min-height: 44px !important; height: auto !important; font-size: 12px !important; }
+  .collection-app .process-control select { min-height: 44px !important; height: auto !important; font-size: 13px !important; }
+  .collection-app .random-process { min-height: 36px !important; font-size: 11px !important; }
+  .collection-app .discovery-info, .collection-app .ingredient-remove { width: 36px !important; height: 36px !important; }
+  .collection-app .recipe-tools button { min-width: 44px !important; width: 44px !important; min-height: 44px !important; height: 44px !important; }
+  .collection-app .collection-nav button span, .collection-app .ingredient > span { font-size: 10px !important; }
+  .collection-app .ingredient-badge, .collection-app .variant-badge { font-size: 10px !important; }
+  .collection-app .mode-explainer { font-size: 11px; }
+}

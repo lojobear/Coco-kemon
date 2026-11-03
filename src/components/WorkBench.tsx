@@ -4,7 +4,6 @@ import { useGame } from '../lib/gameStore';
 import type { Material } from '../types';
 import { readCraftElements, SAVE_IMPORTED_EVENT } from '../lib/saveData';
 import { conceptMaterial } from '../lib/conceptMaterial';
-import { generateMaterialSprite } from '../lib/pixelRenderer';
 import { MaterialSprite } from './ElementSprite';
 import { chooseRandomProcess } from '../lib/randomProcess';
 import { EXTRA_PROCESSES } from '../lib/extraProcesses';
@@ -18,6 +17,8 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('all');
   const [sort, setSort] = useState<'collection' | 'recent' | 'name'>('collection');
+  const [visibleCount, setVisibleCount] = useState(60);
+  useEffect(() => setVisibleCount(60), [search, category, sort]);
   const [picker, setPicker] = useState<'A' | 'B' | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
@@ -29,7 +30,7 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
     const names = new Set(foundryMaterials.map(item => item.displayName.trim().toLowerCase()));
     return [...foundryMaterials, ...craftItems.filter(item => !names.has(item.name.trim().toLowerCase())).map(item => {
       const material = conceptMaterial({ result: item.name, emoji: item.emoji, explanation: item.explanation, connection: item.connection });
-      return { ...material, discoveredAt: item.discoveredAt || 0, customSpriteUrl: item.customSpriteUrl || generateMaterialSprite(material) };
+      return { ...material, discoveredAt: item.discoveredAt || 0, customSpriteUrl: item.customSpriteUrl };
     })];
   }, [foundryMaterials, craftItems]);
   const availableProcesses = useMemo(() => [...processes, ...EXTRA_PROCESSES.filter(extra => !processes.some(p => p.id === extra.id))].filter(p => p.unlocked), [processes]);
@@ -93,6 +94,7 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
         {progression.hint && <p className="progression-hint"><Sparkles size={13} /> {progression.hint}</p>}
       </div>
     </div>
+    <p className="mode-explainer">Foundry applies a process to items from your shared collection.</p>
     <div className="discovery-heading"><h2>Your discoveries <span>{materials.length}</span></h2>
       <label className="discovery-search"><Search size={17} /><input ref={searchRef} aria-label="Search your discoveries" placeholder="Search collection…" value={search} onChange={e => setSearch(e.target.value)} /></label>
     </div>
@@ -103,7 +105,7 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
       <span aria-live="polite">{filtered.length} items</span>
     </div>
     <div className="discovery-grid" aria-label="Discovered items" aria-busy={isSynthesizing}>
-      {filtered.map(item => <div key={item.id} data-rarity={item.rarity} className={`discovery-tile ${item.variant ? `variant-${item.variant}` : ''} ${slotA?.id === item.id || slotB?.id === item.id ? 'is-selected' : ''}`}>
+      {filtered.slice(0, visibleCount).map(item => <div key={item.id} data-rarity={item.rarity} className={`discovery-tile ${item.variant ? `variant-${item.variant}` : ''} ${slotA?.id === item.id || slotB?.id === item.id ? 'is-selected' : ''}`}>
         <button className="discovery-pick" onClick={() => selectItem(item)} disabled={isSynthesizing} aria-label={`Select ${item.displayName}`} aria-pressed={slotA?.id === item.id || slotB?.id === item.id}>
           <MaterialSprite material={item} className="discovery-emoji" /><span>{item.displayName}</span>
         </button>
@@ -111,6 +113,7 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
         {item.variant && <span className={`variant-badge variant-${item.variant}`}>{item.variant}</span>}
         <button className="discovery-info" aria-label={`Details for ${item.displayName}`} onClick={() => { onInspectMaterial(item); setActiveTab('archive'); }}><Info size={15} /></button>
       </div>)}
+      {visibleCount < filtered.length && <button className="load-more-discoveries" onClick={() => setVisibleCount(count => count + 60)}>Show more discoveries ({filtered.length - visibleCount} remaining)</button>}
       {!filtered.length && <p className="collection-empty">No discoveries match these filters. <button onClick={() => { setSearch(''); setCategory('all'); }}>Clear filters</button></p>}
     </div>
     <div className={`combine-dock ${isSynthesizing ? 'is-combining' : ''}`}>
