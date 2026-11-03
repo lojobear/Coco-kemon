@@ -3,8 +3,8 @@
 :root {
   --boop-canvas: #ffffff;
   --boop-surface: #fff;
-  --boop-ink: #20242a;
-  --boop-muted: #68717a;
+  --boop-ink: #312e81;
+  --boop-muted: #514b8f;
   --boop-line: #e4e7eb;
   --boop-forest: #242a31;
   --boop-forest-soft: #4d5865;
@@ -1877,4 +1877,63 @@ html.boop-native-shell .boop-app .boop-cloud-dialog {
 /* Five destination tabs must remain on a single mobile/tablet row. */
 @media (max-width:1099px) {
   .boop-app .boop-navigation .boop-nav-items { grid-template-columns:repeat(5,minmax(0,1fr)); }
+}
+
+/* Indigo typography on light surfaces. Keep white text on dark controls and
+   semantic error, warning, shiny and artwork colors intact. */
+.boop-app[data-theme="quark-light"] {
+  --boop-ink:#312e81;
+  --boop-muted:#514b8f;
+}
+.boop-app .collection-brand strong,
+.boop-app .boop-board-heading strong,
+.boop-app .boop-board-drawer-head h2,
+.boop-app .boop-profile-hero-text h1,
+.boop-app .boop-screen-intro h1,
+.boop-app .boop-section-heading h2,
+.boop-app .boop-archive h1,
+.boop-app .boop-archive h2,
+.boop-app .boop-album-card strong,
+.boop-app .boop-discovery-pick > strong,
+.boop-app .collection-workbench .discovery-heading h2,
+.boop-app .collection-workbench .discovery-pick > span:not(.element-emoji),
+.boop-app .boop-profile-stat-card strong,
+.boop-app .boop-profile-panel h2,
+.boop-app .boop-board-layout .boop-board-item,
+.boop-app .boop-board-library-item,
+.boop-app .boop-board-library-item > button:first-child,
+.boop-app .boop-board-drawer-footer button,
+.boop-app .boop-board-result,
+.boop-app .boop-board-toast,
+.boop-app .boop-board-result button,
+.boop-app .boop-search input {
+  color:#312e81!important;
+}
+.boop-app .boop-board-heading small,
+.boop-app .boop-board-drawer-head small,
+.boop-app .boop-profile-hero-text p,
+.boop-app .boop-screen-intro p,
+.boop-app .boop-discovery-pick small,
+.boop-app .boop-profile-stat-card small,
+.boop-app .boop-board-drawer-footer,
+.boop-app .boop-search input::placeholder {
+  color:#514b8f!important;
+}
+.boop-app .boop-navigation .boop-nav-items button:not([aria-current="page"]) {
+  color:#514b8f!important;
+}
+
+.boop-app .boop-album-title h1,
+.boop-app .boop-album-summary strong,
+.boop-app .boop-album-outline-button,
+.boop-app .boop-album-tabs button,
+.boop-app .boop-album-search input,
+.boop-app .boop-album-controls > select,
+.boop-app .boop-sticker-card:not(.boop-sticker-locked) .boop-sticker-name {
+  color:#312e81!important;
+}
+.boop-app .boop-album-title p,
+.boop-app .boop-album-summary small,
+.boop-app .boop-sticker-footer {
+  color:#514b8f!important;
 }
