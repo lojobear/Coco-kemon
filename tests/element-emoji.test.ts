@@ -79,7 +79,7 @@ test('endpoint generates once for simultaneous and repeated canonical names', as
     const firstReply = await replies[0].json() as any;
     const secondReply = await replies[1].json() as any;
     assert.deepEqual(firstReply, secondReply);
-    assert.equal(firstReply.engineVersion, 'v9-hq-2p5d-pixel');
+    assert.equal(firstReply.engineVersion, 'v13-semantic-object-furni');
     assert.equal(firstReply.provenance, 'gemini-native-image-pixel-art');
     assert.equal(firstReply.mimeType, 'image/png');
     assert.equal(firstReply.imageBase64, fakeImage.data);
@@ -96,6 +96,17 @@ test('endpoint generates once for simultaneous and repeated canonical names', as
     server.closeAllConnections();
     await new Promise<void>(r => server.close(() => r()));
   }
+});
+
+test('future isometric furni normalization preserves 128px detail without changing existing cached sprites', async () => {
+  const { readFileSync } = await import('node:fs');
+  const code = readFileSync(new URL('../src/lib/elementEmoji.ts', import.meta.url), 'utf8');
+  assert.match(code, /const logicalSize = 128/);
+  assert.match(code, /pixelContext\.imageSmoothingEnabled = false/);
+  assert.match(code, /removeEdgeConnectedBackground\(sourcePixels.data, sourceSize, sourceSize\)/);
+  assert.match(code, /tidyGeneratedSpritePixels\(pixelData.data, logicalSize, logicalSize\)/);
+  assert.match(code, /context\.imageSmoothingEnabled = false/);
+  assert.match(code, /context\.drawImage\(pixels, 0, 0, width, width\)/);
 });
 
 test('client deduplicates, persists normalized high-resolution art, and supports rerolls', async () => {
@@ -180,6 +191,9 @@ test('client deduplicates, persists normalized high-resolution art, and supports
 
   try {
     const first = await import('../src/lib/elementEmoji.ts' + '?native-first');
+    // Rendering ungenerated inventory entries is free: no request to image AI.
+    assert.equal(await first.getElementEmoji('Not Yet Discovered', false, '', false), '');
+    assert.equal(calls, 0);
     const [a, b] = await Promise.all([
       first.getElementEmoji('Moon Rock'),
       first.getElementEmoji(' MOON  ROCK '),
@@ -196,6 +210,47 @@ test('client deduplicates, persists normalized high-resolution art, and supports
     assert.equal(calls, 2);
     await reloaded.upgradeElementEmoji('moon rock', 'reroll-b');
     assert.equal(calls, 3);
+
+    // A transient quota failure must not poison the job map forever.
+    let failOnce = true;
+    globalThis.fetch = async () => {
+      calls++;
+      if (failOnce) {
+        failOnce = false;
+        return new Response(JSON.stringify({ error: 'Sprite quota reached' }), {
+          status: 503, headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response(JSON.stringify({ imageBase64: fakeImage.data, mimeType: fakeImage.mimeType }), {
+        status: 200, headers: { 'Content-Type': 'application/json' },
+      });
+    };
+    await assert.rejects(first.getElementEmoji('Retry Moon'), /Sprite quota reached/);
+    assert.equal(await first.getElementEmoji('Retry Moon'), a);
+    assert.equal(calls, 5, 'a failed sprite request should be retried successfully');
+
+    // A stalled AI request cannot block local cached-art lookups in the
+    // collection. They must be independent of the image-generation queue.
+    records.set('pixelimage-v9-2p5d:cached sprite', a);
+    let releaseSlow!: () => void;
+    const slowGate = new Promise<void>(resolve => { releaseSlow = resolve; });
+    globalThis.fetch = async () => {
+      await slowGate;
+      return new Response(JSON.stringify({ imageBase64: fakeImage.data, mimeType: fakeImage.mimeType }), {
+        status: 200, headers: { 'Content-Type': 'application/json' },
+      });
+    };
+    const slow = first.getElementEmoji('Slow Generation');
+    try {
+      const restored = await Promise.race([
+        first.getElementEmoji('Cached Sprite', false, '', false),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Cached sprite blocked behind image generation')), 250)),
+      ]);
+      assert.equal(restored, a);
+    } finally {
+      releaseSlow();
+      await slow;
+    }
   } finally {
     Object.defineProperty(globalThis, 'indexedDB', { configurable: true, value: oldIndexedDB });
     globalThis.fetch = oldFetch;

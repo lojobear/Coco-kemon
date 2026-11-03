@@ -1,6 +1,10 @@
 import { GoogleGenAI } from '@google/genai';
-import { conceptDNAFor } from './discovery.js';
+import { conceptDNAFor, normalizeDiscoveryCandidates } from './discovery.js';
 import { getWorkersAiBinding } from './workersAi.js';
+import { generateRunwareSprite } from './runware.js';
+import { generateRunwaySprite, RunwayPendingError } from './runway.js';
+import { BOOP_SPRITE_STYLE_COMPACT } from './spriteStyle.js';
+import { ImageBudgetExceeded, safeImageSpendingEnabled, reserveFreeImageNeurons, FLUX2_KLEIN_512_NEURONS, FLUX1_SCHNELL_8STEP_NEURONS } from './imageSpendingGuard.js';
 
 export class ApiFailure extends Error {
   status: number;
@@ -11,6 +15,10 @@ export class ApiFailure extends Error {
 }
 
 export function publicFailure(error: unknown): { status: number; error: string } {
+  // 425 is a normal async Runway task still processing. The artwork queue
+  // polls its persisted task ID without creating or charging for another job.
+  if (error instanceof RunwayPendingError) return { status: 425, error: error.message };
+  if (error instanceof ImageBudgetExceeded) return { status: error.status, error: error.message };
   return error instanceof ApiFailure
     ? { status: error.status, error: error.message }
     : { status: 502, error: 'The AI returned an invalid result. Please retry.' };
@@ -54,12 +62,12 @@ const DISCOVERY_RESPONSE_SCHEMA = {
   properties: {
     candidates: {
       type: 'array',
-      minItems: 6,
-      maxItems: 8,
+      minItems: 1,
+      maxItems: 3,
       items: {
         type: 'object',
         properties: {
-          result: { type: 'string', description: 'Concise discovery name, usually one to three words.' },
+          result: { type: 'string', description: 'Recognizable independent concept. HARD LIMIT 1, 2 or 3 words; hyphens count as word separators. Never splice parent words.' },
           emoji: { type: 'string', description: 'One expressive emoji for the discovery.' },
           connection: { type: 'string', enum: DISCOVERY_CONNECTIONS, description: 'Best descriptive route label only; this label must never limit what the actual result can be.' },
           explanation: { type: 'string', description: 'One concise player-facing sentence explaining the causal bridge from both inputs to the result.' },
@@ -70,7 +78,7 @@ const DISCOVERY_RESPONSE_SCHEMA = {
           chainPotential: { type: 'integer', minimum: 1, maximum: 5, description: 'How useful this concept is for many future combinations.' },
           novelty: { type: 'integer', minimum: 1, maximum: 5, description: 'How distinct this idea is from generic mashups without sacrificing coherence.' },
         },
-        required: ['result', 'emoji', 'connection', 'explanation', 'coherence', 'surprise', 'inputFit', 'recognizability', 'chainPotential', 'novelty'],
+        required: ['result', 'emoji', 'connection', 'explanation'],
         additionalProperties: false,
       },
     },
@@ -256,20 +264,32 @@ function enhanceFoundryPrompt(prompt: string, selectedIdea?: FoundryIdea | null)
 }
 
 function enhanceDiscoveryInstruction(systemInstruction: string): string {
-  let enhanced = systemInstruction
-    .replace(
-      'Consider up to three DISTINCT possible results using different connections: science, function,\nappearance, mythology or wordplay.',
-      'Consider EIGHT DISTINCT possible results when possible. Start from the meanings and affordances of BOTH inputs, then explore genuinely different causal bridges. The connection label is only metadata and must not constrain the result domain.'
-    )
-    .replace('Return JSON with a candidates array (1–3 items)', 'Return JSON with a candidates array (6–8 items)')
-    .replace(
-      'result, emoji, connection (science/function/appearance/mythology/wordplay),',
-      'result, emoji, connection (science/function/appearance/mythology/wordplay/chemistry/physics/biology/ecology/technology/history/geography/food/pop-culture/brand/character/comedy/language),'
-    );
+  return `${systemInstruction}
 
-  enhanced += `\n\nINFINITE DISCOVERY PRINCIPLES:\n- This is an effectively unbounded semantic graph, not a finite recipe catalog. Do not choose from a hidden taxonomy of allowed answers. Any recognizable or coherent concept can become a node if the pair truly earns it.\n- Meaning first, domain second. NEVER decide “this should be science/pop culture/food” and force the ingredients into that genre. First ask what relationship between BOTH inputs naturally produces or evokes something else.\n- Generate 6–8 genuinely different candidate bridges, not cosmetic synonyms. Examples of bridge types include physical transformation, shared function, cultural association, linguistic relation, category progression, scale change, composition, tool-use, mythology, history, geography, food, technology, character/reference, visual resemblance, and emergent behavior—but this list is illustrative, not exhaustive.\n- Both inputs should matter. Silently reject candidates that could have been generated just as well from only one parent. For wordplay or cultural references, the explanation must make the two-parent bridge immediately understandable.\n- Prefer specific names people actually recognize: “Snow Globe”, “Arcade”, “Sushi”, “Batman”, “Saturn”, “Wi‑Fi”, “Treasure Map”, or a crisp original concept when appropriate. Avoid pseudo-scientific filler such as Quantum-X, Cosmic-X, Neo-X, Matrix-X, Core-X, or vague adjective+noun sludge unless the pair genuinely demands it.\n- Pop culture, brands, characters, memes, games, films, TV, anime, comics, music, places, historical figures/objects, foods, everyday items, technologies, living things, abstract ideas, and jokes are all valid outcomes when the semantic bridge is strong. Do not force recognizable references merely for novelty.\n- Reward the “ohhh, of course” feeling over raw weirdness. Surprise is good only after coherence.\n- Favor concepts with strong future-chain potential: things that have functions, properties, cultural associations, parts, opposites, habitats, materials, categories, or transformations that can combine again. Avoid dead-end flavor phrases.\n- Identical input pairs are deterministic at the game layer once discovered; your job is therefore to make the first selected concept worth keeping.\n- Treat coherence, inputFit, recognizability, chainPotential, novelty, and surprise as honest self-assessments. Do not inflate them. The server independently ranks candidates.\n- Preserve useful semantic inheritance from parent metadata when available, but descendants are allowed to cross domains naturally.\n- Return only the required JSON candidates; never reveal hidden comparison or chain-of-thought.`;
-
-  return enhanced;
+QUALITY CHECK:
+- Produce two to three DIFFERENT semantic bridges, not trivial variations
+  of one noun. Keep output concise and parseable, especially on small models.
+- Use actual functions, material interactions, biology, myths, idioms, culture,
+  place names or history where both inputs meaningfully contribute.
+- Reject results that merely name one input's synonym ("BBQ" => "Grill"), give
+  a parent a costume ("Worm-Shaped Cloud"), or join the parent words together.
+- Reject NEW phrases assembled by borrowing one word from EACH input:
+  "Breakfast Food" + "Turkish Delight" must NOT become "Breakfast Delight".
+  Think of what they DO together instead (e.g., the established morning
+  ritual of serving Turkish delight with Turkish coffee).
+- Every result name MUST be 1–3 words. Hyphenated words count separately.
+  Do not shorten four-word phrases into awkward three-word hybrids.
+- Privately evaluate at least four distinct semantic connections before naming
+  a candidate. Prefer real outcomes with a specific use, process, context or
+  cultural meaning. Do not present internal deliberation.
+- Name an independent, recognizable thing—not an adjective plus the parent.
+- The result may be everyday, strange, fictional or funny; always prioritize
+  a satisfying two-parent connection over weirdness for its own sake.
+- Explain each outcome in ONE short, player-facing sentence mentioning BOTH
+  inputs by name. Do not provide private reasoning.
+- Scores must reflect real two-parent fit, not self-congratulation.
+- Return a compact JSON object with two or three candidates. The six numeric
+  scores are OPTIONAL; prioritize complete names and explanations.`;
 }
 
 function enrichDiscoveryPrompt(prompt: string | { parts: any[] }): string | { parts: any[] } {
@@ -323,6 +343,11 @@ function bytesToBase64(bytes: Uint8Array): string {
 async function normalizeWorkersImagePayload(payload: any): Promise<{ data: string; mimeType: string } | null> {
   if (!payload) return null;
 
+  if (typeof payload === 'object' && !(payload instanceof ArrayBuffer) && !ArrayBuffer.isView(payload)) {
+    const nested = payload.image ?? payload.data ?? payload.result?.image ?? payload.result?.data ?? payload.output?.image;
+    if (nested && nested !== payload) return normalizeWorkersImagePayload(nested);
+  }
+
   if (typeof payload === 'string') {
     const dataUrl = payload.match(/^data:(image\/[a-z0-9.+-]+);base64,(.+)$/is);
     if (dataUrl) return { mimeType: dataUrl[1], data: dataUrl[2].replace(/\s+/g, '') };
@@ -374,25 +399,33 @@ export function compactSchnellImagePrompt(prompt: string): string {
     ? firstLine.slice(0, 400)
     : `Create one pixel-art inventory sprite of: ${JSON.stringify(prompt.slice(0, 180))}.`;
   const rerollToken = prompt.match(/Variation token: ([^\n]+)\./)?.[1]?.slice(0, 100);
+  const isShiny = /SHINY \/ ALTERNATE COLORWAY/.test(prompt);
+  const paletteLine = prompt.match(/^SUBJECT-BASED PALETTE:\s*(.+)$/m)?.[1]?.slice(0, 350);
+  const subjectDesign = prompt.match(/^SUBJECT DESIGN:\s*(.+)$/m)?.[1]?.slice(0, 620);
+
   const concise = [
     subject,
+    subjectDesign ? `RECOGNIZABLE SUBJECT, NOT GEOMETRIC PLACEHOLDER: ${subjectDesign}` : '',
+    paletteLine ? `Distinct subject material colours: ${paletteLine}` : '',
     rerollToken ? `Reroll variant ${rerollToken}: change angle, pose or silhouette; preserve subject identity.` : '',
-    'Premium 32-bit RPG inventory pixel art. One recognizable subject, centered and large (75-80%) in a square canvas.',
-    'Subtle 3/4 isometric perspective, a narrow dark CHROMATIC outline in the subject hue (not black/brown), colorful stepped bevels and layered 2.5D volume.',
-    'Bright colorful collectible sprite: 65-75% of visible sprite in vivid subject-appropriate midtones/highlights, with only small colored occlusion shadows. No muddy browns, sepia, charcoal cast, low exposure or dull/desaturated palette.',
-    'Distinct hues for each subject: emerald leaves, azure ice/water, golden flame, vibrant purple magic, clean silver-blue metal; earthy objects may retain real brown material colors but stay well-lit.',
-    'Crisp 96x96 implied pixel grid, square pixel clusters, faceted materials, bright upper-left highlights and readable 4-6 step hue-shifted color ramps.',
-    'Accurate literal form: recognizable creature anatomy or object shape. No unrelated crystal/orb/slime, no extra limbs or faces on inanimate things.',
-    'Absolutely no text, logos, cards, scenery, cast shadow, aura, particles, duplicate subjects or blurry/soft illustration.',
-    'Perfectly flat SOLID #FF00FF magenta background across entire canvas; no gradients or noise, no magenta inside the subject. Leave clear edge padding.',
-    'Output only one detailed pixel-art item, instantly readable at thumbnail size.',
+    isShiny ? 'SHINY: change the actual surface pigments to a clearly different colourway while preserving object shape, clean local-colour outlines and isometric geometry, not merely adding glitter.' : '',
+    BOOP_SPRITE_STYLE_COMPACT,
   ].filter(Boolean).join('\n');
   return concise.slice(0, 2048);
 }
 
+// Once Cloudflare's free neuron allowance is depleted, both FLUX models share
+// that exhausted pool. Avoid hammering them on every requested sprite.
+let workersImageQuotaBackoffUntil = 0;
+
+/** Workers AI free neurons refresh at 00:00 UTC, not every five minutes. */
+export function nextWorkersAiResetUtc(now = Date.now()): number {
+  const date = new Date(now);
+  return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate() + 1);
+}
 async function generateWorkersAiImage(prompt: string): Promise<GeminiImageResult | null> {
   const ai = getWorkersAiBinding();
-  if (!ai?.run) return null;
+  if (!ai?.run || Date.now() < workersImageQuotaBackoffUntil) return null;
 
   const models = [
     '@cf/black-forest-labs/flux-2-klein-4b',
@@ -404,6 +437,7 @@ async function generateWorkersAiImage(prompt: string): Promise<GeminiImageResult
     try {
       let response: any;
       if (model.includes('flux-2-klein-4b')) {
+        await reserveFreeImageNeurons(FLUX2_KLEIN_512_NEURONS);
         const form = new FormData();
         form.append('prompt', prompt);
         form.append('width', '512');
@@ -417,19 +451,47 @@ async function generateWorkersAiImage(prompt: string): Promise<GeminiImageResult
           },
         });
       } else {
+        await reserveFreeImageNeurons(FLUX1_SCHNELL_8STEP_NEURONS);
         response = await ai.run(model, { prompt: compactSchnellImagePrompt(prompt), steps: 8 });
       }
 
-      const candidate = response?.image ?? response?.result?.image ?? response;
-      const normalized = await normalizeWorkersImagePayload(candidate);
+      const normalized = await normalizeWorkersImagePayload(response);
       if (normalized?.data && normalized.data.length >= 100 && normalized.data.length <= 16_000_000) {
         console.info(`Sprite image generated with ${model}.`);
         return { ...normalized, model };
       }
       throw new Error('Workers AI returned no usable image payload.');
     } catch (error) {
+      if (error instanceof ImageBudgetExceeded) throw error;
       last = error;
       const message = error instanceof Error ? error.message : String(error);
+      if (/(?:3036|4006).*(?:daily|allocation|neuron)|used up your daily free allocation/i.test(message)) {
+        workersImageQuotaBackoffUntil = nextWorkersAiResetUtc() + 3_000;
+        console.warn('Cloudflare daily image allocation exhausted; pausing Workers AI until 00:00 UTC reset and trying independent fallbacks.');
+        break;
+      }
+      if (model.includes('flux-2-klein-4b') && /3030|flagged/i.test(message)) {
+        // A long decorative prompt may trip the image safety filter. Retry with a
+        // compact, neutral inventory-art prompt; never attempt to bypass a filter
+        // on a genuinely disallowed subject.
+        const subject = prompt.match(/exact subject:\s*([^\n]+)/i)?.[1]?.slice(0, 120);
+        if (subject && !/violence|weapon|sexual|nude|gore/i.test(subject)) {
+          try {
+            const form = new FormData();
+            form.append('prompt', `An original classic Habbo Hotel furni-inspired isometric pixel-art collectible of ${subject}; accurate unique silhouette, 2:1 isometric stair-stepped geometry, thin local-color outlines, true bright material palette, no sepia or brown unless naturally wooden, single centered object on flat #FF00FF magenta chroma background, no text or scene.`);
+            form.append('width', '512');
+            form.append('height', '512');
+            const serialized = new Response(form);
+            await reserveFreeImageNeurons(FLUX2_KLEIN_512_NEURONS);
+            const retry = await ai.run(model, { multipart: { body: serialized.body, contentType: serialized.headers.get('content-type') } });
+            const normalized = await normalizeWorkersImagePayload(retry);
+            if (normalized?.data && normalized.data.length >= 100 && normalized.data.length <= 16_000_000) return { ...normalized, model };
+          } catch (retryError) {
+            if (retryError instanceof ImageBudgetExceeded) throw retryError;
+            console.warn(`Simplified FLUX image retry failed: ${String(retryError).slice(0, 180)}`);
+          }
+        }
+      }
       console.warn(`Workers AI image model ${model} failed: ${message}. Trying fallback...`);
     }
   }
@@ -437,7 +499,7 @@ async function generateWorkersAiImage(prompt: string): Promise<GeminiImageResult
   // Crucially, do not strand every sprite when Workers AI changes response shape or a model is
   // temporarily unavailable. Returning null lets generateGeminiImage use the configured Gemini
   // image model as the secondary provider.
-  console.error('Workers AI image generation failed; falling back to Gemini:', last);
+  console.warn('Workers AI image generation unavailable; trying original Gemini fallback.', last instanceof Error ? last.name : 'unknown');
   return null;
 }
 
@@ -453,13 +515,33 @@ export async function generateGeminiImage(
   if (!injectedClient) {
     const workersImage = await generateWorkersAiImage(prompt);
     if (workersImage) return workersImage;
+    // Prevent paid inference with Gemini, Runware or Runway in free-only mode.
+    if (safeImageSpendingEnabled()) throw new ImageBudgetExceeded();
+
+    // The independent Runware API is optional: its key must be a real Runware
+    // secret, never a copy of GEMINI_API_KEY. Failures leave Gemini available.
+    const runwareImage = await generateRunwareSprite(prompt);
+    if (runwareImage) return runwareImage;
+
+    // Muse is opt-in and uses a persisted paid task ID to avoid duplicate
+    // purchases. Its pending status must propagate for 12-second queue polls.
+    // A missing key, disabled feature, or provider failure is non-fatal.
+    try {
+      const runwayImage = await generateRunwaySprite(prompt);
+      if (runwayImage) return runwayImage;
+    } catch (error) {
+      if (error instanceof RunwayPendingError) throw error;
+      console.warn('Runway image fallback unavailable.');
+    }
   }
   if (!injectedClient && !process.env.GEMINI_API_KEY) {
-    throw new ApiFailure(503, 'AI image generation is not configured. Add a Gemini API key on the server.');
+    throw new ApiFailure(503, 'Image providers are temporarily unavailable. Your discovery is saved; retry artwork later.');
   }
   const ai = injectedClient ?? (client ??= new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! }));
   const models = getGeminiImageModels();
-  const deadline = Date.now() + 55000;
+  // Keep the deadline for Gemini independent of any unavailable earlier provider;
+  // an upstream image service must never make its fallback unusable.
+  const deadline = Date.now() + 55_000;
   let last: unknown;
 
   for (let attempt = 0; attempt < models.length; attempt++) {
@@ -508,7 +590,15 @@ export async function generateGeminiImage(
       last = error;
       const code = Number(error?.status || error?.code);
       const terminal = terminalGeminiFailure(error);
-      if (terminal) throw terminal;
+      if (terminal) {
+        if (terminal.status === 429 && !injectedClient) {
+          const cloudflareExhausted = Date.now() < workersImageQuotaBackoffUntil;
+          throw new ApiFailure(503, cloudflareExhausted
+            ? 'Daily image allowance used up. Cloudflare resets at 00:00 UTC; Gemini image generation needs available paid API quota. Your discovery is saved and its sprite will retry.'
+            : 'Gemini image generation is unavailable at your current API quota or billing level. Your discovery is saved; Cloudflare or a configured backup provider may still generate artwork later.');
+        }
+        throw terminal;
+      }
 
       if (attempt < models.length - 1) {
         console.warn(`Image model ${currentModel} failed (${code || error?.message || 'unknown'}). Failing over to ${models[attempt + 1]}...`);
@@ -536,12 +626,37 @@ export function getGroqModels(): string[] {
     if (!/^[a-z0-9][a-z0-9._/-]+$/i.test(trimmed)) return null;
     return trimmed;
   };
+  // The 20B model answers lightweight combinations faster and leaves more room for
+  // the fallback. GROQ_FAST_MODEL optionally overrides that first choice.
   return Array.from(new Set([
+    sanitizeGroqModel(process.env.GROQ_FAST_MODEL),
+    'openai/gpt-oss-20b',
     sanitizeGroqModel(process.env.GROQ_MODEL),
     sanitizeGroqModel(process.env.GROQ_FALLBACK_MODEL),
     'openai/gpt-oss-120b',
-    'openai/gpt-oss-20b',
   ].filter((model): model is string => Boolean(model)))).slice(0, 2);
+}
+
+/**
+ * A JSON object is not necessarily a playable discovery. Reject malformed
+ * semantic payloads at EACH provider boundary, so Groq's valid-but-useless
+ * answer can fail over to Workers AI and Gemini rather than blocking them.
+ */
+export function acceptDiscoveryProviderJson(raw: string, prompt: string): string | null {
+  const prefix = 'Find satisfying discoveries for these input names:';
+  const start = prompt.indexOf(prefix);
+  if (start < 0) return raw; // Other structured routes have their own validators.
+  const line = prompt.slice(start + prefix.length).trimStart().split('\n', 1)[0];
+  let ingredients: unknown;
+  try { ingredients = JSON.parse(line); }
+  catch { return null; }
+  if (!Array.isArray(ingredients) || ingredients.length !== 2 ||
+      ingredients.some(name => typeof name !== 'string')) return null;
+  try {
+    const payload: unknown = JSON.parse(raw);
+    const normalized = normalizeDiscoveryCandidates(payload, ingredients[0], ingredients[1]);
+    return normalized ? JSON.stringify(normalized) : null;
+  } catch { return null; }
 }
 
 async function callGroqStructured(
@@ -550,6 +665,7 @@ async function callGroqStructured(
   temperature: number,
   schema?: Record<string, unknown>,
   deadlineMs?: number,
+  accept?: (raw: string) => string | null,
 ): Promise<string | null> {
   const apiKey = process.env.GROQ_API_KEY?.trim();
   if (!apiKey) return null;
@@ -557,16 +673,23 @@ async function callGroqStructured(
   let last: unknown;
   for (let attempt = 0; attempt < getGroqModels().length; attempt++) {
     const model = getGroqModels()[attempt];
-    const remaining = deadlineMs !== undefined ? deadlineMs - Date.now() : 6000;
+    const remaining = deadlineMs !== undefined ? deadlineMs - Date.now() : 20000;
     if (remaining <= 0) return null;
 
     const controller = new AbortController();
-    const timeoutMs = Math.min(attempt === 0 ? 3200 : 2200, Math.max(1, remaining - 7000));
+    // The old 3.2s/2.2s aborts forced nearly every request through exhausted
+    // Cloudflare/Gemini fallbacks. Give Groq time while preserving the overall deadline.
+    const timeoutMs = Math.min(attempt === 0 ? 10000 : 7000, Math.max(1, remaining - 4500));
     const timer = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
       const body: any = {
         model,
+        // Spend more of the FIRST GPT-OSS attempt understanding both inputs.
+        // The second fallback remains fast if that attempt does not complete.
+        ...(model.startsWith('openai/gpt-oss-') ? {
+          reasoning_effort: isDiscoveryInstruction(systemInstruction) && attempt === 0 ? 'medium' : 'low'
+        } : {}),
         messages: [
           ...(systemInstruction ? [{ role: 'system', content: systemInstruction }] : []),
           {
@@ -577,7 +700,7 @@ async function callGroqStructured(
         // Keep Groq's TPM request comfortably below the 8k/min free-tier ceiling.
         // Reserve output for JSON rather than verbose reasoning or prose.
         temperature: Math.max(0.01, Math.min(0.55, temperature)),
-        max_completion_tokens: 900,
+        max_completion_tokens: schema && isDiscoveryInstruction(systemInstruction) ? 2200 : schema ? 1800 : 1200,
         stream: false,
         // Groq's strict JSON-schema validator can reject otherwise valid generations
         // for QuarkPop's larger nested discovery schemas. JSON mode is much more reliable
@@ -606,7 +729,33 @@ async function callGroqStructured(
         // JSON-mode 400 errors are model-side validation failures, not user errors.
         // Fall through to another model instead of surfacing them to the client.
         if (response.status === 400 && detail.includes('json_validate_failed')) {
-          console.warn(`Groq model ${model} rejected JSON generation; trying next provider.`);
+          // Groq JSON mode can reject otherwise recoverable model output.
+          // Retry this model once without JSON-mode enforcement, then parse locally.
+          console.warn(`Groq model ${model} rejected JSON generation; retrying without enforced JSON mode.`);
+          const recoveryBody = { ...body, response_format: undefined, temperature: 0.2 };
+          const recovery = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify(recoveryBody),
+            signal: controller.signal,
+          });
+          if (recovery.ok) {
+            const recovered: any = await recovery.json();
+            const recoveredText = recovered?.choices?.[0]?.message?.content;
+            if (typeof recoveredText === 'string') {
+              const jsonStart = recoveredText.indexOf('{');
+              const jsonEnd = recoveredText.lastIndexOf('}');
+              if (jsonStart >= 0 && jsonEnd > jsonStart) {
+                try {
+                  const parsed = JSON.parse(recoveredText.slice(jsonStart, jsonEnd + 1));
+                  if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+                    const accepted = accept ? accept(JSON.stringify(parsed)) : JSON.stringify(parsed);
+                    if (accepted) return accepted;
+                  }
+                } catch { /* Try the next model instead. */ }
+              }
+            }
+          }
           continue;
         }
         throw new Error(`Groq ${response.status}: ${detail.slice(0, 240)}`);
@@ -624,7 +773,9 @@ async function callGroqStructured(
       if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
         throw new Error('Groq returned invalid JSON.');
       }
-      return JSON.stringify(parsed);
+      const accepted = accept ? accept(JSON.stringify(parsed)) : JSON.stringify(parsed);
+      if (!accepted) throw new Error('Groq returned no usable discovery candidates.');
+      return accepted;
     } catch (error) {
       last = error;
       const message = error instanceof Error ? error.message : String(error);
@@ -639,8 +790,8 @@ async function callGroqStructured(
 }
 
 const WORKERS_TEXT_MODELS = [
-  '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
-  '@cf/meta/llama-3.1-8b-instruct',
+  '@cf/meta/llama-3.2-3b-instruct',
+  '@cf/meta/llama-3.1-8b-instruct-fp8',
 ];
 
 function workersAiText(response: any): string | undefined {
@@ -668,6 +819,7 @@ async function callWorkersAiStructured(
   // per-model timeouts shrink to fit the remaining budget and the loop bails
   // early instead of burning quota after the client has given up.
   deadlineMs?: number,
+  accept?: (raw: string) => string | null,
 ): Promise<string | null> {
   const ai = getWorkersAiBinding();
   if (!ai?.run) return null;
@@ -706,13 +858,13 @@ async function callWorkersAiStructured(
           max_tokens: 1400,
         };
         if (!recovery) {
-          input.response_format = schema
-            ? { type: 'json_schema', json_schema: schema }
-            : { type: 'json_object' };
+          // These Workers AI text models do not reliably support JSON Schema (5025).
+          // Use JSON object mode, then validate the result in the app instead.
+          input.response_format = { type: 'json_object' };
         }
 
         const run = ai.run(model, input);
-        const modelTimeoutMs = attempt === 0 ? 3500 : 2000;
+        const modelTimeoutMs = attempt === 0 ? 5500 : 4000;
         // Shrink the per-attempt timeout to whatever is left of the shared
         // deadline, so a slow Workers AI can't eat the Gemini fallback's budget.
         const remainingMs = deadlineMs !== undefined ? deadlineMs - Date.now() : modelTimeoutMs;
@@ -743,7 +895,9 @@ async function callWorkersAiStructured(
         if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
           throw new Error('Workers AI returned invalid JSON.');
         }
-        return JSON.stringify(parsed);
+        const accepted = accept ? accept(JSON.stringify(parsed)) : JSON.stringify(parsed);
+        if (!accepted) throw new Error('Workers AI returned no usable discovery candidates.');
+        return accepted;
       } catch (error) {
         last = error;
         const message = error instanceof Error ? error.message : String(error);
@@ -768,9 +922,12 @@ export async function callGeminiStructured(
   // Workers AI could burn ~48s of quota after the 30s client abort and then
   // still run the full Gemini fallback. Cap normal requests at ~25s so the
   // client never waits on a dead request; drawing calls keep their own budget.
-  const overallDeadline = Date.now() + (drawingOptions ? Math.min(55000, drawingOptions.timeoutMs) : 23000);
+  const overallDeadline = Date.now() + (drawingOptions ? Math.min(55000, drawingOptions.timeoutMs) : 27000);
   const discoveryRequest = isDiscoveryInstruction(systemInstruction);
   const foundryRequest = isFoundryPrompt(prompt);
+  const acceptDiscovery = discoveryRequest && typeof prompt === 'string'
+    ? (raw: string) => acceptDiscoveryProviderJson(raw, prompt)
+    : undefined;
   const effectiveSystemInstruction = discoveryRequest && systemInstruction
     ? enhanceDiscoveryInstruction(systemInstruction)
     : systemInstruction;
@@ -798,6 +955,7 @@ export async function callGeminiStructured(
       providerTemperature,
       providerSchema,
       overallDeadline,
+      acceptDiscovery,
     );
     if (groqResult) return groqResult;
 
@@ -808,10 +966,11 @@ export async function callGeminiStructured(
       providerTemperature,
       providerSchema,
       overallDeadline,
+      acceptDiscovery,
     );
     if (workersResult) return workersResult;
 
-    console.warn('Groq and Workers AI unavailable; falling back to Gemini.');
+    console.warn('Groq and Workers AI unavailable; attempting the final Gemini fallback.');
   }
 
   if (!injectedClient && !process.env.GEMINI_API_KEY) {
@@ -877,12 +1036,19 @@ export async function callGeminiStructured(
       if (!raw) throw new Error('AI returned an empty response');
       const parsed = JSON.parse(raw);
       if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('Invalid JSON object');
-      return raw;
+      const accepted = acceptDiscovery ? acceptDiscovery(raw) : raw;
+      if (!accepted) throw new Error('Gemini returned no usable discovery candidates.');
+      return accepted;
     } catch (error: any) {
       last = error;
       const code = Number(error?.status || error?.code);
       const terminal = terminalGeminiFailure(error);
-      if (terminal) throw terminal;
+      if (terminal) {
+        if (!injectedClient && typeof prompt === 'string' && Boolean(process.env.GROQ_API_KEY) && terminal.status === 429) {
+          throw new ApiFailure(503, 'Combination AI is temporarily unavailable: Groq and Cloudflare could not respond, and Gemini has reached its quota. Try again later.');
+        }
+        throw terminal;
+      }
 
       if (attempt < models.length - 1) {
         console.warn(`Model ${currentModel} failed (${code || error?.message || 'unknown'}). Failing over to ${models[attempt + 1]}...`);

@@ -3,7 +3,7 @@ name: QuarkPop CI
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, feat/pixel9-quiet-crafting-and-fresh-pixel-art]
 
 jobs:
   validate:

@@ -11,7 +11,7 @@
 :root {
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --font-pixel: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-sans: "Outfit", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --basic-bg: #0b0d12;
   --basic-panel: #12151c;
   --basic-panel-raised: #171b24;
@@ -910,10 +910,10 @@ body {
 .element-emoji { display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; vertical-align:middle; }
 .element-emoji > img { display:block; width:100%; height:100%; object-fit:contain; image-rendering:pixelated; image-rendering:-moz-crisp-edges; image-rendering:crisp-edges; pointer-events:none; }
 .element-emoji > span { font-size:inherit; }
-.craft-emoji { width:1.65em; height:1.65em; pointer-events:none; }
-.discovery-pick .discovery-emoji { width:56px; height:56px; max-width:none; overflow:visible; }
+.craft-emoji { width:1.9em; height:1.9em; pointer-events:none; }
+.discovery-pick .discovery-emoji { width:64px; height:64px; max-width:none; overflow:visible; }
 .discovery-pick .element-emoji img, .discovery-pick:hover .element-emoji img { width:100%; height:100%; transform:none; }
-.ingredient-pick .ingredient-emoji { width:46px; height:46px; }
+.ingredient-pick .ingredient-emoji { width:52px; height:52px; }
 .ingredient-pick .element-emoji img { width:100%; height:100%; transform:none; }
 .element-emoji.reveal-art { display:flex; width:112px; height:112px; margin:24px auto; }
 
@@ -1448,9 +1448,9 @@ body:has(.collection-app[data-theme="midnight"]) {
 .fusion-material-a { left:10%; animation:fusion-left-orbit 2.8s ease-in-out infinite; }
 .fusion-material-b { right:10%; animation:fusion-right-orbit 2.8s ease-in-out infinite; }
 .fusion-material-art {
-  width:82px; height:82px; object-fit:contain; filter:drop-shadow(0 8px 14px rgba(0,0,0,.35));
+  width:94px; height:94px; object-fit:contain; filter:drop-shadow(0 8px 14px rgba(0,0,0,.35));
 }
-.fusion-material span {
+.fusion-material > span:not(.element-emoji) {
   max-width:105px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
   font-size:10px; font-weight:700; color:#e9e4d4; padding:3px 6px; border-radius:999px; background:rgba(15,12,23,.7);
 }
@@ -1513,7 +1513,7 @@ body:has(.collection-app[data-theme="midnight"]) {
   .fusion-reactor { height:68dvh; min-height:390px; }
   .fusion-material-a { left:5%; }
   .fusion-material-b { right:5%; }
-  .fusion-material-art { width:68px; height:68px; }
+  .fusion-material-art { width:78px; height:78px; }
   .fusion-ring-one { width:225px; height:225px; }
   .fusion-ring-two { width:165px; height:165px; }
 }
@@ -1565,7 +1565,7 @@ body:has(.collection-app[data-theme="midnight"]) {
   border:1px solid rgba(255,255,255,.14); background:rgba(20,16,32,.76);
   filter:drop-shadow(0 10px 18px rgba(0,0,0,.38));
 }
-.craft-fusion-item span {
+.craft-fusion-item > span {
   max-width:118px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:#f2ead9;
   font-size:11px; font-weight:800; padding:4px 7px; border-radius:999px; background:rgba(13,10,20,.72);
 }
@@ -2691,12 +2691,12 @@ html, body, #root {
   }
 
   .discovery-pick .discovery-emoji {
-    width: 49px !important;
-    height: 49px !important;
+    width: 56px !important;
+    height: 56px !important;
   }
 
   .discovery-pick img {
-    height: 49px !important;
+    height: 56px !important;
   }
 
   .discovery-pick span {
@@ -2735,13 +2735,13 @@ html, body, #root {
   }
 
   .ingredient-pick .ingredient-emoji {
-    width: 43px !important;
-    height: 43px !important;
+    width: 48px !important;
+    height: 48px !important;
   }
 
   .ingredient-pick img {
-    width: 43px !important;
-    height: 43px !important;
+    width: 48px !important;
+    height: 48px !important;
   }
 
   .ingredient > span {
@@ -2876,8 +2876,8 @@ html, body, #root {
 
   .discovery-pick .discovery-emoji,
   .discovery-pick img {
-    width: 44px !important;
-    height: 44px !important;
+    width: 50px !important;
+    height: 50px !important;
   }
 }
 
@@ -2905,287 +2905,51 @@ html, body, #root {
   }
 }
 
-/* =====================================================================
-   PAPER LAB — presentation-only theme (2026-10-25)
-   Light cream paper surfaces, ink text, grown-up card feel.
-   Activated by data-theme="paper-lab" on the .collection-app root.
-   This block only restyles existing classes: no class names, layout
-   structure, API calls, or combination-engine code are changed here.
-   Accents are used sparingly: ember for the primary action, teal for
-   selection/focus, both carried from the Boop merging-orbs mark.
-   ===================================================================== */
-.collection-app[data-theme="paper-lab"] {
-  --basic-bg: #f7f2e7;
-  --basic-panel: #fffdf7;
-  --basic-panel-raised: #ffffff;
-  --basic-text: #211d16;
-  --basic-muted: #6f6759;
-  --basic-line: #e2dacb;
-  --basic-line-strong: #cfc4ae;
-  --basic-soft: #efe8d8;
-  --basic-accent: #bf4f1a;
-  --basic-accent-2: #1f7a6d;
-  --basic-focus: #1f7a6d;
-  --basic-danger: #b3402a;
-  --surface-shadow: 0 2px 10px rgba(62, 50, 28, 0.07), 0 14px 30px rgba(62, 50, 28, 0.08);
-  --collection-muted: var(--basic-muted);
-  --collection-line: var(--basic-line);
-  background:
-    radial-gradient(circle at 18% -8%, rgba(191, 79, 26, 0.07), transparent 26rem),
-    radial-gradient(circle at 94% 10%, rgba(31, 122, 109, 0.07), transparent 24rem),
-    var(--basic-bg) !important;
-  color: var(--basic-text);
+/* Keep the combination reaction inside the crafting canvas, not over the app. */
+.craft-fusion-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  overflow: hidden;
+  isolation: isolate;
+  border-radius: inherit;
+  background: rgba(7, 8, 15, .52);
+  display: grid;
+  place-items: center;
+  backdrop-filter: none;
 }
-
-body:has(.collection-app[data-theme="paper-lab"]) {
-  background: #f7f2e7;
-}
-
-.collection-app[data-theme="paper-lab"] :is(.shadow, .shadow-sm, .shadow-lg, .shadow-xl, .shadow-2xl) {
-  box-shadow: var(--surface-shadow);
-}
-
-.collection-app[data-theme="paper-lab"] :is(button, input, select):focus-visible {
-  outline: 2px solid var(--basic-focus);
-  outline-offset: 2px;
-}
-
-.collection-app[data-theme="paper-lab"] .collection-header {
-  background: rgba(255, 253, 247, 0.97) !important;
-  border-bottom: 1px solid var(--basic-line) !important;
-  box-shadow: 0 2px 12px rgba(62, 50, 28, 0.06) !important;
-  color: var(--basic-text) !important;
-}
-
-.collection-app[data-theme="paper-lab"] .collection-brand strong {
-  color: var(--basic-text) !important;
-  letter-spacing: -0.01em;
-}
-
-.collection-app[data-theme="paper-lab"] .collection-brand small {
-  color: var(--basic-muted) !important;
-}
-
-.collection-app[data-theme="paper-lab"] .header-actions {
-  color: var(--basic-muted) !important;
-}
-
-.collection-app[data-theme="paper-lab"] .header-actions button:hover {
-  background: var(--basic-soft) !important;
-  color: var(--basic-text) !important;
-}
-
-.collection-app[data-theme="paper-lab"] .workbench-intro h1 {
-  font-size: 26px;
-  letter-spacing: -0.01em;
-}
-
-.collection-app[data-theme="paper-lab"] .craft-switch {
-  background: var(--basic-soft);
-  border-color: var(--basic-line);
-  border-radius: 14px;
-  padding: 4px;
-}
-
-.collection-app[data-theme="paper-lab"] .craft-switch button {
-  color: var(--basic-muted);
-  border-radius: 10px;
-  font-size: 15px;
-}
-
-.collection-app[data-theme="paper-lab"] .craft-switch button[aria-pressed="true"] {
-  color: #fffdf7;
-  background: var(--basic-accent);
-  box-shadow: 0 4px 12px rgba(191, 79, 26, 0.22);
-}
-
-.collection-app[data-theme="paper-lab"] .discovery-heading h2 {
-  font-size: 17px;
-}
-
-.collection-app[data-theme="paper-lab"] .discovery-heading h2 span {
-  background: var(--basic-soft);
-  border-color: var(--basic-line);
-  color: var(--basic-muted);
-}
-
-.collection-app[data-theme="paper-lab"] .discovery-search {
-  background: #fffdf7;
-  border-color: var(--basic-line-strong);
-  border-radius: 12px;
-  color: var(--basic-text);
-}
-
-.collection-app[data-theme="paper-lab"] .discovery-search input {
-  color: var(--basic-text);
-  font-size: 14px;
-}
-
-.collection-app[data-theme="paper-lab"] .discovery-search input::placeholder {
-  color: #9a917f;
-}
-
-.collection-app[data-theme="paper-lab"] .discovery-grid {
-  gap: 10px;
-}
-
-.collection-app[data-theme="paper-lab"] .discovery-tile {
-  background: linear-gradient(180deg, #fffdf7, #fbf7ec) !important;
-  border-color: var(--basic-line) !important;
-  border-radius: 16px;
-  box-shadow: 0 2px 8px rgba(62, 50, 28, 0.05);
-}
-
-.collection-app[data-theme="paper-lab"] .discovery-tile.is-selected {
-  border-color: var(--basic-accent-2) !important;
-  box-shadow: inset 0 0 0 1px var(--basic-accent-2), 0 6px 16px rgba(31, 122, 109, 0.12) !important;
-}
-
-.collection-app[data-theme="paper-lab"] .discovery-pick span {
-  color: var(--basic-text);
-  font-size: 14px;
-  line-height: 1.35;
-}
-
-.collection-app[data-theme="paper-lab"] .discovery-info {
-  color: var(--basic-muted);
-  background: rgba(247, 242, 231, 0.9);
-}
-
-.collection-app[data-theme="paper-lab"] .discovery-info:hover {
-  color: var(--basic-text);
-  background: var(--basic-soft);
-}
-
-.collection-app[data-theme="paper-lab"] .combine-dock {
-  background: #fffdf7 !important;
-  border-color: var(--basic-line) !important;
+.craft-fusion-stage {
+  width: min(88%, 420px);
+  height: min(78%, 380px);
+  min-height: 0;
+  max-height: calc(100% - 24px);
   border-radius: 20px;
-  box-shadow: var(--surface-shadow) !important;
+  box-shadow: 0 14px 35px rgba(0, 0, 0, .24);
+  filter: none;
+  animation: craft-fusion-enter .32s cubic-bezier(.2,.8,.2,1) both;
 }
-
-.collection-app[data-theme="paper-lab"] .ingredient-pick {
-  background: #fbf7ec;
-  border-color: var(--basic-line-strong);
-  border-radius: 14px;
-}
-
-.collection-app[data-theme="paper-lab"] .ingredient-pick.is-targeted {
-  border-color: var(--basic-accent-2);
-}
-
-.collection-app[data-theme="paper-lab"] .ingredient-remove {
-  background: #fffdf7;
-  border-color: var(--basic-line-strong);
-}
-
-.collection-app[data-theme="paper-lab"] .ingredient > span {
-  color: var(--basic-text);
-}
-
-.collection-app[data-theme="paper-lab"] .combine-primary {
-  background: var(--basic-accent);
-  color: #fffdf7;
-  border-radius: 14px;
-  box-shadow: 0 6px 16px rgba(191, 79, 26, 0.22);
-}
-
-.collection-app[data-theme="paper-lab"] .combine-primary:disabled {
-  background: #c9bfa9;
-  box-shadow: none;
-}
-
-.collection-app[data-theme="paper-lab"] .random-items {
-  background: #fbf7ec;
-  border-color: var(--basic-line-strong);
-  border-radius: 14px;
-  color: var(--basic-text);
-}
-
-.collection-app[data-theme="paper-lab"] .random-items span {
-  color: var(--basic-muted);
-}
-
-.collection-app[data-theme="paper-lab"] .synthesis-status {
-  color: var(--basic-muted);
-  font-size: 12px;
-}
-
-.collection-app[data-theme="paper-lab"] .collection-nav {
-  background: rgba(255, 253, 247, 0.98) !important;
-  border-top-color: var(--basic-line) !important;
-  box-shadow: 0 -4px 16px rgba(62, 50, 28, 0.06) !important;
-}
-
-.collection-app[data-theme="paper-lab"] .collection-nav button {
-  color: var(--basic-muted);
-  font-size: 12px;
-}
-
-.collection-app[data-theme="paper-lab"] .collection-nav button[aria-current="page"] {
-  color: var(--basic-text);
-  background: var(--basic-soft);
-  border-bottom-color: var(--basic-accent);
-}
-
-.collection-app[data-theme="paper-lab"] .collection-reveal {
-  background: #fffdf7;
-  border-color: var(--basic-line);
-  border-radius: 20px;
-  color: var(--basic-text);
-  box-shadow: var(--surface-shadow);
-}
-
-.collection-app[data-theme="paper-lab"] .collection-reveal::backdrop {
-  background: rgba(33, 29, 22, 0.45);
-}
-
-.collection-app[data-theme="paper-lab"] .collection-reveal h2 {
-  font-size: 28px;
-  letter-spacing: -0.01em;
-}
-
-.collection-app[data-theme="paper-lab"] .reveal-explanation {
-  color: var(--basic-text);
-  line-height: 1.65;
-}
-
-.collection-app[data-theme="paper-lab"] .lab-panel,
-.collection-app[data-theme="paper-lab"] .view-loading-card {
-  background: #fffdf7;
-  border-color: var(--basic-line);
-  color: var(--basic-text);
-}
-
-.collection-app[data-theme="paper-lab"] ::-webkit-scrollbar-track {
-  background: #efe8d8;
-}
-
-.collection-app[data-theme="paper-lab"] ::-webkit-scrollbar-thumb {
-  background: #cfc4ae;
-}
-
-.collection-app[data-theme="paper-lab"] ::-webkit-scrollbar-thumb:hover {
-  background: #b8ab8f;
-}
-
-/* Readable mobile controls and explicit sprite state. */
-.element-emoji { position: relative; }
-.element-emoji > .sprite-status {
-  position: absolute; z-index: 1; top: 0; right: 0; min-width: 16px; height: 16px;
-  padding: 0 3px; border-radius: 8px; background: #fffdf7; color: #684f31;
-  border: 1px solid #d4c7ae; font: 700 11px/14px system-ui, sans-serif; text-align: center;
-}
-.mode-explainer { color: #6f6759; font-size: 12px; line-height: 1.3; margin: 0; }
-.load-more-discoveries { grid-column: 1 / -1; min-height: 44px; padding: 8px; border: 1px solid #cfc4ae; border-radius: 10px; background: #fffdf7; color: #211d16; font-size: 13px; }
+.craft-fusion-nebula { inset: -12%; animation-duration: 18s; }
+.craft-fusion-item { width: 32%; max-width: 110px; }
+.craft-fusion-item.item-a { left: 5%; animation: craft-item-left-soft 3.4s ease-in-out infinite; }
+.craft-fusion-item.item-b { right: 5%; animation: craft-item-right-soft 3.4s ease-in-out infinite; }
+.craft-fusion-emoji { width: clamp(48px, 14vw, 78px); height: clamp(48px, 14vw, 78px); font-size: clamp(26px, 7vw, 42px); border-radius: 16px; }
+.craft-fusion-emoji .craft-fusion-sprite { width:100%; height:100%; }
+.craft-fusion-center { width: 96px; height: 96px; }
+.craft-fusion-core { animation-duration: 2.2s; }
+.craft-fusion-orbit.orbit-a { width: 55%; height: 42%; }
+.craft-fusion-orbit.orbit-b { width: 42%; height: 58%; }
+.craft-fusion-specks { position:absolute; inset:0; overflow:hidden; pointer-events:none; }
+.craft-fusion-specks i { transform:rotate(var(--a)) translateX(min(22vw, 95px)); }
+.craft-fusion-copy { left: 12px; right: 12px; bottom: 12px; }
+@keyframes craft-fusion-enter { from { opacity:0; transform:translateY(8px) scale(.97); } to { opacity:1; transform:translateY(0) scale(1); } }
+@keyframes craft-item-left-soft { 0%,100% { transform:translate(0,-50%); } 50% { transform:translate(12px,-50%) scale(.97); } }
+@keyframes craft-item-right-soft { 0%,100% { transform:translate(0,-50%); } 50% { transform:translate(-12px,-50%) scale(.97); } }
 @media (max-width: 520px) {
-  .collection-app .discovery-pick span { font-size: 12px !important; }
-  .collection-app .collection-filters select { min-height: 44px !important; height: auto !important; font-size: 12px !important; }
-  .collection-app .process-control select { min-height: 44px !important; height: auto !important; font-size: 13px !important; }
-  .collection-app .random-process { min-height: 36px !important; font-size: 11px !important; }
-  .collection-app .discovery-info, .collection-app .ingredient-remove { width: 36px !important; height: 36px !important; }
-  .collection-app .recipe-tools button { min-width: 44px !important; width: 44px !important; min-height: 44px !important; height: 44px !important; }
-  .collection-app .collection-nav button span, .collection-app .ingredient > span { font-size: 10px !important; }
-  .collection-app .ingredient-badge, .collection-app .variant-badge { font-size: 10px !important; }
-  .collection-app .mode-explainer { font-size: 11px; }
+  .craft-fusion-stage { width:calc(100% - 20px); height:min(72%, 330px); min-height:0; }
+  .craft-fusion-item.item-a { left:3%; }
+  .craft-fusion-item.item-b { right:3%; }
+  .craft-fusion-copy { padding:10px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .craft-fusion-stage, .craft-fusion-item.item-a, .craft-fusion-item.item-b { animation:none !important; }
 }
