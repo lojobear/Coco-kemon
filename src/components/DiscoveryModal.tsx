@@ -15,13 +15,13 @@ export function DiscoveryModal() {
   const oddkin = recentDiscovery?.oddkin;
   const hasDiscovery = Boolean(material || oddkin);
   const name = oddkin?.speciesName || material?.displayName || 'No reaction this time';
-  return <dialog ref={dialog} className="collection-reveal" aria-labelledby="discovery-title" onCancel={e => { e.preventDefault(); closeDiscoveryModal(); }}>
+  return <dialog ref={dialog} className={`collection-reveal ${recentDiscovery?.isNew ? "boop-reveal-new" : "boop-reveal-repeat"}`} aria-labelledby="discovery-title" onCancel={e => { e.preventDefault(); closeDiscoveryModal(); }}>
     {recentDiscovery && <>
       <button className="reveal-close" aria-label="Close discovery" onClick={closeDiscoveryModal}><X size={22} /></button>
       <p className="reveal-eyebrow"><Sparkles size={16} />{!hasDiscovery ? 'Experiment recorded' : oddkin ? 'Meet your Oddkin' : recentDiscovery.isNew ? 'New discovery' : 'Discovered again'}</p>
       <h2 id="discovery-title">{name}</h2><p className="reveal-category">{oddkin?.titleOrClassification || material?.category}{recentDiscovery.isChroma ? ' · Chroma form' : ''}{recentDiscovery.variant ? ` · ${recentDiscovery.variant} variant` : ''}</p>
       {recentDiscovery.variant && <div className={`reveal-variant variant-${recentDiscovery.variant}`}><Sparkles size={14} /> RARE VARIANT · {recentDiscovery.variant.toUpperCase()}</div>}
-      {hasDiscovery ? (material ? <MaterialSprite material={material} className="reveal-art" alt={name} /> : <SpriteImage className="reveal-art pixelated" src={oddkin?.customSpriteUrl} alt={name} />) : <div className="reveal-no-reaction" aria-hidden="true"><FlaskConical size={52} /></div>}
+      <div className={recentDiscovery.isNew && hasDiscovery ? "boop-reveal-sprite boop-reveal-sprite-new" : "boop-reveal-sprite"}>{hasDiscovery ? (material ? <MaterialSprite material={material} className="reveal-art" alt={name} /> : <SpriteImage className="reveal-art pixelated" src={oddkin?.customSpriteUrl} alt={name} />) : <div className="reveal-no-reaction" aria-hidden="true"><FlaskConical size={52} /></div>}</div>
       <p className="reveal-explanation">{recentDiscovery.explanation}</p>
       {recentDiscovery.isNew && hasDiscovery && <div className="reveal-progression">
         <span>🔥 Discovery streak <b>{progression.streak}</b></span>
