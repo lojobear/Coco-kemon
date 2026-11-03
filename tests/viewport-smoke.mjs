@@ -20,9 +20,15 @@ try {
       assert.equal(new Set(rows).size,1,`${label}: navigation wraps onto multiple rows`);
     }
     if (label === 'desktop') {
-      await page.locator('.boop-board-item').filter({hasText:'Water'}).click();
-      await page.locator('.boop-board-item').filter({hasText:'Fire'}).click();
-      await page.locator('.boop-board-result-new').waitFor({state:'visible',timeout:10000});
+      const water = await page.locator('.boop-board-item').filter({hasText:'Water'}).boundingBox();
+      const fire = await page.locator('.boop-board-item').filter({hasText:'Fire'}).boundingBox();
+      assert.ok(water && fire, 'starter tiles must be visible');
+      await page.mouse.move(water.x + 22, water.y + water.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(fire.x + 22, fire.y + fire.height / 2, {steps:12});
+      await page.mouse.up();
+      try { await page.locator('.boop-board-result-new').waitFor({state:'visible',timeout:10000}); }
+      catch (error) { await page.screenshot({path:'/tmp/boop-viewport/desktop-reveal-failure.png'}); throw error; }
       await page.screenshot({path:'/tmp/boop-viewport/desktop-new-discovery.png'});
     }
     await page.getByRole('button',{name:'Collection',exact:true}).click();
