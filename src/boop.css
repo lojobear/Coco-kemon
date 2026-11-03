@@ -1922,3 +1922,18 @@ html.boop-native-shell .boop-app .boop-cloud-dialog {
 .boop-app .boop-navigation .boop-nav-items button:not([aria-current="page"]) {
   color:#514b8f!important;
 }
+
+.boop-app .boop-album-title h1,
+.boop-app .boop-album-summary strong,
+.boop-app .boop-album-outline-button,
+.boop-app .boop-album-tabs button,
+.boop-app .boop-album-search input,
+.boop-app .boop-album-controls > select,
+.boop-app .boop-sticker-card:not(.boop-sticker-locked) .boop-sticker-name {
+  color:#312e81!important;
+}
+.boop-app .boop-album-title p,
+.boop-app .boop-album-summary small,
+.boop-app .boop-sticker-footer {
+  color:#514b8f!important;
+}
