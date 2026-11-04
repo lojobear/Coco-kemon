@@ -8,8 +8,8 @@ android {
         applicationId 'app.boop.collect'
         minSdk 23
         targetSdk 36
-        versionCode (System.getenv('BOOP_VERSION_CODE') ?: '2').toInteger()
-        versionName (System.getenv('BOOP_VERSION_NAME') ?: '2.0.0')
+        versionCode = (System.getenv('BOOP_VERSION_CODE') ?: '2').toInteger()
+        versionName = (System.getenv('BOOP_VERSION_NAME') ?: '2.0.0')
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
