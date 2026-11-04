@@ -131,7 +131,9 @@ export function generateMaterialSprite(mat: Material | { id: string; canonicalNa
   const P = shades.primary, H = shades.highlight, S = shades.shade, D = shades.deepShade, A = shades.accent, B = shades.secondary;
   let form = d.baseShape as string;
   // Specific object names take precedence over broad ingredient tags.
-  if (/\b(coffee|tea|cocoa|latte|cup|mug|teapot)\b/.test(name)) form = 'cup';
+  if (/\b(dog|puppy|cat|kitten)\b/.test(name)) form = 'pet';
+  else if (/pastry|strudel|toast/.test(name)) form = 'pastry';
+  else if (/\b(coffee|tea|cocoa|latte|cup|mug|teapot)\b/.test(name)) form = 'cup';
   else if (/hourglass|\btime\b/.test(name)) form = 'hourglass';
   else if (/lightning|battery|\benergy\b/.test(name)) form = 'lightning';
   else if (/\bsun\b/.test(name)) form = 'sun';
@@ -169,7 +171,17 @@ export function generateMaterialSprite(mat: Material | { id: string; canonicalNa
   else if (form === 'flora') form = /flower|petal/.test(semantics) ? 'flower' : 'leaf';
 
   const rect = (x: number, y: number, w: number, h: number, c: string) => { for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) pixel(xx, yy, c); };
-  if (form === 'wave') {
+  if (form === 'pet') {
+    ellipse(30, 36, 17, 12, P); ellipse(44, 27, 10, 9, P);
+    polygon([[37,21],[38,12],[44,20]], B); polygon([[47,20],[53,13],[52,25]], B);
+    rect(18,44,5,9,B); rect(36,44,5,9,B); line(14,34,8,24,B,3);
+    pixel(47,26,shades.outline); ellipse(51,31,3,2,A); ellipse(26,31,7,3,H);
+  } else if (form === 'pastry') {
+    polygon([[12,22],[42,15],[54,22],[54,43],[23,51],[12,44]], B);
+    polygon([[15,23],[41,18],[50,23],[23,30]], H); polygon([[15,26],[23,32],[23,47],[15,42]], S);
+    polygon([[25,32],[51,25],[51,40],[25,47]], P);
+    line(28,33,47,28,'#fff1f2',3); line(30,38,45,34,A,2); line(28,43,40,40,'#fff1f2',2);
+  } else if (form === 'wave') {
     ellipse(32, 39, 24, 13, B); ellipse(27, 35, 20, 12, P); ellipse(39, 30, 13, 9, H);
     line(12, 43, 52, 43, S, 2); line(18, 49, 48, 49, B, 2);
     ellipse(43, 25, 6, 5, '#ffffff'); ellipse(35, 22, 4, 3, '#ffffff'); pixel(24, 28, '#ffffff');
