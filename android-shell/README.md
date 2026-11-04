@@ -47,10 +47,16 @@ protected CI secrets. The APK includes no image API keys or user OAuth tokens.
 
 ## Local building
 
-Java 17, Android SDK platform 35, Gradle 8.9. Run from repo root:
+Java 17, Android SDK platform 36, Gradle 8.11.1. Run from repo root:
 
     mkdir -p android-shell/app/src/main/res/drawable-nodpi
     cp public/pwa-192x192.png android-shell/app/src/main/res/drawable-nodpi/boop_icon.png
     gradle --no-daemon -p android-shell assembleDebug
 
 Production game backend: https://coco-kemon.logaandavid.workers.dev/
+
+## Play bundle
+
+The **Boop Native Play Bundle** workflow builds the same native shell and package ID (`app.boop.collect`) as the Boop APK. Configure the four `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, and `ANDROID_KEY_PASSWORD` GitHub Actions secrets before running it. It fails if signing secrets are missing and uploads only the signed AAB. Securely back up the upload key; do not commit keys or passwords. Set a version code higher than any previously uploaded to this Play app. Confirm package identity and signing history in Play Console before the first upload.
+
+Google Play readiness also requires an accurate privacy policy and Data safety declaration, account-deletion path, in-app AI content reporting, store assets, and physical-device testing. This workflow alone does not establish policy compliance.

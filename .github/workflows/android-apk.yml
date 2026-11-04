@@ -23,17 +23,17 @@ jobs:
           java-version: '17'
       - uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.9'
+          gradle-version: '8.11.1'
       - name: Install Android platform
         run: |
           SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
           SDK_TOOL="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager | head -n 1)"
           test -n "$SDK_TOOL"
-          "$SDK_TOOL" 'platforms;android-35' 'build-tools;35.0.0'
+          "$SDK_TOOL" 'platforms;android-36' 'build-tools;36.0.0'
       - name: Verify vector launcher icon
         run: test -s android-shell/app/src/main/res/drawable/ic_boop_planet.xml
       - name: Build installable Android debug APK
-        run: gradle --no-daemon -p android-shell assembleDebug
+        run: gradle --no-daemon -p android-shell assembleDebug bundleRelease
       - name: Upload Boop APK
         uses: actions/upload-artifact@v4
         with:
