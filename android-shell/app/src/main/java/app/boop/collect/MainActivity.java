@@ -93,8 +93,8 @@ public final class MainActivity extends Activity {
         // must stay out of the status and gesture-navigation system bars.
         if (Build.VERSION.SDK_INT >= 35) {
             screen.setOnApplyWindowInsetsListener((view, insets) -> {
-                android.graphics.Insets bars = insets.getInsets(WindowInsets.Type.systemBars());
-                view.setPadding(0, bars.top, 0, bars.bottom);
+                android.graphics.Insets bars = insets.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout());
+                view.setPadding(bars.left, bars.top, bars.right, bars.bottom);
                 return insets;
             });
             screen.requestApplyInsets();
