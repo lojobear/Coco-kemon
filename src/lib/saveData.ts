@@ -8,6 +8,26 @@ import { ALL_PROCESSES, INITIAL_HABITATS } from './starterData';
 import { record, text, strings, finite, color, validMaterial, validOddkin } from './validation';
 
 export const SAVE_KEY = 'coco_kemon_save_v2';
+/**
+ * Save-version deployment guard.
+ *
+ * A build must never load, and especially never overwrite, a save written by
+ * a newer build: an older build does not know the newer format, so writing
+ * over it would silently destroy progress the newer build understands.
+ * This guard only covers the version-2 localStorage envelope below. It
+ * cannot stop a deployment that changes the format without bumping the
+ * version, and it cannot protect cloud backups or saves imported from
+ * elsewhere — those paths still validate structure, but version is the
+ * only deployment guard. Do not claim a stronger guarantee than that.
+ */
+export const SAVE_FORMAT_VERSION = 2;
+export const NEWER_SAVE_MESSAGE = 'This save was created by a newer version of Boop and cannot be opened by this build. Update the app instead of overwriting it.';
+export class NewerSaveError extends Error {
+  constructor() { super(NEWER_SAVE_MESSAGE); this.name = 'NewerSaveError'; }
+}
+export function assertSaveVersion(version: unknown): void {
+  if (typeof version === 'number' && version > SAVE_FORMAT_VERSION) throw new NewerSaveError();
+}
 export const SAVE_IMPORTED_EVENT = 'coco-kemon-save-imported';
 export const SAVE_CHANGED_EVENT = 'quarkpop-save-changed';
 export const SAVE_STATUS_EVENT = 'coco-kemon-save-status';
@@ -67,7 +87,8 @@ function storedEnvelope(): any {
     return null;
   }
   const v = JSON.parse(raw);
-  if (!record(v) || v.version !== 2 || !validateCraft(v.crafting) || (v.foundry !== null && !validateFoundry(v.foundry))) throw new Error('Invalid saved data');
+  assertSaveVersion(v.version);
+  if (!record(v) || v.version !== SAVE_FORMAT_VERSION || !validateCraft(v.crafting) || (v.foundry !== null && !validateFoundry(v.foundry))) throw new Error('Invalid saved data');
   envelopeLoaded = true;
   envelopeMemory = v;
   lastSeenSavedAt ??= Number.isFinite(v.savedAt) ? v.savedAt : 0;
@@ -88,9 +109,19 @@ export function readCraftElements(): InfiniteElement[] {
     const v = storedEnvelope()?.crafting ?? JSON.parse(localStorage.getItem(LEGACY_CRAFT) || 'null') ?? STARTER_ELEMENTS;
     if (!validateCraft(v)) throw new Error('Invalid crafting collection');
     return craftMemory = mergeFoundryIntoCraft(v, storedEnvelope()?.foundry);
-  } catch { recoveryRequired = true; status('Crafting save could not be loaded. Import a valid backup to recover.'); return STARTER_ELEMENTS; }
+  } catch (error) { recoveryRequired = true; status(error instanceof NewerSaveError ? error.message : 'Crafting save could not be loaded. Import a valid backup to recover.'); return STARTER_ELEMENTS; }
 }
 function write(foundry: any, crafting: InfiniteElement[], force = false, collectorRoom?: TrophyRoom, boardLayout?: SavedBoardTile[] | null) {
+  // Deployment guard first: never let an older build overwrite a save written
+  // by a newer one, even if the envelope is otherwise unreadable here. This
+  // runs before any setItem and before the stale-tab check.
+  if (!force) {
+    const rawVersion = Number(localStorage.getItem(SAVE_KEY)?.slice(0, 120).match(/"version":(\d+)/)?.[1]);
+    if (Number.isFinite(rawVersion) && rawVersion > SAVE_FORMAT_VERSION) {
+      status(NEWER_SAVE_MESSAGE);
+      throw new NewerSaveError();
+    }
+  }
   // Refuse to overwrite a save that another tab wrote after this tab last read it.
   if (!force && lastSeenSavedAt !== undefined && storedSavedAt() > lastSeenSavedAt) {
     status(STALE_TAB_MESSAGE);
@@ -111,6 +142,9 @@ function write(foundry: any, crafting: InfiniteElement[], force = false, collect
   if (typeof window !== 'undefined') window.dispatchEvent(new Event(SAVE_CHANGED_EVENT));
 }
 export function saveCraftElements(elements: InfiniteElement[]) {
+  // A newer-save refusal must survive: do not let a later generic save error
+  // overwrite the message telling the player to update instead of saving.
+  if (recoveryRequired && saveError && /newer version/i.test(saveError)) return;
   craftMemory = elements; // Keep export available even when browser storage is full.
   try {
     if (recoveryRequired) throw new Error('Recovery required');
@@ -126,7 +160,7 @@ export function saveCraftElements(elements: InfiniteElement[]) {
     const legacy = envelope ? envelope.foundry : JSON.parse(localStorage.getItem(LEGACY_FOUNDRY) || 'null');
     if (legacy !== null && !validateFoundry(legacy)) throw new Error('Invalid existing save');
     write(legacy, elements);
-  } catch (error) { if (!(error instanceof StaleSaveError)) status('Progress could not be saved. Keep this page open and export a backup from Save Management.'); }
+  } catch (error) { if (error instanceof NewerSaveError) status(error.message); else if (!(error instanceof StaleSaveError)) status('Progress could not be saved. Keep this page open and export a backup from Save Management.'); }
 }
 export function saveFoundry(foundry: any) {
   try {
@@ -136,7 +170,7 @@ export function saveFoundry(foundry: any) {
     if (recoveryRequired) throw new Error('Recovery required');
     write(foundry, crafting);
   }
-  catch (error) { if (!(error instanceof StaleSaveError)) status('Progress could not be saved. Keep this page open and export a backup from Save Management.'); }
+  catch (error) { if (error instanceof NewerSaveError) status(error.message); else if (!(error instanceof StaleSaveError)) status('Progress could not be saved. Keep this page open and export a backup from Save Management.'); }
 }
 /** Room layout lives with the existing version-2 game save, not a separate fragile local preference. */
 export function readCollectorRoom(): TrophyRoom {
@@ -151,7 +185,7 @@ export function saveCollectorRoom(room: TrophyRoom): void {
     const crafting = readCraftElements();
     if (foundry !== null && !validateFoundry(foundry)) throw new Error('Invalid foundry data');
     write(foundry, crafting, false, sanitizeTrophyRoom(room, crafting));
-  } catch { status('Trophy room could not be saved. Export a backup before changing devices.'); }
+  } catch (error) { status(error instanceof NewerSaveError ? error.message : 'Trophy room could not be saved. Export a backup before changing devices.'); }
 }
 export function exportCompleteSave(foundry: any): string {
   return JSON.stringify({ version: 2, exportedAt: new Date().toISOString(), foundry,
@@ -160,6 +194,7 @@ export function exportCompleteSave(foundry: any): string {
 }
 export function parseSave(json: string) {
   const v = JSON.parse(json);
+  assertSaveVersion(v.version);
   if (!record(v) || ![1, 2].includes(v.version)) throw new Error('Unsupported save version');
   const foundry = v.version === 2 ? v.foundry : { ...v, oddkinCollection: v.oddkinCollection ?? [], processes: v.processes ?? ALL_PROCESSES, experiments: v.experiments ?? [], habitats: v.habitats ?? INITIAL_HABITATS };
   const crafting = v.version === 2 ? v.crafting : readCraftElements();
