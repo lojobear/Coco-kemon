@@ -1937,3 +1937,16 @@ html.boop-native-shell .boop-app .boop-cloud-dialog {
 .boop-app .boop-sticker-footer {
   color:#514b8f!important;
 }
+
+/* A useful optional random suggestion without starting a combination. */
+.boop-app .boop-suggest-pair {
+  display:flex; align-items:center; flex-wrap:wrap; gap:7px;
+  width:100%; min-height:44px; padding:9px 11px;
+  border:1px solid #c9c8e8; border-radius:11px;
+  background:#f2f1ff; color:#312e81; font-size:12px; font-weight:800;
+}
+.boop-app .boop-suggest-pair small {
+  width:100%; padding-left:23px; color:#514b8f; font-size:10px; font-weight:500;
+}
+.boop-app .boop-suggest-pair:disabled { opacity:.45; }
+.boop-app .boop-suggest-pair:focus-visible { outline:2px solid #514b8f; outline-offset:2px; }

@@ -93,3 +93,23 @@ export function spreadSpawnPositions(
     return selected;
   });
 }
+
+/** Suggest an owned built-in recipe whose result is not yet in the collection.
+ * This is a local hint only; it does not combine items or spend AI quota. */
+export function chooseUndiscoveredPair(
+  elements: readonly InfiniteElement[],
+  recipes: Readonly<Record<string, {result:string}>>,
+  random: () => number = Math.random,
+): [InfiniteElement, InfiniteElement] | null {
+  const key = (name:string) => name.normalize('NFKC').trim().replace(/\s+/g,' ').toLowerCase();
+  const owned = new Map(elements.map(item => [key(item.name), item]));
+  const options: Array<[InfiniteElement, InfiniteElement]> = [];
+  for (const [recipe, value] of Object.entries(recipes)) {
+    const names = recipe.split(':::');
+    if (names.length !== 2 || owned.has(key(value.result))) continue;
+    const first = owned.get(key(names[0])), second = owned.get(key(names[1]));
+    if (first && second) options.push([first, second]);
+  }
+  if (!options.length) return null;
+  return options[Math.min(options.length - 1, Math.max(0, Math.floor(random() * options.length)))];
+}
