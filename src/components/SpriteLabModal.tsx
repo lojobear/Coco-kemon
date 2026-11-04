@@ -6,7 +6,7 @@ import { ImagePlus, RefreshCw, RotateCcw, Search, Sparkles, Upload, X } from 'lu
 import { useGame } from '../lib/gameStore';
 import { MATERIAL_SPRITE_RENDERER_VERSION, generateMaterialSprite, generateOddkinSprite } from '../lib/pixelRenderer';
 import { Material, Oddkin } from '../types';
-import { readCraftElements, saveCraftElements, SAVE_IMPORTED_EVENT, getSaveError, MAX_SPRITE_CHARS } from '../lib/saveData';
+import { readCraftElements, saveCraftElements, SAVE_CHANGED_EVENT, SAVE_IMPORTED_EVENT, getSaveError, MAX_SPRITE_CHARS } from '../lib/saveData';
 import { InfiniteElement } from '../lib/infiniteCraftData';
 import { sound } from '../lib/audio';
 import { ElementSprite, MaterialSprite } from './ElementSprite';
@@ -71,9 +71,18 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
   const { materials, oddkinCollection, exportSaveData, importSaveData, setActiveTab } = useGame();
   const [craftElements, setCraftElements] = useState(readCraftElements);
   useEffect(() => {
+    // Sprite Lab is embedded in App, so it stays mounted while the user
+    // crafts in other tabs. A plain save (not an import) fires
+    // SAVE_CHANGED_EVENT, not SAVE_IMPORTED_EVENT — without listening to it,
+    // newly crafted discoveries never entered this list, so the list could
+    // claim "all done" while new sprites were still missing.
     const reload = () => setCraftElements(readCraftElements());
+    window.addEventListener(SAVE_CHANGED_EVENT, reload);
     window.addEventListener(SAVE_IMPORTED_EVENT, reload);
-    return () => window.removeEventListener(SAVE_IMPORTED_EVENT, reload);
+    return () => {
+      window.removeEventListener(SAVE_CHANGED_EVENT, reload);
+      window.removeEventListener(SAVE_IMPORTED_EVENT, reload);
+    };
   }, []);
   const [uploading, setUploading] = useState(false);
   const [artworkStatus, setArtworkStatus] = useState(artworkQueueStatus);
@@ -241,9 +250,11 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
     try {
       // Reads existing cache/profile sprites before spending any generation
       // requests; one tap schedules at most five truly missing items.
-      const { checked, queued } = await queueMissingArtwork(craftElements, 5);
+      const { checked, queued, incomplete } = await queueMissingArtwork(craftElements, 5);
       if (queued) {
         setStatus(`Queued ${queued} missing ${queued === 1 ? 'sprite' : 'sprites'}. They will appear as generation finishes.`);
+      } else if (incomplete) {
+        setStatus(`Checked the newest ${checked} discoveries, but the scan stopped before reaching the rest — tap again or use Queue 5 missing in the list below to keep going.`);
       } else {
         setStatus(checked
           ? 'Checked recent discoveries. Artwork is already saved or pending; use Retry queued art if it is stuck.'

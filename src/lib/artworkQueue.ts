@@ -109,12 +109,21 @@ export async function queueMissingArtwork(elements: readonly InfiniteElement[], 
   const wanted = Math.min(5,Math.max(1,Math.floor(maxNew)));
   let checked = 0;
   let queued = 0;
-  for (const element of elements) {
-    if (checked >= 140 || queued >= wanted) break;
+  let incomplete = false;
+  // Check newest discoveries first. Previously this walked the save in list
+  // order and stopped after 140 checks, so a large collection could exhaust
+  // the budget on old items and never reach — then falsely report — the
+  // newest missing sprites.
+  const newestFirst = [...elements].sort((a, b) =>
+    Number(b?.discoveredAt || b?.lastCraftedAt || 0) - Number(a?.discoveredAt || a?.lastCraftedAt || 0));
+  for (const element of newestFirst) {
+    if (queued >= wanted) break;
+    if (checked >= 140) { incomplete = true; break; }
     if (!element?.name?.trim() || element.customSpriteUrl) continue;
     const variants = [false, ...(element.unlockedShiny || element.isShiny ? [true] : [])];
     for (const shiny of variants) {
-      if (checked >= 140 || queued >= wanted) break;
+      if (queued >= wanted) break;
+      if (checked >= 140) { incomplete = true; break; }
       if (readTasks().some(t=>t.shiny===shiny && t.name.toLowerCase()===element.name.toLowerCase())) continue;
       checked++;
       try {
@@ -129,7 +138,7 @@ export async function queueMissingArtwork(elements: readonly InfiniteElement[], 
       queued++;
     }
   }
-  return {checked,queued};
+  return {checked,queued,incomplete};
 }
 
 function planNext() {

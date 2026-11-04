@@ -42,6 +42,18 @@ export function spriteInventoryItems(elements: readonly InfiniteElement[]): Spri
   return list.sort((a, b) => b.discoveredAt - a.discoveredAt || a.name.localeCompare(b.name));
 }
 
+/** A scan is complete only when every non-custom item has a result — a count
+ * alone is not proof, because the item list can grow mid-scan. */
+export function isScanComplete(
+  items: readonly SpriteInventoryItem[],
+  scanned: Record<string, boolean | undefined>,
+  checked: number,
+): boolean {
+  const toCheck = items.filter(item => !item.customArt);
+  return checked >= toCheck.length &&
+    toCheck.every(item => scanned[item.key] !== undefined);
+}
+
 /** Distinguishes actual saved art from the temporary procedural placeholder. */
 export function spriteInventoryState(
   entry: SpriteInventoryItem,
