@@ -23,7 +23,7 @@ import { CANONICAL_INFINITE_CRAFT_RECIPES, makePairKey } from '../lib/infiniteCr
 import { findCraftDropTarget } from '../lib/craftCollision';
 import { BOARD_WIDTH, BOARD_HEIGHT, BOARD_START_X, BOARD_START_Y, boardCenter, clampBoardTile } from '../lib/boardGeometry';
 import { loadBoardLayout, saveBoardLayout } from '../lib/boardLayout';
-import { spawnSourcePool, chooseSpawnElements, spawnPositions, spreadSpawnPositions, SPAWN_COUNTS, type SpawnCount } from '../lib/randomSpawn';
+import { spawnSourcePool, chooseSpawnElements, chooseUndiscoveredPair, spawnPositions, spreadSpawnPositions, SPAWN_COUNTS, type SpawnCount } from '../lib/randomSpawn';
 import { saveCraftElements, readCraftElements, SAVE_IMPORTED_EVENT, SAVE_CHANGED_EVENT } from '../lib/saveData';
 import { discoveryIdentity } from '../lib/unifiedCollection';
 import { sound } from '../lib/audio';
@@ -243,10 +243,8 @@ export function InfiniteCraftView() {
 
   const [crucibleSlotA, setCrucibleSlotA] = useState<CrucibleSlotItem | null>(null);
   const [crucibleSlotB, setCrucibleSlotB] = useState<CrucibleSlotItem | null>(null);
-  const [randomVersion, setRandomVersion] = useState(0);
   const [spawnCount, setSpawnCount] = useState<SpawnCount>(2);
   const spawnSequenceRef = useRef(0);
-  const [isCrucibleHovered, setIsCrucibleHovered] = useState(false);
   const crucibleRef = useRef<HTMLDivElement | null>(null);
 
   const [firstDiscoveryModal, setFirstDiscoveryModal] = useState<InfiniteElement | null>(null);
@@ -339,11 +337,8 @@ export function InfiniteCraftView() {
   const canvasItemsRef = useRef(canvasItems);
   canvasItemsRef.current = canvasItems;
   const rafPendingRef = useRef(false);
-  const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const draggingItemRef = useRef<{
     instanceId: string;
-    offsetX: number;
-    offsetY: number;
     startX: number;
     startY: number;
     currentX: number;
@@ -353,7 +348,7 @@ export function InfiniteCraftView() {
     pointerId: number;
     node: HTMLDivElement;
     startRect: DOMRect;
-    targets: Array<{ item: HTMLDivElement; rect: DOMRect }>;
+    targets: Array<{ item: HTMLDivElement; rect: DOMRect }> | null;
     moved: boolean;
   } | null>(null);
   const hoveredNodeRef = useRef<HTMLDivElement | null>(null);
@@ -591,7 +586,7 @@ export function InfiniteCraftView() {
       setSelectedCanvasId(null);
       if (hoveredNodeRef.current) hoveredNodeRef.current.classList.remove('is-drop-target');
       hoveredNodeRef.current = null;
-      setIsCrucibleHovered(false);
+
     }
   };
 
@@ -672,12 +667,9 @@ export function InfiniteCraftView() {
       originX: item.x, originY: item.y,
       pointerId: e.pointerId, node: e.currentTarget,
       startRect: e.currentTarget.getBoundingClientRect(),
-      targets: (Array.from(canvasRef.current?.querySelectorAll('[data-craft-instance]') || []) as HTMLDivElement[])
-        .filter(node => node !== e.currentTarget)
-        .map(node => ({ item: node, rect: node.getBoundingClientRect() })),
+      targets: null,
       moved: false,
     };
-    setActiveDragId(item.instanceId);
   };
 
   const interactions = useRef({ dropIntoCrucible, handleCombine });
@@ -702,12 +694,17 @@ export function InfiniteCraftView() {
         left: drag.startRect.left + dx, top: drag.startRect.top + dy,
         width: drag.startRect.width, height: drag.startRect.height,
       };
-      return findCraftDropTarget<HTMLDivElement>(moving, drag.targets, { x: drag.currentX, y: drag.currentY });
+      return findCraftDropTarget<HTMLDivElement>(moving, drag.targets || [], { x: drag.currentX, y: drag.currentY });
     };
     const processDragFrame = () => {
       rafPendingRef.current = false;
       const drag = draggingItemRef.current;
       if (!drag || !drag.moved) return;
+      if (!drag.targets) {
+        drag.targets = (Array.from(canvasRef.current?.querySelectorAll('[data-craft-instance]') || []) as HTMLDivElement[])
+          .filter(node => node !== drag.node)
+          .map(node => ({ item: node, rect: node.getBoundingClientRect() }));
+      }
       applyDragPosition(drag);
       const target = hitTarget(drag);
       if (hoveredNodeRef.current !== target) {
@@ -715,10 +712,6 @@ export function InfiniteCraftView() {
         if (target) target.classList.add('is-drop-target');
         hoveredNodeRef.current = target;
       }
-      const rect = crucibleRef.current?.getBoundingClientRect();
-      const over = Boolean(rect && drag.currentX >= rect.left && drag.currentX <= rect.right
-        && drag.currentY >= rect.top && drag.currentY <= rect.bottom);
-      setIsCrucibleHovered(prev => prev === over ? prev : over);
     };
 
     const handlePointerMove = (e: PointerEvent) => {
@@ -729,6 +722,7 @@ export function InfiniteCraftView() {
       if (!drag.moved) {
         if (Math.hypot(drag.currentX - drag.startX, drag.currentY - drag.startY) < 5) return;
         drag.moved = true;
+        drag.node.classList.add('is-dragging');
         suppressCanvasClickRef.current = true;
       }
       if (!rafPendingRef.current) {
@@ -744,6 +738,11 @@ export function InfiniteCraftView() {
       drag.currentY = e.clientY;
       const moved = drag.moved && e.type !== 'pointercancel';
       if (moved) {
+        if (!drag.targets) {
+          drag.targets = (Array.from(canvasRef.current?.querySelectorAll('[data-craft-instance]') || []) as HTMLDivElement[])
+            .filter(node => node !== drag.node)
+            .map(node => ({ item: node, rect: node.getBoundingClientRect() }));
+        }
         applyDragPosition(drag); // Read accurate position even between animation frames.
         const { x, y } = position(drag);
         const item = canvasItemsRef.current.find(it => it.instanceId === drag.instanceId);
@@ -765,10 +764,10 @@ export function InfiniteCraftView() {
         drag.node.style.transform = `translate3d(${drag.originX}px, ${drag.originY}px, 0)`;
       }
       draggingItemRef.current = null;
-      setActiveDragId(null);
+      drag.node.classList.remove('is-dragging');
       hoveredNodeRef.current?.classList.remove('is-drop-target');
       hoveredNodeRef.current = null;
-      setIsCrucibleHovered(false);
+
       if (suppressCanvasClickRef.current) window.setTimeout(() => { suppressCanvasClickRef.current = false; }, 80);
     };
 
@@ -805,7 +804,7 @@ export function InfiniteCraftView() {
   // One familiar random pool; no slow AI calls or category picker.
   const spawnPool = useMemo(() => spawnSourcePool(elements, 'all'), [elements]);
 
-  const spawnRandomBatch = (count: SpawnCount) => {
+  const spawnRandomBatch = (count: SpawnCount, suggestion?: InfiniteElement[]) => {
     setSpawnCount(count);
     if (!spawnPool.length) {
       setSpawnToast('Discover an element first.');
@@ -816,7 +815,7 @@ export function InfiniteCraftView() {
       setSpawnToast('Board is full. Clear or remove tiles to spawn more.');
       return;
     }
-    const picked = chooseSpawnElements<InfiniteElement>(spawnPool, count).slice(0, remaining);
+    const picked = (suggestion || chooseSpawnElements<InfiniteElement>(spawnPool, count)).slice(0, remaining);
     const vp = viewportRef.current;
     const baseSpots = spawnPositions(picked.length,vp ? {
       scrollLeft:vp.scrollLeft/zoomRef.current,scrollTop:vp.scrollTop/zoomRef.current,
@@ -838,8 +837,7 @@ export function InfiniteCraftView() {
     sound.playClick();
     setCanvasItems(previous => [...previous, ...tiles].slice(0, 300));
     if (picked.length < count) setSpawnToast(`✦ +${picked.length} elements · Board full`);
-    else setSpawnToast(`✦ +${picked.length} random ${picked.length===1?'element':'elements'}`);
-    setRandomVersion(version => version + 1);
+    else setSpawnToast(suggestion ? `Try ${picked[0].name} + ${picked[1].name}` : `✦ +${picked.length} random ${picked.length===1?'element':'elements'}`);
   };
 
   // Reuse callback references so memoized discovery cards are skipped entirely
@@ -875,6 +873,11 @@ export function InfiniteCraftView() {
                   {SPAWN_COUNTS.map(count=><button type="button" key={count} aria-pressed={spawnCount===count}
                     aria-label={`Select ${count} elements per spawn`} onClick={()=>setSpawnCount(count)}>{count}</button>)}
                 </div>
+                <button type="button" className="boop-suggest-pair" disabled={spawnPool.length === 0 || canvasItems.length > 298} onClick={() => {
+                  const pair = chooseUndiscoveredPair(spawnPool, CANONICAL_INFINITE_CRAFT_RECIPES);
+                  if (pair) spawnRandomBatch(2, pair);
+                  else { spawnRandomBatch(2); setSpawnToast('No known undiscovered pair yet — added two random items.'); }
+                }}><Sparkles size={16}/> Suggest a discovery <small>Two items from your collection</small></button>
                 <span className="boop-board-more-label">BOARD TOOLS</span>
                 <div className="boop-board-more-actions">
                   <button type="button" aria-label="Redo board action" disabled={isSynthesizing||!historySize.future} onClick={redoLayout}><Redo2 size={16}/> Redo</button>
@@ -896,7 +899,7 @@ export function InfiniteCraftView() {
             <div className="boop-board-origin-hint" style={{ left:BOARD_START_X - 6, top:BOARD_START_Y - 68 }}>DROP. MIX. DISCOVER.</div>
             {canvasItems.map(item=><div
               key={item.instanceId} data-craft-instance={item.instanceId}
-              className={`boop-board-item ${selectedCanvasId === item.instanceId ? 'is-selected' : ''} ${activeDragId === item.instanceId ? 'is-dragging' : ''} ${item.instanceId.startsWith('fusion-') ? 'is-fusion-result' : ''} ${item.instanceId.startsWith('spawn-') ? 'is-random-spawn' : ''}`}
+              className={`boop-board-item ${selectedCanvasId === item.instanceId ? 'is-selected' : ''} ${item.instanceId.startsWith('fusion-') ? 'is-fusion-result' : ''} ${item.instanceId.startsWith('spawn-') ? 'is-random-spawn' : ''}`}
               onPointerDown={e=>handlePointerDown(item,e)}
               onClick={e=>{e.stopPropagation();handleCanvasItemClick(item);}}
               onDoubleClick={e=>handleDuplicate(item,e)}
