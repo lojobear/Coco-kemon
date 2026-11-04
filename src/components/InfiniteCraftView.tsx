@@ -26,6 +26,7 @@ import { loadBoardLayout, saveBoardLayout } from '../lib/boardLayout';
 import { spawnSourcePool, chooseSpawnElements, chooseUndiscoveredPair, spawnPositions, spreadSpawnPositions, SPAWN_COUNTS, type SpawnCount } from '../lib/randomSpawn';
 import { saveCraftElements, readCraftElements, SAVE_IMPORTED_EVENT, SAVE_CHANGED_EVENT } from '../lib/saveData';
 import { discoveryIdentity } from '../lib/unifiedCollection';
+import { mergeSharedDiscoveries } from '../lib/sharedDiscoveries';
 import { sound } from '../lib/audio';
 import { haptics } from '../lib/haptics';
 import type { ActiveCombination } from './CombineAnimationOverlay';
@@ -141,7 +142,7 @@ export function sanitizeElements(list: InfiniteElement[]): InfiniteElement[] {
 }
 
 export function InfiniteCraftView() {
-  const { setActiveTab } = useGame();
+  const { setActiveTab, materials: foundryMaterials } = useGame();
   const showFreeform = true;
   const [ingredientFilter, setIngredientFilter] = useState<'all' | 'new' | 'shiny'>('all');
   const [lastResult, setLastResult] = useState<InfiniteElement | null>(null);
@@ -398,8 +399,15 @@ export function InfiniteCraftView() {
 
   const collectionStats = useMemo(() => getCollectionStats(elements), [elements]);
 
+  // Shared discoveries, re-applied from PR #107 as a derived view only: Craft
+  // elements already include Foundry items merged on save load, but Foundry
+  // materials discovered while Craft is mounted surface here immediately,
+  // without rewriting either saved collection. Saved state still uses
+  // `elements` (see the save effect), never this derived list.
+  const sharedElements = useMemo(() => mergeSharedDiscoveries(elements, foundryMaterials), [elements, foundryMaterials]);
+
   const filteredElements = useMemo(() => {
-    let list = sanitizeElements(elements);
+    let list = sanitizeElements(sharedElements);
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
       list = list.filter(el => {
@@ -418,7 +426,7 @@ export function InfiniteCraftView() {
     else if (sortMode === 'shinies') list = list.filter(el => Boolean(el.unlockedShiny || el.isShiny)).sort((a, b) => (b.shinyCraftCount || 0) - (a.shinyCraftCount || 0));
     else if (sortMode === 'crafted') list.sort((a, b) => (b.craftCount || 0) - (a.craftCount || 0));
     return list;
-  }, [elements, searchQuery, sortMode]);
+  }, [sharedElements, searchQuery, sortMode]);
 
   const [combineError, setCombineError] = useState<string | null>(null);
   const lastPairRef = useRef<Parameters<typeof handleCombine> | null>(null);
@@ -802,7 +810,7 @@ export function InfiniteCraftView() {
   );
 
   // One familiar random pool; no slow AI calls or category picker.
-  const spawnPool = useMemo(() => spawnSourcePool(elements, 'all'), [elements]);
+  const spawnPool = useMemo(() => spawnSourcePool(sharedElements, 'all'), [sharedElements]);
 
   const spawnRandomBatch = (count: SpawnCount, suggestion?: InfiniteElement[]) => {
     setSpawnCount(count);
