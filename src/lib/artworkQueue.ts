@@ -168,7 +168,7 @@ export async function pumpArtworkQueue(force=false): Promise<void> {
         // once allocation renews. The user can override after adding billing.
         const resetAt = nextArtworkQuotaResetUtc() + 5_000;
         pausedUntil = Math.max(pausedUntil, resetAt);
-        entry.lastError = 'Daily free-image allowance reserved. Artwork will resume after 00:00 UTC without paid overages.';
+        entry.lastError = 'Daily free-image allowance reserved. Artwork will retry after 00:00 UTC. This guard limits Boop\'s own free allowance and is not an account-wide billing cap.';
         entry.nextAttemptAt = resetAt;
       } else {
         // Provider credentials/quota problems affect every task. Do not flood

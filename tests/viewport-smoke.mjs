@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 await mkdir('/tmp/boop-viewport', { recursive: true });
 const browser = await chromium.launch({ headless:true, args:['--no-sandbox'] });
 try {
-  for (const [label,width,height] of [['mobile',390,844],['tablet',768,1024],['desktop',1440,900]]) {
+  for (const [label,width,height] of [['mobile',390,844],['pixel9',412,915],['tablet',768,1024],['desktop',1440,900]]) {
     const page = await browser.newPage({ viewport:{width,height}, deviceScaleFactor:1 });
     await page.goto('http://127.0.0.1:3000/',{waitUntil:'networkidle'});
     await page.getByRole('button',{name:'Craft',exact:true}).click();

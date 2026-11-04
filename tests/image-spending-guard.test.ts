@@ -34,6 +34,14 @@ test('Daily per-app free neuron guard counts calls and fails closed at limit', a
   }
 });
 
+test('the user-facing allowance message does not promise an account-wide cap', () => {
+  const queue = readFileSync(new URL('../src/lib/artworkQueue.ts', import.meta.url), 'utf8');
+  assert.match(queue, /not an account-wide billing cap/);
+  assert.doesNotMatch(queue, /without paid overages/);
+  const guard = readFileSync(new URL('../server/imageSpendingGuard.ts', import.meta.url), 'utf8');
+  assert.match(guard, /best-effort, not atomic/);
+});
+
 test('production config defaults to free-image-only and paid providers cannot bypass guard', () => {
   const cfg=readFileSync(new URL('../wrangler.jsonc',import.meta.url),'utf8');
   assert.match(cfg, /"BOOP_SAFE_SPENDING": "1"/);

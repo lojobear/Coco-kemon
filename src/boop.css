@@ -1907,7 +1907,7 @@ html.boop-native-shell .boop-app .boop-cloud-dialog {
 .boop-app .boop-board-toast,
 .boop-app .boop-board-result button,
 .boop-app .boop-search input {
-  color:#312e81!important;
+  color:var(--boop-ink);
 }
 .boop-app .boop-board-heading small,
 .boop-app .boop-board-drawer-head small,
@@ -1917,10 +1917,10 @@ html.boop-native-shell .boop-app .boop-cloud-dialog {
 .boop-app .boop-profile-stat-card small,
 .boop-app .boop-board-drawer-footer,
 .boop-app .boop-search input::placeholder {
-  color:#514b8f!important;
+  color:var(--boop-muted);
 }
 .boop-app .boop-navigation .boop-nav-items button:not([aria-current="page"]) {
-  color:#514b8f!important;
+  color:var(--boop-muted);
 }
 
 .boop-app .boop-album-title h1,
@@ -1930,12 +1930,12 @@ html.boop-native-shell .boop-app .boop-cloud-dialog {
 .boop-app .boop-album-search input,
 .boop-app .boop-album-controls > select,
 .boop-app .boop-sticker-card:not(.boop-sticker-locked) .boop-sticker-name {
-  color:#312e81!important;
+  color:var(--boop-ink);
 }
 .boop-app .boop-album-title p,
 .boop-app .boop-album-summary small,
 .boop-app .boop-sticker-footer {
-  color:#514b8f!important;
+  color:var(--boop-muted);
 }
 
 /* A useful optional random suggestion without starting a combination. */
@@ -1943,10 +1943,10 @@ html.boop-native-shell .boop-app .boop-cloud-dialog {
   display:flex; align-items:center; flex-wrap:wrap; gap:7px;
   width:100%; min-height:44px; padding:9px 11px;
   border:1px solid #c9c8e8; border-radius:11px;
-  background:#f2f1ff; color:#312e81; font-size:12px; font-weight:800;
+  background:#f2f1ff; color:var(--boop-ink); font-size:12px; font-weight:800;
 }
 .boop-app .boop-suggest-pair small {
-  width:100%; padding-left:23px; color:#514b8f; font-size:10px; font-weight:500;
+  width:100%; padding-left:23px; color:var(--boop-muted); font-size:10px; font-weight:500;
 }
 .boop-app .boop-suggest-pair:disabled { opacity:.45; }
-.boop-app .boop-suggest-pair:focus-visible { outline:2px solid #514b8f; outline-offset:2px; }
+.boop-app .boop-suggest-pair:focus-visible { outline:2px solid var(--boop-muted); outline-offset:2px; }
