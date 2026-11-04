@@ -39,5 +39,5 @@ test('list does not generate artwork while checking stored files', async () => {
   assert.match(src, /Queue 5 missing/);
   assert.match(src, /status.state === 'missing'/);
   const studio = readFileSync(new URL('../src/components/SpriteLabModal.tsx', import.meta.url), 'utf8');
-  assert.match(studio, /<MissingSpritesList elements=\{craftElements\}/);
+  assert.match(studio, /<MissingSpritesList elements=\{inventoryElements\}/);
 });
