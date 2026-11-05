@@ -14,11 +14,27 @@ export function SpriteImage({ src, onError, ...props }: React.ImgHTMLAttributes<
     setResolved(undefined);
     void resolveSpriteSource(src).then(url => { if (alive) setResolved({ source: src, url }); })
       .catch(error => { if (alive) setResolved({ source: src, error: error.message }); });
-    const retryLoad = () => setRetry(n => n + 1);
-    window.addEventListener('quarkpop-retry-sprites', retryLoad);
-    window.addEventListener('quarkpop-sprite-account', retryLoad);
-    return () => { alive = false; window.removeEventListener('quarkpop-retry-sprites', retryLoad); window.removeEventListener('quarkpop-sprite-account', retryLoad); };
+    return () => { alive = false; };
   }, [src, retry]);
+  // Retry only failed images, including inline PNG/SVG thumbnails, when
+  // connectivity or saved artwork changes. Never invoke image generation.
+  useEffect(() => {
+    const retryFailed = () => {
+      if (!failedUrl && !(isSpriteReference(src) && resolved?.source === src && resolved.error)) return;
+      setFailedUrl(undefined);
+      setRetry(n => n + 1);
+    };
+    window.addEventListener('quarkpop-retry-sprites', retryFailed);
+    window.addEventListener('quarkpop-sprite-account', retryFailed);
+    window.addEventListener('quarkpop-sprite-ready', retryFailed);
+    window.addEventListener('online', retryFailed);
+    return () => {
+      window.removeEventListener('quarkpop-retry-sprites', retryFailed);
+      window.removeEventListener('quarkpop-sprite-account', retryFailed);
+      window.removeEventListener('quarkpop-sprite-ready', retryFailed);
+      window.removeEventListener('online', retryFailed);
+    };
+  }, [src, failedUrl, resolved?.source, resolved?.error]);
   const url = isSpriteReference(src) ? (resolved?.source === src ? resolved.url : undefined) : src;
   const unavailable = Boolean(resolved?.source === src && resolved?.error) || Boolean(url && failedUrl === url) || !src;
   if (!url || failedUrl === url) return <span role="img" aria-label={`${props.alt || 'Sprite'}: ${unavailable ? 'artwork unavailable, retry in Sprites' : 'artwork loading'}`}
