@@ -6,7 +6,7 @@ import { ImagePlus, RefreshCw, RotateCcw, Search, Sparkles, Upload, X } from 'lu
 import { useGame } from '../lib/gameStore';
 import { MATERIAL_SPRITE_RENDERER_VERSION, generateMaterialSprite, generateOddkinSprite } from '../lib/pixelRenderer';
 import { Material, Oddkin } from '../types';
-import { readCraftElements, saveCraftElements, SAVE_IMPORTED_EVENT, getSaveError, MAX_SPRITE_CHARS } from '../lib/saveData';
+import { readCraftElements, saveCraftElements, SAVE_IMPORTED_EVENT, SAVE_CHANGED_EVENT, getSaveError, MAX_SPRITE_CHARS } from '../lib/saveData';
 import { InfiniteElement } from '../lib/infiniteCraftData';
 import { sound } from '../lib/audio';
 import { ElementSprite, MaterialSprite } from './ElementSprite';
@@ -14,6 +14,8 @@ import { getElementEmoji, retryElementEmoji, upgradeElementEmoji } from '../lib/
 import { ARTWORK_QUEUE_EVENT, artworkQueueEntries, artworkQueueStatus, queueMissingArtwork, retryPendingArtwork } from '../lib/artworkQueue';
 import { MissingSpritesList } from './MissingSpritesList';
 import { spriteVariantKey } from '../lib/spriteVariant';
+import { spriteLabInventoryElements } from '../lib/spriteLabInventory';
+import { discoveryIdentity } from '../lib/unifiedCollection';
 
 type LabItem =
   | { type: 'craft'; id: string; name: string; sprite?: string; item: InfiniteElement }
@@ -73,7 +75,8 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
   useEffect(() => {
     const reload = () => setCraftElements(readCraftElements());
     window.addEventListener(SAVE_IMPORTED_EVENT, reload);
-    return () => window.removeEventListener(SAVE_IMPORTED_EVENT, reload);
+    window.addEventListener(SAVE_CHANGED_EVENT, reload);
+    return () => { window.removeEventListener(SAVE_IMPORTED_EVENT, reload); window.removeEventListener(SAVE_CHANGED_EVENT, reload); };
   }, []);
   const [uploading, setUploading] = useState(false);
   const [artworkStatus, setArtworkStatus] = useState(artworkQueueStatus);
@@ -104,6 +107,13 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
       (!normalizedQuery || item.name.toLowerCase().includes(normalizedQuery))
     );
   }, [materials, oddkinCollection, craftElements, query, filter]);
+
+  // Combine live Foundry materials with Craft without changing either save.
+  // Do not count a known procedural Foundry placeholder as saved AI artwork.
+  const inventoryElements = useMemo(
+    () => spriteLabInventoryElements(craftElements, materials, generateMaterialSprite),
+    [craftElements, materials],
+  );
 
   const selected = useMemo(
     () => items.find(item => `${item.type}:${item.id}` === selectedKey) || items[0] || null,
@@ -241,7 +251,7 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
     try {
       // Reads existing cache/profile sprites before spending any generation
       // requests; one tap schedules at most five truly missing items.
-      const { checked, queued } = await queueMissingArtwork(craftElements, 5);
+      const { checked, queued } = await queueMissingArtwork(inventoryElements, 5);
       if (queued) {
         setStatus(`Queued ${queued} missing ${queued === 1 ? 'sprite' : 'sprites'}. They will appear as generation finishes.`);
       } else {
@@ -320,10 +330,13 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
                 <button type="button" disabled={uploading || artworkStatus.running} onClick={retryPendingArtwork}>Retry queued art</button>
               </>}
             </div>
-            <MissingSpritesList elements={craftElements} onSelect={id => {
-              setFilter('craft');
+            <MissingSpritesList elements={inventoryElements} onSelect={id => {
+              const craft = craftElements.find(item => item.id === id);
+              const entry = inventoryElements.find(item => item.id === id);
+              const material = entry && materials.find(item => discoveryIdentity(item.displayName) === discoveryIdentity(entry.name));
+              setFilter(craft ? 'craft' : material ? 'material' : 'all');
               setQuery('');
-              setSelectedKey(`craft:${id}`);
+              setSelectedKey(craft ? `craft:${id}` : material ? `material:${material.id}` : null);
               setStatus(null);
             }} />
             <div className="boop-sprite-picker-grid">{items.map(item => {
