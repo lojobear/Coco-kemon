@@ -13,6 +13,16 @@ const LEGACY_3D_CACHE_PREFIX = 'emoji3d-v4:';
 const LEGACY_RECOGNIZABLE_CACHE_PREFIX = 'pixel-v3-recognizable:';
 const LEGACY_PIXEL_CACHE_PREFIX = 'pixel-v2:';
 
+/** Notify mounted grid cells when a sprite becomes available from any cache source.
+ * Without this, opening the detail preview can load a cached image while the
+ * already-mounted thumbnail remains stuck on its earlier failed preview.
+ * This never requests generation or consumes AI credits. */
+function announceSpriteReady(key: string) {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new Event('quarkpop-sprite-ready'));
+  window.dispatchEvent(new CustomEvent('oddkin-emoji-retry', { detail: key }));
+}
+
 const memory = new Map<string, string>();
 const jobs = new Map<string, Promise<string>>();
 let queue: Promise<unknown> = Promise.resolve();
@@ -117,7 +127,7 @@ export async function storeProfileElementSprite(name: string, data: string, shin
   const key = spriteVariantKey(name, shiny);
   memory.set(key, data);
   await save(ELEMENT_SPRITE_CACHE_PREFIX + key, data);
-  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('oddkin-emoji-retry', { detail: key }));
+  announceSpriteReady(key);
 }
 
 export function getElementEmoji(name: string, upgrade = false, variation = '', generateIfMissing = true, isShiny = false): Promise<string> {
@@ -147,6 +157,7 @@ export function getElementEmoji(name: string, upgrade = false, variation = '', g
 
     if (cached) {
       memory.set(key, cached);
+      announceSpriteReady(key);
       return cached;
     }
 
@@ -161,6 +172,7 @@ export function getElementEmoji(name: string, upgrade = false, variation = '', g
           const data = await spriteAssets!.resolve(reference);
           memory.set(key, data);
           await save(ELEMENT_SPRITE_CACHE_PREFIX + key, data);
+          announceSpriteReady(key);
           return data;
         }
       } catch (error) {
@@ -190,10 +202,7 @@ export function getElementEmoji(name: string, upgrade = false, variation = '', g
     memory.set(key, data);
     await save(ELEMENT_SPRITE_CACHE_PREFIX + key, data);
     if (userId) void trackSpriteSync(() => spriteAssets!.put(userId, spriteProfileKey(name, isShiny), name, data)).catch(() => undefined);
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new Event('quarkpop-sprite-ready'));
-      window.dispatchEvent(new CustomEvent('oddkin-emoji-retry', { detail: key }));
-    }
+    announceSpriteReady(key);
     return data;
   };
 
