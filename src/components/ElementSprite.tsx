@@ -61,11 +61,16 @@ export function ElementSprite({ name, custom, fallback, className = '', alt = ''
         // Browser canvas unavailable: keep the original emoji as last resort.
       }
     }); };
-    const observer = new IntersectionObserver(entries => {
-      if (entries.some(entry => entry.isIntersecting)) { observer.disconnect(); load(); }
-    });
-    if (host.current) observer.observe(host.current);
-    return () => { cancelled = true; observer.disconnect(); };
+    // Android WebView may mount a tall gallery before layout settles. Preload
+    // cells approaching the viewport; use an eager fallback if observers fail.
+    let started = false;
+    const start = () => { if (started) return; started = true; observer?.disconnect(); load(); };
+    const observer = typeof IntersectionObserver === 'undefined' ? null : new IntersectionObserver(entries => {
+      if (entries.some(entry => entry.isIntersecting)) start();
+    }, { rootMargin: '240px 0px' });
+    if (observer && host.current) observer.observe(host.current);
+    else start();
+    return () => { cancelled = true; observer?.disconnect(); };
   }, [key, custom, retry, isShiny, normalKey]);
   const ownShiny = isShiny && art?.key === key && Boolean(art.url);
   const url = (isShiny && ownShiny ? art?.url : undefined)
