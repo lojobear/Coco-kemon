@@ -90,6 +90,10 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
   latest.current = { exportSaveData, importSaveData };
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<'all' | 'craft' | 'material' | 'oddkin'>('all');
+  // Mount thumbnails in batches, not hundreds of SVG/PNG decoders at once.
+  // Large all-at-once galleries exhaust Android WebView image memory.
+  const [galleryLimit, setGalleryLimit] = useState(72);
+  const galleryMoreRef = useRef<HTMLButtonElement>(null);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const rerollNonce = useRef(0);
@@ -107,6 +111,19 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
       (!normalizedQuery || item.name.toLowerCase().includes(normalizedQuery))
     );
   }, [materials, oddkinCollection, craftElements, query, filter]);
+
+  useEffect(() => {
+    if (galleryLimit >= items.length || typeof IntersectionObserver === 'undefined') return;
+    const node = galleryMoreRef.current;
+    if (!node) return;
+    const observer = new IntersectionObserver(entries => {
+      if (entries.some(entry => entry.isIntersecting)) {
+        setGalleryLimit(count => Math.min(count + 72, items.length));
+      }
+    }, { rootMargin: '240px 0px' });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [galleryLimit, items.length]);
 
   // Combine live Foundry materials with Craft without changing either save.
   // Do not count a known procedural Foundry placeholder as saved AI artwork.
@@ -319,8 +336,8 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
           </aside>
           <div className="boop-sprite-picker">
             <div className="boop-section-heading"><h2>Choose a discovery</h2><small>{items.length} items</small></div>
-            <label className="boop-search"><Search size={18} /><input value={query} onChange={event => setQuery(event.target.value)} aria-label="Search sprites" placeholder="Search discoveries…" /></label>
-            <div className="boop-pills" aria-label="Sprite category">{(['all', 'craft', 'material', 'oddkin'] as const).map(value => <button key={value} aria-pressed={filter === value} onClick={() => setFilter(value)}>{value === 'all' ? 'All' : value === 'craft' ? 'Craft' : value === 'material' ? 'Matter' : 'Oddkin'}</button>)}</div>
+            <label className="boop-search"><Search size={18} /><input value={query} onChange={event => { setQuery(event.target.value); setGalleryLimit(72); }} aria-label="Search sprites" placeholder="Search discoveries…" /></label>
+            <div className="boop-pills" aria-label="Sprite category">{(['all', 'craft', 'material', 'oddkin'] as const).map(value => <button key={value} aria-pressed={filter === value} onClick={() => { setFilter(value); setGalleryLimit(72); }}>{value === 'all' ? 'All' : value === 'craft' ? 'Craft' : value === 'material' ? 'Matter' : 'Oddkin'}</button>)}</div>
             <div className="boop-sprite-repair">
               <button type="button" disabled={uploading} onClick={() => void repairMissing()}>
                 Repair missing sprites
@@ -339,10 +356,16 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
               setSelectedKey(craft ? `craft:${id}` : material ? `material:${material.id}` : null);
               setStatus(null);
             }} />
-            <div className="boop-sprite-picker-grid">{items.map(item => {
+            <div className="boop-sprite-picker-grid">{items.slice(0, galleryLimit).map(item => {
               const key = `${item.type}:${item.id}`;
               return <button key={key} disabled={uploading} aria-pressed={selected?.id === item.id && selected?.type === item.type} onClick={() => { sound.playClick(); setSelectedKey(key); setStatus(null); }}><LabSprite target={item} className="boop-picker-sprite" /><strong>{item.name}</strong><small>{item.type}</small></button>;
             })}</div>
+            {items.length > galleryLimit && (
+              <button ref={galleryMoreRef} type="button" className="boop-secondary"
+                onClick={() => setGalleryLimit(count => Math.min(count + 72, items.length))}>
+                Show more sprites · {items.length - galleryLimit} remaining
+              </button>
+            )}
             {!items.length && <p className="boop-empty">No matching discoveries. Try another filter.</p>}
           </div>
         </div>
