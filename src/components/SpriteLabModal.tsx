@@ -355,7 +355,7 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
         <div className="boop-lab-layout">
           <aside className="boop-sprite-editor">
             {selected ? <>
-              <div className="boop-sprite-preview"><span className="boop-preview-tag">{previewLabel}</span><ZoomedLabSprite key={selected.catalogKey} target={selected}/></div>
+              <div className="boop-sprite-preview"><span className="boop-preview-tag">{previewLabel}</span><ZoomedLabSprite target={selected}/></div>
               {selected.type !== 'oddkin' && previewChecked && !selected.sharedSprite && !savedPreview && <p className="boop-preview-notice" role="status">
                 This is a temporary offline icon, not finished AI artwork. Its unique sprite still needs generating.
               </p>}
@@ -417,6 +417,7 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
 // Pixel nearest-neighbour scaling preserves crisp sprite outlines on Android.
 function ZoomedLabSprite({target}:{target:LabDisplayItem}) {
   const [zoom,setZoom]=useState({scale:1,x:0,y:0});
+  useEffect(()=>setZoom({scale:1,x:0,y:0}),[target.catalogKey]);
   const onImageLoaded=(event: React.SyntheticEvent<HTMLDivElement>)=>{
     const image=event.target as HTMLImageElement;
     if(image.tagName!=='IMG'||!image.naturalWidth||!image.naturalHeight)return;

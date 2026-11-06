@@ -40,7 +40,7 @@ test('Subject-specific art direction avoids global brown cast and repeated gener
   assert.match(prompt, /BOOP MINI HANDHELD/);
   assert.match(prompt, /112x112/);
   assert.match(prompt, /44x38/);
-  assert.match(prompt, /8 to 10 opaque flat shades/);
+  assert.match(prompt, /12 to 20 solid subject-led/);
   assert.match(prompt, /no detached fake pixels/i);
   assert.match(prompt, /No universal brown tint/);
   assert.match(prompt, /SUBJECT-BASED PALETTE:.*Aquatic or ice elements/);
