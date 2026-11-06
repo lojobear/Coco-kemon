@@ -7,26 +7,26 @@ import { BOOP_MINI_REFERENCE_PNG_BASE64, BOOP_MINI_REFERENCE_VERSION, miniSprite
 import { composeMiniSpritePixels, alphaBounds, MINI_CANVAS_SIZE, MINI_FOOTPRINT_WIDTH, MINI_FOOTPRINT_HEIGHT } from '../src/lib/miniSpriteStyle';
 
 test('artist-uploaded reference is preserved verbatim for production FLUX.2 image conditioning', async()=>{
-  const bytes=readFileSync(new URL('../public/sprite-reference/mini-handheld-master.png',import.meta.url));
+  const bytes=readFileSync(new URL('../public/sprite-reference/bold-collectible-softserve.png',import.meta.url));
   assert.equal(Buffer.from(BOOP_MINI_REFERENCE_PNG_BASE64,'base64').equals(bytes),true);
   assert.equal(bytes.subarray(0,8).toString('hex'),'89504e470d0a1a0a');
   assert.equal(bytes.readUInt32BE(16),112);
-  assert.equal(bytes.readUInt32BE(20),112);
+  assert.equal(bytes.readUInt32BE(20),154);
   assert.equal((await miniSpriteReferenceBlob().arrayBuffer()).byteLength,bytes.length);
   assert.equal(SPRITE_ENGINE_VERSION,BOOP_MINI_REFERENCE_VERSION);
 });
 
-test('new default, shiny and reroll prompts use tiny retro handheld art across image providers',()=>{
+test('new default, shiny and reroll prompts use bold collectible pixel art across image providers',()=>{
   const full=buildSpritePrompt('Grandfather Clock');
-  assert.match(full,/112x112/);
-  assert.match(full,/70 to 80-pixel-tall/);
-  assert.match(full,/12 to 20 solid/);
+  assert.match(full,/128x128/);
+  assert.match(full,/85–95%/);
+  assert.match(full,/24–64 clustered/);
   assert.match(full,/centered/i);
   assert.doesNotMatch(full,/2:1 isometric|virtual-hotel FURNI/);
   const compact=compactSchnellImagePrompt(full);
   assert.ok(compact.length<=2048);
-  assert.match(compact,/112x112/);
-  assert.match(compact,/70-80 pixels/);
+  assert.match(compact,/128x128/);
+  assert.match(compact,/85–95%/);
   assert.match(compact,/#FF00FF/);
   const shiny=buildSpritePrompt('Fox','',true);
   assert.match(shiny,/SHINY \/ ALTERNATE COLORWAY/);
@@ -35,7 +35,7 @@ test('new default, shiny and reroll prompts use tiny retro handheld art across i
   assert.match(compactSchnellImagePrompt(buildSpritePrompt('Clock','other-angle')),/other-angle/);
 });
 
-test('generated output is 112px, centered, readable and limited to 20 opaque colors',()=>{
+test('new generated sprites fill a 128px canvas and preserve up to 64 colours',()=>{
   const width=64,height=64;
   const src=new Uint8ClampedArray(width*height*4);
   for(let y=5;y<55;y++)for(let x=7;x<59;x++){
@@ -48,23 +48,44 @@ test('generated output is 112px, centered, readable and limited to 20 opaque col
   assert.ok(box);
   assert.ok(box!.width<=MINI_FOOTPRINT_WIDTH);
   assert.ok(box!.height<=MINI_FOOTPRINT_HEIGHT);
-  assert.equal(box!.bottom,95);
-  assert.ok(box!.top>=16);
+  assert.equal(box!.bottom,121);
+  assert.ok(box!.top>=6);
   const palette=new Set<string>();
   for(let p=0;p<output.length;p+=4){
     if(output[p+3]===0)continue;
     assert.equal(output[p+3],255);
     palette.add(`${output[p]},${output[p+1]},${output[p+2]}`);
   }
-  assert.ok(palette.size<=20);
+  assert.ok(palette.size<=64);
   assert.throws(()=>composeMiniSpritePixels(new Uint8ClampedArray(16),2,2),/no usable silhouette/);
 });
 
-test('offline preview is the same 112px mini scale; generated art only is processed',()=>{
+test('bold near-black outlines and subject colours survive the new quantizer',()=>{
+  const width=72,height=72;
+  const data=new Uint8ClampedArray(width*height*4);
+  for(let y=5;y<67;y++)for(let x=5;x<67;x++){
+    const i=(y*width+x)*4;
+    const border=x<10||x>61||y<10||y>61;
+    const rgb=border?[12,10,15]:x<width/2?[250,205,120]:[62,172,229];
+    for(let c=0;c<3;c++)data[i+c]=rgb[c];
+    data[i+3]=255;
+  }
+  const before=new Uint8ClampedArray(data);
+  const output=composeMiniSpritePixels(data,width,height);
+  assert.deepEqual(data,before, 'postprocessor must not mutate the source');
+  const colors=new Set();
+  for(let i=0;i<output.length;i+=4)if(output[i+3])colors.add(
+    [output[i],output[i+1],output[i+2]].join(','));
+  assert.ok(colors.has('12,10,15'),'dark border remains');
+  assert.ok(colors.has('250,205,120'),'warm tones remain');
+  assert.ok(colors.has('62,172,229'),'cool subject tones remain');
+});
+
+test('offline preview uses full-sized 128px art; generated art only is processed',()=>{
   const fresh=readFileSync(new URL('../src/lib/freshPixelArt.ts',import.meta.url),'utf8');
   const art=readFileSync(new URL('../src/lib/elementEmoji.ts',import.meta.url),'utf8');
   const model=readFileSync(new URL('../server/gemini.ts',import.meta.url),'utf8');
-  assert.match(fresh,/viewBox="0 0 112 112"/);
+  assert.match(fresh,/viewBox="0 0 128 128"/);
   assert.match(art,/composeMiniSpritePixels/);
   const lab=readFileSync(new URL('../src/components/SpriteLabModal.tsx',import.meta.url),'utf8');
   assert.match(lab,/ZoomedLabSprite target=\{selected\}/);

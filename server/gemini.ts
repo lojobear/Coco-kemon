@@ -409,7 +409,7 @@ export function compactSchnellImagePrompt(prompt: string): string {
     subjectDesign ? `RECOGNIZABLE SUBJECT, NOT GEOMETRIC PLACEHOLDER: ${subjectDesign}` : '',
     paletteLine ? `Distinct subject material colours: ${paletteLine}` : '',
     rerollToken ? `Reroll variant ${rerollToken}: change angle, pose or silhouette; preserve subject identity.` : '',
-    isShiny ? 'SHINY: change the actual surface pigments to a clearly different colourway while preserving object shape, clean local-colour outlines and isometric geometry, not merely adding glitter.' : '',
+    isShiny ? 'SHINY: change the actual surface pigments to a clearly different colourway while preserving object shape, bold stepped outlines and the identical item silhouette, not merely adding glitter.' : '',
     BOOP_SPRITE_STYLE_COMPACT,
   ].filter(Boolean).join('\n');
   return concise.slice(0, 2048);
@@ -442,7 +442,7 @@ async function generateWorkersAiImage(prompt: string): Promise<GeminiImageResult
         const form = new FormData();
         form.append('prompt', prompt);
         // FLUX.2 supports reference-style conditioning in the same free-budgeted image request.
-        form.append('input_image_0', miniSpriteReferenceBlob(), 'mini-sprite-reference.png');
+        form.append('input_image_0', miniSpriteReferenceBlob(), 'bold-collectible-style-reference.png');
         form.append('width', '512');
         form.append('height', '512');
         form.append('guidance', '4.5');
@@ -481,8 +481,8 @@ async function generateWorkersAiImage(prompt: string): Promise<GeminiImageResult
         if (subject && !/violence|weapon|sexual|nude|gore/i.test(subject)) {
           try {
             const form = new FormData();
-            form.append('prompt', `An original tiny retro handheld pixel-art inventory sprite of ${subject}; 112x112 canvas with a complete centered 70 to 80 pixel tall subject, 12 to 20 opaque flat pixel colours, crisp dark single-pixel outline, true subject colours and uniform #FF00FF magenta backdrop for transparency; no text or scene.`);
-            form.append('input_image_0', miniSpriteReferenceBlob(), 'mini-sprite-reference.png');
+            form.append('prompt', `An original bold 16-bit pixel-art game collectible sprite of ${subject}; single recognizable item fills 85-95% of a centered 128x128 canvas, rich 24-64 grouped pixel colours, chunky dark 2-4px stair-stepped outlines, beautiful clustered material shading and highlights, unique true subject colors, absolutely uniform #FF00FF magenta background for transparency, no text, floor or scene.`);
+            form.append('input_image_0', miniSpriteReferenceBlob(), 'bold-collectible-style-reference.png');
             form.append('width', '512');
             form.append('height', '512');
             const serialized = new Response(form);

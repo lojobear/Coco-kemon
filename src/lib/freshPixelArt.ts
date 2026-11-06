@@ -1,6 +1,6 @@
 /**
  * Boop's ORIGINAL, offline pixel-art icon collection.
- * 24x24 hand-drawn silhouettes mounted on a transparent 112x112 reference-scale canvas, recolored and accented deterministically for
+ * 24x24 hand-drawn silhouettes enlarged on a 128x128 collector-scale canvas, recolored and accented deterministically for
  * each discovery. No emoji, no network, no AI quota, no canvas dependency.
  *
  * Uploaded artwork and completed AI sprites always take priority in the UI.
@@ -309,7 +309,7 @@ export function generateFreshPixelArt(name:string):string {
     let length=1;while(x+length<w&&outlined[y*w+x+length]===c)length++;
     rects+=`<rect x="${x}" y="${y}" width="${length}" height="1" fill="${c}"/>`;x+=length;
   }}
-  const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="112" height="112" viewBox="0 0 112 112" shape-rendering="crispEdges"><g transform="translate(20 20) scale(3)">${rects}</g></svg>`;
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" shape-rendering="crispEdges"><g transform="translate(16 16) scale(4)">${rects}</g></svg>`;
   const url='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);
   if(CACHE.size>=500)CACHE.delete(CACHE.keys().next().value!);
   CACHE.set(key,url);

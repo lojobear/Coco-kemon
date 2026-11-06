@@ -79,7 +79,7 @@ test('endpoint generates once for simultaneous and repeated canonical names', as
     const firstReply = await replies[0].json() as any;
     const secondReply = await replies[1].json() as any;
     assert.deepEqual(firstReply, secondReply);
-    assert.equal(firstReply.engineVersion, 'v15-mini-readable-112');
+    assert.equal(firstReply.engineVersion, 'v16-bold-collectible-softserve');
     assert.equal(firstReply.provenance, 'gemini-native-image-pixel-art');
     assert.equal(firstReply.mimeType, 'image/png');
     assert.equal(firstReply.imageBase64, fakeImage.data);
@@ -98,7 +98,7 @@ test('endpoint generates once for simultaneous and repeated canonical names', as
   }
 });
 
-test('future generated sprites use reference 112px scale without changing saved artwork', async () => {
+test('future generated sprites use bold 128px scale without changing saved artwork', async () => {
   const { readFileSync } = await import('node:fs');
   const code = readFileSync(new URL('../src/lib/elementEmoji.ts', import.meta.url), 'utf8');
   assert.match(code, /const logicalSize = MINI_CANVAS_SIZE/);

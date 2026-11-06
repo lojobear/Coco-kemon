@@ -17,7 +17,7 @@ test('Schnell compact prompt fits model limit and keeps tiny handheld reference 
   assert.ok(prompt.length <= 2048);
   assert.match(prompt, /Obsidian Dragon/);
   assert.match(prompt, /upgrade-abc123/);
-  assert.match(prompt, /112x112/);
+  assert.match(prompt, /128x128/);
   assert.match(prompt, /44x38/);
   assert.match(prompt, /natural subject palette/i);
   assert.match(prompt, /#FF00FF/);
@@ -38,9 +38,9 @@ test('Subject-specific art direction avoids global brown cast and repeated gener
   assert.notEqual(lake, battery);
   const prompt = buildSpritePrompt('Ice Lake');
   assert.match(prompt, /BOOP MINI HANDHELD/);
-  assert.match(prompt, /112x112/);
+  assert.match(prompt, /128x128/);
   assert.match(prompt, /44x38/);
-  assert.match(prompt, /12 to 20 solid subject-led/);
+  assert.match(prompt, /24–64 clustered pixel shades/);
   assert.match(prompt, /no detached fake pixels/i);
   assert.match(prompt, /No universal brown tint/);
   assert.match(prompt, /SUBJECT-BASED PALETTE:.*Aquatic or ice elements/);

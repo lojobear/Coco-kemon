@@ -1,19 +1,18 @@
 /**
- * Faithful small-scale pixel-art output: 112x112 transparent PNG, with a
- * deliberately readable ~80px sprite silhouette. The source reference PNG
- * remains untouched in /sprite-reference/mini-handheld-master.png.
+ * Pixel-art collectible output matched to the user's soft-serve reference.
+ * 128×128 transparent PNG; one substantial centered shape, 6–8px margin.
+ * Bold dark contours, rich but controlled colour clusters and crisp edges.
  *
- * The v14 implementation shrank every character into a 44x38 corner and
- * reduced everything to just eight colors. That destroyed thin outlines,
- * acoustic details and object anatomy. v15 keeps the same retro pixel style
- * while preserving enough resolution and shades for recognisable subjects.
+ * Only brand-new AI-generated images go through this compositor. Existing
+ * uploads, cached art and profile-synced images remain bit-for-bit unchanged.
+ * The palette limit is 64 (not the earlier destructive 8/20-colour cap).
  */
-export const MINI_CANVAS_SIZE=112;
-export const MINI_FOOTPRINT_WIDTH=80;
-export const MINI_FOOTPRINT_HEIGHT=80;
-export const MINI_FOOTPRINT_CENTER_X=56;
-export const MINI_FOOTPRINT_BOTTOM=96;
-export const MINI_MAX_OPAQUE_COLORS=20;
+export const MINI_CANVAS_SIZE=128;
+export const MINI_FOOTPRINT_WIDTH=116;
+export const MINI_FOOTPRINT_HEIGHT=116;
+export const MINI_FOOTPRINT_CENTER_X=64;
+export const MINI_FOOTPRINT_BOTTOM=122;
+export const MINI_MAX_OPAQUE_COLORS=64;
 
 export interface AlphaBounds {left:number;top:number;right:number;bottom:number;width:number;height:number}
 export function alphaBounds(data: Uint8ClampedArray,width:number,height:number):AlphaBounds|null {

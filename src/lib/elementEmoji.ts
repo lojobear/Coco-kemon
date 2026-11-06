@@ -106,10 +106,10 @@ async function normalizeGeneratedImage(imageBase64: string, mimeType: string): P
     sourceContext.putImageData(sourcePixels, 0, 0);
   }
 
-  // Actual user reference is 112x112 with a tiny 44x38 pixel footprint.
+  // The approved reference is a bold, full-frame collectible: 128x128 output,
+  // approx. 116px foreground silhouette and a rich 64-colour upper limit.
   // Process ONLY freshly generated art; saved/uploads keep their exact bytes.
-  // Reduce at native resolution with nearest-neighbour sampling and place the
-  // recoloured subject at its reference silhouette scale on a transparent PNG.
+  // Preserve pixel steps and use alpha-masked nearest-neighbour framing.
   const logicalSize = MINI_CANVAS_SIZE;
   const pixels = document.createElement('canvas');
   pixels.width = pixels.height = logicalSize;
