@@ -81,7 +81,7 @@ export function ElementSprite({ name, custom, fallback, className = '', alt = ''
 // particular saved image is the old default so repeated tab visits never
 // redraw every 64x64 procedural thumbnail just to check that fact.
 const proceduralDefaults = new Map<string, { source: string; signature: string; isDefault: boolean }>();
-function isProceduralDefault(material: Material): boolean {
+export function isProceduralDefault(material: Material): boolean {
   const source = material.customSpriteUrl;
   if (!source?.startsWith('data:image/png;base64,')) return false;
   const identity = material.id;

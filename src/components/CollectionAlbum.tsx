@@ -1,4 +1,6 @@
 import React, { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { discoveryIdentity } from '../lib/unifiedCollection';
+import { isProceduralDefault } from './ElementSprite';
 import { BookOpen, Search, Sparkles, GalleryVerticalEnd, LayoutGrid, ChevronRight, ArrowLeft, X, Lock, Plus, Trash2, Share2, Check, Star, GitBranch, Trophy, Shuffle } from 'lucide-react';
 import type { InfiniteElement } from '../lib/infiniteCraftData';
 import { useGame } from '../lib/gameStore';
@@ -53,7 +55,17 @@ export function CollectionAlbum({
   const [exporting,setExporting]=useState(false);
   const [repairingArt,setRepairingArt]=useState(false);
   const [repairStatus,setRepairStatus]=useState('');
-  const {setActiveTab}=useGame();
+  const {setActiveTab, materials}=useGame();
+  // Recover real Foundry art for an older Craft discovery lacking a sprite.
+  // This is a read-only projection: no recipe, uploaded image or save changes.
+  const materialArtwork = useMemo(() => {
+    const byName = new Map<string, string>();
+    for (const material of materials) {
+      if (!material.customSpriteUrl || isProceduralDefault(material)) continue;
+      byName.set(discoveryIdentity(material.displayName), material.customSpriteUrl);
+    }
+    return byName;
+  }, [materials]);
 
   useEffect(()=>setQuery(initialSearch),[initialSearch]);
   useEffect(()=>{
@@ -79,8 +91,11 @@ export function CollectionAlbum({
       const key=el?.name?.trim().toLowerCase();
       if(!key||seen.has(key))return false;
       seen.add(key);return true;
-    }).map(normalizeElementStats);
-  },[elements]);
+    }).map(item => {
+      const linked = !item.customSpriteUrl ? materialArtwork.get(discoveryIdentity(item.name)) : undefined;
+      return normalizeElementStats(linked ? { ...item, customSpriteUrl: linked } : item);
+    });
+  },[elements,materialArtwork]);
   const byName=useMemo(()=>new Map<string,InfiniteElement>(catalog.map(e=>[e.name.trim().toLowerCase(),e] as [string,InfiniteElement])),[catalog]);
   const custom=useMemo(()=>new Map(catalog.flatMap(e=>e.customSpriteUrl
     ? [[e.name.toLowerCase(),e.customSpriteUrl] as const]:[])),[catalog]);

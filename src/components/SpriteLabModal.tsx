@@ -9,7 +9,8 @@ import { Material, Oddkin } from '../types';
 import { readCraftElements, saveCraftElements, SAVE_IMPORTED_EVENT, SAVE_CHANGED_EVENT, getSaveError, MAX_SPRITE_CHARS } from '../lib/saveData';
 import { InfiniteElement } from '../lib/infiniteCraftData';
 import { sound } from '../lib/audio';
-import { ElementSprite, MaterialSprite } from './ElementSprite';
+import { ElementSprite, MaterialSprite, isProceduralDefault } from './ElementSprite';
+import { buildSpriteCatalog, withUnifiedDiscoveryArtwork, type SpriteSourceType } from '../lib/spriteCatalog';
 import { getElementEmoji, retryElementEmoji, upgradeElementEmoji } from '../lib/elementEmoji';
 import { ARTWORK_QUEUE_EVENT, artworkQueueEntries, artworkQueueStatus, queueMissingArtwork, retryPendingArtwork } from '../lib/artworkQueue';
 import { MissingSpritesList } from './MissingSpritesList';
@@ -21,6 +22,11 @@ type LabItem =
   | { type: 'craft'; id: string; name: string; sprite?: string; item: InfiniteElement }
   | { type: 'material'; id: string; name: string; sprite?: string; item: Material }
   | { type: 'oddkin'; id: string; name: string; sprite?: string; item: Oddkin };
+type LabDisplayItem = LabItem & {
+  catalogKey: string;
+  sourceTypes: SpriteSourceType[];
+  sharedSprite?: string;
+};
 
 async function fileToSprite(file: File): Promise<string> {
   if (!file.type.startsWith('image/')) throw new Error('Choose a PNG, WebP, or JPG image.');
@@ -99,18 +105,33 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
   const rerollNonce = useRef(0);
   const uploadRef = useRef<HTMLInputElement>(null);
 
-  const items = useMemo<LabItem[]>(() => {
-    const all: LabItem[] = [
-      ...craftElements.map(item => ({ type: 'craft' as const, id: item.id, name: item.name, sprite: item.customSpriteUrl, item })),
-      ...materials.map(item => ({ type: 'material' as const, id: item.id, name: item.displayName, sprite: item.customSpriteUrl, item })),
-      ...oddkinCollection.map(item => ({ type: 'oddkin' as const, id: item.speciesId, name: item.speciesName, sprite: item.customSpriteUrl, item })),
-    ];
-    const normalizedQuery = query.trim().toLowerCase();
-    return all.filter(item =>
-      (filter === 'all' || item.type === filter) &&
-      (!normalizedQuery || item.name.toLowerCase().includes(normalizedQuery))
-    );
-  }, [materials, oddkinCollection, craftElements, query, filter]);
+  // Deduplicate by concept rather than creating separate Craft/Material cards.
+  // Keep this projection independent of the search query so typing doesn't
+  // rerender hundreds of procedural sprites or change source records.
+  const catalog = useMemo(
+    () => buildSpriteCatalog(craftElements, materials, oddkinCollection, isProceduralDefault),
+    [craftElements, materials, oddkinCollection],
+  );
+  const items = useMemo<LabDisplayItem[]>(() => {
+    const normalizedQuery = discoveryIdentity(query);
+    return catalog.flatMap(entry => {
+      if (filter !== 'all' && !entry.sources.includes(filter)) return [];
+      if (normalizedQuery && !discoveryIdentity(entry.name).includes(normalizedQuery)) return [];
+      const target: LabItem | undefined =
+        filter === 'material' && entry.material
+          ? { type: 'material', id: entry.material.id, name: entry.name, sprite: entry.material.customSpriteUrl, item: entry.material }
+        : filter === 'oddkin' && entry.oddkin
+          ? { type: 'oddkin', id: entry.oddkin.speciesId, name: entry.name, sprite: entry.oddkin.customSpriteUrl, item: entry.oddkin }
+        : entry.craft
+          ? { type: 'craft', id: entry.craft.id, name: entry.name, sprite: entry.craft.customSpriteUrl, item: entry.craft }
+        : entry.material
+          ? { type: 'material', id: entry.material.id, name: entry.name, sprite: entry.material.customSpriteUrl, item: entry.material }
+        : entry.oddkin
+          ? { type: 'oddkin', id: entry.oddkin.speciesId, name: entry.name, sprite: entry.oddkin.customSpriteUrl, item: entry.oddkin }
+        : undefined;
+      return target ? [{ ...target, catalogKey: entry.key, sourceTypes: entry.sources, sharedSprite: entry.sprite }] : [];
+    });
+  }, [catalog, query, filter]);
 
   useEffect(() => {
     if (galleryLimit >= items.length || typeof IntersectionObserver === 'undefined') return;
@@ -133,7 +154,7 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
   );
 
   const selected = useMemo(
-    () => items.find(item => `${item.type}:${item.id}` === selectedKey) || items[0] || null,
+    () => items.find(item => item.catalogKey === selectedKey) || items[0] || null,
     [items, selectedKey]
   );
 
@@ -144,7 +165,7 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
   useEffect(() => {
     let disposed = false;
     const refresh = () => {
-      if (selected?.type !== 'craft' || selected.sprite) {
+      if (selected?.type === 'oddkin' || selected?.sharedSprite) {
         setSavedPreview(false);
         setPreviewChecked(true);
         return;
@@ -158,7 +179,7 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
     refresh();
     const onSprite = (event: Event) => {
       const key = (event as CustomEvent<string>).detail;
-      if (selected?.type === 'craft' && key === spriteVariantKey(selected.name)) refresh();
+      if (selected?.type !== 'oddkin' && key === spriteVariantKey(selected.name)) refresh();
     };
     window.addEventListener('oddkin-emoji-retry', onSprite);
     window.addEventListener(PROFILE_SPRITES_UPDATED, refresh);
@@ -167,13 +188,13 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
       window.removeEventListener('oddkin-emoji-retry', onSprite);
       window.removeEventListener(PROFILE_SPRITES_UPDATED, refresh);
     };
-  }, [selected?.id, selected?.name, selected?.type, selected?.sprite]);
+  }, [selected?.catalogKey, selected?.name, selected?.type, selected?.sharedSprite]);
 
-  const previewQueued = selected?.type === 'craft' && artworkQueueEntries()
+  const previewQueued = selected?.type !== 'oddkin' && artworkQueueEntries()
     .some(item => !item.shiny && item.name.toLowerCase() === selected.name.toLowerCase());
-  const previewLabel = selected?.sprite
-    ? 'CUSTOM SPRITE'
-    : selected?.type !== 'craft'
+  const previewLabel = selected?.sharedSprite
+    ? 'SAVED SPRITE'
+    : selected?.type === 'oddkin'
       ? 'ITEM PREVIEW'
       : !previewChecked
         ? 'CHECKING ARTWORK'
@@ -187,44 +208,56 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
     return () => window.removeEventListener(PROFILE_SPRITES_UPDATED, update);
   }, []);
 
-  const persistSprite = async (target: LabItem, sprite?: string) => {
+  const persistSprite = async (target: LabDisplayItem, sprite?: string) => {
+    // Explicit artwork edits are concept-wide: every matching Craft and
+    // Foundry record gets the same art. This does not merge/delete histories.
+    const linkedCraft = readCraftElements().filter(item => discoveryIdentity(item.name) === discoveryIdentity(target.name));
+    const linkedMaterials = materials.filter(item => discoveryIdentity(item.displayName) === discoveryIdentity(target.name));
+    const cloudKeys = target.type === 'oddkin'
+      ? [`oddkin:${target.id}`]
+      : [...linkedCraft.map(item => `craft:${item.id}`), ...linkedMaterials.map(item => `material:${item.id}`)];
     const userId = await spriteAssets?.currentUser();
-    if (userId && sprite === undefined) await trackSpriteSync(() => spriteAssets!.remove(userId, `${target.type}:${target.id}`));
-    if (userId && sprite?.startsWith('data:image/png;base64,')) {
-      sprite = await trackSpriteSync(() => spriteAssets!.put(userId, `${target.type}:${target.id}`, target.name, sprite!));
-    }
-    if (target.type === 'craft') {
-      const current = readCraftElements();
-      if (!current.some(item => item.id === target.id)) throw new Error('Discovery no longer exists.');
-      const next = current.map(item => item.id === target.id ? { ...item, customSpriteUrl: sprite } : item);
-      saveCraftElements(next);
-      setCraftElements(next);
-      if (getSaveError()) throw new Error(getSaveError()!);
-      setStatus(`${target.name} sprite updated.`);
-      return;
+    if (userId) {
+      // Do not leave obsolete cloud entries which could reappear after a reset.
+      for (const key of new Set(cloudKeys)) {
+        if (!sprite) await trackSpriteSync(() => spriteAssets!.remove(userId, key));
+        else if (sprite.startsWith('data:image/png;base64,')) {
+          const currentImage = sprite;
+          const stored = await trackSpriteSync(() => spriteAssets!.put(userId, key, target.name, currentImage));
+          sprite = stored;
+        } else if (sprite.startsWith('sprite://')) {
+          // A second linked key can point to the same immutable private image.
+          // Automatic profile sync maps it on the next pass.
+        }
+      }
     }
     const payload = JSON.parse(latest.current.exportSaveData());
-    const foundry = payload?.foundry;
-    if (!foundry) throw new Error('Foundry save data is unavailable.');
-
-    if (target.type === 'material') {
-      const saved = foundry.materials?.find((item: Material) => item.id === target.id);
-      if (!saved) throw new Error('Material could not be found in the save.');
-      saved.customSpriteUrl = sprite;
-      // Keep the custom sprite from being replaced by the renderer migration on reload.
-      saved.spriteRendererVersion = MATERIAL_SPRITE_RENDERER_VERSION;
+    if (target.type !== 'oddkin') {
+      const next = withUnifiedDiscoveryArtwork(payload, target.name, sprite, MATERIAL_SPRITE_RENDERER_VERSION);
+      const hasMaterial = linkedMaterials.length > 0;
+      if (!hasMaterial && target.type === 'craft') {
+        const current = readCraftElements();
+        const changed = current.map(item => discoveryIdentity(item.name) === discoveryIdentity(target.name)
+          ? { ...item, customSpriteUrl: sprite } : item);
+        saveCraftElements(changed);
+        if (getSaveError()) throw new Error(getSaveError()!);
+        setCraftElements(changed);
+      } else {
+        if (!latest.current.importSaveData(JSON.stringify(next))) throw new Error('The linked artwork could not be saved.');
+        setCraftElements(readCraftElements());
+      }
     } else {
-      const saved = foundry.oddkinCollection?.find((item: Oddkin) => item.speciesId === target.id);
+      const foundry = payload?.foundry;
+      const saved = foundry?.oddkinCollection?.find((item: Oddkin) => item.speciesId === target.id);
       if (!saved) throw new Error('Oddkin could not be found in the save.');
       saved.customSpriteUrl = sprite;
+      if (!latest.current.importSaveData(JSON.stringify(payload))) throw new Error('The updated sprite could not be saved.');
+      setCraftElements(readCraftElements());
     }
-
-    if (!latest.current.importSaveData(JSON.stringify(payload))) throw new Error('The updated sprite could not be saved.');
     sound.playDiscoveryChime('UNCOMMON');
-    setStatus(`${target.name} sprite updated.`);
+    setStatus(`${target.name} sprite updated across linked collection entries.`);
   };
-
-  const freshPixelSprite = async (target: LabItem, mode: 'upgrade' | 'reroll') => {
+  const freshPixelSprite = async (target: LabDisplayItem, mode: 'upgrade' | 'reroll') => {
     if (uploading) return;
     setUploading(true);
     rerollNonce.current += 1;
@@ -246,7 +279,7 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
     }
   };
 
-  const retryMissingArt = async (target: LabItem) => {
+  const retryMissingArt = async (target: LabDisplayItem) => {
     if (uploading) return;
     setUploading(true);
     setStatus(`Checking cached artwork and requesting an AI sprite for ${target.name}…`);
@@ -283,9 +316,9 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
     }
   };
 
-  const reroll = (target: LabItem) => freshPixelSprite(target, 'reroll');
+  const reroll = (target: LabDisplayItem) => freshPixelSprite(target, 'reroll');
 
-  const restoreDefault = async (target: LabItem) => {
+  const restoreDefault = async (target: LabDisplayItem) => {
     try {
       if (target.type === 'craft') { await persistSprite(target); setStatus(`${target.name} restored to its saved unique emoji.`); return; }
       const sprite = target.type === 'material'
@@ -321,10 +354,10 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
           <aside className="boop-sprite-editor">
             {selected ? <>
               <div className="boop-sprite-preview"><span className="boop-preview-tag">{previewLabel}</span><LabSprite target={selected} className="boop-editor-sprite" /></div>
-              {selected.type === 'craft' && previewChecked && !selected.sprite && !savedPreview && <p className="boop-preview-notice" role="status">
+              {selected.type !== 'oddkin' && previewChecked && !selected.sharedSprite && !savedPreview && <p className="boop-preview-notice" role="status">
                 This is a temporary offline icon, not finished AI artwork. Its unique sprite still needs generating.
               </p>}
-              <div className="boop-sprite-identity"><h2>{selected.name}</h2><span className="boop-category-tag">{selected.type === 'craft' ? 'Discovery' : selected.type === 'oddkin' ? 'Oddkin' : selected.item.rarity.toLowerCase()}</span><span className="boop-category-tag">Your collection</span></div>
+              <div className="boop-sprite-identity"><h2>{selected.name}</h2>{selected.sourceTypes.map(source => <span key={source} className="boop-category-tag">{source === 'craft' ? 'Craft' : source === 'material' ? 'Material' : 'Oddkin'}</span>)}<span className="boop-category-tag">Your collection</span></div>
               <div className="boop-sprite-actions"><button className="boop-primary" disabled={uploading} onClick={() => uploadRef.current?.click()}><Upload size={18} />Upload artwork</button><button className="boop-secondary" disabled={uploading} onClick={() => void reroll(selected)}><RefreshCw size={18} />{uploading ? 'Working…' : 'Reroll sprite'}</button></div>
               <input ref={uploadRef} type="file" accept="image/png,image/webp,image/jpeg" className="hidden" onChange={event => void uploadCustom(event.target.files?.[0])} />
               <div className="boop-artwork-settings"><div><span>Sprite quality</span><strong>High</strong></div><div><span>Upload formats</span><strong>PNG · WebP · JPG</strong></div><div><span>Collection storage</span><strong>Saved automatically</strong></div></div>
@@ -335,7 +368,7 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
             </> : <div className="boop-empty"><ImagePlus size={36} /><h2>Your art starts here.</h2><p>Craft a discovery, then give it your own sprite.</p></div>}
           </aside>
           <div className="boop-sprite-picker">
-            <div className="boop-section-heading"><h2>Choose a discovery</h2><small>{items.length} items</small></div>
+            <div className="boop-section-heading"><h2>Choose a discovery</h2><small>{items.length} unique discoveries · {catalog.length} total</small></div>
             <label className="boop-search"><Search size={18} /><input value={query} onChange={event => { setQuery(event.target.value); setGalleryLimit(72); }} aria-label="Search sprites" placeholder="Search discoveries…" /></label>
             <div className="boop-pills" aria-label="Sprite category">{(['all', 'craft', 'material', 'oddkin'] as const).map(value => <button key={value} aria-pressed={filter === value} onClick={() => { setFilter(value); setGalleryLimit(72); }}>{value === 'all' ? 'All' : value === 'craft' ? 'Craft' : value === 'material' ? 'Matter' : 'Oddkin'}</button>)}</div>
             <div className="boop-sprite-repair">
@@ -348,17 +381,18 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
               </>}
             </div>
             <MissingSpritesList elements={inventoryElements} onSelect={id => {
-              const craft = craftElements.find(item => item.id === id);
               const entry = inventoryElements.find(item => item.id === id);
-              const material = entry && materials.find(item => discoveryIdentity(item.displayName) === discoveryIdentity(entry.name));
-              setFilter(craft ? 'craft' : material ? 'material' : 'all');
-              setQuery('');
-              setSelectedKey(craft ? `craft:${id}` : material ? `material:${material.id}` : null);
+              if (!entry) return;
+              setFilter('all');
+              setQuery(entry.name);
+              setGalleryLimit(72);
+              setSelectedKey(`concept:${discoveryIdentity(entry.name)}`);
               setStatus(null);
             }} />
+            <p className="boop-library-caption">Showing {Math.min(items.length, galleryLimit)} of {items.length} · Newest discoveries first. Search finds the entire collection.</p>
             <div className="boop-sprite-picker-grid">{items.slice(0, galleryLimit).map(item => {
-              const key = `${item.type}:${item.id}`;
-              return <button key={key} disabled={uploading} aria-pressed={selected?.id === item.id && selected?.type === item.type} onClick={() => { sound.playClick(); setSelectedKey(key); setStatus(null); }}><LabSprite target={item} className="boop-picker-sprite" /><strong>{item.name}</strong><small>{item.type}</small></button>;
+              const key = item.catalogKey;
+              return <button key={key} disabled={uploading} aria-pressed={selected?.catalogKey === key} onClick={() => { sound.playClick(); setSelectedKey(key); setStatus(null); }}><LabSprite target={item} className="boop-picker-sprite" /><strong>{item.name}</strong><small>{item.sourceTypes.join(' · ')}</small></button>;
             })}</div>
             {items.length > galleryLimit && (
               <button ref={galleryMoreRef} type="button" className="boop-secondary"
@@ -376,8 +410,13 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
 
 
 
-function LabSprite({ target, className }: { target: LabItem; className: string }) {
-  if (target.type === 'material') return <MaterialSprite material={target.item} className={className} alt={target.name} />;
-  if (target.type === 'craft') return <ElementSprite name={target.name} custom={target.sprite} fallback={target.item.emoji} className={className} alt={target.name} />;
-  return <SpriteImage src={target.sprite} alt={target.name} className={`${className} object-contain pixelated`} />;
+function LabSprite({ target, className }: { target: LabDisplayItem; className: string }) {
+  // A single concept image is shared by its Craft and Foundry versions.
+  if (target.type === 'material' && !target.sharedSprite) {
+    return <MaterialSprite material={target.item} className={className} alt={target.name} />;
+  }
+  if (target.type !== 'oddkin') {
+    return <ElementSprite name={target.name} custom={target.sharedSprite} fallback={target.type === 'craft' ? target.item.emoji : undefined} className={className} alt={target.name} />;
+  }
+  return <SpriteImage src={target.sharedSprite} alt={target.name} className={`${className} object-contain pixelated`} />;
 }

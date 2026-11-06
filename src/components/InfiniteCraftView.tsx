@@ -26,6 +26,7 @@ import { loadBoardLayout, saveBoardLayout } from '../lib/boardLayout';
 import { spawnSourcePool, chooseSpawnElements, chooseUndiscoveredPair, spawnPositions, spreadSpawnPositions, SPAWN_COUNTS, type SpawnCount } from '../lib/randomSpawn';
 import { queueCraftElementsSave, readCraftElements, SAVE_IMPORTED_EVENT, SAVE_CHANGED_EVENT } from '../lib/saveData';
 import { discoveryIdentity } from '../lib/unifiedCollection';
+import { isProceduralDefault } from './ElementSprite';
 import { mergeSharedDiscoveries } from '../lib/sharedDiscoveries';
 import { sound } from '../lib/audio';
 import { haptics } from '../lib/haptics';
@@ -839,12 +840,18 @@ export function InfiniteCraftView() {
   const lastCustomSprites = useRef<ReadonlyMap<string, string>>(new Map());
   const customSprites = useMemo(() => {
     const next = new Map<string, string>();
-    for (const item of elements) if (item.customSpriteUrl) next.set(item.name.trim().toLowerCase(), item.customSpriteUrl);
+    for (const item of elements) if (item.customSpriteUrl) next.set(discoveryIdentity(item.name), item.customSpriteUrl);
+    // Foundry uploads should appear on the Craft board even when an older
+    // Craft copy of the concept has no sprite of its own.
+    for (const item of foundryMaterials) {
+      const key = discoveryIdentity(item.displayName);
+      if (!next.has(key) && item.customSpriteUrl && !isProceduralDefault(item)) next.set(key, item.customSpriteUrl);
+    }
     const previous = lastCustomSprites.current;
     if (next.size === previous.size && [...next].every(([name, url]) => previous.get(name) === url)) return previous;
     lastCustomSprites.current = next;
     return next;
-  }, [elements]);
+  }, [elements, foundryMaterials]);
 
   const selectIngredient = (element: InfiniteElement) => {
     spawnOnCanvas(element.name, element.emoji, Boolean(element.isShiny));
