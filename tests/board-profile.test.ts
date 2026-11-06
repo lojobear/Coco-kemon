@@ -36,7 +36,8 @@ test('Discover uses the full board with tappable tiles, deliberate collisions an
   const css=source('src/boop.css');
   assert.match(react,/boop-board-viewport/);
   assert.match(react,/boop-board-world/);
-  assert.match(react,/handlePointerDown\(item,e\)/);
+  assert.match(react,/onPointerDown=\{event => onPointerDown\(item, event\)\}/);
+  assert.match(react,/onBoardPointerDown/);
   assert.match(react,/findCraftDropTarget/);
   assert.match(react,/boop-board-fusion/);
   assert.match(react,/boop-board-ingredient-grid/);
