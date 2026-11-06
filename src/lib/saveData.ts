@@ -44,6 +44,57 @@ function storedSavedAt(): number {
 const LEGACY_FOUNDRY = 'oddkin_foundry_save_v1';
 const LEGACY_CRAFT = 'neal_infinite_craft_elements_v1';
 let craftMemory: InfiniteElement[] | undefined;
+
+// Crafting can update a large save with hundreds of embedded PNG sprites.
+// Keep the newest result available synchronously to Foundry/Collection, but
+// serialize the entire save only once the browser is idle. Page suspension
+// flushes outstanding writes so moving Boop to the background is safe.
+type QueuedCraftWrite = {
+  elements: InfiniteElement[];
+  normalize: (items: InfiniteElement[]) => InfiniteElement[];
+};
+let queuedCraftWrite: QueuedCraftWrite | null = null;
+let craftWriteTimer: ReturnType<typeof setTimeout> | undefined;
+let craftIdleHandle: number | undefined;
+let craftFlushListenersReady = false;
+function cancelCraftWriteTimer() {
+  if (craftWriteTimer !== undefined) { clearTimeout(craftWriteTimer); craftWriteTimer = undefined; }
+  if (craftIdleHandle !== undefined && typeof window !== 'undefined') {
+    (window as Window & { cancelIdleCallback?: (id: number) => void }).cancelIdleCallback?.(craftIdleHandle);
+    craftIdleHandle = undefined;
+  }
+}
+export function flushQueuedCraftSave(): void {
+  cancelCraftWriteTimer();
+  const queued = queuedCraftWrite;
+  queuedCraftWrite = null;
+  if (queued) saveCraftElements(queued.normalize(queued.elements));
+}
+export function queueCraftElementsSave(
+  elements: InfiniteElement[],
+  normalize: (items: InfiniteElement[]) => InfiniteElement[] = items => items,
+): void {
+  // Reads from another tab view must see the just-crafted discovery before
+  // the expensive full JSON write finishes.
+  craftMemory = elements;
+  queuedCraftWrite = { elements, normalize };
+  cancelCraftWriteTimer();
+  if (typeof window !== 'undefined' && !craftFlushListenersReady) {
+    craftFlushListenersReady = true;
+    window.addEventListener('pagehide', flushQueuedCraftSave);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') flushQueuedCraftSave();
+    });
+  }
+  craftWriteTimer = setTimeout(() => {
+    craftWriteTimer = undefined;
+    const idle = typeof window === 'undefined' ? undefined
+      : (window as Window & { requestIdleCallback?: (callback: () => void, options?: {timeout: number}) => number }).requestIdleCallback;
+    if (idle) craftIdleHandle = idle(() => { craftIdleHandle = undefined; flushQueuedCraftSave(); }, { timeout: 1500 });
+    else flushQueuedCraftSave();
+  }, 180);
+}
+
 let saveError: string | null = null;
 let recoveryRequired = false;
 let envelopeLoaded = false;
@@ -142,6 +193,9 @@ function write(foundry: any, crafting: InfiniteElement[], force = false, collect
   if (typeof window !== 'undefined') window.dispatchEvent(new Event(SAVE_CHANGED_EVENT));
 }
 export function saveCraftElements(elements: InfiniteElement[]) {
+  // An explicit Sprite Lab/Kitchen update must never be overwritten later
+  // by an older delayed Craft write.
+  if (queuedCraftWrite) { queuedCraftWrite = null; cancelCraftWriteTimer(); }
   // A newer-save refusal must survive: do not let a later generic save error
   // overwrite the message telling the player to update instead of saving.
   if (recoveryRequired && saveError && /newer version/i.test(saveError)) return;
@@ -206,6 +260,8 @@ export function parseSave(json: string) {
 }
 export function importCompleteSave(json: string) {
   const parsed = parseSave(json);
+  queuedCraftWrite = null;
+  cancelCraftWriteTimer();
   write(parsed.foundry, parsed.crafting, true, parsed.collectorRoom, parsed.boardLayout);
   if (parsed.boardLayout !== null) saveBoardLayout(parsed.boardLayout);
   recoveryRequired = false;
