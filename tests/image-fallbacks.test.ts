@@ -79,7 +79,7 @@ test('FLUX.2 receives the original detailed prompt; Schnell fallback receives th
       '@cf/black-forest-labs/flux-1-schnell',
     ]);
     assert.ok(calls[0].input.multipart, 'FLUX.2 must retain its detailed multipart input');
-    const form = await new Response(calls[0].input.multipart.body).formData();
+    const form = await new Response(calls[0].input.multipart.body, { headers: { 'content-type': calls[0].input.multipart.contentType } }).formData();
     assert.equal(form.getAll('input_image_0').length, 0, 'Never send a previous sprite or the style reference as image input');
     assert.match(String(form.get('prompt')), /Obsidian Dragon/);
     assert.ok(calls[1].input.prompt.length <= 2048);
