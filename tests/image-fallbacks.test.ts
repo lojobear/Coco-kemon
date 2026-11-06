@@ -19,7 +19,7 @@ test('Schnell compact prompt fits model limit and keeps bold 16-bit collectible 
   assert.match(prompt, /upgrade-abc123/);
   assert.match(prompt, /128x128/);
   assert.match(prompt, /85–95%/);
-  assert.match(prompt, /subject-specific colours/i);
+  assert.match(prompt, /subject-specific palette/i);
   assert.match(prompt, /#FF00FF/);
   assert.doesNotMatch(prompt, /BLACK-NAVY #1C2232/);
 });
