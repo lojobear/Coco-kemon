@@ -1,41 +1,56 @@
 import type { InfiniteElement } from './infiniteCraftData';
 import { STARTER_ELEMENTS } from './infiniteCraftData';
 import { boardCenter, clampBoardTile } from './boardGeometry';
+import { uniformRandomIndex } from './rarity';
 
 export type SpawnSource = 'all' | 'recent' | 'shiny' | 'starters';
 export type SpawnCount = 1 | 2 | 5 | 10;
 export const SPAWN_COUNTS: readonly SpawnCount[] = [1, 2, 5, 10];
 export const SPAWN_SOURCES: readonly SpawnSource[] = ['all', 'recent', 'shiny', 'starters'];
 const STARTER_NAMES = new Set(STARTER_ELEMENTS.map(item => item.name.toLowerCase()));
+const identity = (name: string) => name.normalize('NFKC').trim().replace(/\s+/g,' ').toLowerCase();
+function distinctDiscoveries(elements: readonly InfiniteElement[]): InfiniteElement[] {
+  const seen = new Set<string>();
+  return owned.filter(item => {
+    const key = identity(item.name || '');
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
 
 /** Available inventory only: random spawning never invents or unlocks items. */
 export function spawnSourcePool(elements: readonly InfiniteElement[], source: SpawnSource): InfiniteElement[] {
+  const owned = distinctDiscoveries(elements);
   switch (source) {
-    case 'starters': return elements.filter(item => STARTER_NAMES.has(item.name.toLowerCase()));
-    case 'shiny': return elements.filter(item => item.isShiny || item.unlockedShiny);
-    case 'recent': return elements.filter(item => (item.discoveredAt || 0) > 0)
+    case 'starters': return owned.filter(item => STARTER_NAMES.has(item.name.toLowerCase()));
+    case 'shiny': return owned.filter(item => item.isShiny || item.unlockedShiny);
+    case 'recent': return owned.filter(item => (item.discoveredAt || 0) > 0)
       .sort((a, b) => (b.discoveredAt || 0) - (a.discoveredAt || 0)).slice(0, 40);
-    default: return [...elements];
+    default: return owned;
   }
 }
 
-/** Draw without duplicates when possible; repeat only if a source has fewer items than requested. */
-export function chooseSpawnElements<T>(pool: readonly T[], count: SpawnCount, random: () => number = Math.random): T[] {
+/** Uniform partial Fisher–Yates: every unique discovery has the same chance
+ * to be picked; a batch never repeats until the complete pool is exhausted.
+ * Injected random() is only used for deterministic tests. Production uses
+ * unbiased Web Crypto sampling when available. */
+export function chooseSpawnElements<T>(pool: readonly T[], count: SpawnCount, random?: () => number): T[] {
   if (!pool.length) return [];
-  const unique: T[] = [];
-  const used = new Set<number>();
-  const total = Math.min(pool.length, count);
-  while (unique.length < total) {
-    const start = Math.min(pool.length - 1, Math.max(0, Math.floor(random() * pool.length)));
-    let index = start;
-    while (used.has(index)) index = (index + 1) % pool.length;
-    used.add(index);
-    unique.push(pool[index]);
+  const index = (n:number) => random
+    ? Math.min(n-1,Math.max(0,Math.floor(random()*n)))
+    : uniformRandomIndex(n);
+  const deck = [...pool];
+  const picked: T[] = [];
+  const uniqueCount = Math.min(count, deck.length);
+  for (let i=0;i<uniqueCount;i++) {
+    const j=i+index(deck.length-i);
+    [deck[i], deck[j]]=[deck[j], deck[i]];
+    picked.push(deck[i]);
   }
-  for (let i = unique.length; i < count; i++) {
-    unique.push(pool[Math.min(pool.length - 1, Math.max(0, Math.floor(random() * pool.length)))]);
-  }
-  return unique;
+  // Only a pool smaller than the requested batch permits repeat picks.
+  for (let i=uniqueCount;i<count;i++) picked.push(pool[index(pool.length)]);
+  return picked;
 }
 
 /** Compact responsive rows, in world coordinates centered on the visible game area. */

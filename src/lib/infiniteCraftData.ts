@@ -7,6 +7,7 @@
  */
 
 import type { KitchenRecipe } from './kitchen/engine';
+import type { RarityTier } from './rarity';
 
 export interface InfiniteElement {
   kitchenRecipe?: KitchenRecipe;
@@ -27,6 +28,12 @@ export interface InfiniteElement {
   shinyTitle?: string;
   unlockedCelestial?: boolean;
   celestialDiscoveredAt?: number;
+  rarityTier?: RarityTier; // highest tier ever rolled; legacy saves default to Common
+  rarityDiscoveredAt?: number;
+  unlockedHolo?: boolean; // cosmetic finish, no extra AI images
+  holoDiscoveredAt?: number;
+  unlockedGlitch?: boolean; // cosmetic finish, no extra AI images
+  glitchDiscoveredAt?: number;
   // Physical properties telemetry
   physicalData?: any;
 }

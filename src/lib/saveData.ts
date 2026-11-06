@@ -1,4 +1,5 @@
 import { isSpriteReference } from './spriteReference';
+import { isRarityTier } from './rarity';
 import { validKitchenRecipe } from './kitchen/engine';
 import { STARTER_ELEMENTS, type InfiniteElement } from './infiniteCraftData';
 import { mergeFoundryIntoCraft } from './unifiedCollection';
@@ -119,6 +120,12 @@ export function validateCraft(v: unknown): v is InfiniteElement[] {
     (x.unlockedShiny === undefined || typeof x.unlockedShiny === 'boolean') &&
     (x.unlockedCelestial === undefined || typeof x.unlockedCelestial === 'boolean') &&
     (x.celestialDiscoveredAt === undefined || finite(x.celestialDiscoveredAt)) &&
+    (x.rarityTier === undefined || isRarityTier(x.rarityTier)) &&
+    (x.rarityDiscoveredAt === undefined || finite(x.rarityDiscoveredAt)) &&
+    (x.unlockedHolo === undefined || typeof x.unlockedHolo === 'boolean') &&
+    (x.holoDiscoveredAt === undefined || finite(x.holoDiscoveredAt)) &&
+    (x.unlockedGlitch === undefined || typeof x.unlockedGlitch === 'boolean') &&
+    (x.glitchDiscoveredAt === undefined || finite(x.glitchDiscoveredAt)) &&
     (x.recipe === undefined || (record(x.recipe) && text(x.recipe.first) && text(x.recipe.second)))) && unique(v, 'id');
 }
 export function validateFoundry(v: unknown): boolean {

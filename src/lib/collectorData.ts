@@ -1,7 +1,9 @@
 import type { InfiniteElement } from './infiniteCraftData';
 import { normalizeElementStats } from './elementStats';
+import { CELESTIAL_ODDS, uniformRandomIndex } from './rarity';
+export { SHINY_ODDS, CELESTIAL_ODDS, HOLO_ODDS, GLITCH_ODDS } from './rarity';
 
-export type CollectorVariant = 'normal' | 'shiny' | 'celestial';
+export type CollectorVariant = 'normal' | 'shiny' | 'celestial' | 'holo' | 'glitch';
 export type RoomTheme = 'gallery' | 'night' | 'studio';
 export type FrameStyle = 'classic' | 'gold' | 'holo';
 export interface TrophySlot {
@@ -15,8 +17,6 @@ export interface TrophyRoom {
 }
 export const TROPHY_SLOTS = 12;
 export const DEFAULT_TROPHY_ROOM: TrophyRoom = { theme:'gallery', slots:Array(TROPHY_SLOTS).fill(null) };
-export const SHINY_ODDS = 512;
-export const CELESTIAL_ODDS = 4096;
 export const EVOLUTION_TIERS = [
   { name: 'Discovered', minimumCrafts: 1, minimumRecipes: 0, marker:'✦' },
   { name: 'Awakened', minimumCrafts: 5, minimumRecipes: 0, marker:'❋' },
@@ -52,11 +52,13 @@ export function availableVariants(element: InfiniteElement): CollectorVariant[] 
   const variants:CollectorVariant[]=['normal'];
   if (element.unlockedShiny || element.isShiny || (element.shinyCraftCount || 0)>0) variants.push('shiny');
   if (element.unlockedCelestial) variants.push('celestial');
+  if (element.unlockedHolo) variants.push('holo');
+  if (element.unlockedGlitch) variants.push('glitch');
   return variants;
 }
 
-export function rollCelestial(random: () => number = Math.random): boolean {
-  return Math.floor(random()*CELESTIAL_ODDS) === 0;
+export function rollCelestial(random?: () => number): boolean {
+  return random ? Math.floor(random()*CELESTIAL_ODDS) === 0 : uniformRandomIndex(CELESTIAL_ODDS) === 0;
 }
 
 export function albumSetProgress(elements: readonly InfiniteElement[], names: readonly string[]) {

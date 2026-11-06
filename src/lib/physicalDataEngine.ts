@@ -388,14 +388,14 @@ export function generatePhysicalData(
   };
 }
 
+import { SHINY_ODDS, uniformRandomIndex } from './rarity';
+
 /**
  * Roll for Shiny chance when synthesizing an element (Pokémon style).
  * Odds: 1 in 512 (~0.195%) matching classic Pokémon Masuda method / Shiny Charm odds.
  */
 export function rollIsShiny(name: string, _recipeA?: string, _recipeB?: string): boolean {
-  // 1 in 512 chance
-  const roll = Math.floor(Math.random() * 512);
-  return roll === 0;
+  return uniformRandomIndex(SHINY_ODDS) === 0;
 }
 
 /**
