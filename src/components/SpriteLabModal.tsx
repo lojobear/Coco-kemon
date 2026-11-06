@@ -218,16 +218,17 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
       : [...linkedCraft.map(item => `craft:${item.id}`), ...linkedMaterials.map(item => `material:${item.id}`)];
     const userId = await spriteAssets?.currentUser();
     if (userId) {
-      // Do not leave obsolete cloud entries which could reappear after a reset.
-      for (const key of new Set(cloudKeys)) {
-        if (!sprite) await trackSpriteSync(() => spriteAssets!.remove(userId, key));
-        else if (sprite.startsWith('data:image/png;base64,')) {
-          const currentImage = sprite;
-          const stored = await trackSpriteSync(() => spriteAssets!.put(userId, key, target.name, currentImage));
+      // Update every linked cloud metadata key before publishing the new
+      // reference locally. Otherwise the next automatic profile sync could
+      // restore a stale image from the still-unmodified Material record.
+      const uploadedData = sprite?.startsWith('data:image/png;base64,') ? sprite : undefined;
+      const uniqueKeys = [...new Set(cloudKeys)];
+      for (const key of uniqueKeys) {
+        if (!sprite) {
+          await trackSpriteSync(() => spriteAssets!.remove(userId, key));
+        } else if (uploadedData) {
+          const stored = await trackSpriteSync(() => spriteAssets!.put(userId, key, target.name, uploadedData));
           sprite = stored;
-        } else if (sprite.startsWith('sprite://')) {
-          // A second linked key can point to the same immutable private image.
-          // Automatic profile sync maps it on the next pass.
         }
       }
     }
