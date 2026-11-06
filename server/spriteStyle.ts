@@ -1,24 +1,26 @@
 /**
- * Pixel scale and colour clusters follow the user's original mini handheld
- * reference at /sprite-reference/mini-handheld-master.png. This is a NEW
- * generation direction only; saved uploads and artwork are never rewritten.
+ * Boop premium collectible pixel-art specification.
+ *
+ * The user-supplied reference is a chunky outlined soft-serve in a wooden tub,
+ * NOT the object to copy. Transfer its bold outline, chunky but precise
+ * clusters, saturated light/mid/dark ramps and tactile 3/4 silhouette to each
+ * new named discovery. Existing player-owned artwork is preserved unchanged.
  */
-export const BOOP_SPRITE_ART_STYLE = [
-  'BOOP MINI HANDHELD: match the supplied 112x112 reference PNG for crisp hand-pixelled sprite outlines, flat clustered shading and retro RPG silhouette treatment. IMPORTANT: its tiny bottom-positioned footprint is NOT the desired output scale; generated subjects must be larger and centered.',
-  'REFERENCE IMAGE is tiny, but generated sprites MUST be large enough to read in a mobile game: draw a centered 70 to 80-pixel-tall recognisable silhouette inside a 112x112 transparent square. The reference guides hand-placed pixels, outlines and flat clustered shading, NOT its overly tiny 44x38 footprint or unusual bottom positioning.',
-  'Use roughly 12 to 20 solid subject-led pixel colours, enough to keep edges, mechanical parts, eyes and important accents intact. Sharp near-black 1-pixel outer contour, clustered midtones, sparing bright pixel highlights. NO antialiasing, painterly textures, rendered gradients, glossy bevels, soft glow, dithering noise or photorealism.',
-  'Pose like a classic small handheld monster/item inventory sprite, from the side or a slight 3/4 angle. Respect the NAME and subject silhouette. No bulky isometric cubes, generic boxes, slabs or 2:1 hotel furniture perspectives.',
-  'Keep naturally accurate SUBJECT colours, not the blue-grey reference palette unless the named subject is actually blue-grey. No universal brown tint.',
-  'One isolated fully readable object on uniform SOLID #FF00FF chroma-magenta background, no shadow, scenery, props, text, border, interface or watermark; the app converts this background to transparency.',
-  'Clean connected shapes, sparse detailing, no detached fake pixels, ragged seams or artifacts.',
+export const BOOP_SPRITE_ART_STYLE=[
+ 'BOOP v16 BOLD COLLECTIBLE PIXEL ART. IMAGE 0 is the approved chunky outlined soft-serve pixel sprite. Transfer the visual TECHNIQUE ONLY: thick near-black stair-stepped contours, detailed hand-clustered pixel shading, bright clean highlights, strong form, polished 16-bit game inventory art. Do NOT copy the ice cream, tub, banana, fruit, tan/brown colours or wooden texture into unrelated subjects.',
+ 'A SINGLE CLEAR, FUN, DISTINCT COLLECTIBLE with a large readable silhouette filling roughly 85–95% of a square 128x128 sprite canvas, centered, with only a narrow transparent gutter (4–8 pixels). The artwork is not a tiny floating icon or a flattened badge.',
+ 'Three-quarter front/side viewpoint, slight dimensionality from hand-placed coloured pixel clusters; deliberately chunky deep-black/dark-chocolate 2–4 pixel stair-stepped outside outline plus inner contour accents. Form must be visible and well connected, never a loose line of glitch pieces.',
+ 'Rich subject-specific palette with roughly 24–64 clustered pixel shades: warm or cool as the object requires. Use clean stepped shade bands, pixel-only crisp highlights, material-aware shadows, strongly differentiated light/midtone/dark values. Smooth LOOKING hand-drawn pixel shading is allowed but actual pixels stay hard edged. No soft focus, blurry gradients, automatic 3D rendering, painterly shading, tiny 44x38 silhouettes, or universal brown tint.',
+ 'Subject fidelity is essential: recognizable anatomy and real functional details, large solid silhouette, visually interesting enough to collect. Food looks like food, gadgets like gadgets, living things with coherent body plans. Do NOT generate generic cube, plate, shard, floating blob, UI badge, or repeated object template.',
+ 'Single isolated collectible sprite on perfectly UNIFORM #FF00FF magenta chroma key, with ZERO shadow, floor, environment, text, border, labels or extra background; game removes magenta to transparent. All object colours must be naturally plausible or intentionally fantasy-themed.',
+ 'Sharp pixels, no anti-alias fringing, random noise, stray fragments, disconnected outlines, watermark or texture filter. Pixel craftsmanship and readability must match the bold supplied image, not its literal content.'
 ].join('\n');
 
-/** FLUX.1 Schnell requires under 2,048 prompt characters. */
-export const BOOP_SPRITE_STYLE_COMPACT = [
-  'Readable RETRO HANDHELD pixel sprite on 112x112 canvas: use the artist reference for hand-placed crisp pixel clusters and outline style, but make the actual subject 70-80 pixels tall and CENTERED, not a tiny 44x38 object at the bottom.',
-  '12-20 flat solid colours, sharp black/dark one-pixel outline, distinct important anatomical and mechanical details, classic portable RPG look. True named subject silhouette, accurate natural subject palette.',
-  'Natural side or slight 3/4 pose, NO isometric 2:1 furniture, bulky cubes, plates, photorealism, gradients, antialiasing or glowing effects.',
-  'Uniform SOLID #FF00FF chroma-magenta background for transparency; one isolated sprite, no shadow, scenery, text, watermark or props.',
+export const BOOP_SPRITE_STYLE_COMPACT=[
+ 'Bold 16-bit game collectible PIXEL ART matching the approved soft-serve reference STYLE ONLY, not its object or colours. 128x128 canvas; a single distinct object fills 85–95%, centered, narrow transparent border.',
+ 'Strong dark 2–4px staircase outline and coherent connected silhouette; charming three-quarter view. Rich 24–64 flat clustered subject-specific colours, stepped shade bands, sharp pixel highlights and tactile detail.',
+ 'Crisp actual pixels; NO tiny sprites, fuzzy gradients, 3D render, isometric cubes, garbled fragments, universal brown palette, copied dessert, floor, text or scenery.',
+ 'Pure solid #FF00FF magenta chroma background for alpha removal; no cast shadow or frame.'
 ].join('\n');
 
 /**
