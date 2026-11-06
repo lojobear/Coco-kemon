@@ -67,7 +67,7 @@ test('offline preview is the same 112px mini scale; generated art only is proces
   assert.match(fresh,/viewBox="0 0 112 112"/);
   assert.match(art,/composeMiniSpritePixels/);
   const lab=readFileSync(new URL('../src/components/SpriteLabModal.tsx',import.meta.url),'utf8');
-  assert.match(lab,/ZoomedLabSprite key=\{selected.catalogKey\}/);
+  assert.match(lab,/ZoomedLabSprite target=\{selected\}/);
   assert.match(lab,/const b=alphaBounds\(pixels.data,width,height\)/);
   assert.match(lab,/targetSize=158/);
   assert.match(art,/Old saved art and uploaded sprites|saved\/uploads keep their exact bytes/i);
