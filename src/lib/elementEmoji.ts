@@ -3,6 +3,7 @@ import { emojiKey } from './emojiGeometry';
 import { spriteVariantKey, spriteProfileKey } from './spriteVariant';
 import { requestJson } from './api';
 import { removeEdgeConnectedBackground, tidyGeneratedSpritePixels } from './spritePixelCleanup';
+import { composeMiniSpritePixels, MINI_CANVAS_SIZE } from './miniSpriteStyle';
 
 const ELEMENT_SPRITE_CACHE_PREFIX = 'pixelimage-v9-2p5d:';
 const LEGACY_NATIVE_IMAGE_V8_CACHE_PREFIX = 'pixelimage-v8:';
@@ -105,11 +106,11 @@ async function normalizeGeneratedImage(imageBase64: string, mimeType: string): P
     sourceContext.putImageData(sourcePixels, 0, 0);
   }
 
-  // Furni-scale 128px grid keeps fine 1-2 pixel material-coloured outlines.
-  // Use nearest-neighbor upscaling only: never blur the hand-placed stair-steps.
-  // Old saved art and uploaded sprites do not pass through this function.
-  const logicalSize = 128;
-  const width = 512;
+  // Actual user reference is 112x112 with a tiny 44x38 pixel footprint.
+  // Process ONLY freshly generated art; saved/uploads keep their exact bytes.
+  // Reduce at native resolution with nearest-neighbour sampling and place the
+  // recoloured subject at its reference silhouette scale on a transparent PNG.
+  const logicalSize = MINI_CANVAS_SIZE;
   const pixels = document.createElement('canvas');
   pixels.width = pixels.height = logicalSize;
   const pixelContext = pixels.getContext('2d');
@@ -117,20 +118,11 @@ async function normalizeGeneratedImage(imageBase64: string, mimeType: string): P
   pixelContext.imageSmoothingEnabled = false;
   pixelContext.clearRect(0, 0, logicalSize, logicalSize);
   pixelContext.drawImage(source, 0, 0, logicalSize, logicalSize);
-  if (typeof pixelContext.getImageData === 'function' && typeof pixelContext.putImageData === 'function') {
-    const pixelData = pixelContext.getImageData(0, 0, logicalSize, logicalSize);
-    tidyGeneratedSpritePixels(pixelData.data, logicalSize, logicalSize);
-    pixelContext.putImageData(pixelData, 0, 0);
-  }
-
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = width;
-  const context = canvas.getContext('2d');
-  if (!context) throw new Error('Could not upscale generated pixel art.');
-  context.imageSmoothingEnabled = false;
-  context.clearRect(0, 0, width, width);
-  context.drawImage(pixels, 0, 0, width, width);
-  return canvas.toDataURL('image/png');
+  const sampled = pixelContext.getImageData(0, 0, logicalSize, logicalSize);
+  tidyGeneratedSpritePixels(sampled.data, logicalSize, logicalSize);
+  const composed = composeMiniSpritePixels(sampled.data, logicalSize, logicalSize);
+  pixelContext.putImageData(new ImageData(composed, logicalSize, logicalSize), 0, 0);
+  return pixels.toDataURL('image/png');
 }
 
 /** Return locally cached native artwork without generating or spending AI quota. */
