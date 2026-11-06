@@ -156,8 +156,10 @@ export function getElementEmoji(name: string, upgrade = false, variation = '', g
         || (isShiny ? undefined : await stored(key));
 
     if (cached) {
+      // The caller(s) awaiting this cache read already receive the image.
+      // Broadcasting per-item events on gallery mount caused quadratic
+      // listener work and repeated profile-sync scheduling on Android.
       memory.set(key, cached);
-      announceSpriteReady(key);
       return cached;
     }
 
@@ -172,7 +174,8 @@ export function getElementEmoji(name: string, upgrade = false, variation = '', g
           const data = await spriteAssets!.resolve(reference);
           memory.set(key, data);
           await save(ELEMENT_SPRITE_CACHE_PREFIX + key, data);
-          announceSpriteReady(key);
+          // Existing callers share this promise; only genuine image writes
+          // (new generations/profile changes) broadcast a retry event.
           return data;
         }
       } catch (error) {
