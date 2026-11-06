@@ -69,9 +69,9 @@ test('client removes chroma at high resolution before shrinking onto the pixel g
   const source = readFileSync(new URL('../src/lib/elementEmoji.ts', import.meta.url), 'utf8');
   const remove = source.indexOf('removeEdgeConnectedBackground(sourcePixels.data, sourceSize, sourceSize)');
   const resample = source.indexOf('pixelContext.drawImage(source, 0, 0, logicalSize, logicalSize)');
-  const cleanup = source.indexOf('tidyGeneratedSpritePixels(pixelData.data, logicalSize, logicalSize)');
+  const cleanup = source.indexOf('tidyGeneratedSpritePixels(sampled.data, logicalSize, logicalSize)');
   assert.ok(remove > 0 && resample > remove && cleanup > resample);
   assert.match(source, /const logicalSize = MINI_CANVAS_SIZE/);
   assert.match(source, /composeMiniSpritePixels\(sampled.data, logicalSize, logicalSize\)/);
-  assert.match(source, /context.imageSmoothingEnabled = false/);
+  assert.match(source, /pixelContext.imageSmoothingEnabled = false/);
 });

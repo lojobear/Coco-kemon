@@ -79,7 +79,7 @@ test('endpoint generates once for simultaneous and repeated canonical names', as
     const firstReply = await replies[0].json() as any;
     const secondReply = await replies[1].json() as any;
     assert.deepEqual(firstReply, secondReply);
-    assert.equal(firstReply.engineVersion, 'v13-semantic-object-furni');
+    assert.equal(firstReply.engineVersion, 'v14-mini-handheld-112');
     assert.equal(firstReply.provenance, 'gemini-native-image-pixel-art');
     assert.equal(firstReply.mimeType, 'image/png');
     assert.equal(firstReply.imageBase64, fakeImage.data);
@@ -98,15 +98,15 @@ test('endpoint generates once for simultaneous and repeated canonical names', as
   }
 });
 
-test('future isometric furni normalization preserves 128px detail without changing existing cached sprites', async () => {
+test('future generated sprites use reference 112px scale without changing saved artwork', async () => {
   const { readFileSync } = await import('node:fs');
   const code = readFileSync(new URL('../src/lib/elementEmoji.ts', import.meta.url), 'utf8');
-  assert.match(code, /const logicalSize = 128/);
+  assert.match(code, /const logicalSize = MINI_CANVAS_SIZE/);
   assert.match(code, /pixelContext\.imageSmoothingEnabled = false/);
   assert.match(code, /removeEdgeConnectedBackground\(sourcePixels.data, sourceSize, sourceSize\)/);
-  assert.match(code, /tidyGeneratedSpritePixels\(pixelData.data, logicalSize, logicalSize\)/);
-  assert.match(code, /context\.imageSmoothingEnabled = false/);
-  assert.match(code, /context\.drawImage\(pixels, 0, 0, width, width\)/);
+  assert.match(code, /tidyGeneratedSpritePixels\(sampled.data, logicalSize, logicalSize\)/);
+  assert.match(code, /composeMiniSpritePixels\(sampled.data, logicalSize, logicalSize\)/);
+  assert.match(code, /Old saved art and uploaded sprites|saved\/uploads keep their exact bytes/i);
 });
 
 test('client deduplicates, persists normalized high-resolution art, and supports rerolls', async () => {

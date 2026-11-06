@@ -12,14 +12,14 @@ function verboseSpritePrompt() {
   ].join('\n');
 }
 
-test('Schnell compact prompt fits model limit and keeps accurate Habbo-like isometric style', () => {
+test('Schnell compact prompt fits model limit and keeps tiny handheld reference style', () => {
   const prompt = compactSchnellImagePrompt(verboseSpritePrompt());
   assert.ok(prompt.length <= 2048);
   assert.match(prompt, /Obsidian Dragon/);
   assert.match(prompt, /upgrade-abc123/);
-  assert.match(prompt, /isometric/i);
-  assert.match(prompt, /2:1/);
-  assert.match(prompt, /true subject colours/i);
+  assert.match(prompt, /112x112/);
+  assert.match(prompt, /44x38/);
+  assert.match(prompt, /natural subject palette/i);
   assert.match(prompt, /#FF00FF/);
   assert.doesNotMatch(prompt, /BLACK-NAVY #1C2232/);
 });
@@ -37,12 +37,12 @@ test('Subject-specific art direction avoids global brown cast and repeated gener
   assert.notEqual(lake, leaf);
   assert.notEqual(lake, battery);
   const prompt = buildSpritePrompt('Ice Lake');
-  assert.match(prompt, /original classic virtual-hotel FURNI/i);
-  assert.match(prompt, /orthographic ISOMETRIC 2:1/);
-  assert.match(prompt, /BOLD BUT PRECISE FURNI READABILITY/);
-  assert.match(prompt, /NO glitch-like artifacts/);
-  assert.match(prompt, /broken outlines, stray pixels/);
-  assert.match(prompt, /Most non-wooden sprites must contain NO brown/);
+  assert.match(prompt, /BOOP MINI HANDHELD/);
+  assert.match(prompt, /112x112/);
+  assert.match(prompt, /44x38/);
+  assert.match(prompt, /8 to 10 opaque flat shades/);
+  assert.match(prompt, /no detached fake pixels/i);
+  assert.match(prompt, /No universal brown tint/);
   assert.match(prompt, /SUBJECT-BASED PALETTE:.*Aquatic or ice elements/);
   assert.match(prompt, /#FF00FF/);
   assert.doesNotMatch(prompt, /thick nearly-black NAVY outer outline/);

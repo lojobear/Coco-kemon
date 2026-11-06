@@ -118,6 +118,10 @@ async function normalizeGeneratedImage(imageBase64: string, mimeType: string): P
   pixelContext.imageSmoothingEnabled = false;
   pixelContext.clearRect(0, 0, logicalSize, logicalSize);
   pixelContext.drawImage(source, 0, 0, logicalSize, logicalSize);
+  // Every modern Android WebView supports pixel access. The canvas capability
+  // guard is a graceful fallback for test shims and older embedded browsers.
+  if (typeof pixelContext.getImageData !== 'function' || typeof pixelContext.putImageData !== 'function'
+      || typeof ImageData === 'undefined') return pixels.toDataURL('image/png');
   const sampled = pixelContext.getImageData(0, 0, logicalSize, logicalSize);
   tidyGeneratedSpritePixels(sampled.data, logicalSize, logicalSize);
   const composed = composeMiniSpritePixels(sampled.data, logicalSize, logicalSize);
