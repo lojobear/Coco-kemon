@@ -44,7 +44,7 @@ export function buildSpritePrompt(key: string, variation = '', shiny = false): s
     '',
     'FINAL CHECK',
     '- Quality gate: readable, complete 70-80px-tall silhouette centred on 112px canvas; hand-placed one-pixel dark outlines and 12-20 flat colours, no corrupted lines, stray noise or gradients.',
-    '- Input image 0 (when provided) is a STYLE reference only. Match its tiny scale and pixel topology, NEVER its specific creature, exact blue palette or silhouette.',
+    '- Input image 0 (when provided) is a STYLE reference only. Match its crisp pixel topology, not its overly tiny bottom-positioned subject or its blue palette. New subject fills a readable 70-80px height.',
     '- Output image only.',
   ].filter(Boolean).join('\n');
 }

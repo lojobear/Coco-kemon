@@ -481,7 +481,7 @@ async function generateWorkersAiImage(prompt: string): Promise<GeminiImageResult
         if (subject && !/violence|weapon|sexual|nude|gore/i.test(subject)) {
           try {
             const form = new FormData();
-            form.append('prompt', `An original tiny retro handheld pixel-art inventory sprite of ${subject}; reference 112x112 proportions, small 44x38 pixel footprint at bottom centre, 8 opaque flat colours, crisp dark single-pixel outline, true subject colours and uniform #FF00FF magenta backdrop for transparency; no text or scene.`);
+            form.append('prompt', `An original tiny retro handheld pixel-art inventory sprite of ${subject}; 112x112 canvas with a complete centered 70 to 80 pixel tall subject, 12 to 20 opaque flat pixel colours, crisp dark single-pixel outline, true subject colours and uniform #FF00FF magenta backdrop for transparency; no text or scene.`);
             form.append('input_image_0', miniSpriteReferenceBlob(), 'mini-sprite-reference.png');
             form.append('width', '512');
             form.append('height', '512');

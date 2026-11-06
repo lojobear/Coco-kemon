@@ -17,6 +17,7 @@ import { MissingSpritesList } from './MissingSpritesList';
 import { spriteVariantKey } from '../lib/spriteVariant';
 import { spriteLabInventoryElements } from '../lib/spriteLabInventory';
 import { discoveryIdentity } from '../lib/unifiedCollection';
+import { alphaBounds } from '../lib/miniSpriteStyle';
 
 type LabItem =
   | { type: 'craft'; id: string; name: string; sprite?: string; item: InfiniteElement }
@@ -354,7 +355,7 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
         <div className="boop-lab-layout">
           <aside className="boop-sprite-editor">
             {selected ? <>
-              <div className="boop-sprite-preview"><span className="boop-preview-tag">{previewLabel}</span><LabSprite target={selected} className="boop-editor-sprite" /></div>
+              <div className="boop-sprite-preview"><span className="boop-preview-tag">{previewLabel}</span><ZoomedLabSprite key={selected.catalogKey} target={selected}/></div>
               {selected.type !== 'oddkin' && previewChecked && !selected.sharedSprite && !savedPreview && <p className="boop-preview-notice" role="status">
                 This is a temporary offline icon, not finished AI artwork. Its unique sprite still needs generating.
               </p>}
@@ -409,6 +410,48 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
   );
 }
 
+
+
+// Enlarges just the displayed preview, never the underlying downloaded/saved
+// PNG. Transparent padding in a user sprite must not waste the whole preview.
+// Pixel nearest-neighbour scaling preserves crisp sprite outlines on Android.
+function ZoomedLabSprite({target}:{target:LabDisplayItem}) {
+  const [zoom,setZoom]=useState({scale:1,x:0,y:0});
+  const onImageLoaded=(event: React.SyntheticEvent<HTMLDivElement>)=>{
+    const image=event.target as HTMLImageElement;
+    if(image.tagName!=='IMG'||!image.naturalWidth||!image.naturalHeight)return;
+    try{
+      const width=Math.min(256,image.naturalWidth);
+      const height=Math.min(256,image.naturalHeight);
+      const canvas=document.createElement('canvas');
+      canvas.width=width;canvas.height=height;
+      const ctx=canvas.getContext('2d',{willReadFrequently:true});
+      if(!ctx)return;
+      ctx.imageSmoothingEnabled=false;
+      ctx.drawImage(image,0,0,width,height);
+      const pixels=ctx.getImageData(0,0,width,height);
+      const b=alphaBounds(pixels.data,width,height);
+      if(!b)return;
+      const boxSize=190,targetSize=158;
+      // Images without transparency are left as ordinary contain previews.
+      const fraction=Math.max(b.width/width,b.height/height);
+      const scale=fraction<.92?Math.max(1,Math.min(3.4,targetSize/(boxSize*fraction))):1;
+      const cx=(b.left+b.right+1)/2/width*boxSize;
+      const cy=(b.top+b.bottom+1)/2/height*boxSize;
+      const x=Math.round((boxSize/2-cx)*scale);
+      const y=Math.round((boxSize/2-cy)*scale);
+      setZoom(before=>before.scale===scale&&before.x===x&&before.y===y?before:{scale,x,y});
+    } catch {
+      // Cross-origin remote art can taint canvas; show its original image safely.
+      setZoom(before=>before.scale===1&&before.x===0&&before.y===0?before:{scale:1,x:0,y:0});
+    }
+  };
+  return <div className="boop-preview-viewport" onLoadCapture={onImageLoaded}>
+    <div className="boop-preview-zoom" style={{transform:`translate(${zoom.x}px,${zoom.y}px) scale(${zoom.scale})`}}>
+      <LabSprite target={target} className="boop-editor-sprite"/>
+    </div>
+  </div>;
+}
 
 
 function LabSprite({ target, className }: { target: LabDisplayItem; className: string }) {

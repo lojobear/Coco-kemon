@@ -21,7 +21,7 @@ test('new default, shiny and reroll prompts use tiny retro handheld art across i
   assert.match(full,/112x112/);
   assert.match(full,/70 to 80-pixel-tall/);
   assert.match(full,/12 to 20 solid/);
-  assert.match(full,/bottom/i);
+  assert.match(full,/centered/i);
   assert.doesNotMatch(full,/2:1 isometric|virtual-hotel FURNI/);
   const compact=compactSchnellImagePrompt(full);
   assert.ok(compact.length<=2048);
@@ -66,6 +66,10 @@ test('offline preview is the same 112px mini scale; generated art only is proces
   const model=readFileSync(new URL('../server/gemini.ts',import.meta.url),'utf8');
   assert.match(fresh,/viewBox="0 0 112 112"/);
   assert.match(art,/composeMiniSpritePixels/);
+  const lab=readFileSync(new URL('../src/components/SpriteLabModal.tsx',import.meta.url),'utf8');
+  assert.match(lab,/ZoomedLabSprite key=\{selected.catalogKey\}/);
+  assert.match(lab,/const b=alphaBounds\(pixels.data,width,height\)/);
+  assert.match(lab,/targetSize=158/);
   assert.match(art,/Old saved art and uploaded sprites|saved\/uploads keep their exact bytes/i);
   assert.match(model,/input_image_0.*miniSpriteReferenceBlob/);
 });

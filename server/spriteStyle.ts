@@ -4,12 +4,12 @@
  * generation direction only; saved uploads and artwork are never rewritten.
  */
 export const BOOP_SPRITE_ART_STYLE = [
-  'BOOP MINI HANDHELD: match the supplied 112x112 transparent reference image for pixel size, flat clustered shading, simple retro handheld RPG sprite outlines, and TINY on-canvas composition. Use the reference only for style and footprint, not to copy its subject or blue colours.',
+  'BOOP MINI HANDHELD: match the supplied 112x112 reference PNG for crisp hand-pixelled sprite outlines, flat clustered shading and retro RPG silhouette treatment. IMPORTANT: its tiny bottom-positioned footprint is NOT the desired output scale; generated subjects must be larger and centered.',
   'REFERENCE IMAGE is tiny, but generated sprites MUST be large enough to read in a mobile game: draw a centered 70 to 80-pixel-tall recognisable silhouette inside a 112x112 transparent square. The reference guides hand-placed pixels, outlines and flat clustered shading, NOT its overly tiny 44x38 footprint or unusual bottom positioning.',
   'Use roughly 12 to 20 solid subject-led pixel colours, enough to keep edges, mechanical parts, eyes and important accents intact. Sharp near-black 1-pixel outer contour, clustered midtones, sparing bright pixel highlights. NO antialiasing, painterly textures, rendered gradients, glossy bevels, soft glow, dithering noise or photorealism.',
   'Pose like a classic small handheld monster/item inventory sprite, from the side or a slight 3/4 angle. Respect the NAME and subject silhouette. No bulky isometric cubes, generic boxes, slabs or 2:1 hotel furniture perspectives.',
   'Keep naturally accurate SUBJECT colours, not the blue-grey reference palette unless the named subject is actually blue-grey. No universal brown tint.',
-  'One isolated tiny object on uniform SOLID #FF00FF chroma-magenta background, no shadow, scenery, props, text, border, interface or watermark; the app converts this background to transparency.',
+  'One isolated fully readable object on uniform SOLID #FF00FF chroma-magenta background, no shadow, scenery, props, text, border, interface or watermark; the app converts this background to transparency.',
   'Clean connected shapes, sparse detailing, no detached fake pixels, ragged seams or artifacts.',
 ].join('\n');
 
@@ -28,6 +28,10 @@ export const BOOP_SPRITE_STYLE_COMPACT = [
  */
 export function spriteSubjectDirection(name: string): string {
   const value = name.trim().toLowerCase();
+  if (/acoustic lantern|sound lantern|sonic lantern/i.test(value))
+    return 'Depict an unmistakable hanging camping lantern: round glass chamber glowing golden-orange, metal handle arch and feet, with three tiny cyan sound-wave arcs from its vent. Clear lantern anatomy, ONE coherent centered object, not a long abstract antenna or disconnected fragments.';
+  if (/echo archive|sound archive|audio archive/i.test(value))
+    return 'Depict a recognizable vintage audio tape archive: ONE upright cassette with two visible circular tape reels inside a rectangular silver-grey housing and tiny cyan echo-wave lines beside it. Strong continuous outline; no horizontal noise bands, blue glitch bars, stripes or fragmented floating pieces.';
   if (/\bglassblow(?:ing|er|n)?\b|\bmolten glass\b|\bblowpipe\b/i.test(value))
     return 'Depict an actual traditional glassblowing scene as ONE coherent collectible: a long metal blowpipe held diagonally with a large glowing orange molten glass bubble at the tip, shaped into a translucent blue-green glass vase, with visible rim, neck, reflections and heat. The tube and molten glass are the focus. NOT a cube, tile, box, block, diamond or square.';
   if (/\bspace rations?\b|\bastronaut (?:meal|food)\b|\bration pack\b/i.test(value))
