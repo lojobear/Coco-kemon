@@ -129,8 +129,10 @@ export async function runRecoveryPass(limit = RECOVERY_IMAGES_PER_CRON) {
         await markTask(task); ready++; continue;
       }
       const budget = await getRecoveryBudget();
-      // Stop well before the 5,000-neuron guard. Reserve-free-neurons is still
-      // called by the image model before EVERY actual inference attempt.
+      // Leave 150 neurons for foreground artwork within Boop's 10,000-neuron
+      // daily allowance. This is NOT headroom from the Cloudflare account quota:
+      // other Workers AI calls can still cause paid overages on Workers Paid.
+      // The image model reserves neurons before EVERY actual inference attempt.
       if (budget.remaining < 150) break;
       const result = await cachedWork<GeminiImageResult>(
         CACHE_NAMESPACE, serverSpriteKey(task.name,task.shiny),
