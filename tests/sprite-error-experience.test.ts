@@ -50,5 +50,6 @@ test('Craft navigation and combining do not remount hundreds of sprites or block
   assert.match(save,/queuedCraftWrite = null;\s*cancelCraftWriteTimer\(\)/);
   // Stored sprite reads should not fan out a synthetic event to every gallery
   // listener. Only actual newly persisted sprite art should notify.
-  assert.match(emoji, /function announceSpriteReady/);
+  const spriteSource=readFileSync(new URL('../src/lib/elementEmoji.ts',import.meta.url),'utf8');
+  assert.match(spriteSource, /function announceSpriteReady/);
 });
