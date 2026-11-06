@@ -36,6 +36,8 @@ import { ElementDossierModal } from './ElementDossierModal';
 import { generateConceptSprite } from '../lib/pixelRenderer';
 import { rollIsShiny, generatePhysicalData, getShinyFoilStyle } from '../lib/physicalDataEngine';
 import { rollCelestial } from '../lib/collectorData';
+import { rollRarityTier, rollHolo, rollGlitch, bestRarity, rollOddsCaption, rarityInfo } from '../lib/rarity';
+import { RarityBadges } from './RarityBadges';
 import {
   normalizeElementStats,
   initialCraftStats,
@@ -507,6 +509,9 @@ export function InfiniteCraftView() {
 
       const isShinyEncounter = rollIsShiny(apiData.result, itemA.name, itemB.name);
       const isCelestialEncounter = rollCelestial();
+      const isHoloEncounter = rollHolo();
+      const isGlitchEncounter = rollGlitch();
+      const encounterTier = rollRarityTier();
       if (isShinyEncounter) setActiveCombination(prev => prev ? { ...prev, isShiny: true } : null);
       if (controller.signal.aborted) return;
 
@@ -538,6 +543,12 @@ export function InfiniteCraftView() {
         shinyTitle: shinyPhysicalData?.shinyTitle,
         unlockedCelestial: isCelestialEncounter,
         celestialDiscoveredAt: isCelestialEncounter ? craftedAt : undefined,
+        unlockedHolo: isHoloEncounter,
+        holoDiscoveredAt: isHoloEncounter ? craftedAt : undefined,
+        unlockedGlitch: isGlitchEncounter,
+        glitchDiscoveredAt: isGlitchEncounter ? craftedAt : undefined,
+        rarityTier: encounterTier,
+        rarityDiscoveredAt: craftedAt,
         physicalData: standardPhysicalData,
         ...initialCraftStats(currentRecipe, isShinyEncounter, craftedAt),
       };
@@ -565,6 +576,13 @@ export function InfiniteCraftView() {
             shinyTitle: existing.shinyTitle || shinyPhysicalData?.shinyTitle,
             unlockedCelestial: Boolean(existing.unlockedCelestial || isCelestialEncounter),
             celestialDiscoveredAt: existing.celestialDiscoveredAt || (isCelestialEncounter ? craftedAt : undefined),
+            unlockedHolo: Boolean(existing.unlockedHolo || isHoloEncounter),
+            holoDiscoveredAt: existing.holoDiscoveredAt || (isHoloEncounter ? craftedAt : undefined),
+            unlockedGlitch: Boolean(existing.unlockedGlitch || isGlitchEncounter),
+            glitchDiscoveredAt: existing.glitchDiscoveredAt || (isGlitchEncounter ? craftedAt : undefined),
+            rarityTier: bestRarity(existing.rarityTier, encounterTier),
+            rarityDiscoveredAt: bestRarity(existing.rarityTier, encounterTier) !== existing.rarityTier
+              ? craftedAt : existing.rarityDiscoveredAt,
             physicalData: existing.physicalData || standardPhysicalData,
           };
           return updated;
@@ -604,6 +622,10 @@ export function InfiniteCraftView() {
         haptics.shinySparkle();
         if (!bonus) setSpawnToast(`✨ ${foil.name.toUpperCase()} SHINY ${cleanName.toUpperCase()}!`);
         setTimeout(() => setSpawnToast(null), 3000);
+      } else if (isGlitchEncounter || isHoloEncounter) {
+        sound.playShiny();
+        haptics.shinySparkle();
+        setSpawnToast(`${isGlitchEncounter?'⟡ GLITCH':'◈ HOLO'} FINISH UNLOCKED · ${cleanName}`);
       } else if (firstInCollection) {
         sound.playFirstDiscoveryChime();
         haptics.firstDiscovery();
@@ -901,7 +923,8 @@ export function InfiniteCraftView() {
     sound.playClick();
     setCanvasItems(previous => [...previous, ...tiles].slice(0, 300));
     if (picked.length < count) setSpawnToast(`✦ +${picked.length} elements · Board full`);
-    else setSpawnToast(suggestion ? `Try ${picked[0].name} + ${picked[1].name}` : `✦ +${picked.length} random ${picked.length===1?'element':'elements'}`);
+    else setSpawnToast(suggestion ? `Try ${picked[0].name} + ${picked[1].name}`
+      : `✦ +${picked.length} random ${picked.length===1?'element':'elements'} · 1/${spawnPool.length} per first pick`);
   };
 
   // Reuse callback references so memoized discovery cards are skipped entirely
@@ -922,7 +945,8 @@ export function InfiniteCraftView() {
           <div className="boop-board-heading"><strong>Craft</strong><small>Drag elements together to discover</small></div>
           <div className="boop-board-actions boop-board-actions--quiet">
             <button type="button" className="boop-quiet-spawn" disabled={!spawnPool.length || canvasItems.length>=300}
-              aria-label={`Spawn ${spawnCount} random ${spawnCount===1?'element':'elements'}`}
+              aria-label={`Spawn ${spawnCount} random ${spawnCount===1?'element':'elements'} from ${spawnPool.length} equally likely discoveries`}
+              title={`Fair random · 1 in ${spawnPool.length} chance for each discovery on the first draw`}
               onClick={()=>spawnRandomBatch(spawnCount)}>
               <Shuffle size={18}/><span>Spawn</span>
             </button>
@@ -972,7 +996,15 @@ export function InfiniteCraftView() {
           </div>
         </div>
         {activeCombination && <div className="boop-board-status" role="status"><span className="boop-inline-spinner"/>Combining {activeCombination.nameA} + {activeCombination.nameB}… <small>Keep moving tiles</small></div>}
-        {lastResult && <div className={`boop-board-result ${lastResult.isNew ? "boop-board-result-new" : "boop-board-result-repeat"}`} key={lastResult.discoveredAt} role="status"><CraftSprite name={lastResult.name} emoji={lastResult.emoji} isShiny={lastResult.isShiny}/><div><small>{lastResult.isNew ? '✦ NEW DISCOVERY' : 'CREATED'}</small><strong>{lastResult.name}</strong></div><button onClick={()=>spawnOnCanvas(lastResult.name,lastResult.emoji,Boolean(lastResult.isShiny))}>Add to board <Plus size={15}/></button><button aria-label="Dismiss result" onClick={()=>setLastResult(null)}><X size={16}/></button></div>}
+        {lastResult && <div className={`boop-board-result ${lastResult.isNew ? "boop-board-result-new" : "boop-board-result-repeat"} tier-${rarityInfo(lastResult.rarityTier).id}`} key={lastResult.discoveredAt} role="status">
+          <div className="boop-board-roll-odds" title="Independent probabilities per successful combination; recipe discoveries do not have fixed odds">
+            {rollOddsCaption(lastResult.rarityTier, Boolean(lastResult.isShiny), Boolean(lastResult.unlockedCelestial), Boolean(lastResult.unlockedHolo), Boolean(lastResult.unlockedGlitch))}
+          </div>
+          <CraftSprite name={lastResult.name} emoji={lastResult.emoji} isShiny={lastResult.isShiny}/>
+          <div className="boop-result-info"><small>{lastResult.isNew ? '✦ NEW DISCOVERY' : 'CREATED'}</small><strong>{lastResult.name}</strong><RarityBadges item={lastResult} compact showProgress={false}/></div>
+          <button onClick={()=>spawnOnCanvas(lastResult.name,lastResult.emoji,Boolean(lastResult.isShiny))}>Add to board <Plus size={15}/></button>
+          <button aria-label="Dismiss result" onClick={()=>setLastResult(null)}><X size={16}/></button>
+        </div>}
         {combineError && <div className="boop-board-alert" role="alert">{combineError}<button onClick={()=>{if(lastPairRef.current)void handleCombine(lastPairRef.current[0],lastPairRef.current[1]);}}>Retry</button><button onClick={()=>setCombineError(null)}>Dismiss</button></div>}
         {spawnToast && <div className="boop-board-toast" role="status">{spawnToast}</div>}
         <button className="boop-board-mobile-library" onClick={()=>setIsSidebarOpen(true)} aria-label="Open element library"><Plus size={21}/> Add an element</button>

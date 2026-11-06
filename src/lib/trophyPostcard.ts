@@ -38,12 +38,14 @@ export async function exportTrophyPostcard(room: TrophyRoom, elements: readonly 
         await new Promise<void>((resolve,reject)=>{image.onload=()=>resolve();image.onerror=()=>reject(new Error('Image unavailable'));});
         ctx.save();
         if(tile.variant==='celestial')ctx.filter='sepia(1) saturate(2.6) hue-rotate(193deg) brightness(1.16)';
+        else if(tile.variant==='holo')ctx.filter='hue-rotate(30deg) saturate(1.4) contrast(1.1)';
+        else if(tile.variant==='glitch')ctx.filter='hue-rotate(165deg) contrast(1.3)';
         ctx.imageSmoothingEnabled=false;ctx.drawImage(image,x+64,y+20,140,140);
         ctx.restore();imageRendered=true;
       }
     }catch { /* Show collectible emoji if its artwork is unavailable. */ }
     if(!imageRendered){ctx.font='87px system-ui,sans-serif';ctx.fillText(element.emoji||'✨',x+134,y+133);}
-    if(tile.variant!=='normal'){ctx.font='28px system-ui,sans-serif';ctx.fillText(tile.variant==='celestial'?'✶':'✦',x+238,y+40);}
+    if(tile.variant!=='normal'){ctx.font='28px system-ui,sans-serif';ctx.fillText(tile.variant==='celestial'?'✶':tile.variant==='holo'?'◈':tile.variant==='glitch'?'⟡':'✦',x+238,y+40);}
     ctx.font='bold 19px system-ui,sans-serif';ctx.fillStyle=ink;
     const label=element.name.length>22?element.name.slice(0,21)+'…':element.name;
     ctx.fillText(label,x+134,y+196);
