@@ -9,6 +9,28 @@ export type SpriteManifest = { version: 1; updatedAt: string; items: SpriteEntry
 export type SpriteChange = { type: SpriteEntry['type']; id: string; previous?: string; reference: string };
 export const PROFILE_SPRITES_UPDATED = 'quarkpop-profile-sprites-updated';
 
+// Checking whether legacy Foundry art is procedural requires a synchronous
+// canvas render. Repeating this for every saved material on every profile sync
+// stalls Android WebView after discoveries. Cache verified comparisons only;
+// always compare the full image and renderer inputs before reusing a result.
+const proceduralComparisons = new Map<string, { art: string; signature: string; result: boolean }>();
+function matchesProceduralSprite(type: 'material' | 'oddkin', record: any): boolean {
+  const art = record.customSpriteUrl;
+  if (typeof art !== 'string' || !art.startsWith('data:image/png;base64,')) return false;
+  const key = `${type}:${type === 'oddkin' ? record.speciesId : record.id}`;
+  const signature = type === 'material'
+    ? JSON.stringify([record.canonicalName, record.spriteDescriptor, record.semanticTags])
+    : JSON.stringify([record.speciesId, record.spriteSpecification, record.morphology, record.isChromaActive, record.rarity]);
+  const cached = proceduralComparisons.get(key);
+  if (cached && cached.art === art && cached.signature === signature) return cached.result;
+  const result = art === (type === 'material'
+    ? generateMaterialSprite(record)
+    : generateOddkinSprite(record, { isChroma: record.isChromaActive }));
+  if (proceduralComparisons.size >= 256) proceduralComparisons.delete(proceduralComparisons.keys().next().value!);
+  proceduralComparisons.set(key, { art, signature, result });
+  return result;
+}
+
 export async function syncProfileSprites(userId: string, json: string, mode: 'auto' | 'save' | 'restore' = 'auto',
   assets = spriteAssets, cachedSprite = getCachedElementSprite) {
   if (!assets) throw new Error('Cloud profiles are not configured.');
@@ -16,8 +38,8 @@ export async function syncProfileSprites(userId: string, json: string, mode: 'au
   const remote = new Map((await assets.list(userId)).map(item => [item.sprite_key, item]));
   const records = [
     ...(payload.crafting || []).map((record: any) => ({ type: 'craft' as const, id: record.id, name: record.name, record, defaultArt: false })),
-    ...(payload.foundry?.materials || []).map((record: any) => ({ type: 'material' as const, id: record.id, name: record.displayName, record, defaultArt: record.customSpriteUrl === generateMaterialSprite(record) })),
-    ...(payload.foundry?.oddkinCollection || []).map((record: any) => ({ type: 'oddkin' as const, id: record.speciesId, name: record.speciesName, record, defaultArt: record.customSpriteUrl === generateOddkinSprite(record, { isChroma: record.isChromaActive }) })),
+    ...(payload.foundry?.materials || []).map((record: any) => ({ type: 'material' as const, id: record.id, name: record.displayName, record, defaultArt: matchesProceduralSprite('material', record) })),
+    ...(payload.foundry?.oddkinCollection || []).map((record: any) => ({ type: 'oddkin' as const, id: record.speciesId, name: record.speciesName, record, defaultArt: matchesProceduralSprite('oddkin', record) })),
   ];
   const changes: SpriteChange[] = [];
   let count = 0;
