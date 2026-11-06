@@ -23,18 +23,40 @@ function announceSpriteReady(key: string) {
   window.dispatchEvent(new CustomEvent('oddkin-emoji-retry', { detail: key }));
 }
 
+// The URL is also retained by mounted <img> elements; an unbounded extra
+// base64 cache quickly consumes tens of MB in Android WebView.
+export const MAX_SPRITE_MEMORY_ENTRIES = 48;
 const memory = new Map<string, string>();
+function recallArtwork(key: string): string | undefined {
+  const image = memory.get(key);
+  if (image) { memory.delete(key); memory.set(key, image); }
+  return image;
+}
+function rememberArtwork(key: string, image: string) {
+  memory.delete(key);
+  memory.set(key, image);
+  while (memory.size > MAX_SPRITE_MEMORY_ENTRIES) memory.delete(memory.keys().next().value!);
+}
 const jobs = new Map<string, Promise<string>>();
 let queue: Promise<unknown> = Promise.resolve();
 let database: Promise<IDBDatabase> | undefined;
 
 function db() {
-  return database ??= new Promise<IDBDatabase>((resolve, reject) => {
+  if (database) return database;
+  const opening = new Promise<IDBDatabase>((resolve, reject) => {
     const request = indexedDB.open('oddkin-element-emoji', 1);
-    request.onupgradeneeded = () => request.result.createObjectStore('art');
+    request.onupgradeneeded = () => {
+      if (!request.result.objectStoreNames.contains('art')) request.result.createObjectStore('art');
+    };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(new Error('Sprite storage is unavailable.'));
+    request.onblocked = () => reject(new Error('Sprite storage is temporarily blocked.'));
   });
+  database = opening;
+  // A rejected open promise must never poison all future gallery loads.
+  // For example, Android WebView storage can become available after a restart.
+  void opening.catch(() => { if (database === opening) database = undefined; });
+  return opening;
 }
 
 async function stored(key: string): Promise<string | undefined> {
@@ -114,7 +136,8 @@ async function normalizeGeneratedImage(imageBase64: string, mimeType: string): P
 /** Return locally cached native artwork without generating or spending AI quota. */
 export async function getCachedElementSprite(name: string, shiny = false): Promise<string | undefined> {
   const key = spriteVariantKey(name, shiny);
-  if (memory.has(key)) return memory.get(key);
+  const inMemory = recallArtwork(key);
+  if (inMemory) return inMemory;
   try {
     return await stored(ELEMENT_SPRITE_CACHE_PREFIX + key);
   } catch {
@@ -125,8 +148,10 @@ export async function getCachedElementSprite(name: string, shiny = false): Promi
 /** Restore a downloaded profile image to the local cache for other collection views. */
 export async function storeProfileElementSprite(name: string, data: string, shiny = false): Promise<void> {
   const key = spriteVariantKey(name, shiny);
-  memory.set(key, data);
-  await save(ELEMENT_SPRITE_CACHE_PREFIX + key, data);
+  rememberArtwork(key, data);
+  // Profile downloads remain usable even when browser storage is full.
+  try { await save(ELEMENT_SPRITE_CACHE_PREFIX + key, data); }
+  catch (error) { console.warn('Artwork available in memory but local storage could not persist it:', error); }
   announceSpriteReady(key);
 }
 
@@ -135,31 +160,40 @@ export function getElementEmoji(name: string, upgrade = false, variation = '', g
   // Collection previews may read cached/local/profile art but cannot trigger AI.
   const jobKey = upgrade ? `${key}:upgrade:${variation || 'fresh'}` : generateIfMissing ? key : `${key}:cache-only`;
 
-  if (!upgrade && memory.has(key)) return Promise.resolve(memory.get(key)!);
+  const inMemory = upgrade ? undefined : recallArtwork(key);
+  if (inMemory) return Promise.resolve(inMemory);
   if (jobs.has(jobKey)) return jobs.get(jobKey)!;
 
   const work = async () => {
+    // Local storage trouble is not proof that an existing sprite is missing.
+    // Cache-only recovery scans must never spend AI credits on that basis.
+    let localStorageError: unknown;
+    const readLocal = async (cacheKey: string): Promise<string | undefined> => {
+      if (localStorageError) return undefined;
+      try { return await stored(cacheKey); }
+      catch (error) { localStorageError = error; return undefined; }
+    };
     // New discoveries use native image generation. Older cached art remains valid until the
     // player explicitly upgrades/rerolls it, preventing surprise regeneration costs.
     const cached = upgrade
       ? undefined
-      : (await stored(ELEMENT_SPRITE_CACHE_PREFIX + key))
+      : (await readLocal(ELEMENT_SPRITE_CACHE_PREFIX + key))
         // Old sprite versions contain normal artwork only. Never resolve those
         // as shiny art: it would make normal and shiny visually identical.
-        || (isShiny ? undefined : await stored(LEGACY_NATIVE_IMAGE_V8_CACHE_PREFIX + key))
-        || (isShiny ? undefined : await stored(LEGACY_NATIVE_IMAGE_V7_CACHE_PREFIX + key))
-        || (isShiny ? undefined : await stored(LEGACY_PIXEL_INVENTORY_CACHE_PREFIX + key))
-        || (isShiny ? undefined : await stored(LEGACY_HD_CACHE_PREFIX + key))
-        || (isShiny ? undefined : await stored(LEGACY_3D_CACHE_PREFIX + key))
-        || (isShiny ? undefined : await stored(LEGACY_RECOGNIZABLE_CACHE_PREFIX + key))
-        || (isShiny ? undefined : await stored(LEGACY_PIXEL_CACHE_PREFIX + key))
-        || (isShiny ? undefined : await stored(key));
+        || (isShiny ? undefined : await readLocal(LEGACY_NATIVE_IMAGE_V8_CACHE_PREFIX + key))
+        || (isShiny ? undefined : await readLocal(LEGACY_NATIVE_IMAGE_V7_CACHE_PREFIX + key))
+        || (isShiny ? undefined : await readLocal(LEGACY_PIXEL_INVENTORY_CACHE_PREFIX + key))
+        || (isShiny ? undefined : await readLocal(LEGACY_HD_CACHE_PREFIX + key))
+        || (isShiny ? undefined : await readLocal(LEGACY_3D_CACHE_PREFIX + key))
+        || (isShiny ? undefined : await readLocal(LEGACY_RECOGNIZABLE_CACHE_PREFIX + key))
+        || (isShiny ? undefined : await readLocal(LEGACY_PIXEL_CACHE_PREFIX + key))
+        || (isShiny ? undefined : await readLocal(key));
 
     if (cached) {
       // The caller(s) awaiting this cache read already receive the image.
       // Broadcasting per-item events on gallery mount caused quadratic
       // listener work and repeated profile-sync scheduling on Android.
-      memory.set(key, cached);
+      rememberArtwork(key, cached);
       return cached;
     }
 
@@ -172,10 +206,11 @@ export function getElementEmoji(name: string, upgrade = false, variation = '', g
           || (!isShiny ? await spriteAssets!.findByName(userId, name) : undefined);
         if (reference) {
           const data = await spriteAssets!.resolve(reference);
-          memory.set(key, data);
-          await save(ELEMENT_SPRITE_CACHE_PREFIX + key, data);
-          // Existing callers share this promise; only genuine image writes
-          // (new generations/profile changes) broadcast a retry event.
+          rememberArtwork(key, data);
+          try { await save(ELEMENT_SPRITE_CACHE_PREFIX + key, data); }
+          catch (error) { console.warn('Profile sprite loaded, local cache write deferred:', error); }
+          // Existing callers share this promise; do not send a global event
+          // for every cached image mounted in a large collection.
           return data;
         }
       } catch (error) {
@@ -185,7 +220,10 @@ export function getElementEmoji(name: string, upgrade = false, variation = '', g
 
     // Viewing a collection must not exhaust the daily Workers AI image allocation.
     // Only a new discovery or an explicit Sprite Lab action requests new artwork.
-    if (!generateIfMissing) return '';
+    if (!generateIfMissing) {
+      if (localStorageError) throw localStorageError;
+      return '';
+    }
 
     const response = await requestJson<{
       imageBase64: string;
@@ -202,8 +240,11 @@ export function getElementEmoji(name: string, upgrade = false, variation = '', g
     }
 
     const data = await normalizeGeneratedImage(response.imageBase64, response.mimeType);
-    memory.set(key, data);
-    await save(ELEMENT_SPRITE_CACHE_PREFIX + key, data);
+    rememberArtwork(key, data);
+    // A successful paid or free image request must remain a success even if
+    // IndexedDB quota/permissions prevent a persistent local write.
+    try { await save(ELEMENT_SPRITE_CACHE_PREFIX + key, data); }
+    catch (error) { console.warn('Generated artwork is available but not persisted locally:', error); }
     if (userId) void trackSpriteSync(() => spriteAssets!.put(userId, spriteProfileKey(name, isShiny), name, data)).catch(() => undefined);
     announceSpriteReady(key);
     return data;

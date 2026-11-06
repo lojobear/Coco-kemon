@@ -4,6 +4,7 @@ import { getElementEmoji } from '../lib/elementEmoji';
 import { spriteVariantKey } from '../lib/spriteVariant';
 import { generateMaterialSprite } from '../lib/pixelRenderer';
 import { generateFreshPixelArt } from '../lib/freshPixelArt';
+import { observeSpriteViewport } from '../lib/spriteViewport';
 import type { Material } from '../types';
 
 /** Uploaded/rerolled art always wins. Generated defaults share one durable cache. */
@@ -61,16 +62,10 @@ export function ElementSprite({ name, custom, fallback, className = '', alt = ''
         // Browser canvas unavailable: keep the original emoji as last resort.
       }
     }); };
-    // Android WebView may mount a tall gallery before layout settles. Preload
-    // cells approaching the viewport; use an eager fallback if observers fail.
-    let started = false;
-    const start = () => { if (started) return; started = true; observer?.disconnect(); load(); };
-    const observer = typeof IntersectionObserver === 'undefined' ? null : new IntersectionObserver(entries => {
-      if (entries.some(entry => entry.isIntersecting)) start();
-    }, { rootMargin: '240px 0px' });
-    if (observer && host.current) observer.observe(host.current);
-    else start();
-    return () => { cancelled = true; observer?.disconnect(); };
+    // Share one observer across the entire collection; lazy artwork reads do
+    // not request AI and stop as soon as the sprite enters the viewport.
+    const unobserve = host.current ? observeSpriteViewport(host.current, load) : (() => { load(); return () => undefined; })();
+    return () => { cancelled = true; unobserve(); };
   }, [key, custom, retry, isShiny, normalKey]);
   const ownShiny = isShiny && art?.key === key && Boolean(art.url);
   const url = (isShiny && ownShiny ? art?.url : undefined)
@@ -82,13 +77,28 @@ export function ElementSprite({ name, custom, fallback, className = '', alt = ''
     {!url && <span className="boop-preview-cue" title={error ? 'Artwork unavailable. Retry in Sprites.' : 'Preview artwork. Check Sprites for availability.'} aria-label={error ? 'Artwork unavailable' : 'Preview artwork'}>{error ? '!' : '…'}</span>}
   </span>;
 }
+// Legacy default art is a locally generated canvas image. Remember whether a
+// particular saved image is the old default so repeated tab visits never
+// redraw every 64x64 procedural thumbnail just to check that fact.
+const proceduralDefaults = new Map<string, { source: string; signature: string; isDefault: boolean }>();
+function isProceduralDefault(material: Material): boolean {
+  const source = material.customSpriteUrl;
+  if (!source?.startsWith('data:image/png;base64,')) return false;
+  const identity = material.id;
+  const signature = JSON.stringify([material.canonicalName, material.spriteDescriptor, material.semanticTags]);
+  const existing = proceduralDefaults.get(identity);
+  if (existing && existing.source === source && existing.signature === signature) return existing.isDefault;
+  const isDefault = source === generateMaterialSprite(material);
+  if (proceduralDefaults.size >= 256) proceduralDefaults.delete(proceduralDefaults.keys().next().value!);
+  proceduralDefaults.set(identity, { source, signature, isDefault });
+  return isDefault;
+}
 export const MaterialSprite = React.memo(function MaterialSprite({ material, className, alt = '', idle = true }: { material: Material; className?: string; alt?: string; idle?: boolean }) {
   const fresh = useMemo(() => generateFreshPixelArt(material.displayName), [material.displayName]);
   // Avoid synthesizing an unused legacy image for ordinary Craft discoveries.
-  const legacy = useMemo(() => material.customSpriteUrl ? generateMaterialSprite(material) : undefined, [material]);
-  // Preserve uploads/rerolls. Old procedural defaults are not uploaded art:
-  // replace those with the new distinctly hand-authored pixel silhouettes.
-  const custom = material.customSpriteUrl && material.customSpriteUrl !== legacy
-    ? material.customSpriteUrl : undefined;
+  const legacyDefault = useMemo(() => isProceduralDefault(material), [material]);
+  // Preserve uploaded or remotely saved artwork. A legacy procedurally
+  // generated icon may be replaced with the new hand-authored preview.
+  const custom = legacyDefault ? undefined : material.customSpriteUrl;
   return <ElementSprite name={material.displayName} custom={custom} fallback={fresh} className={className} alt={alt} idle={idle} />;
 });

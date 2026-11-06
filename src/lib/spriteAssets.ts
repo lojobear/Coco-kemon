@@ -21,6 +21,9 @@ export async function trackSpriteSync<T>(work: () => Promise<T>): Promise<T> {
 
 /** Injectable client keeps storage/auth failure behavior testable without real credentials. */
 export function createSpriteAssets(client: SupabaseClient) {
+  // Resolved profile PNGs can be hundreds of KB each. Visible <img> nodes
+  // retain their own URLs; cap the extra downloaded base64 cache on Android.
+  const MAX_PROFILE_DOWNLOADS = 48;
   const downloads = new Map<string, Promise<string>>();
   async function currentUser(expected?: string): Promise<string | undefined> {
     const { data, error } = await client.auth.getSession();
@@ -93,7 +96,11 @@ export function createSpriteAssets(client: SupabaseClient) {
     if (!userId) throw new Error('Sign in to view your profile sprites.');
     const path = spritePath(reference, userId);
     const cacheKey = `${userId}:${path}`;
-    if (!downloads.has(cacheKey)) {
+    if (downloads.has(cacheKey)) {
+      const cached = downloads.get(cacheKey)!;
+      downloads.delete(cacheKey);
+      downloads.set(cacheKey, cached); // least recently used first
+    } else {
       const job = (async () => {
         const { data, error } = await client.storage.from(SPRITE_BUCKET).download(path);
         if (error || !data) throw new Error('Could not download your sprite. Retry in Cloud saves.');
@@ -105,7 +112,8 @@ export function createSpriteAssets(client: SupabaseClient) {
         return `data:image/png;base64,${btoa(binary)}`;
       })();
       downloads.set(cacheKey, job);
-      void job.catch(() => downloads.delete(cacheKey));
+      void job.catch(() => { if (downloads.get(cacheKey) === job) downloads.delete(cacheKey); });
+      while (downloads.size > MAX_PROFILE_DOWNLOADS) downloads.delete(downloads.keys().next().value!);
     }
     const image = await downloads.get(cacheKey)!;
     await currentUser(userId);

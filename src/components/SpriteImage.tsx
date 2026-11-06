@@ -16,31 +16,35 @@ export function SpriteImage({ src, onError, ...props }: React.ImgHTMLAttributes<
       .catch(error => { if (alive) setResolved({ source: src, error: error.message }); });
     return () => { alive = false; };
   }, [src, retry]);
-  // Retry only failed images, including inline PNG/SVG thumbnails, when
-  // connectivity or saved artwork changes. Never invoke image generation.
+  const hasFailed = Boolean(failedUrl) || Boolean(isSpriteReference(src) && resolved?.source === src && resolved.error);
+  const retryFailed = () => {
+    setFailedUrl(undefined);
+    setRetry(n => n + 1);
+  };
+  // Healthy thumbnails should not attach four global listeners apiece.
+  // Failed ones can recover on reconnect, profile change or manual retry.
   useEffect(() => {
-    const retryFailed = () => {
-      if (!failedUrl && !(isSpriteReference(src) && resolved?.source === src && resolved.error)) return;
-      setFailedUrl(undefined);
-      setRetry(n => n + 1);
-    };
+    if (!hasFailed) return;
+    const onVisible = () => { if (document.visibilityState === 'visible') retryFailed(); };
     window.addEventListener('quarkpop-retry-sprites', retryFailed);
     window.addEventListener('quarkpop-sprite-account', retryFailed);
-    window.addEventListener('quarkpop-sprite-ready', retryFailed);
     window.addEventListener('online', retryFailed);
+    document.addEventListener('visibilitychange', onVisible);
     return () => {
       window.removeEventListener('quarkpop-retry-sprites', retryFailed);
       window.removeEventListener('quarkpop-sprite-account', retryFailed);
-      window.removeEventListener('quarkpop-sprite-ready', retryFailed);
       window.removeEventListener('online', retryFailed);
+      document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [src, failedUrl, resolved?.source, resolved?.error]);
+  }, [hasFailed]);
   const url = isSpriteReference(src) ? (resolved?.source === src ? resolved.url : undefined) : src;
   const unavailable = Boolean(resolved?.source === src && resolved?.error) || Boolean(url && failedUrl === url) || !src;
   if (!url || failedUrl === url) return <span role="img" aria-label={`${props.alt || 'Sprite'}: ${unavailable ? 'artwork unavailable, retry in Sprites' : 'artwork loading'}`}
     className={`boop-sprite-placeholder ${props.className || ''}`} title={unavailable ? 'Artwork unavailable. Retry in Sprites.' : 'Loading artwork'}>
     <span className="boop-placeholder-shape" aria-hidden="true" />
     <span className="boop-placeholder-cue" aria-hidden="true">{unavailable ? '!' : '…'}</span>
+    {src && unavailable && <button type="button" className="boop-sprite-retry"
+      aria-label={`Retry loading ${props.alt || 'sprite'} artwork`} onClick={retryFailed}>Retry</button>}
   </span>;
   return <img {...props} src={url} onError={event => { setFailedUrl(url); onError?.(event); }} />;
 }

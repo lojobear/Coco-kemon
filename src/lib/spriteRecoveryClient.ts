@@ -38,8 +38,12 @@ export async function scanAndRecoverSprites(isCancelled:()=>boolean=()=>false) {
   let checked=0,queued=0,restored=0;
   publish({checked:0,total:variants.length,queued:0,restored:0,active:true,error:undefined});
   try {
-    for(let offset=0;offset<variants.length && !isCancelled();offset+=24) {
-      const chunk=variants.slice(offset,offset+24);
+    // Gentle, bounded batches keep cache scans and Supabase lookups from
+    // saturating the Android main thread while users switch tabs or craft.
+    const SCAN_BATCH_SIZE = 8;
+    for(let offset=0;offset<variants.length && !isCancelled();offset+=SCAN_BATCH_SIZE) {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') break;
+      const chunk=variants.slice(offset,offset+SCAN_BATCH_SIZE);
       const cacheResults=await Promise.all(chunk.map(async item=>{
         try { return Boolean(await getElementEmoji(item.name,false,'',false,item.shiny)); }
         catch { return null; }
@@ -64,7 +68,9 @@ export async function scanAndRecoverSprites(isCancelled:()=>boolean=()=>false) {
         }
       }
       publish({checked,total:variants.length,queued,restored,active:true});
-      await new Promise(resolve=>setTimeout(resolve,0));
+      // Yield actual paint time between recovery passes. The server's Cron
+      // handles pending work after the browser is closed.
+      await new Promise(resolve=>setTimeout(resolve,32));
     }
   } catch(error) {
     publish({error:error instanceof Error?error.message:'Recovery service unavailable'});
@@ -90,9 +96,10 @@ export function startSpriteRecovery() {
     if(timer)clearTimeout(timer);
     timer=setTimeout(()=>void launch(),ms);
   };
-  const onSave=()=>schedule(5000);
+  const onSave=()=>schedule(15000);
   const onFocus=()=>{
-    if(document.visibilityState==='visible'&&Date.now()-lastScanAt>5*60000)schedule(1000);
+    if(document.visibilityState==='visible' &&
+      (progress.checked < progress.total || Date.now()-lastScanAt>5*60000)) schedule(1000);
   };
   window.addEventListener(SAVE_CHANGED_EVENT,onSave);
   window.addEventListener(SAVE_IMPORTED_EVENT,onSave);
