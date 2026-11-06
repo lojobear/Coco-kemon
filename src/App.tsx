@@ -158,9 +158,13 @@ function GameContent() {
 
         {activeTab === 'foundry' && <Suspense fallback={<div className="view-loading-card">Opening Foundry…</div>}><WorkBench onInspectMaterial={item => setInspectedItem({ type: 'material', item })} /></Suspense>}
 
-        {activeTab === 'infinite-craft' && (
+        {/* Retain Craft's live board and decoded sprites between tabs instead of
+            remounting the whole collection on each return. display:contents
+            preserves the original flex layout while the tab is visible. */}
+        <div aria-hidden={activeTab !== 'infinite-craft'}
+          style={{ display: activeTab === 'infinite-craft' ? 'contents' : 'none' }}>
           <Suspense fallback={<div className="view-loading-card">Warming the Craft lab…</div>}><InfiniteCraftView /></Suspense>
-        )}
+        </div>
 
         {activeTab === 'archive' && (
           <Suspense fallback={<div className="view-loading-card">Opening your collection…</div>}>
