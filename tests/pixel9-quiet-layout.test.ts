@@ -33,7 +33,7 @@ test('new art always appears before image-provider responses while preserving up
   const src=read('src/components/ElementSprite.tsx');
   assert.match(src,/generateFreshPixelArt\(name\)/);
   assert.match(src,/fallback : freshArt/);
-  assert.match(src,/material\.customSpriteUrl !== legacy/);
+  assert.match(src,/const custom = legacyDefault \? undefined : material\.customSpriteUrl/);
   assert.doesNotMatch(src,/>\{fallback \|\| '◌'\}<\/span>/);
 });
 
