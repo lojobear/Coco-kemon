@@ -19,14 +19,14 @@ test('artist-uploaded reference is preserved verbatim for production FLUX.2 imag
 test('new default, shiny and reroll prompts use tiny retro handheld art across image providers',()=>{
   const full=buildSpritePrompt('Grandfather Clock');
   assert.match(full,/112x112/);
-  assert.match(full,/44x38/);
-  assert.match(full,/8 to 10 opaque flat shades/);
+  assert.match(full,/70 to 80-pixel-tall/);
+  assert.match(full,/12 to 20 solid/);
   assert.match(full,/bottom/i);
   assert.doesNotMatch(full,/2:1 isometric|virtual-hotel FURNI/);
   const compact=compactSchnellImagePrompt(full);
   assert.ok(compact.length<=2048);
   assert.match(compact,/112x112/);
-  assert.match(compact,/44x38/);
+  assert.match(compact,/70-80 pixels/);
   assert.match(compact,/#FF00FF/);
   const shiny=buildSpritePrompt('Fox','',true);
   assert.match(shiny,/SHINY \/ ALTERNATE COLORWAY/);
@@ -35,7 +35,7 @@ test('new default, shiny and reroll prompts use tiny retro handheld art across i
   assert.match(compactSchnellImagePrompt(buildSpritePrompt('Clock','other-angle')),/other-angle/);
 });
 
-test('generated output always fits reference footprint with eight opaque solid colors',()=>{
+test('generated output is 112px, centered, readable and limited to 20 opaque colors',()=>{
   const width=64,height=64;
   const src=new Uint8ClampedArray(width*height*4);
   for(let y=5;y<55;y++)for(let x=7;x<59;x++){
@@ -48,15 +48,15 @@ test('generated output always fits reference footprint with eight opaque solid c
   assert.ok(box);
   assert.ok(box!.width<=MINI_FOOTPRINT_WIDTH);
   assert.ok(box!.height<=MINI_FOOTPRINT_HEIGHT);
-  assert.equal(box!.bottom,105);
-  assert.ok(box!.top>=68);
+  assert.equal(box!.bottom,95);
+  assert.ok(box!.top>=16);
   const palette=new Set<string>();
   for(let p=0;p<output.length;p+=4){
     if(output[p+3]===0)continue;
     assert.equal(output[p+3],255);
     palette.add(`${output[p]},${output[p+1]},${output[p+2]}`);
   }
-  assert.ok(palette.size<=8);
+  assert.ok(palette.size<=20);
   assert.throws(()=>composeMiniSpritePixels(new Uint8ClampedArray(16),2,2),/no usable silhouette/);
 });
 

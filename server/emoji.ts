@@ -43,7 +43,7 @@ export function buildSpritePrompt(key: string, variation = '', shiny = false): s
     '- Creatures need coherent anatomy and a normal limb count for their implied body plan unless the concept explicitly says otherwise.',
     '',
     'FINAL CHECK',
-    '- Quality gate: miniature hand-placed one-pixel dark outlines and eight flat coloured shades, small coherent silhouette, no stray noise or gradients.',
+    '- Quality gate: readable, complete 70-80px-tall silhouette centred on 112px canvas; hand-placed one-pixel dark outlines and 12-20 flat colours, no corrupted lines, stray noise or gradients.',
     '- Input image 0 (when provided) is a STYLE reference only. Match its tiny scale and pixel topology, NEVER its specific creature, exact blue palette or silhouette.',
     '- Output image only.',
   ].filter(Boolean).join('\n');

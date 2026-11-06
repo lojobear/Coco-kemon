@@ -5,8 +5,8 @@
  */
 export const BOOP_SPRITE_ART_STYLE = [
   'BOOP MINI HANDHELD: match the supplied 112x112 transparent reference image for pixel size, flat clustered shading, simple retro handheld RPG sprite outlines, and TINY on-canvas composition. Use the reference only for style and footprint, not to copy its subject or blue colours.',
-  'One unique recognisable creature, object or food drawn as a very small sprite with a foreground footprint of roughly 44x38 logical pixels inside a 112x112 square canvas, near the BOTTOM CENTRE (reference bounding box x=36..79, y=68..105). Lots of transparent space above.',
-  'Only 8 to 10 opaque flat shades: solid black or deep charcoal 1-pixel outline, small 1-pixel clustered highlights, confident midtones and minimal shadows. Every pixel a crisp solid-edged square. NO antialiasing, painterly texture, rendered gradients, glossy bevels, soft glow, dithering noise or photorealism.',
+  'REFERENCE IMAGE is tiny, but generated sprites MUST be large enough to read in a mobile game: draw a centered 70 to 80-pixel-tall recognisable silhouette inside a 112x112 transparent square. The reference guides hand-placed pixels, outlines and flat clustered shading, NOT its overly tiny 44x38 footprint or unusual bottom positioning.',
+  'Use roughly 12 to 20 solid subject-led pixel colours, enough to keep edges, mechanical parts, eyes and important accents intact. Sharp near-black 1-pixel outer contour, clustered midtones, sparing bright pixel highlights. NO antialiasing, painterly textures, rendered gradients, glossy bevels, soft glow, dithering noise or photorealism.',
   'Pose like a classic small handheld monster/item inventory sprite, from the side or a slight 3/4 angle. Respect the NAME and subject silhouette. No bulky isometric cubes, generic boxes, slabs or 2:1 hotel furniture perspectives.',
   'Keep naturally accurate SUBJECT colours, not the blue-grey reference palette unless the named subject is actually blue-grey. No universal brown tint.',
   'One isolated tiny object on uniform SOLID #FF00FF chroma-magenta background, no shadow, scenery, props, text, border, interface or watermark; the app converts this background to transparency.',
@@ -15,8 +15,8 @@ export const BOOP_SPRITE_ART_STYLE = [
 
 /** FLUX.1 Schnell requires under 2,048 prompt characters. */
 export const BOOP_SPRITE_STYLE_COMPACT = [
-  'Tiny RETRO HANDHELD pixel sprite, match artist 112x112 reference composition: subject occupies about 44x38 pixels close to bottom centre; large empty margins.',
-  '8-10 flat solid colors, sharp black/dark one-pixel outline, clustered pixel highlights, deliberately tiny classic portable RPG style. True named subject silhouette and natural subject palette.',
+  'Readable RETRO HANDHELD pixel sprite on 112x112 canvas: use the artist reference for hand-placed crisp pixel clusters and outline style, but make the actual subject 70-80 pixels tall and CENTERED, not a tiny 44x38 object at the bottom.',
+  '12-20 flat solid colours, sharp black/dark one-pixel outline, distinct important anatomical and mechanical details, classic portable RPG look. True named subject silhouette, accurate natural subject palette.',
   'Natural side or slight 3/4 pose, NO isometric 2:1 furniture, bulky cubes, plates, photorealism, gradients, antialiasing or glowing effects.',
   'Uniform SOLID #FF00FF chroma-magenta background for transparency; one isolated sprite, no shadow, scenery, text, watermark or props.',
 ].join('\n');

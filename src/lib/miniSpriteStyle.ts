@@ -1,80 +1,113 @@
 /**
- * Small, user-reference-matched Boop sprite postprocessor.
- * The exact source PNG is 112x112; artwork occupies ~44x38 pixels centred
- * near the bottom. Uploaded and cached images DO NOT pass through this path.
+ * Faithful small-scale pixel-art output: 112x112 transparent PNG, with a
+ * deliberately readable ~80px sprite silhouette. The source reference PNG
+ * remains untouched in /sprite-reference/mini-handheld-master.png.
+ *
+ * The v14 implementation shrank every character into a 44x38 corner and
+ * reduced everything to just eight colors. That destroyed thin outlines,
+ * acoustic details and object anatomy. v15 keeps the same retro pixel style
+ * while preserving enough resolution and shades for recognisable subjects.
  */
-export const MINI_CANVAS_SIZE = 112;
-export const MINI_FOOTPRINT_WIDTH = 44;
-export const MINI_FOOTPRINT_HEIGHT = 38;
-export const MINI_FOOTPRINT_CENTER_X = 58;
-export const MINI_FOOTPRINT_BOTTOM = 106;
-export const MINI_MAX_OPAQUE_COLORS = 8;
+export const MINI_CANVAS_SIZE=112;
+export const MINI_FOOTPRINT_WIDTH=80;
+export const MINI_FOOTPRINT_HEIGHT=80;
+export const MINI_FOOTPRINT_CENTER_X=56;
+export const MINI_FOOTPRINT_BOTTOM=96;
+export const MINI_MAX_OPAQUE_COLORS=20;
 
-type Candidate = { color: [number,number,number]; count: number };
-export function alphaBounds(data: Uint8ClampedArray, width: number, height: number) {
+export interface AlphaBounds {left:number;top:number;right:number;bottom:number;width:number;height:number}
+export function alphaBounds(data: Uint8ClampedArray,width:number,height:number):AlphaBounds|null {
   let left=width,top=height,right=-1,bottom=-1;
   for(let y=0;y<height;y++)for(let x=0;x<width;x++){
     if(data[(y*width+x)*4+3]<100)continue;
-    left=Math.min(left,x);top=Math.min(top,y);
-    right=Math.max(right,x);bottom=Math.max(bottom,y);
+    left=Math.min(left,x);top=Math.min(top,y);right=Math.max(right,x);bottom=Math.max(bottom,y);
   }
-  return right<left ? null : {left,top,right,bottom,width:right-left+1,height:bottom-top+1};
+  return right<left?null:{left,top,right,bottom,width:right-left+1,height:bottom-top+1};
+}
+type Cluster={color:[number,number,number];count:number};
+type Bucket={data:Cluster[]; min:[number,number,number];max:[number,number,number];total:number};
+function box(values:Cluster[]):Bucket{
+  const min:[number,number,number]=[255,255,255],max:[number,number,number]=[0,0,0];
+  let total=0;
+  for(const {color,count} of values) {
+    total+=count;
+    for(let channel=0;channel<3;channel++){min[channel]=Math.min(min[channel],color[channel]);max[channel]=Math.max(max[channel],color[channel]);}
+  }
+  return {data:values,min,max,total};
 }
 function distance(a:readonly number[],b:readonly number[]) {
-  // A simple RGB distance keeps source-specific hues rather than a universal palette.
   return 3*(a[0]-b[0])**2+4*(a[1]-b[1])**2+2*(a[2]-b[2])**2;
 }
-function limitedPalette(data: Uint8ClampedArray): Candidate[] {
-  const buckets = new Map<number,{sum:[number,number,number];count:number}>();
-  for(let p=0;p<data.length;p+=4){
-    if(data[p+3]<100)continue;
-    const color:[number,number,number]=[data[p],data[p+1],data[p+2]];
-    const key=(color[0]>>5)<<10|(color[1]>>5)<<5|(color[2]>>5);
-    const record=buckets.get(key)??{sum:[0,0,0],count:0};
-    record.count++;
-    for(let j=0;j<3;j++)record.sum[j]+=color[j];
-    buckets.set(key,record);
+/** Weighted median cut, not "most common 8 RGB buckets": rare but important
+ * colours (eyes, outlines, glowing accents) get their own palette regions.
+ * A genuinely 8-colour hand-drawn subject retains those 8 exact colours. */
+function spritePalette(data:Uint8ClampedArray):number[][] {
+  const histogram=new Map<number,Cluster>();
+  for(let i=0;i<data.length;i+=4){
+    if(data[i+3]<100)continue;
+    const key=(data[i]<<16)|(data[i+1]<<8)|data[i+2];
+    const previous=histogram.get(key);
+    if(previous)previous.count++;
+    else histogram.set(key,{color:[data[i],data[i+1],data[i+2]],count:1});
   }
-  const selected=[...buckets.values()]
-    .sort((a,b)=>b.count-a.count)
-    .slice(0,MINI_MAX_OPAQUE_COLORS);
-  return selected.map(({sum,count})=>({color:sum.map(value=>Math.round(value/count)) as [number,number,number],count}));
+  if(!histogram.size)return [];
+  let boxes=[box([...histogram.values()])];
+  while(boxes.length<MINI_MAX_OPAQUE_COLORS){
+    let selected=-1,score=0;
+    for(let i=0;i<boxes.length;i++){
+      const b=boxes[i],spread=Math.max(...b.max.map((v,k)=>v-b.min[k]));
+      const weight=spread*Math.sqrt(b.total);
+      if(b.data.length>1&&weight>score){selected=i;score=weight;}
+    }
+    if(selected<0)break;
+    const current=boxes[selected];
+    const channel=current.max.map((v,k)=>v-current.min[k])
+      .reduce((best,v,i,all)=>v>all[best]?i:best,0);
+    const entries=[...current.data].sort((a,b)=>a.color[channel]-b.color[channel]);
+    let sum=0,split=0;
+    while(split<entries.length-1&&sum<current.total/2)sum+=entries[split++].count;
+    if(split<1||split>=entries.length)break;
+    boxes.splice(selected,1,box(entries.slice(0,split)),box(entries.slice(split)));
+  }
+  return boxes.map(b=>{
+    const sum=[0,0,0];
+    for(const {color,count} of b.data)for(let c=0;c<3;c++)sum[c]+=color[c]*count;
+    return sum.map(n=>Math.round(n/b.total));
+  });
 }
-/** Fit an existing alpha-masked raster into the exact reference silhouette
- * envelope, using nearest-neighbour sampling and at most 8 solid colors.
- * Operates on pixels only; the browser conversion to PNG lives elsewhere. */
-export function composeMiniSpritePixels(
-  pixels: Uint8ClampedArray, width: number, height: number,
-): Uint8ClampedArray {
-  if(width<=0||height<=0||pixels.length!==width*height*4)throw new Error('Invalid sprite pixels');
+/** Reframe generated art to occupy the centre, preserve clear outlines and
+ * reduce smooth image-model palettes to distinct handheld-style clusters.
+ * No AI calls; the source raster is read only. */
+export function composeMiniSpritePixels(pixels:Uint8ClampedArray,width:number,height:number):Uint8ClampedArray{
+  if(!Number.isSafeInteger(width)||!Number.isSafeInteger(height)||width<=0||height<=0||pixels.length!==width*height*4)
+    throw new Error('Invalid sprite pixels');
   const bounds=alphaBounds(pixels,width,height);
   if(!bounds||bounds.width<2||bounds.height<2)throw new Error('Generated sprite has no usable silhouette');
-  const scale=Math.min(MINI_FOOTPRINT_WIDTH/bounds.width, MINI_FOOTPRINT_HEIGHT/bounds.height);
-  const fitWidth=Math.max(1,Math.min(MINI_FOOTPRINT_WIDTH,Math.round(bounds.width*scale)));
-  const fitHeight=Math.max(1,Math.min(MINI_FOOTPRINT_HEIGHT,Math.round(bounds.height*scale)));
-  const left=Math.round(MINI_FOOTPRINT_CENTER_X-fitWidth/2);
-  const top=MINI_FOOTPRINT_BOTTOM-fitHeight;
-  const result=new Uint8ClampedArray(MINI_CANVAS_SIZE*MINI_CANVAS_SIZE*4);
-  for(let y=0;y<fitHeight;y++)for(let x=0;x<fitWidth;x++){
-    const srcX=Math.min(bounds.right,bounds.left+Math.floor((x+.5)*bounds.width/fitWidth));
-    const srcY=Math.min(bounds.bottom,bounds.top+Math.floor((y+.5)*bounds.height/fitHeight));
+  const fit=Math.min(MINI_FOOTPRINT_WIDTH/bounds.width,MINI_FOOTPRINT_HEIGHT/bounds.height);
+  const w=Math.max(1,Math.min(MINI_FOOTPRINT_WIDTH,Math.round(bounds.width*fit)));
+  const h=Math.max(1,Math.min(MINI_FOOTPRINT_HEIGHT,Math.round(bounds.height*fit)));
+  const left=Math.max(0,Math.round(MINI_FOOTPRINT_CENTER_X-w/2));
+  const top=MINI_FOOTPRINT_BOTTOM-h;
+  const output=new Uint8ClampedArray(MINI_CANVAS_SIZE*MINI_CANVAS_SIZE*4);
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+    const srcX=Math.min(bounds.right,bounds.left+Math.floor((x+.5)*bounds.width/w));
+    const srcY=Math.min(bounds.bottom,bounds.top+Math.floor((y+.5)*bounds.height/h));
     const a=(srcY*width+srcX)*4;
     if(pixels[a+3]<100)continue;
-    const b=((y+top)*MINI_CANVAS_SIZE+x+left)*4;
-    result[b]=pixels[a];result[b+1]=pixels[a+1];result[b+2]=pixels[a+2];result[b+3]=255;
+    const b=((top+y)*MINI_CANVAS_SIZE+left+x)*4;
+    output[b]=pixels[a];output[b+1]=pixels[a+1];output[b+2]=pixels[a+2];output[b+3]=255;
   }
-  const palette=limitedPalette(result);
+  const palette=spritePalette(output);
   if(!palette.length)throw new Error('Generated sprite has no visible foreground');
-  for(let p=0;p<result.length;p+=4){
-    if(result[p+3]===0)continue;
-    const source=[result[p],result[p+1],result[p+2]];
-    let best=palette[0].color;
-    let bestDistance=distance(source,best);
+  for(let i=0;i<output.length;i+=4) {
+    if(output[i+3]===0)continue;
+    const original=[output[i],output[i+1],output[i+2]];
+    let chosen=palette[0],best=distance(original,chosen);
     for(let j=1;j<palette.length;j++){
-      const d=distance(source,palette[j].color);
-      if(d<bestDistance){best=palette[j].color;bestDistance=d;}
+      const d=distance(original,palette[j]);
+      if(d<best){chosen=palette[j];best=d;}
     }
-    result[p]=best[0];result[p+1]=best[1];result[p+2]=best[2];
+    output[i]=chosen[0];output[i+1]=chosen[1];output[i+2]=chosen[2];
   }
-  return result;
+  return output;
 }
