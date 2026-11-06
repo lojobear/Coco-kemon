@@ -24,7 +24,7 @@ import { findCraftDropTarget } from '../lib/craftCollision';
 import { BOARD_WIDTH, BOARD_HEIGHT, BOARD_START_X, BOARD_START_Y, boardCenter, clampBoardTile } from '../lib/boardGeometry';
 import { loadBoardLayout, saveBoardLayout } from '../lib/boardLayout';
 import { spawnSourcePool, chooseSpawnElements, chooseUndiscoveredPair, spawnPositions, spreadSpawnPositions, SPAWN_COUNTS, type SpawnCount } from '../lib/randomSpawn';
-import { saveCraftElements, readCraftElements, SAVE_IMPORTED_EVENT, SAVE_CHANGED_EVENT } from '../lib/saveData';
+import { queueCraftElementsSave, readCraftElements, SAVE_IMPORTED_EVENT, SAVE_CHANGED_EVENT } from '../lib/saveData';
 import { discoveryIdentity } from '../lib/unifiedCollection';
 import { mergeSharedDiscoveries } from '../lib/sharedDiscoveries';
 import { sound } from '../lib/audio';
@@ -173,11 +173,8 @@ export function InfiniteCraftView() {
   const [lastResult, setLastResult] = useState<InfiniteElement | null>(null);
   const [elements, setElements] = useState<InfiniteElement[]>(() => {
     try {
-      const saved = JSON.stringify(readCraftElements());
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return sanitizeElements(parsed);
-      }
+      const saved = readCraftElements();
+      if (saved.length > 0) return sanitizeElements(saved);
     } catch {
       // Fall back to starters.
     }
@@ -209,9 +206,19 @@ export function InfiniteCraftView() {
     const update = () => {
       const persisted = readCraftElements();
       setElements(current => {
-        const known = new Set(current.map(item => discoveryIdentity(item.name)));
-        const missing = persisted.filter(item => !known.has(discoveryIdentity(item.name)));
-        return missing.length ? sanitizeElements([...current, ...missing]) : current;
+        const previousByName = new Map(current.map(item => [discoveryIdentity(item.name), item]));
+        const savedByName = new Map(persisted.map(item => [discoveryIdentity(item.name), item]));
+        let updatedArtwork = false;
+        // Keep Sprite Lab uploads/recoveries from being overwritten by a
+        // delayed Craft save while the (hidden) Craft board stays mounted.
+        const updated = current.map(item => {
+          const saved = savedByName.get(discoveryIdentity(item.name));
+          if (!saved || saved.customSpriteUrl === item.customSpriteUrl) return item;
+          updatedArtwork = true;
+          return { ...item, customSpriteUrl: saved.customSpriteUrl };
+        });
+        const missing = persisted.filter(item => !previousByName.has(discoveryIdentity(item.name)));
+        return updatedArtwork || missing.length ? sanitizeElements([...updated, ...missing]) : current;
       });
     };
     window.addEventListener(SAVE_CHANGED_EVENT, update);
@@ -381,8 +388,11 @@ export function InfiniteCraftView() {
   const suppressCanvasClickRef = useRef(false);
 
   useEffect(() => {
-    try { saveCraftElements(sanitizeElements(elements)); }
-    catch (e) { console.error('Failed to save infinite craft elements', e); }
+    // Keep new discoveries immediately visible to other tabs, but avoid
+    // validating and serializing the whole image-heavy save in the same
+    // frame as the result reveal. A background/pagehide flush guards progress.
+    try { queueCraftElementsSave(elements, sanitizeElements); }
+    catch (e) { console.error('Failed to queue infinite craft save', e); }
   }, [elements]);
 
   useEffect(() => {
