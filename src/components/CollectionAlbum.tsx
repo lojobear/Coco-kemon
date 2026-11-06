@@ -7,6 +7,8 @@ import { useGame } from '../lib/gameStore';
 import { readCraftElements, readCollectorRoom, saveCollectorRoom, SAVE_CHANGED_EVENT, SAVE_IMPORTED_EVENT } from '../lib/saveData';
 import { ALBUM_SETS, albumSetProgress, availableVariants, evolutionFor, type CollectorVariant, type FrameStyle, type TrophyRoom, type RoomTheme, SHINY_ODDS, CELESTIAL_ODDS } from '../lib/collectorData';
 import { normalizeElementStats } from '../lib/elementStats';
+import { rarityInfo, rarityChanceLabel, rarityRank, HOLO_ODDS, GLITCH_ODDS } from '../lib/rarity';
+import { RarityBadges } from './RarityBadges';
 import { CraftSprite, CraftSprites } from './CraftSprite';
 import { exportTrophyPostcard } from '../lib/trophyPostcard';
 import { queueMissingArtwork } from '../lib/artworkQueue';
@@ -14,22 +16,23 @@ import type { Material, Oddkin } from '../types';
 
 const LegacyArchive = lazy(() => import('./ArchiveView').then(m=>({default:m.ArchiveView})));
 type AlbumTab = 'album'|'sets'|'room'|'foundry';
-type AlbumFilter = 'all'|'shiny'|'celestial'|'evolved';
+type AlbumFilter = 'all'|'shiny'|'celestial'|'holo'|'glitch'|'legendary'|'evolved';
 
 function CollectibleArt({ item, variant = 'normal' }: {item: InfiniteElement; variant?: CollectorVariant}) {
   return <span className={`boop-album-art boop-album-art--${variant} boop-album-art--evolution-${evolutionFor(item).level}`}>
     <CraftSprite name={item.name} emoji={item.emoji} isShiny={variant==='shiny'} idle={false}/>
-    {variant!=='normal' && <i aria-hidden="true">{variant==='celestial'?'✶':'✦'}</i>}
+    {variant!=='normal' && <i aria-hidden="true">{variant==='celestial'?'✶':variant==='holo'?'◈':variant==='glitch'?'⟡':'✦'}</i>}
   </span>;
 }
 function CollectorCard({item,index,onOpen}: {key?:string;item:InfiniteElement;index:number;onOpen:()=>void}) {
   const evo=evolutionFor(item);
-  const variant:CollectorVariant=item.unlockedCelestial?'celestial':availableVariants(item).includes('shiny')?'shiny':'normal';
+  const variant:CollectorVariant=item.unlockedCelestial?'celestial':availableVariants(item).includes('shiny')?'shiny':item.unlockedGlitch?'glitch':item.unlockedHolo?'holo':'normal';
   return <button className={`boop-sticker-card is-${variant}`} type="button" onClick={onOpen} aria-label={`Inspect collectible ${item.name}`}>
     <span className="boop-sticker-index">#{String(index+1).padStart(3,'0')}</span>
     <CollectibleArt item={item} variant={variant}/>
     <span className="boop-sticker-name">{item.name}</span>
-    <span className="boop-sticker-footer"><small>{evo.tier.marker} {evo.tier.name}</small>{variant==='celestial'?<b>CELESTIAL</b>:variant==='shiny'?<b>SHINY</b>:null}</span>
+    <span className="boop-sticker-footer"><small>{evo.tier.marker} {evo.tier.name}</small></span>
+    <RarityBadges item={item} compact/>
   </button>;
 }
 export function CollectionAlbum({
@@ -105,6 +108,9 @@ export function CollectionAlbum({
       e.connection?.toLowerCase().includes(q)) && (filter==='all'||
       (filter==='shiny'&&availableVariants(e).includes('shiny'))||
       (filter==='celestial'&&Boolean(e.unlockedCelestial))||
+      (filter==='holo'&&Boolean(e.unlockedHolo))||
+      (filter==='glitch'&&Boolean(e.unlockedGlitch))||
+      (filter==='legendary'&&rarityRank(e.rarityTier)>=rarityRank('legendary'))||
       (filter==='evolved'&&evolutionFor(e).level>0)));
     if(sort==='az')list.sort((a,b)=>a.name.localeCompare(b.name));
     else if(sort==='crafted')list.sort((a,b)=>(b.craftCount||0)-(a.craftCount||0));
@@ -114,6 +120,9 @@ export function CollectionAlbum({
   useEffect(()=>setVisible(72),[query,sort,filter]);
   const shinyCount=catalog.filter(e=>availableVariants(e).includes('shiny')).length;
   const celestialCount=catalog.filter(e=>Boolean(e.unlockedCelestial)).length;
+  const holoCount=catalog.filter(e=>Boolean(e.unlockedHolo)).length;
+  const glitchCount=catalog.filter(e=>Boolean(e.unlockedGlitch)).length;
+  const legendaryCount=catalog.filter(e=>rarityRank(e.rarityTier)>=rarityRank('legendary')).length;
   const evolvedCount=catalog.filter(e=>evolutionFor(e).level>0).length;
 
   const repairMissing=async()=>{
@@ -201,6 +210,7 @@ export function CollectionAlbum({
         <div><strong>{celestialCount}</strong><small>Celestial</small></div>
         <div><strong>{evolvedCount}</strong><small>Evolved</small></div>
       </div>
+      <p className="boop-rarity-counts">◈ Holo {holoCount} · ⟡ Glitch {glitchCount} · ★ Legendary+ {legendaryCount} · 7 rarity tiers</p>
       <nav className="boop-album-tabs" aria-label="Collection views">
         {([{id:'album',label:'Sticker album',icon:LayoutGrid},{id:'sets',label:'Themed sets',icon:Sparkles},
           {id:'room',label:'Trophy room',icon:Trophy},{id:'foundry',label:'Foundry archive',icon:GalleryVerticalEnd}] as const)
@@ -210,7 +220,7 @@ export function CollectionAlbum({
         <div className="boop-album-controls"><label className="boop-album-search"><Search size={18}/><input aria-label="Search collectibles" placeholder="Find a discovery…" value={query} onChange={e=>setQuery(e.target.value)}/></label>
           <select aria-label="Sort collectibles" value={sort} onChange={e=>setSort(e.target.value as typeof sort)}><option value="recent">Newest first</option><option value="az">Name A–Z</option><option value="crafted">Most crafted</option></select>
         </div>
-        <div className="boop-album-filter-row">{([{id:'all',label:'All stickers'},{id:'shiny',label:'✦ Shiny'},{id:'celestial',label:'✶ Celestial'},{id:'evolved',label:'❋ Evolved'}] as const).map(f=><button key={f.id} aria-pressed={filter===f.id} onClick={()=>setFilter(f.id)}>{f.label}</button>)}</div>
+        <div className="boop-album-filter-row">{([{id:'all',label:'All stickers'},{id:'shiny',label:'✦ Shiny'},{id:'celestial',label:'✶ Celestial'},{id:'holo',label:'◈ Holo'},{id:'glitch',label:'⟡ Glitch'},{id:'legendary',label:'★ Legendary+'},{id:'evolved',label:'❋ Evolved'}] as const).map(f=><button key={f.id} aria-pressed={filter===f.id} onClick={()=>setFilter(f.id)}>{f.label}</button>)}</div>
         <div className="boop-album-section-label"><span>DISCOVERY INDEX</span><small>{shown.length} stickers</small></div>
         {shown.length?<div className="boop-sticker-grid">{shown.slice(0,visible).map((item,i)=><CollectorCard key={item.id} item={item} index={i} onOpen={()=>openItem(item)}/>)}</div>
           :<div className="boop-album-empty">No stickers match this filter. Try another collection category.</div>}
@@ -269,13 +279,13 @@ export function CollectionAlbum({
         <button className="boop-album-close" aria-label="Close details" onClick={()=>setSelected(null)}><X size={21}/></button>
         <div className="boop-album-detail-hero">
           <CollectibleArt item={selected} variant={viewVariant}/>
-          <div><span className="boop-album-kicker">COLLECTION STICKER</span><h2>{selected.name}</h2><p>{selected.explanation||'A curious new object for your collection.'}</p></div>
+          <div><span className="boop-album-kicker">COLLECTION STICKER</span><h2>{selected.name}</h2><p>{selected.explanation||'A curious new object for your collection.'}</p><RarityBadges item={selected}/></div>
         </div>
         <div className="boop-album-detail-tabs" role="group" aria-label="Collector colorway">
-          {(['normal','shiny','celestial'] as const).map(variant=><button key={variant}
+          {(['normal','shiny','celestial','holo','glitch'] as const).map(variant=><button key={variant}
             disabled={!availableVariants(selected).includes(variant)}
             aria-pressed={viewVariant===variant} onClick={()=>setViewVariant(variant)}>
-            {variant==='normal'?'Standard':variant==='shiny'?'✦ Shiny':'✶ Celestial'}
+            {variant==='normal'?'Standard':variant==='shiny'?'✦ Shiny':variant==='celestial'?'✶ Celestial':variant==='holo'?'◈ Holo':'⟡ Glitch'}
             {!availableVariants(selected).includes(variant)&&<Lock size={12}/>}
           </button>)}
         </div>
@@ -283,7 +293,7 @@ export function CollectionAlbum({
           <span><b>Discovered</b>{selected.discoveredAt?new Date(selected.discoveredAt).toLocaleDateString():'Starter'}</span>
           <span><b>Crafted</b>{normalizeElementStats(selected).craftCount||0} times</span>
           <span><b>Recipes</b>{latestRecipes(selected).length}</span>
-          <span><b>Variants</b>{availableVariants(selected).length}/3</span>
+          <span><b>Finishes</b>{availableVariants(selected).length}/5</span>
         </div>
         <div className="boop-album-evolution">
           <div className="boop-album-section-label"><span>DISCOVERY EVOLUTION</span><small>{evolutionFor(selected).tier.marker} {evolutionFor(selected).tier.name}</small></div>
@@ -299,7 +309,7 @@ export function CollectionAlbum({
         <div className="boop-album-detail-section"><h3><Shuffle size={17}/> Discoveries made from this</h3>
           {descendants(selected).length?<div className="boop-descendant-row">{descendants(selected).map(item=><button key={item.id} onClick={()=>openItem(item)}>{item.emoji} {item.name}</button>)}</div>
             :<p>Craft with this element to discover what it can become.</p>}</div>
-        <div className="boop-album-odds"><Star size={16}/> Published odds per craft: Shiny 1 in {SHINY_ODDS.toLocaleString()} · Celestial 1 in {CELESTIAL_ODDS.toLocaleString()}. Each roll is independent.</div>
+        <div className="boop-album-odds"><Star size={16}/> Published odds per craft: {rarityInfo(selected.rarityTier).label} {rarityChanceLabel(selected.rarityTier)} · Shiny 1 in {SHINY_ODDS.toLocaleString()} · Celestial 1 in {CELESTIAL_ODDS.toLocaleString()} · Holo 1 in {HOLO_ODDS.toLocaleString()} · Glitch 1 in {GLITCH_ODDS.toLocaleString()}. Rolls are independent; the rarest tier is retained.</div>
         <button className="boop-album-primary" onClick={()=>{setSelected(null);setTab('room');chooseSlot(room.slots.findIndex(slot=>!slot)>=0?room.slots.findIndex(slot=>!slot):0);}}><Trophy size={16}/> Display in trophy room</button>
       </section>
     </div>}

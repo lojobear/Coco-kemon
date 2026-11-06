@@ -125,6 +125,7 @@ const IngredientLibraryCard = React.memo(function IngredientLibraryCard({
     emoji={item.emoji}
     detail={item.isShiny ? 'Shiny' : item.isNew ? 'First discovery' : `${item.craftCount || 0} crafts`}
     isShiny={item.isShiny}
+    item={item}
     selected={selected}
     disabled={disabled}
     onSelect={() => onPick(item)}

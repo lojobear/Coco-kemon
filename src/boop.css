@@ -1961,3 +1961,54 @@ html.boop-native-shell .boop-app .boop-cloud-dialog {
 }
 .boop-app .boop-suggest-pair:disabled { opacity:.45; }
 .boop-app .boop-suggest-pair:focus-visible { outline:2px solid var(--boop-muted); outline-offset:2px; }
+
+
+/* Collector rarities and finishes use small readable badges; artwork remains
+   unobstructed, and dense galleries retain their existing scroll behavior. */
+.boop-rarity-badges {display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:3px;min-width:0;max-width:100%;}
+.boop-rarity-badge {display:inline-flex;align-items:center;justify-content:center;gap:3px;padding:3px 6px;border:1px solid #dde3e9;border-radius:99px;background:#f5f6f8;color:#606e7c;font:800 9px/1.2 system-ui,sans-serif;white-space:nowrap;}
+.boop-rarity-badge.tier-common {background:#f2f4f6;color:#687581;border-color:#e3e7eb;}
+.boop-rarity-badge.tier-uncommon {background:#eaf5eb;color:#38764a;border-color:#cbe6d1;}
+.boop-rarity-badge.tier-rare {background:#eaf3ff;color:#245d9a;border-color:#cbdcf7;}
+.boop-rarity-badge.tier-epic {background:#f4ebff;color:#7047a5;border-color:#e0cbf8;}
+.boop-rarity-badge.tier-legendary {background:#fff4dd;color:#976617;border-color:#f0dbac;}
+.boop-rarity-badge.tier-mythic {background:#fff0f4;color:#aa3760;border-color:#f1c7d5;}
+.boop-rarity-badge.tier-secret {background:#2b2941;color:#fff5ae;border-color:#7970aa;}
+.boop-rarity-badge.finish-shiny {background:#fdf1ff;color:#8a4db0;border-color:#e8cdf5;}
+.boop-rarity-badge.finish-celestial {background:#fff8e4;color:#997024;border-color:#f4dfab;}
+.boop-rarity-badge.finish-holo {background:#e7fafc;color:#177c8a;border-color:#bfe7ec;}
+.boop-rarity-badge.finish-glitch {background:#ebedfc;color:#4c4091;border-color:#c5c8ed;}
+.boop-rarity-badge.badge-new {background:#eaf7ed;color:#287444;border-color:#c7e5ce;}
+.boop-rarity-badge.badge-master {background:#fff3dd;color:#8b621c;border-color:#eacf9e;}
+.boop-rarity-badges.is-compact .boop-rarity-badge {font-size:8px;padding:2px 5px;}
+.boop-sticker-card > .boop-rarity-badges {width:100%;margin-top:2px;}
+.boop-sticker-card {min-height:219px;}
+.boop-rarity-counts {margin:0;color:#6e7988;font:700 11px/1.5 system-ui,sans-serif;}
+.boop-album-detail-hero .boop-rarity-badges {justify-content:flex-start;margin-top:8px;}
+.boop-album-detail-tabs {flex-wrap:wrap;}
+.boop-album-detail-tabs button {flex:1 1 74px;}
+.boop-album-art--holo {background:linear-gradient(125deg,#effaff,#fdf0ff 55%,#e8fff4);border-color:#b8e4e9;}
+.boop-album-art--holo img {filter:saturate(1.3) hue-rotate(20deg);}
+.boop-album-art--glitch {background:linear-gradient(125deg,#ebeafc,#edf9fa 55%,#fff0f5);border-color:#b8b8e2;}
+.boop-album-art--glitch img {filter:contrast(1.18) hue-rotate(165deg);}
+.boop-album-art--holo i {color:#288c96;}
+.boop-album-art--glitch i {color:#7162b7;}
+.boop-board-result.tier-epic,.boop-board-result.tier-legendary,.boop-board-result.tier-mythic,.boop-board-result.tier-secret {border-width:2px;}
+.boop-board-result.tier-epic {border-color:#b19bd6;}
+.boop-board-result.tier-legendary {border-color:#dcbb72;}
+.boop-board-result.tier-mythic {border-color:#d99db8;}
+.boop-board-result.tier-secret {border-color:#7970aa;}
+.boop-board-result > .boop-board-roll-odds {
+  position:absolute;left:0;right:0;bottom:calc(100% + 5px);display:block;flex:none;min-width:0;width:100%;max-width:100%;
+  padding:4px 7px;border-radius:7px;border:1px solid #dfe5ec;background:#fffffffa;color:#536477;text-align:center;
+  font:700 9px/1.35 system-ui,sans-serif;letter-spacing:0;white-space:normal;overflow-wrap:anywhere;box-shadow:0 2px 7px #26333c10;
+}
+.boop-board-result > .boop-result-info {min-width:0;flex:1;display:flex;flex-direction:column;align-items:flex-start;gap:3px;}
+.boop-board-result .boop-result-info > .boop-rarity-badges {justify-content:flex-start;max-height:42px;overflow:hidden;}
+@media(max-width:520px) {
+  .boop-board-result {gap:6px;padding:7px 9px;}
+  .boop-board-result > .boop-board-roll-odds {font-size:8px;line-height:1.35;}
+  .boop-board-result .boop-rarity-badge {font-size:7px;}
+  .boop-board-result .boop-result-info strong {font-size:13px;}
+  .boop-album-summary strong {font-size:20px;}
+}
