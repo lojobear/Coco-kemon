@@ -1853,6 +1853,17 @@ html.boop-native-shell .boop-app .boop-cloud-dialog {
   border-radius:50%; background:#3d5e4a; color:white; font:700 12px/18px system-ui;
   text-align:center;
 }
+/* A failed artwork cell has its own accessible retry action. Keep it visible
+ * inside the 64px slot without changing the sprite grid's touch target. */
+.boop-sprite-placeholder .boop-sprite-retry {
+  position:absolute; left:2px; right:2px; bottom:1px; z-index:2;
+  min-height:22px; padding:2px 1px; border:1px solid #cfd8e5;
+  border-radius:5px; background:#fff; color:#37445c;
+  font:700 10px/1.2 system-ui; cursor:pointer;
+}
+.boop-sprite-placeholder .boop-sprite-retry:focus-visible {
+  outline:2px solid #4f46e5; outline-offset:-2px;
+}
 
 /* Keep artwork primary and avoid oversized cards on wider displays. */
 .boop-discovery-card .boop-discovery-pick > strong,

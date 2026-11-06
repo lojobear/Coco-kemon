@@ -27,4 +27,7 @@ test('recovery scans yield to paint and never regenerate known cached art on bro
   assert.match(profile, /MAX_PROFILE_DOWNLOADS = 48/);
   assert.match(image, /if \(!hasFailed\) return/);
   assert.doesNotMatch(image, /window\.addEventListener\('quarkpop-sprite-ready'/);
+  assert.match(image, /event\.stopPropagation\(\); retryFailed\(\)/);
+  const css = readFileSync(new URL('../src/boop.css', import.meta.url), 'utf8');
+  assert.match(css, /boop-sprite-placeholder \.boop-sprite-retry/);
 });
