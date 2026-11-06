@@ -79,6 +79,31 @@ interface CanvasItem {
   spawnDelay?: number;
 }
 
+/** Only the moved/selected board tile should rerender. The other 299 tiles
+ * keep their existing PNG decoders and DOM even when a discovery finishes. */
+const CanvasBoardTile = React.memo(function CanvasBoardTile({
+  item, selected, onPointerDown, onClickItem, onDuplicate, onRemove,
+}: {
+  item: CanvasItem;
+  selected: boolean;
+  onPointerDown: (item: CanvasItem, event: React.PointerEvent<HTMLDivElement>) => void;
+  onClickItem: (item: CanvasItem) => void;
+  onDuplicate: (item: CanvasItem, event: React.MouseEvent) => void;
+  onRemove: (id: string, event: React.MouseEvent) => void;
+}) {
+  return <div data-craft-instance={item.instanceId}
+    className={`boop-board-item ${selected ? 'is-selected' : ''} ${item.instanceId.startsWith('fusion-') ? 'is-fusion-result' : ''} ${item.instanceId.startsWith('spawn-') ? 'is-random-spawn' : ''}`}
+    onPointerDown={event => onPointerDown(item, event)}
+    onClick={event => { event.stopPropagation(); onClickItem(item); }}
+    onDoubleClick={event => onDuplicate(item, event)}
+    style={{ transform: `translate3d(${item.x}px,${item.y}px,0)`, '--spawn-delay': `${item.spawnDelay || 0}ms` } as React.CSSProperties}>
+    <CraftSprite name={item.name} emoji={item.emoji} isShiny={item.isShiny} />
+    <span>{item.name}</span>
+    <button aria-label={`Duplicate ${item.name}`} title="Duplicate" className="boop-tile-duplicate" onClick={event => onDuplicate(item, event)}><Plus size={12} /></button>
+    <button aria-label={`Remove ${item.name} from board`} title="Remove" onClick={event => onRemove(item.instanceId, event)}><X size={12} /></button>
+  </div>;
+});
+
 /**
  * Stable card props keep the ingredient gallery from rerendering on random taps.
  * With hundreds of discovered items this is the biggest perceived latency win.
@@ -680,6 +705,15 @@ export function InfiniteCraftView() {
     };
   };
 
+  // Stable event delegates let React.memo skip every unchanged canvas tile,
+  // while the handlers still see the latest combination and selection state.
+  const boardActions = useRef({ handlePointerDown, handleCanvasItemClick, handleDuplicate, handleRemoveFromCanvas });
+  boardActions.current = { handlePointerDown, handleCanvasItemClick, handleDuplicate, handleRemoveFromCanvas };
+  const onBoardPointerDown = useCallback((item: CanvasItem, event: React.PointerEvent<HTMLDivElement>) => boardActions.current.handlePointerDown(item, event), []);
+  const onBoardClick = useCallback((item: CanvasItem) => boardActions.current.handleCanvasItemClick(item), []);
+  const onBoardDuplicate = useCallback((item: CanvasItem, event: React.MouseEvent) => boardActions.current.handleDuplicate(item, event), []);
+  const onBoardRemove = useCallback((id: string, event: React.MouseEvent) => boardActions.current.handleRemoveFromCanvas(id, event), []);
+
   const interactions = useRef({ dropIntoCrucible, handleCombine });
   interactions.current = { dropIntoCrucible, handleCombine };
   useEffect(() => {
@@ -792,10 +826,15 @@ export function InfiniteCraftView() {
   }, []);
 
   const clearCanvas = () => { sound.playClick(); haptics.heavyTap(); setCanvasItems([]); setSelectedCanvasId(null); };
-  const customSprites = useMemo(() => new Map(elements.flatMap(el => {
-    const sprite = el.customSpriteUrl;
-    return sprite ? [[el.name.trim().toLowerCase(), sprite] as const] : [];
-  })), [elements]);
+  const lastCustomSprites = useRef<ReadonlyMap<string, string>>(new Map());
+  const customSprites = useMemo(() => {
+    const next = new Map<string, string>();
+    for (const item of elements) if (item.customSpriteUrl) next.set(item.name.trim().toLowerCase(), item.customSpriteUrl);
+    const previous = lastCustomSprites.current;
+    if (next.size === previous.size && [...next].every(([name, url]) => previous.get(name) === url)) return previous;
+    lastCustomSprites.current = next;
+    return next;
+  }, [elements]);
 
   const selectIngredient = (element: InfiniteElement) => {
     spawnOnCanvas(element.name, element.emoji, Boolean(element.isShiny));
@@ -905,18 +944,9 @@ export function InfiniteCraftView() {
         <div className="boop-board-viewport" ref={viewportRef} aria-label="Pan and drag crafting board" onPointerDown={startPan} onPointerMove={movePan} onPointerUp={endPan} onPointerCancel={endPan}>
           <div ref={canvasRef} className="boop-board-world" style={{ width:BOARD_WIDTH, height:BOARD_HEIGHT, zoom:boardZoom }}>
             <div className="boop-board-origin-hint" style={{ left:BOARD_START_X - 6, top:BOARD_START_Y - 68 }}>DROP. MIX. DISCOVER.</div>
-            {canvasItems.map(item=><div
-              key={item.instanceId} data-craft-instance={item.instanceId}
-              className={`boop-board-item ${selectedCanvasId === item.instanceId ? 'is-selected' : ''} ${item.instanceId.startsWith('fusion-') ? 'is-fusion-result' : ''} ${item.instanceId.startsWith('spawn-') ? 'is-random-spawn' : ''}`}
-              onPointerDown={e=>handlePointerDown(item,e)}
-              onClick={e=>{e.stopPropagation();handleCanvasItemClick(item);}}
-              onDoubleClick={e=>handleDuplicate(item,e)}
-              style={{transform:`translate3d(${item.x}px,${item.y}px,0)`, '--spawn-delay':`${item.spawnDelay||0}ms`} as React.CSSProperties}>
-              <CraftSprite name={item.name} emoji={item.emoji} isShiny={item.isShiny}/>
-              <span>{item.name}</span>
-              <button aria-label={`Duplicate ${item.name}`} title="Duplicate" className="boop-tile-duplicate" onClick={e=>handleDuplicate(item,e)}><Plus size={12}/></button>
-              <button aria-label={`Remove ${item.name} from board`} title="Remove" onClick={e=>handleRemoveFromCanvas(item.instanceId,e)}><X size={12}/></button>
-            </div>)}
+            {canvasItems.map(item => <CanvasBoardTile key={item.instanceId} item={item}
+              selected={selectedCanvasId === item.instanceId} onPointerDown={onBoardPointerDown}
+              onClickItem={onBoardClick} onDuplicate={onBoardDuplicate} onRemove={onBoardRemove} />)}
             {mergeFx && <div key={mergeFx.id} className="boop-board-fusion" style={{left:mergeFx.x,top:mergeFx.y}} aria-hidden="true">
               <span className="boop-merge-piece boop-merge-a" style={{'--from-x':`${mergeFx.dxA}px`,'--from-y':`${mergeFx.dyA}px`} as React.CSSProperties}>{mergeFx.a}</span>
               <span className="boop-merge-piece boop-merge-b" style={{'--from-x':`${mergeFx.dxB}px`,'--from-y':`${mergeFx.dyB}px`} as React.CSSProperties}>{mergeFx.b}</span>
