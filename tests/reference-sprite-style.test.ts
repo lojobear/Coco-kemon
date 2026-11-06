@@ -20,7 +20,7 @@ test('new default, shiny and reroll prompts use bold collectible pixel art acros
   const full=buildSpritePrompt('Grandfather Clock');
   assert.match(full,/128x128/);
   assert.match(full,/85–95%/);
-  assert.match(full,/24–64 clustered/);
+  assert.match(full,/24–64 flat opaque shades/);
   assert.match(full,/centered/i);
   assert.doesNotMatch(full,/2:1 isometric|virtual-hotel FURNI/);
   const compact=compactSchnellImagePrompt(full);
