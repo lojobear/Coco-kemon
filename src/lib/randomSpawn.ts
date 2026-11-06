@@ -11,7 +11,7 @@ const STARTER_NAMES = new Set(STARTER_ELEMENTS.map(item => item.name.toLowerCase
 const identity = (name: string) => name.normalize('NFKC').trim().replace(/\s+/g,' ').toLowerCase();
 function distinctDiscoveries(elements: readonly InfiniteElement[]): InfiniteElement[] {
   const seen = new Set<string>();
-  return owned.filter(item => {
+  return elements.filter(item => {
     const key = identity(item.name || '');
     if (!key || seen.has(key)) return false;
     seen.add(key);
