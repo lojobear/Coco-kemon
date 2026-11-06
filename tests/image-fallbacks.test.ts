@@ -37,12 +37,12 @@ test('Subject-specific art direction avoids global brown cast and repeated gener
   assert.notEqual(lake, leaf);
   assert.notEqual(lake, battery);
   const prompt = buildSpritePrompt('Ice Lake');
-  assert.match(prompt, /BOOP v16 BOLD COLLECTIBLE PIXEL ART/);
+  assert.match(prompt, /BOOP v17 BOLD COLLECTIBLE PIXEL ART/);
   assert.match(prompt, /128x128/);
   assert.match(prompt, /85–95%/);
-  assert.match(prompt, /24–64 clustered pixel shades/);
-  assert.match(prompt, /stray fragments/i);
-  assert.match(prompt, /universal brown tint/i);
+  assert.match(prompt, /24–64 flat opaque shades/);
+  assert.match(prompt, /detached artifacts/i);
+  assert.match(prompt, /no universal colour palette/i);
   assert.match(prompt, /SUBJECT-BASED PALETTE:.*Aquatic or ice elements/);
   assert.match(prompt, /#FF00FF/);
   assert.doesNotMatch(prompt, /thick nearly-black NAVY outer outline/);
@@ -79,6 +79,9 @@ test('FLUX.2 receives the original detailed prompt; Schnell fallback receives th
       '@cf/black-forest-labs/flux-1-schnell',
     ]);
     assert.ok(calls[0].input.multipart, 'FLUX.2 must retain its detailed multipart input');
+    const form = await new Response(calls[0].input.multipart.body).formData();
+    assert.equal(form.getAll('input_image_0').length, 0, 'Never send a previous sprite or the style reference as image input');
+    assert.match(String(form.get('prompt')), /Obsidian Dragon/);
     assert.ok(calls[1].input.prompt.length <= 2048);
     assert.match(calls[1].input.prompt, /Obsidian Dragon/);
     assert.match(calls[1].input.prompt, /#FF00FF/);

@@ -28,7 +28,7 @@ export function buildSpritePrompt(key: string, variation = '', shiny = false): s
       ].join('\n')
       : '',
     variation
-      ? `This is a reroll. Variation token: ${JSON.stringify(variation)}. Keep the exact subject identity and the same art direction, but change the pose, orientation, silhouette emphasis, or secondary pixel details enough to be visibly different.`
+      ? `Generate a fresh standalone depiction, not an edit or reuse of another sprite. Variation token: ${JSON.stringify(variation)}. Preserve this exact named subject while changing pose, orientation, or small details; no previous image is supplied.`
       : '',
     '',
     BOOP_SPRITE_ART_STYLE,
@@ -44,7 +44,7 @@ export function buildSpritePrompt(key: string, variation = '', shiny = false): s
     '',
     'FINAL CHECK',
     '- Quality gate: a bold, COMPLETE silhouette occupying 85-95% of 128px canvas; 2-4px dark pixel outline, 24-64 clustered pixel shades, coherent parts, no noise, corrupted fragments, fake smooth gradients or missing limbs.',
-    '- Input image 0 is the user-approved SOFT-SERVE STYLE reference only. Transfer bold black outlined pixel clusters, depth and highlights, NEVER the food, wooden container or universal beige/brown palette. Every named element must remain unique.',
+    '- No source or previous sprite image is provided. Do not hallucinate or copy any other discovery. The exact requested name and subject anatomy exclusively determine the depicted content.',
     '- Output image only.',
   ].filter(Boolean).join('\n');
 }

@@ -1,26 +1,27 @@
 /**
- * Boop premium collectible pixel-art specification.
+ * Boop v17 bold collectible pixel-art style.
  *
- * The user-supplied reference is a chunky outlined soft-serve in a wooden tub,
- * NOT the object to copy. Transfer its bold outline, chunky but precise
- * clusters, saturated light/mid/dark ramps and tactile 3/4 silhouette to each
- * new named discovery. Existing player-owned artwork is preserved unchanged.
+ * Designed from the user's approved sprite example, but the example is NOT
+ * transmitted as an image to the inference provider. Passing a full example
+ * object as input_image_0 had caused object/content bleed between unrelated
+ * generations. Describe only the visual technique and output layout here.
+ * Existing player-owned artwork is never altered.
  */
-export const BOOP_SPRITE_ART_STYLE=[
- 'BOOP v16 BOLD COLLECTIBLE PIXEL ART. IMAGE 0 is the approved chunky outlined soft-serve pixel sprite. Transfer the visual TECHNIQUE ONLY: thick near-black stair-stepped contours, detailed hand-clustered pixel shading, bright clean highlights, strong form, polished 16-bit game inventory art. Do NOT copy the ice cream, tub, banana, fruit, tan/brown colours or wooden texture into unrelated subjects.',
- 'A SINGLE CLEAR, FUN, DISTINCT COLLECTIBLE with a large readable silhouette filling roughly 85–95% of a square 128x128 sprite canvas, centered, with only a narrow transparent gutter (4–8 pixels). The artwork is not a tiny floating icon or a flattened badge.',
- 'Three-quarter front/side viewpoint, slight dimensionality from hand-placed coloured pixel clusters; deliberately chunky deep-black/dark-chocolate 2–4 pixel stair-stepped outside outline plus inner contour accents. Form must be visible and well connected, never a loose line of glitch pieces.',
- 'Rich subject-specific palette with roughly 24–64 clustered pixel shades: warm or cool as the object requires. Use clean stepped shade bands, pixel-only crisp highlights, material-aware shadows, strongly differentiated light/midtone/dark values. Smooth LOOKING hand-drawn pixel shading is allowed but actual pixels stay hard edged. No soft focus, blurry gradients, automatic 3D rendering, painterly shading, tiny 44x38 silhouettes, or universal brown tint.',
- 'Subject fidelity is essential: recognizable anatomy and real functional details, large solid silhouette, visually interesting enough to collect. Food looks like food, gadgets like gadgets, living things with coherent body plans. Do NOT generate generic cube, plate, shard, floating blob, UI badge, or repeated object template.',
- 'Single isolated collectible sprite on perfectly UNIFORM #FF00FF magenta chroma key, with ZERO shadow, floor, environment, text, border, labels or extra background; game removes magenta to transparent. All object colours must be naturally plausible or intentionally fantasy-themed.',
- 'Sharp pixels, no anti-alias fringing, random noise, stray fragments, disconnected outlines, watermark or texture filter. Pixel craftsmanship and readability must match the bold supplied image, not its literal content.'
+export const BOOP_SPRITE_ART_STYLE = [
+  'BOOP v17 BOLD COLLECTIBLE PIXEL ART, a classic polished 16-bit inventory sprite. Independently illustrate ONLY the requested named subject, without any other objects or motifs inherited from earlier images.',
+  'One DISTINCT, clearly recognisable collectible item with a large, complete silhouette occupying roughly 85–95% of a square 128x128 sprite canvas, perfectly centered with a narrow transparent gutter (4–8 pixels). Avoid tiny icons and isolated fragments.',
+  'Strong dark 2–4 pixel stair-stepped outer outlines with confident connected contours; three-quarter front or side viewpoint where appropriate. Crisp handmade pixel clusters indicate dimension and material, not a smooth photorealistic 3D render.',
+  'Rich natural SUBJECT-SPECIFIC colour palette using roughly 24–64 flat opaque shades, with separated light/mid/dark bands, warm or cool colours as the named item requires, sharp pixel-level highlights and detailed but legible shading. Absolutely no universal colour palette or repeated body shapes.',
+  'Clear anatomy, plausible functional parts, and an interesting collectible silhouette faithful to the SUBJECT DESIGN. Do not add unrelated accessories, generic platforms, cubes, plates, creatures, decorative swirls or leftovers from any prior design.',
+  'ONE isolated sprite on perfectly UNIFORM solid #FF00FF magenta chroma key; absolutely no floor, frame, cast shadow, scene, writing, UI elements, other sprites or extra subjects. The app removes this chroma key to transparent pixels.',
+  'Pixel-perfect hard edges only; no antialias fringe, blurred gradients, generated 3D textures, noise, detached artifacts, garbled pixels or broken black outlines.',
 ].join('\n');
 
-export const BOOP_SPRITE_STYLE_COMPACT=[
- 'Bold 16-bit game collectible PIXEL ART matching the approved soft-serve reference STYLE ONLY, not its object or colours. 128x128 canvas; a single distinct object fills 85–95%, centered, narrow transparent border.',
- 'Strong dark 2–4px staircase outline and coherent connected silhouette; charming three-quarter view. Rich 24–64 flat clustered subject-specific colours, stepped shade bands, sharp pixel highlights and tactile detail.',
- 'Crisp actual pixels; NO tiny sprites, fuzzy gradients, 3D render, isometric cubes, garbled fragments, universal brown palette, copied dessert, floor, text or scenery.',
- 'Pure solid #FF00FF magenta chroma background for alpha removal; no cast shadow or frame.'
+export const BOOP_SPRITE_STYLE_COMPACT = [
+  'NEW independent 128x128 BOLD 16-bit PIXEL COLLECTIBLE of the named subject only. Large centered object fills 85–95% with a narrow transparent border; no unrelated motifs from another item.',
+  'Crisp thick 2–4px stair-stepped black/dark outline, vivid subject-specific palette with 24–64 flat clustered colours, dimensional hand-pixeled shading and bright sharp highlights. Charming 3/4 game-inventory presentation.',
+  'No other objects, generic cubes, repeated dessert-like shapes, leftover imagery, blurry gradients, 3D render or noisy fragments. Strong recognizable subject silhouette.',
+  'Pure uniform SOLID #FF00FF magenta backdrop for alpha removal; no floor, scene, cast shadow, text or label.',
 ].join('\n');
 
 /**

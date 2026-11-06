@@ -6,7 +6,7 @@ import { compactSchnellImagePrompt } from '../server/gemini';
 import { BOOP_MINI_REFERENCE_PNG_BASE64, BOOP_MINI_REFERENCE_VERSION, miniSpriteReferenceBlob } from '../server/spriteReference';
 import { composeMiniSpritePixels, alphaBounds, MINI_CANVAS_SIZE, MINI_FOOTPRINT_WIDTH, MINI_FOOTPRINT_HEIGHT } from '../src/lib/miniSpriteStyle';
 
-test('artist-uploaded reference is preserved verbatim for production FLUX.2 image conditioning', async()=>{
+test('approved pixel-art reference remains intact but is never sent as model input', async()=>{
   const bytes=readFileSync(new URL('../public/sprite-reference/bold-collectible-softserve.png',import.meta.url));
   assert.equal(Buffer.from(BOOP_MINI_REFERENCE_PNG_BASE64,'base64').equals(bytes),true);
   assert.equal(bytes.subarray(0,8).toString('hex'),'89504e470d0a1a0a');
@@ -92,5 +92,13 @@ test('offline preview uses full-sized 128px art; generated art only is processed
   assert.match(lab,/const b=alphaBounds\(pixels.data,width,height\)/);
   assert.match(lab,/targetSize=158/);
   assert.match(art,/Old saved art and uploaded sprites|saved\/uploads keep their exact bytes/i);
-  assert.match(model,/input_image_0.*miniSpriteReferenceBlob/);
+  assert.doesNotMatch(model, /input_image_0.*miniSpriteReferenceBlob\(\)/);
+  assert.doesNotMatch(model, /form\.append\('input_image_0'/);
+  assert.doesNotMatch(model, /import \{ miniSpriteReferenceBlob \}/);
+  const full=buildSpritePrompt('Clock Tower', 'reroll-isolated');
+  const other=buildSpritePrompt('Hedgehog', 'reroll-other');
+  assert.match(full, /Clock Tower/);
+  assert.match(other, /Hedgehog/);
+  assert.doesNotMatch(full, /soft.serve|wooden tub|ice cream/i);
+  assert.doesNotMatch(other, /soft.serve|wooden tub|ice cream/i);
 });

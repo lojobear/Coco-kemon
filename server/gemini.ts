@@ -4,7 +4,6 @@ import { getWorkersAiBinding } from './workersAi.js';
 import { generateRunwareSprite } from './runware.js';
 import { generateRunwaySprite, RunwayPendingError } from './runway.js';
 import { BOOP_SPRITE_STYLE_COMPACT } from './spriteStyle.js';
-import { miniSpriteReferenceBlob } from './spriteReference.js';
 import { ImageBudgetExceeded, safeImageSpendingEnabled, reserveFreeImageNeurons, FLUX2_KLEIN_512_NEURONS, FLUX1_SCHNELL_8STEP_NEURONS } from './imageSpendingGuard.js';
 
 export class ApiFailure extends Error {
@@ -441,8 +440,9 @@ async function generateWorkersAiImage(prompt: string): Promise<GeminiImageResult
         await reserveFreeImageNeurons(FLUX2_KLEIN_512_NEURONS);
         const form = new FormData();
         form.append('prompt', prompt);
-        // FLUX.2 supports reference-style conditioning in the same free-budgeted image request.
-        form.append('input_image_0', miniSpriteReferenceBlob(), 'bold-collectible-style-reference.png');
+        // Text-only art direction: sending the complete soft-serve reference
+        // as input_image_0 made unrelated items inherit parts of that subject.
+        // Each generation and reroll is independent of previous artwork.
         form.append('width', '512');
         form.append('height', '512');
         form.append('guidance', '4.5');
@@ -482,7 +482,6 @@ async function generateWorkersAiImage(prompt: string): Promise<GeminiImageResult
           try {
             const form = new FormData();
             form.append('prompt', `An original bold 16-bit pixel-art game collectible sprite of ${subject}; single recognizable item fills 85-95% of a centered 128x128 canvas, rich 24-64 grouped pixel colours, chunky dark 2-4px stair-stepped outlines, beautiful clustered material shading and highlights, unique true subject colors, absolutely uniform #FF00FF magenta background for transparency, no text, floor or scene.`);
-            form.append('input_image_0', miniSpriteReferenceBlob(), 'bold-collectible-style-reference.png');
             form.append('width', '512');
             form.append('height', '512');
             const serialized = new Response(form);
