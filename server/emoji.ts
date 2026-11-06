@@ -4,9 +4,10 @@ import { emojiKey } from '../src/lib/emojiGeometry.js';
 import { cachedWork } from './persistentCache.js';
 import { clientId, takeAiBudget } from './rateLimit.js';
 import { BOOP_SPRITE_ART_STYLE, spriteColorDirection, spriteSubjectDirection } from './spriteStyle.js';
+import { BOOP_MINI_REFERENCE_VERSION } from './spriteReference.js';
 
 // New model generations use the locked pixel style. Existing local/owned art remains saved.
-export const SPRITE_ENGINE_VERSION = 'v13-semantic-object-furni';
+export const SPRITE_ENGINE_VERSION = BOOP_MINI_REFERENCE_VERSION;
 
 type ImageGenerator = (prompt: string) => Promise<GeminiImageResult>;
 
@@ -42,8 +43,8 @@ export function buildSpritePrompt(key: string, variation = '', shiny = false): s
     '- Creatures need coherent anatomy and a normal limb count for their implied body plan unless the concept explicitly says otherwise.',
     '',
     'FINAL CHECK',
-    '- Quality gate: bold continuous 1-2-pixel darker-local-colour silhouette contours, vivid planes, solid unbroken geometry, absolutely no detached glitched pixels, corrupted seams or torn edges.',
-    '- Do not use any single universal palette, brown filter or reused silhouette: every discovered item must look like its uniquely named subject.',
+    '- Quality gate: miniature hand-placed one-pixel dark outlines and eight flat coloured shades, small coherent silhouette, no stray noise or gradients.',
+    '- Input image 0 (when provided) is a STYLE reference only. Match its tiny scale and pixel topology, NEVER its specific creature, exact blue palette or silhouette.',
     '- Output image only.',
   ].filter(Boolean).join('\n');
 }

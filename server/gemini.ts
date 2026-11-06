@@ -4,6 +4,7 @@ import { getWorkersAiBinding } from './workersAi.js';
 import { generateRunwareSprite } from './runware.js';
 import { generateRunwaySprite, RunwayPendingError } from './runway.js';
 import { BOOP_SPRITE_STYLE_COMPACT } from './spriteStyle.js';
+import { miniSpriteReferenceBlob } from './spriteReference.js';
 import { ImageBudgetExceeded, safeImageSpendingEnabled, reserveFreeImageNeurons, FLUX2_KLEIN_512_NEURONS, FLUX1_SCHNELL_8STEP_NEURONS } from './imageSpendingGuard.js';
 
 export class ApiFailure extends Error {
@@ -440,6 +441,8 @@ async function generateWorkersAiImage(prompt: string): Promise<GeminiImageResult
         await reserveFreeImageNeurons(FLUX2_KLEIN_512_NEURONS);
         const form = new FormData();
         form.append('prompt', prompt);
+        // FLUX.2 supports reference-style conditioning in the same free-budgeted image request.
+        form.append('input_image_0', miniSpriteReferenceBlob(), 'mini-sprite-reference.png');
         form.append('width', '512');
         form.append('height', '512');
         form.append('guidance', '4.5');
@@ -478,7 +481,8 @@ async function generateWorkersAiImage(prompt: string): Promise<GeminiImageResult
         if (subject && !/violence|weapon|sexual|nude|gore/i.test(subject)) {
           try {
             const form = new FormData();
-            form.append('prompt', `An original classic Habbo Hotel furni-inspired isometric pixel-art collectible of ${subject}; accurate unique silhouette, 2:1 isometric stair-stepped geometry, thin local-color outlines, true bright material palette, no sepia or brown unless naturally wooden, single centered object on flat #FF00FF magenta chroma background, no text or scene.`);
+            form.append('prompt', `An original tiny retro handheld pixel-art inventory sprite of ${subject}; reference 112x112 proportions, small 44x38 pixel footprint at bottom centre, 8 opaque flat colours, crisp dark single-pixel outline, true subject colours and uniform #FF00FF magenta backdrop for transparency; no text or scene.`);
+            form.append('input_image_0', miniSpriteReferenceBlob(), 'mini-sprite-reference.png');
             form.append('width', '512');
             form.append('height', '512');
             const serialized = new Response(form);

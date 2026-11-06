@@ -1,41 +1,24 @@
 /**
- * Original isometric virtual-hotel furniture / collectible sprite direction.
- * Inspired by the visual vocabulary of classic Habbo Hotel furni, not copied
- * from its proprietary sprite assets.
- *
- * The subject determines silhouette, material and colour. Shared style must
- * NEVER turn unrelated discoveries into the same brown wooden item.
+ * Pixel scale and colour clusters follow the user's original mini handheld
+ * reference at /sprite-reference/mini-handheld-master.png. This is a NEW
+ * generation direction only; saved uploads and artwork are never rewritten.
  */
 export const BOOP_SPRITE_ART_STYLE = [
-  'REFERENCE LOOK: richly rendered collectible game pixel art with the crisp stepped outlines and dimensional shading of a detailed isometric grandfather clock or colourful themed sushi; these are style examples only, not subjects to copy.',
-  'Use a clear, darker 1–2 pixel outline, confident pixel clusters, layered midtones, highlights and deep shadow planes. Show carefully chosen material details such as polished wood grain, gold trim, glass reflections, metal bevels or food texture ONLY where appropriate to the named subject.',
-  'Saturated, varied subject-led colours with balanced light and dark values; a polished miniature collectible with a three-quarter view, convincing depth, clean silhouette and authentic hand-placed pixel texture. Preserve recognizable natural shapes; do not force unrelated items into the sushi reference\'s cube shapes.',
-  'STYLE: original classic virtual-hotel FURNI / early-2000s social-room pixel art, like the tiny individually designed collectible furnishings in Habbo Hotel.',
-  'Render the EXACT named discovery as its own unique recognizable OBJECT, creature, food or collectible. The name decides what it looks like. Do NOT turn arbitrary concepts into generic furniture, wooden chests, relics, mugs, boxes or machines.',
-  'Clean orthographic ISOMETRIC 2:1 pixel-art perspective for solid objects: top surfaces as diamonds, left and right faces visibly distinct, parallel pixel stair-step edges. Not a front-facing emoji, not a perspective photograph, not a low-poly 3D render.',
-  'For subjects that are naturally flat/round/organic or alive, keep their true anatomy and use a matching 3/4 virtual-world sprite angle rather than forcing every form into a square box.',
-  'BOLD BUT PRECISE FURNI READABILITY: use a clearly visible 1–2 logical pixel outer contour in a DARKER VERSION OF EACH SUBJECT MATERIAL (deep pine-green for foliage, marine blue for ice, burgundy for red fruit, ink-purple for magic). Make the outside edge continuous, clean and contrast-rich, with thinner one-pixel internal seams. Never use the same heavy black/navy border on every item.',
-  'Strong, deliberate value contrast: bright top-left highlights, vivid clear midtones, a solid one-shade-darker side plane, and well-defined shadow-side edges. Use 4–6 distinctly separated solid pixel colours per MATERIAL; avoid nearly identical tones that make icons look washed-out or faint.',
-  'COLOR DIVERSITY MATTERS MORE THAN A SHARED PALETTE. Choose the true saturated colours of EACH subject, not a universal brown, tan, ochre, amber, copper, sepia or navy overlay. Most non-wooden sprites must contain NO brown at all.',
-  'Examples of correctly different materials: leaf = saturated green; water/ice = blue/cyan; magic = purple/pink; fire = scarlet/orange; metal = silver/slate; glass = cyan/white; food = its true ingredients; electronic device = appropriate plastic/screen colours; wood ONLY if named item actually has wood.',
-  'Each discovery needs a distinctly different silhouette, geometry and material response. A mushroom is not a brown generic chest; a river is not a brown orb; a battery is not a wooden relic.',
-  'Miniature furni-catalog scale: one well-designed isolated object, 72-84% of frame; enough surrounding air for a distinct silhouette. Items are collectible, not scene illustrations. Show 3D volume without excessive bevels.',
-  'Flat, confident, polished virtual-world pixel art with CLEAN PIXEL TOPOLOGY. Use continuous connected surfaces, properly attached feet/handles/limbs, straight orthographic edges and purposeful clusters. NO glitch-like artifacts: no broken outlines, stray pixels, duplicated/slipped seams, disconnected fragments, checkerboard patches, warped isometric geometry, phantom corners, random pixels, pixel noise, fuzzy anti-aliasing, jagged torn edges or missing surface pixels.',
-  'Visual quality check: every object should have a bold readable silhouette at 48px, consistent pixel-step diagonals, solid colour fills and only intentional details. Simplify a surface rather than inventing clutter.',
-  'Output on a single completely uniform SOLID #FF00FF chroma-magenta background. No pink/magenta inside the item; the client removes the background to transparency.',
-  'No floor tile, stand, stage, cast shadow, scene, UI card, text, letters, watermark, border, extra unrelated props, repeated subject or logo.',
-  'Draw an ORIGINAL isometric collectible in that visual genre. Do not duplicate any existing Habbo sprite design.',
+  'BOOP MINI HANDHELD: match the supplied 112x112 transparent reference image for pixel size, flat clustered shading, simple retro handheld RPG sprite outlines, and TINY on-canvas composition. Use the reference only for style and footprint, not to copy its subject or blue colours.',
+  'One unique recognisable creature, object or food drawn as a very small sprite with a foreground footprint of roughly 44x38 logical pixels inside a 112x112 square canvas, near the BOTTOM CENTRE (reference bounding box x=36..79, y=68..105). Lots of transparent space above.',
+  'Only 8 to 10 opaque flat shades: solid black or deep charcoal 1-pixel outline, small 1-pixel clustered highlights, confident midtones and minimal shadows. Every pixel a crisp solid-edged square. NO antialiasing, painterly texture, rendered gradients, glossy bevels, soft glow, dithering noise or photorealism.',
+  'Pose like a classic small handheld monster/item inventory sprite, from the side or a slight 3/4 angle. Respect the NAME and subject silhouette. No bulky isometric cubes, generic boxes, slabs or 2:1 hotel furniture perspectives.',
+  'Keep naturally accurate SUBJECT colours, not the blue-grey reference palette unless the named subject is actually blue-grey. No universal brown tint.',
+  'One isolated tiny object on uniform SOLID #FF00FF chroma-magenta background, no shadow, scenery, props, text, border, interface or watermark; the app converts this background to transparency.',
+  'Clean connected shapes, sparse detailing, no detached fake pixels, ragged seams or artifacts.',
 ].join('\n');
 
-/** FLUX.1 Schnell is restricted to 2,048 characters. */
+/** FLUX.1 Schnell requires under 2,048 prompt characters. */
 export const BOOP_SPRITE_STYLE_COMPACT = [
-  'Detailed collectible game pixel art: crisp isometric or natural 3/4 view, bold dark 1-2 pixel outlines and hand-placed pixel clusters.',
-  'Rich layered shading and material detail: bright highlights, saturated TRUE SUBJECT COLOURS, clear midtones and deep shadow planes. Show natural wood grain, metal shine, glass or food textures only when appropriate.',
-  'Exact recognizable SUBJECT with a unique natural silhouette; do not turn unrelated objects or living things into cubes, boxes, tiles, plates or sushi.',
-  'Use orthographic 2:1 isometric depth for solid objects, with visible top and side planes; preserve natural anatomy and form for organic subjects.',
-  'One centered object fills 72-84% of canvas. No repeated objects, stand, cast shadow, scenery, text, logos or border.',
-  'Uniform solid #FF00FF magenta background for transparency removal; no magenta inside the subject.',
-  'Crisp connected outlines and surfaces, no blur, broken seams, stray pixels, glitches, muddy brown filter or smooth 3D.',
+  'Tiny RETRO HANDHELD pixel sprite, match artist 112x112 reference composition: subject occupies about 44x38 pixels close to bottom centre; large empty margins.',
+  '8-10 flat solid colors, sharp black/dark one-pixel outline, clustered pixel highlights, deliberately tiny classic portable RPG style. True named subject silhouette and natural subject palette.',
+  'Natural side or slight 3/4 pose, NO isometric 2:1 furniture, bulky cubes, plates, photorealism, gradients, antialiasing or glowing effects.',
+  'Uniform SOLID #FF00FF chroma-magenta background for transparency; one isolated sprite, no shadow, scenery, text, watermark or props.',
 ].join('\n');
 
 /**
