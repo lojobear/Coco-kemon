@@ -7,16 +7,18 @@ import { getPersistentCacheBinding } from './cacheBinding.js';
  * and disable paid image-provider fallbacks in gemini.ts.
  *
  * This cannot restrict other Workers, products, taxes or exchange rates.
- * KV writes are eventually consistent and other Workers may use neurons;
- * 5,000 leaves 5,000 neurons of headroom below the 10,000 daily account quota.
- * This is a cost-reduction guard, not an account-wide billing guarantee.
+ * KV writes are eventually consistent and other Workers may use neurons.
+ * This 10,000-neuron per-day app limit equals Cloudflare's ACCOUNT-WIDE free
+ * allowance, leaving NO headroom for other Workers AI usage, concurrent
+ * requests or KV consistency delays. On Workers Paid, exceeding the account
+ * allocation may be billed. This guard is best-effort, NOT a hard billing cap.
  * It is also best-effort, not atomic: two concurrent reservations can read
  * the same stored total and both write back, so the limit can be exceeded
  * under concurrency. A truly atomic daily ledger would need a Durable
  * Object (or another strongly consistent store); that is not what this KV
  * guard is, and this file must not be described as one.
  */
-export const BOOP_DAILY_IMAGE_NEURON_LIMIT = 5000;
+export const BOOP_DAILY_IMAGE_NEURON_LIMIT = 10_000;
 export const FLUX2_KLEIN_512_NEURONS = 26.05;
 export const FLUX1_SCHNELL_8STEP_NEURONS = 4.8 + 8 * 9.6;
 const inMemory = new Map<string, number>();
