@@ -15,15 +15,15 @@ test('Daily per-app free neuron guard counts calls and fails closed at limit', a
     put: async (k,v)=>{kv.set(k,v);}
   });
   try {
-    assert.equal(BOOP_DAILY_IMAGE_NEURON_LIMIT, 5000);
+    assert.equal(BOOP_DAILY_IMAGE_NEURON_LIMIT, 10_000);
     assert.equal(FLUX2_KLEIN_512_NEURONS, 26.05);
     assert.equal(FLUX1_SCHNELL_8STEP_NEURONS, 81.6);
     assert.equal(utcBudgetDay(Date.UTC(2026,9,28,23,30)), '2026-10-28');
-    await reserveFreeImageNeurons(4900);
+    await reserveFreeImageNeurons(9900);
     await reserveFreeImageNeurons(80);
     await assert.rejects(reserveFreeImageNeurons(FLUX1_SCHNELL_8STEP_NEURONS), ImageBudgetExceeded);
     assert.equal(publicFailure(new ImageBudgetExceeded()).status, 429);
-    assert.equal([...kv.values()].map(v=>JSON.parse(v).neurons)[0], 4980);
+    assert.equal([...kv.values()].map(v=>JSON.parse(v).neurons)[0], 9980);
     setPersistentCacheBinding(undefined);
     await assert.rejects(reserveFreeImageNeurons(FLUX2_KLEIN_512_NEURONS), ImageBudgetExceeded);
   } finally {
@@ -39,7 +39,8 @@ test('the user-facing allowance message does not promise an account-wide cap', (
   assert.match(queue, /not an account-wide billing cap/);
   assert.doesNotMatch(queue, /without paid overages/);
   const guard = readFileSync(new URL('../server/imageSpendingGuard.ts', import.meta.url), 'utf8');
-  assert.match(guard, /best-effort, not atomic/);
+  assert.match(guard, /best-effort, NOT a hard billing cap/);
+  assert.match(guard, /leaving NO headroom/);
 });
 
 test('production config defaults to free-image-only and paid providers cannot bypass guard', () => {
