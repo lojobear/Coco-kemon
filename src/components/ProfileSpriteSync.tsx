@@ -27,6 +27,14 @@ export function ProfileSpriteSync() {
     let running = false;
     let dirty = false;
     let timer: ReturnType<typeof setTimeout>;
+    let idleHandle: number | undefined;
+    const cancelScheduled = () => {
+      clearTimeout(timer);
+      if (idleHandle !== undefined) {
+        (window as Window & { cancelIdleCallback?: (id: number) => void }).cancelIdleCallback?.(idleHandle);
+        idleHandle = undefined;
+      }
+    };
     const sync = async () => {
       if (!alive) return;
       if (running) { dirty = true; return; }
@@ -37,14 +45,29 @@ export function ProfileSpriteSync() {
       } catch { /* Visible status and retry live in Cloud saves. Local data is retained. */ }
       finally { running = false; if (dirty && alive) { dirty = false; schedule(); } }
     };
-    const schedule = () => { clearTimeout(timer); timer = setTimeout(() => void sync(), 1200); };
+    // Heavy legacy sprite comparisons and JSON exports must never compete
+    // with a crafting reveal or tab change on Android's single UI thread.
+    // Debounce rapid discovery writes, then perform the sync when idle.
+    const schedule = () => {
+      cancelScheduled();
+      timer = setTimeout(() => {
+        const requestIdle = (window as Window & {
+          requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number;
+        }).requestIdleCallback;
+        if (requestIdle) idleHandle = window.requestIdleCallback!(() => {
+          idleHandle = undefined;
+          void sync();
+        }, { timeout: 4500 });
+        else void sync();
+      }, 2500);
+    };
     schedule();
     window.addEventListener(SAVE_CHANGED_EVENT, schedule);
     window.addEventListener('quarkpop-sprite-ready', schedule);
     window.addEventListener('quarkpop-retry-sprites', schedule);
     window.addEventListener('online', schedule);
     return () => {
-      alive = false; clearTimeout(timer);
+      alive = false; cancelScheduled();
       window.removeEventListener(SAVE_CHANGED_EVENT, schedule);
       window.removeEventListener('quarkpop-sprite-ready', schedule);
       window.removeEventListener('quarkpop-retry-sprites', schedule);
