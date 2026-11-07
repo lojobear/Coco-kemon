@@ -62,6 +62,7 @@ export function mergeFoundryIntoCraft(
     insert(oddkin.speciesName, '🐾', {
       explanation: (oddkin.description || 'Discovered in Foundry').slice(0, 280),
       connection: 'Oddkin',
+      customSpriteUrl: storedArtwork(oddkin.customSpriteUrl),
     });
   }
   return additions.length ? [...craft, ...additions] : craft as InfiniteElement[];
