@@ -1,18 +1,11 @@
-/**
- * Pixel-art collectible output matched to the user's soft-serve reference.
- * 128×128 transparent PNG; one substantial centered shape, 6–8px margin.
- * Bold dark contours, rich but controlled colour clusters and crisp edges.
- *
- * Only brand-new AI-generated images go through this compositor. Existing
- * uploads, cached art and profile-synced images remain bit-for-bit unchanged.
- * The palette limit is 64 (not the earlier destructive 8/20-colour cap).
- */
-export const MINI_CANVAS_SIZE=128;
-export const MINI_FOOTPRINT_WIDTH=116;
-export const MINI_FOOTPRINT_HEIGHT=116;
-export const MINI_FOOTPRINT_CENTER_X=64;
-export const MINI_FOOTPRINT_BOTTOM=122;
-export const MINI_MAX_OPAQUE_COLORS=64;
+/** Compact 112px isometric furni output for newly generated art only.
+ * Cached images and user uploads remain untouched. */
+export const MINI_CANVAS_SIZE=112;
+export const MINI_FOOTPRINT_WIDTH=70;
+export const MINI_FOOTPRINT_HEIGHT=70;
+export const MINI_FOOTPRINT_CENTER_X=56;
+export const MINI_FOOTPRINT_BOTTOM=91;
+export const MINI_MAX_OPAQUE_COLORS=40;
 
 export interface AlphaBounds {left:number;top:number;right:number;bottom:number;width:number;height:number}
 export function alphaBounds(data: Uint8ClampedArray,width:number,height:number):AlphaBounds|null {
