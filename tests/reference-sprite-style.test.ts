@@ -16,17 +16,17 @@ test('approved pixel-art reference remains intact but is never sent as model inp
   assert.equal(SPRITE_ENGINE_VERSION,BOOP_MINI_REFERENCE_VERSION);
 });
 
-test('new default, shiny and reroll prompts use bold collectible pixel art across image providers',()=>{
+test('new default, shiny and reroll prompts use compact isometric furni pixel art across image providers',()=>{
   const full=buildSpritePrompt('Grandfather Clock');
-  assert.match(full,/128x128/);
-  assert.match(full,/85–95%/);
-  assert.match(full,/24–64 flat opaque shades/);
+  assert.match(full,/112x112/);
+  assert.match(full,/50–65%/);
+  assert.match(full,/16–40 flat pixel colours/);
   assert.match(full,/centered/i);
-  assert.doesNotMatch(full,/2:1 isometric|virtual-hotel FURNI/);
+  assert.match(full,/2:1 isometric/i);
   const compact=compactSchnellImagePrompt(full);
   assert.ok(compact.length<=2048);
-  assert.match(compact,/128x128/);
-  assert.match(compact,/85–95%/);
+  assert.match(compact,/112x112/);
+  assert.match(compact,/50–65%/);
   assert.match(compact,/#FF00FF/);
   const shiny=buildSpritePrompt('Fox','',true);
   assert.match(shiny,/SHINY \/ ALTERNATE COLORWAY/);
@@ -35,7 +35,7 @@ test('new default, shiny and reroll prompts use bold collectible pixel art acros
   assert.match(compactSchnellImagePrompt(buildSpritePrompt('Clock','other-angle')),/other-angle/);
 });
 
-test('new generated sprites fill a 128px canvas and preserve up to 64 colours',()=>{
+test('new generated sprites use compact 112px canvas and up to 40 colours',()=>{
   const width=64,height=64;
   const src=new Uint8ClampedArray(width*height*4);
   for(let y=5;y<55;y++)for(let x=7;x<59;x++){
@@ -48,15 +48,15 @@ test('new generated sprites fill a 128px canvas and preserve up to 64 colours',(
   assert.ok(box);
   assert.ok(box!.width<=MINI_FOOTPRINT_WIDTH);
   assert.ok(box!.height<=MINI_FOOTPRINT_HEIGHT);
-  assert.equal(box!.bottom,121);
-  assert.ok(box!.top>=6);
+  assert.equal(box!.bottom,90);
+  assert.ok(box!.top>=21);
   const palette=new Set<string>();
   for(let p=0;p<output.length;p+=4){
     if(output[p+3]===0)continue;
     assert.equal(output[p+3],255);
     palette.add(`${output[p]},${output[p+1]},${output[p+2]}`);
   }
-  assert.ok(palette.size<=64);
+  assert.ok(palette.size<=40);
   assert.throws(()=>composeMiniSpritePixels(new Uint8ClampedArray(16),2,2),/no usable silhouette/);
 });
 
@@ -81,11 +81,11 @@ test('bold near-black outlines and subject colours survive the new quantizer',()
   assert.ok(colors.has('62,172,229'),'cool subject tones remain');
 });
 
-test('offline preview uses full-sized 128px art; generated art only is processed',()=>{
+test('offline preview uses compact 112px art; generated art only is processed',()=>{
   const fresh=readFileSync(new URL('../src/lib/freshPixelArt.ts',import.meta.url),'utf8');
   const art=readFileSync(new URL('../src/lib/elementEmoji.ts',import.meta.url),'utf8');
   const model=readFileSync(new URL('../server/gemini.ts',import.meta.url),'utf8');
-  assert.match(fresh,/viewBox="0 0 128 128"/);
+  assert.match(fresh,/viewBox="0 0 112 112"/);
   assert.match(art,/composeMiniSpritePixels/);
   const lab=readFileSync(new URL('../src/components/SpriteLabModal.tsx',import.meta.url),'utf8');
   assert.match(lab,/ZoomedLabSprite target=\{selected\}/);
