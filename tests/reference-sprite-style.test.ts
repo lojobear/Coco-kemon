@@ -21,7 +21,7 @@ test('new default, shiny and reroll prompts use compact isometric furni pixel ar
   assert.match(full,/112x112/);
   assert.match(full,/50–65%/);
   assert.match(full,/16–40 flat pixel colours/);
-  assert.match(full,/centered/i);
+  assert.match(full,/Center in a 112x112 canvas/i);
   assert.match(full,/2:1 isometric/i);
   const compact=compactSchnellImagePrompt(full);
   assert.ok(compact.length<=2048);
