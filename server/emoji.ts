@@ -43,7 +43,7 @@ export function buildSpritePrompt(key: string, variation = '', shiny = false): s
     '- Creatures need coherent anatomy and a normal limb count for their implied body plan unless the concept explicitly says otherwise.',
     '',
     'FINAL CHECK',
-    '- Quality gate: a bold, COMPLETE silhouette occupying 85-95% of 128px canvas; 2-4px dark pixel outline, 24-64 clustered pixel shades, coherent parts, no noise, corrupted fragments, fake smooth gradients or missing limbs.',
+    '- Quality gate: a compact recognizable 2:1 isometric silhouette occupying 50–65% of a 112px canvas; 1–2px local-colour outlines, 16–40 clustered pixel shades, coherent parts, no noise, corrupted fragments, fake smooth gradients or missing limbs.',
     '- No source or previous sprite image is provided. Do not hallucinate or copy any other discovery. The exact requested name and subject anatomy exclusively determine the depicted content.',
     '- Output image only.',
   ].filter(Boolean).join('\n');
