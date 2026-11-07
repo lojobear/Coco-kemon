@@ -16,11 +16,13 @@ import { discoveryIdentity, mergeFoundryIntoCraft } from './unifiedCollection';
  */
 export function mergeSharedDiscoveries(craft: InfiniteElement[], materials: readonly Material[], oddkinCollection: readonly Oddkin[] = []): InfiniteElement[] {
   const names = new Set(craft.map(item => discoveryIdentity(item.name)));
-  const shared = [...craft];
+  // Preserve identity on no-op merges so mounted Craft galleries do not rerender.
+  let shared = craft;
   for (const material of materials) {
     const key = discoveryIdentity(material.displayName);
     if (!key || names.has(key)) continue;
     names.add(key);
+    if (shared === craft) shared = [...craft];
     shared.push({ id: `foundry_${material.id}`, name: material.displayName, emoji: '✨',
       customSpriteUrl: material.customSpriteUrl, discoveredAt: material.discoveredAt,
       explanation: material.discoveryExplanation || undefined });
