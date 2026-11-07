@@ -1,27 +1,19 @@
-/**
- * Boop v17 bold collectible pixel-art style.
- *
- * Designed from the user's approved sprite example, but the example is NOT
- * transmitted as an image to the inference provider. Passing a full example
- * object as input_image_0 had caused object/content bleed between unrelated
- * generations. Describe only the visual technique and output layout here.
- * Existing player-owned artwork is never altered.
- */
+/** Boop v18 compact isometric furni style, matching the user's earlier sprite gallery.
+ * No image input is sent to the AI; reroll isolation remains enabled. */
 export const BOOP_SPRITE_ART_STYLE = [
-  'BOOP v17 BOLD COLLECTIBLE PIXEL ART, a classic polished 16-bit inventory sprite. Independently illustrate ONLY the requested named subject, without any other objects or motifs inherited from earlier images.',
-  'One DISTINCT, clearly recognisable collectible item with a large, complete silhouette occupying roughly 85–95% of a square 128x128 sprite canvas, perfectly centered with a narrow transparent gutter (4–8 pixels). Avoid tiny icons and isolated fragments.',
-  'Strong dark 2–4 pixel stair-stepped outer outlines with confident connected contours; three-quarter front or side viewpoint where appropriate. Crisp handmade pixel clusters indicate dimension and material, not a smooth photorealistic 3D render.',
-  'Rich natural SUBJECT-SPECIFIC colour palette using roughly 24–64 flat opaque shades, with separated light/mid/dark bands, warm or cool colours as the named item requires, sharp pixel-level highlights and detailed but legible shading. Absolutely no universal colour palette or repeated body shapes.',
-  'Clear anatomy, plausible functional parts, and an interesting collectible silhouette faithful to the SUBJECT DESIGN. Do not add unrelated accessories, generic platforms, cubes, plates, creatures, decorative swirls or leftovers from any prior design.',
-  'ONE isolated sprite on perfectly UNIFORM solid #FF00FF magenta chroma key; absolutely no floor, frame, cast shadow, scene, writing, UI elements, other sprites or extra subjects. The app removes this chroma key to transparent pixels.',
-  'Pixel-perfect hard edges only; no antialias fringe, blurred gradients, generated 3D textures, noise, detached artifacts, garbled pixels or broken black outlines.',
+ 'BOOP v18 COMPACT ISOMETRIC FURNI PIXEL ART. Illustrate only the named subject as a charming small retro game-object sprite, like classic virtual-hotel furniture, independently from every other sprite.',
+ 'Use a 2:1 isometric or slight three-quarter object view, showing its top and side faces where appropriate. Center in a 112x112 canvas; the item occupies roughly 50–65% of canvas width and height, about 55–72 pixels, with generous empty margins.',
+ 'Precise 1–2px local-colour stair-stepped outlines and small dark accents, clean pixel clusters, tidy highlights and stepped shading. Avoid thick uniform black sticker outlines, oversized full-frame heroes and flat badges.',
+ 'Subject-specific bright 16–40 flat pixel colours; natural light/mid/shadow values. Preserve material textures, functional anatomy and strong readability without muddy universal brown tint, blur or noise.',
+ 'Each item has a distinct recognizable silhouette, not a generic cube, plate, crate or pedestal unless the subject actually is one. No unrelated accessories or previous-image motifs.',
+ 'One isolated pixel-art object on absolutely uniform #FF00FF magenta chroma background for transparency removal. No floor, scenery, cast shadow, frame, writing or extra subjects.',
+ 'Rerolls are fresh standalone depictions; never reuse the prior subject or image. Crisp hard-edged pixels only; no photoreal 3D rendering or disconnected fragments.'
 ].join('\n');
-
 export const BOOP_SPRITE_STYLE_COMPACT = [
-  'NEW independent 128x128 BOLD 16-bit PIXEL COLLECTIBLE of the named subject only. Large centered object fills 85–95% with a narrow transparent border; no unrelated motifs from another item.',
-  'Crisp thick 2–4px stair-stepped black/dark outline, vivid subject-specific palette with 24–64 flat clustered colours, dimensional hand-pixeled shading and bright sharp highlights. Charming 3/4 game-inventory presentation.',
-  'No other objects, generic cubes, repeated dessert-like shapes, leftover imagery, blurry gradients, 3D render or noisy fragments. Strong recognizable subject silhouette.',
-  'Pure uniform SOLID #FF00FF magenta backdrop for alpha removal; no floor, scene, cast shadow, text or label.',
+ 'BOOP v18 small 2:1 ISOMETRIC FURNI PIXEL ART of the named subject only. Center in 112x112 canvas; item fills 50–65% of canvas with generous clear margins.',
+ 'Clean 1–2px local-colour outlines, charming angled 3/4 view, 16–40 subject-specific flat pixel colours, crisp stepped highlights and compact shadows, readable object details.',
+ 'Not a giant sticker, thick black border, generic cube, baseplate, noisy fragment, blurry gradient or copied previous item.',
+ 'Solid #FF00FF magenta background for transparent cutout; no floor, scenery, cast shadow, text or frame.'
 ].join('\n');
 
 /**
