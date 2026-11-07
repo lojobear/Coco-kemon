@@ -12,13 +12,13 @@ function verboseSpritePrompt() {
   ].join('\n');
 }
 
-test('Schnell compact prompt fits model limit and keeps bold 16-bit collectible style', () => {
+test('Schnell compact prompt fits model limit and keeps compact isometric furni style', () => {
   const prompt = compactSchnellImagePrompt(verboseSpritePrompt());
   assert.ok(prompt.length <= 2048);
   assert.match(prompt, /Obsidian Dragon/);
   assert.match(prompt, /upgrade-abc123/);
-  assert.match(prompt, /128x128/);
-  assert.match(prompt, /85–95%/);
+  assert.match(prompt, /112x112/);
+  assert.match(prompt, /50–65%/);
   assert.match(prompt, /subject-specific palette/i);
   assert.match(prompt, /#FF00FF/);
   assert.doesNotMatch(prompt, /BLACK-NAVY #1C2232/);
@@ -37,12 +37,12 @@ test('Subject-specific art direction avoids global brown cast and repeated gener
   assert.notEqual(lake, leaf);
   assert.notEqual(lake, battery);
   const prompt = buildSpritePrompt('Ice Lake');
-  assert.match(prompt, /BOOP v17 BOLD COLLECTIBLE PIXEL ART/);
-  assert.match(prompt, /128x128/);
-  assert.match(prompt, /85–95%/);
-  assert.match(prompt, /24–64 flat opaque shades/);
-  assert.match(prompt, /detached artifacts/i);
-  assert.match(prompt, /no universal colour palette/i);
+  assert.match(prompt, /BOOP v18 COMPACT ISOMETRIC FURNI PIXEL ART/);
+  assert.match(prompt, /112x112/);
+  assert.match(prompt, /50–65%/);
+  assert.match(prompt, /16–40 flat pixel colours/);
+  assert.match(prompt, /disconnected fragments/i);
+  assert.match(prompt, /muddy universal brown tint/i);
   assert.match(prompt, /SUBJECT-BASED PALETTE:.*Aquatic or ice elements/);
   assert.match(prompt, /#FF00FF/);
   assert.doesNotMatch(prompt, /thick nearly-black NAVY outer outline/);
