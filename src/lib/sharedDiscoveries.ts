@@ -1,6 +1,6 @@
 import type { InfiniteElement } from './infiniteCraftData';
-import type { Material } from '../types';
-import { discoveryIdentity } from './unifiedCollection';
+import type { Material, Oddkin } from '../types';
+import { discoveryIdentity, mergeFoundryIntoCraft } from './unifiedCollection';
 
 /**
  * Shared discoveries, re-applied from PR #107 on the restored base.
@@ -14,7 +14,7 @@ import { discoveryIdentity } from './unifiedCollection';
  * Deduplication uses discoveryIdentity (NFKC, whitespace-collapsed, lowercase),
  * which is slightly stricter than #107's trim-only normalisation.
  */
-export function mergeSharedDiscoveries(craft: InfiniteElement[], materials: Material[]): InfiniteElement[] {
+export function mergeSharedDiscoveries(craft: InfiniteElement[], materials: readonly Material[], oddkinCollection: readonly Oddkin[] = []): InfiniteElement[] {
   const names = new Set(craft.map(item => discoveryIdentity(item.name)));
   const shared = [...craft];
   for (const material of materials) {
@@ -25,5 +25,7 @@ export function mergeSharedDiscoveries(craft: InfiniteElement[], materials: Mate
       customSpriteUrl: material.customSpriteUrl, discoveredAt: material.discoveredAt,
       explanation: material.discoveryExplanation || undefined });
   }
-  return shared;
+  // Include live Foundry creatures, not only materials. Keep the projection
+  // read-only and reuse the save merge's Oddkin identity/metadata rules.
+  return mergeFoundryIntoCraft(shared, { oddkinCollection });
 }

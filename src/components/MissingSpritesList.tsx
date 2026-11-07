@@ -10,6 +10,7 @@ import {
 import {
   spriteInventoryItems, spriteInventoryState, type SpriteInventoryState,
 } from '../lib/missingSpriteInventory';
+import { scanSpriteReadiness } from '../lib/spriteScan';
 
 type View = 'needs' | 'all' | 'ready';
 type ScanStatus = Record<string, boolean>;
@@ -44,40 +45,26 @@ export function MissingSpritesList({
   }, []);
 
 
-  // Cache/profile-only discovery. No image API requests or credits are used.
-  // Scan in short chunks so long collections never freeze the Pixel's UI.
+  // Scan saved/profile art in bounded batches to keep Android scrolling responsive.
   useEffect(() => {
     let cancelled = false;
     setChecked(0);
     setScanned({});
-    const scan = async () => {
-      const toCheck = items.filter(item => !item.customArt);
-      const ready: ScanStatus = {};
-      let progress = 0;
-      for (let i = 0; i < toCheck.length && !cancelled; i += 4) {
-        const chunk = toCheck.slice(i, i + 4);
-        const results = await Promise.all(chunk.map(async entry => {
-          try {
-            return Boolean(await getElementEmoji(entry.name, false, '', false, entry.shiny));
-          } catch {
-            return false;
-          }
-        }));
-        for (let j = 0; j < chunk.length; j++) ready[chunk[j].key] = results[j];
-        progress += chunk.length;
-        if (!cancelled) {
-          setScanned({ ...ready });
-          setChecked(progress);
-        }
-        // Yield between chunks to keep the page scroll and buttons responsive.
-        await new Promise(resolve => setTimeout(resolve, 0));
-      }
-    };
-    void scan();
+    const toCheck = items.filter(item => !item.customArt);
+    void scanSpriteReadiness(
+      toCheck,
+      async (name, shiny) => Boolean(await getElementEmoji(name, false, '', false, shiny)),
+      (batch, progress) => {
+        if (cancelled) return;
+        setScanned(previous => ({ ...previous, ...batch }));
+        setChecked(progress);
+      },
+      () => cancelled,
+    );
     return () => { cancelled = true; };
   }, [items]);
 
-  useEffect(() => {
+    useEffect(() => {
     const refresh = () => setQueue(artworkQueueEntries());
     window.addEventListener(ARTWORK_QUEUE_EVENT, refresh);
     return () => window.removeEventListener(ARTWORK_QUEUE_EVENT, refresh);

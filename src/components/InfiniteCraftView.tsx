@@ -171,7 +171,7 @@ export function sanitizeElements(list: InfiniteElement[]): InfiniteElement[] {
 }
 
 export function InfiniteCraftView() {
-  const { setActiveTab, materials: foundryMaterials } = useGame();
+  const { setActiveTab, materials: foundryMaterials, oddkinCollection: foundryOddkin } = useGame();
   const showFreeform = true;
   const [ingredientFilter, setIngredientFilter] = useState<'all' | 'new' | 'shiny'>('all');
   const [lastResult, setLastResult] = useState<InfiniteElement | null>(null);
@@ -443,7 +443,7 @@ export function InfiniteCraftView() {
   // materials discovered while Craft is mounted surface here immediately,
   // without rewriting either saved collection. Saved state still uses
   // `elements` (see the save effect), never this derived list.
-  const sharedElements = useMemo(() => mergeSharedDiscoveries(elements, foundryMaterials), [elements, foundryMaterials]);
+  const sharedElements = useMemo(() => mergeSharedDiscoveries(elements, foundryMaterials, foundryOddkin), [elements, foundryMaterials, foundryOddkin]);
 
   const filteredElements = useMemo(() => {
     let list = sanitizeElements(sharedElements);
@@ -870,11 +870,16 @@ export function InfiniteCraftView() {
       const key = discoveryIdentity(item.displayName);
       if (!next.has(key) && item.customSpriteUrl && !isProceduralDefault(item)) next.set(key, item.customSpriteUrl);
     }
+    // Sprite updates for live Oddkin should appear without changing tabs.
+    for (const oddkin of foundryOddkin) {
+      const key = discoveryIdentity(oddkin.speciesName);
+      if (!next.has(key) && oddkin.customSpriteUrl) next.set(key, oddkin.customSpriteUrl);
+    }
     const previous = lastCustomSprites.current;
     if (next.size === previous.size && [...next].every(([name, url]) => previous.get(name) === url)) return previous;
     lastCustomSprites.current = next;
     return next;
-  }, [elements, foundryMaterials]);
+  }, [elements, foundryMaterials, foundryOddkin]);
 
   const selectIngredient = (element: InfiniteElement) => {
     spawnOnCanvas(element.name, element.emoji, Boolean(element.isShiny));

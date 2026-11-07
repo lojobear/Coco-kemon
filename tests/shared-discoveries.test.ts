@@ -30,3 +30,14 @@ test('a Foundry item never overwrites a Craft entry of the same name', () => {
   assert.equal(result.length, 1);
   assert.equal(result[0].customSpriteUrl, 'craft-art');
 });
+
+test('live Oddkin are visible in Craft without mutating either source', () => {
+  const craft = [{ id: 'fox', name: 'Fox', emoji: '🦊', craftCount: 12 }];
+  const oddkin = [{ speciesId: 'odd_1', speciesName: 'Starlight Moth',
+    customSpriteUrl: 'data:image/png;base64,' + 'a'.repeat(120) }] as any[];
+  const merged = mergeSharedDiscoveries(craft, [], oddkin);
+  assert.deepEqual(merged.map(item => item.name), ['Fox', 'Starlight Moth']);
+  assert.equal(merged[0], craft[0]);
+  assert.equal(merged[1].customSpriteUrl, oddkin[0].customSpriteUrl);
+  assert.equal(mergeSharedDiscoveries(merged, [], oddkin), merged);
+});
