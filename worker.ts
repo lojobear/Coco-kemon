@@ -3,6 +3,8 @@ import { app } from './server.js';
 import { setWorkersAiBinding } from './server/workersAi.js';
 import { setPersistentCacheBinding } from './server/cacheBinding.js';
 import { runRecoveryPass } from './server/spriteRecovery.js';
+import { setImageBudgetBinding } from './server/imageBudgetBinding.js';
+export { BoopImageBudgetLedger } from './server/imageBudgetLedger.js';
 
 // nodejs_compat populates process.env from text/secret bindings at this compatibility date.
 // Workers AI is an object binding, so expose it to the shared Express server explicitly.
@@ -14,14 +16,16 @@ app.use((error: any, _req: any, res: any, _next: any) => {
 app.listen(3000);
 
 export default {
-  fetch(request: Request, env: { AI?: any; QUARKPOP_CACHE?: any }) {
+  fetch(request: Request, env: { AI?: any; QUARKPOP_CACHE?: any; BOOP_IMAGE_BUDGET?: any }) {
     setWorkersAiBinding(env.AI);
     setPersistentCacheBinding(env.QUARKPOP_CACHE);
+    setImageBudgetBinding(env.BOOP_IMAGE_BUDGET);
     return handleAsNodeRequest(3000, request);
   },
-  scheduled(_event: unknown, env: { AI?: any; QUARKPOP_CACHE?: any }, ctx: { waitUntil(p: Promise<unknown>):void }) {
+  scheduled(_event: unknown, env: { AI?: any; QUARKPOP_CACHE?: any; BOOP_IMAGE_BUDGET?: any }, ctx: { waitUntil(p: Promise<unknown>):void }) {
     setWorkersAiBinding(env.AI);
     setPersistentCacheBinding(env.QUARKPOP_CACHE);
+    setImageBudgetBinding(env.BOOP_IMAGE_BUDGET);
     ctx.waitUntil(runRecoveryPass().then(report => console.info('Boop scheduled sprite recovery', report))
       .catch(error => console.warn('Boop scheduled recovery retry pending:', String(error).slice(0,220))));
   },

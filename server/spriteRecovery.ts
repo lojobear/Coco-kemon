@@ -5,7 +5,7 @@ import { cachedWork, readPersistentJson } from './persistentCache.js';
 import { generateGeminiImage, publicFailure, ApiFailure, type GeminiImageResult } from './gemini.js';
 import { buildSpritePrompt, SPRITE_ENGINE_VERSION } from './emoji.js';
 import { clientId, takeAiBudget } from './rateLimit.js';
-import { BOOP_DAILY_IMAGE_NEURON_LIMIT, ImageBudgetExceeded, safeImageSpendingEnabled, utcBudgetDay } from './imageSpendingGuard.js';
+import { BOOP_DAILY_IMAGE_NEURON_LIMIT, ImageBudgetExceeded, safeImageSpendingEnabled, getImageNeuronsUsed } from './imageSpendingGuard.js';
 
 const PREFIX = 'boop:recovery:v1:';
 const CACHE_NAMESPACE = 'element-sprite-v9';
@@ -104,9 +104,7 @@ export function nextUtcReset(now = Date.now()) {
   return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()+1) + 5000;
 }
 export async function getRecoveryBudget() {
-  const kv = getPersistentCacheBinding();
-  const record = await kv?.get('boop:image-free-neurons:v1:'+utcBudgetDay(), 'json') as { neurons?: number } | null;
-  const used = Math.max(0, Number(record?.neurons) || 0);
+  const used = await getImageNeuronsUsed();
   return { used: Math.min(BOOP_DAILY_IMAGE_NEURON_LIMIT, used),
     limit: BOOP_DAILY_IMAGE_NEURON_LIMIT,
     remaining: Math.max(0, BOOP_DAILY_IMAGE_NEURON_LIMIT - used), resetAt:nextUtcReset() };
