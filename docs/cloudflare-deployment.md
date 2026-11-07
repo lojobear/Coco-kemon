@@ -36,6 +36,25 @@ Authentication → URL Configuration → Redirect URLs. If this is the primary a
 use it as the Site URL too. Start a fresh login from that same address. An old
 Cloud Run Site URL can send users back to the previous deployment.
 
+## One-time Durable Object budget migration
+
+Boop's free-image budget now uses the `BOOP_IMAGE_BUDGET` Durable Object
+defined in `wrangler.jsonc`. That object serializes image-neuron reservations
+across simultaneous Worker requests. The prior day's KV values are read during
+migration so switching ledgers does not grant extra allowance mid-day.
+
+**On first release only:** Cloudflare's `wrangler versions upload` preview
+command cannot apply a new Durable Object migration. An authorized operator
+must run `npx wrangler deploy` once with the approved commit to apply migration
+`v1-image-budget-ledger`. After that, normal `wrangler versions upload`
+works again. Do not try to deploy a pending migration as a preview alone.
+
+Keep `BOOP_SAFE_SPENDING=1` and the `QUARKPOP_CACHE` KV binding. If the
+Durable Object binding, ledger, or legacy KV is unavailable, Boop fails closed
+for new image inference until restored. The 10,000-neuron Boop limit is **not**
+an account-level spending cap: other Workers AI, Durable Object operations,
+or Cloudflare products may still incur usage charges.
+
 ## Verification
 
 Run `npm test`, `npm run lint`, and `npm run test:cloudflare`.
