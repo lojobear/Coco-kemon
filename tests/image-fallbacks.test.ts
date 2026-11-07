@@ -19,7 +19,7 @@ test('Schnell compact prompt fits model limit and keeps compact isometric furni 
   assert.match(prompt, /upgrade-abc123/);
   assert.match(prompt, /112x112/);
   assert.match(prompt, /50–65%/);
-  assert.match(prompt, /subject-specific palette/i);
+  assert.match(prompt, /subject-specific flat pixel colours/i);
   assert.match(prompt, /#FF00FF/);
   assert.doesNotMatch(prompt, /BLACK-NAVY #1C2232/);
 });
