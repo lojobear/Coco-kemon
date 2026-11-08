@@ -14,6 +14,8 @@ export interface InfiniteElement {
   id: string;
   name: string;
   emoji: string;
+  /** Persisted automatic collection shelf; legacy saves are classified on read. */
+  category?: string;
   customSpriteUrl?: string;
   discoveredAt?: number;
   isNew?: boolean;

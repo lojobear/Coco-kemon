@@ -1,6 +1,7 @@
 import type { Material } from '../types.js';
 import { STARTER_MATERIALS } from './starterData.js';
 import { spriteDescriptorForConcept } from './pixelRenderer.js';
+import { categoryForDiscovery } from './collectionCategories.js';
 
 /** Keep the legacy save shape while allowing any named discovery as an input. */
 export function conceptMaterial(concept: { result: string; emoji: string; explanation?: string; connection?: string }, parents: Material[] = [], processId = 'MIX'): Material {
@@ -10,7 +11,7 @@ export function conceptMaterial(concept: { result: string; emoji: string; explan
     id: `concept_${encodeURIComponent(concept.result.trim().toLowerCase())}`,
     canonicalName: concept.result.trim().toUpperCase(), displayName: concept.result.trim(),
     description: concept.explanation || `A discovered concept: ${concept.result}.`,
-    category: concept.connection === 'brand' ? 'Brands' : concept.connection === 'character' ? 'Characters' : concept.connection === 'biology' ? 'Animals' : concept.connection === 'food' ? 'Food' : concept.connection === 'pop-culture' ? 'Pop Culture' : 'Discoveries',
+    category: categoryForDiscovery({ name: concept.result, connection: concept.connection }),
     subcategory: concept.connection || 'Concept', stateOfMatter: 'amorphous', temperatureClass: 'ambient',
     properties: Object.fromEntries(Object.keys(template.properties).map(key => [key, false])) as unknown as Material['properties'],
     semanticTags: [concept.result, concept.connection || 'concept', concept.emoji],
