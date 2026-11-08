@@ -3,15 +3,22 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 const file=(p:string)=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
 
-test('Boop keeps white and charcoal colors while using readable Outfit typography',()=>{
+test('Boop keeps white and charcoal colors with Space Grotesk title and Fredoka UI',()=>{
   const boop=file('src/boop.css');
   const css=file('src/index.css');
   const html=file('index.html');
   assert.match(boop,/--boop-canvas: #ffffff/);
   assert.match(boop,/--boop-forest: #242a31/);
-  assert.match(boop,/--font-sans: "Outfit"/);
-  assert.match(css,/--font-sans: "Outfit"/);
-  assert.match(html,/family=Outfit/);
+  assert.match(boop,/--font-sans: "Fredoka"/);
+  assert.match(css,/--font-sans: "Fredoka"/);
+  assert.match(css,/--font-mono: "Fredoka"/);
+  assert.match(boop,/--font-brand: "Space Grotesk"/);
+  assert.match(css,/--font-brand: "Space Grotesk"/);
+  assert.match(boop,/\.boop-app \.collection-brand strong \{ font-family:var\(--font-brand\)/);
+  assert.match(css,/\.collection-brand strong \{[\s\S]*?font-family: var\(--font-brand\)/);
+  assert.match(html,/family=Fredoka/);
+  assert.match(html,/family=Space\+Grotesk/);
+  assert.doesNotMatch(html,/family=Outfit/);
   assert.doesNotMatch(boop,/Pixelify Sans/);
   assert.doesNotMatch(css,/Pixelify Sans/);
   assert.doesNotMatch(html,/Pixelify\+Sans/);
@@ -31,6 +38,15 @@ test('Android launcher and native toolbar use the same planet icon',()=>{
   const vector=file('android-shell/app/src/main/res/drawable/ic_boop_planet.xml');
   const workflow=file('.github/workflows/android-apk.yml');
   assert.match(main,/setImageResource\(R\.drawable\.ic_boop_planet\)/);
+  assert.match(main,/title\.setTypeface\(spaceGroteskTypeface, Typeface\.BOLD\)/);
+  assert.match(main,/item\.setTypeface\(fredokaTypeface/);
+  assert.match(main,/button\.setTypeface\(fredokaTypeface/);
+  assert.match(main,/Typeface\.createFromAsset\(getAssets\(\), "fonts\/SpaceGrotesk\.ttf"\)/);
+  assert.match(main,/Typeface\.createFromAsset\(getAssets\(\), "fonts\/Fredoka\.ttf"\)/);
+  for (const name of ['Fredoka','SpaceGrotesk']) {
+    assert.ok(readFileSync(new URL('../android-shell/app/src/main/assets/fonts/'+name+'.ttf',import.meta.url)).length > 50_000);
+    assert.match(file('android-shell/app/src/main/assets/fonts/OFL-'+name+'.txt'),/SIL OPEN FONT LICENSE/);
+  }
   assert.match(manifest,/android:icon="@drawable\/ic_boop_planet"/);
   assert.match(vector,/android:viewportWidth="64"/);
   assert.match(workflow,/Verify vector launcher icon/);

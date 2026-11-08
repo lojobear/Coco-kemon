@@ -21,13 +21,14 @@
   --basic-accent: var(--boop-forest);
   --basic-focus: var(--boop-forest);
   --surface-shadow: 0 8px 24px #0f241a0f;
-  --font-sans: "Outfit", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-sans: "Fredoka", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-brand: "Space Grotesk", "Fredoka", system-ui, sans-serif;
 }
 .boop-app[data-theme="quark-light"] { background:var(--boop-canvas)!important; color:var(--boop-ink)!important; display:grid; grid-template-rows:auto minmax(0,1fr) auto; grid-template-areas:'header' 'main' 'nav'; justify-content:normal; }
 .boop-app button { cursor:pointer; }
 .boop-app button:disabled { cursor:not-allowed; opacity:.45; }
 .boop-app :is(button,input,select,[role="button"]):focus-visible { outline:2px solid #49856a; outline-offset:3px; }
-.boop-app :is(button,input,select) { font-family:inherit; }
+.boop-app :is(button,input,select,textarea,option) { font-family:inherit; }
 .boop-app button { transition:background .15s,border-color .15s,transform .15s; }
 .boop-app button:not(:disabled):active { transform:translateY(1px); }
 .boop-app .collection-header { grid-area:header; padding:16px 24px!important; background:white!important; border-bottom:1px solid var(--boop-line)!important; box-shadow:none!important; }
@@ -35,7 +36,7 @@
 .boop-app .collection-brand { flex-shrink:0; gap:10px; min-height:36px; }
 .boop-app .collection-brand img { width:36px!important; height:36px!important; padding:0; background:transparent!important; border:0; border-radius:10px; image-rendering:auto; }
 .boop-app .collection-brand > span { display:flex; align-items:center; gap:16px; }
-.boop-app .collection-brand strong { font-family:var(--font-sans); font-size:25px!important; font-weight:800; letter-spacing:-.7px; text-transform:none; }
+.boop-app .collection-brand strong { font-family:var(--font-brand); font-size:25px!important; font-weight:700; letter-spacing:-.7px; text-transform:none; }
 .boop-app .collection-brand small { font-family:var(--font-sans); margin:0; font-size:10px; letter-spacing:.8px; }
 .boop-app .header-actions { gap:6px; }
 .boop-app .header-actions button { display:grid; place-items:center; width:36px!important; height:36px!important; min-width:36px!important; min-height:36px!important; border:0; box-shadow:none; border-radius:50%!important; }
