@@ -1258,6 +1258,16 @@ html.boop-native-shell .boop-app .boop-cloud-dialog {
 .boop-album-filter-row {display:flex;align-items:center;gap:7px;overflow-x:auto;}
 .boop-album-filter-row button,.boop-room-themes button,.boop-picker-options button {white-space:nowrap;padding:9px 12px;border:1px solid #e4e7eb;border-radius:11px;background:#fff;color:#697681;font-size:12px;font-weight:750;}
 .boop-album-filter-row button[aria-pressed="true"],.boop-room-themes button[aria-pressed="true"],.boop-picker-options button[aria-pressed="true"] {background:#2f3944;color:#fff;border-color:#2f3944;}
+/* Category shelves grow automatically as new concepts are discovered. */
+.boop-album-categories {display:flex;align-items:end;flex-wrap:wrap;justify-content:space-between;gap:9px;padding:10px 12px;border:1px solid #e5e9f1;border-radius:12px;background:#f8f9ff;}
+.boop-album-categories label {display:flex;flex-direction:column;gap:4px;min-width:min(100%,240px);font-size:11px;font-weight:800;color:#514b8f;}
+.boop-album-categories select {width:100%;min-height:40px;padding:8px 10px;border:1px solid #d9ddeb;border-radius:9px;background:#fff;color:#312e81;font-size:12px;font-weight:700;}
+.boop-album-categories small {flex:1;min-width:150px;color:#697681;font-size:11px;line-height:1.4;}
+.boop-album-category-sections {display:grid;gap:20px;min-width:0;}
+.boop-album-category-section {min-width:0;display:grid;gap:9px;}
+.boop-album-category-heading {display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 2px 7px;border-bottom:1px solid #e5e8ed;}
+.boop-album-category-heading h3 {margin:0;font-size:15px;font-weight:850;color:#312e81;}
+.boop-album-category-heading small {font-size:11px;color:#667381;white-space:nowrap;}
 .boop-album-section-label {display:flex;align-items:center;justify-content:space-between;gap:9px;}
 .boop-album-section-label>span {font-size:10px;font-weight:850;letter-spacing:1.6px;color:#7c8994;}
 .boop-album-section-label small {font-size:11px;color:#8a96a1;}
@@ -1364,6 +1374,10 @@ html.boop-native-shell .boop-app .boop-cloud-dialog {
 @media(max-width:760px){
   .boop-album-page {padding:13px 11px 88px;gap:15px;}
   .boop-album-title h1 {font-size:25px;}
+  .boop-album-categories {padding:9px;}
+  .boop-album-categories label {flex:1 1 100%;min-width:0;}
+  .boop-album-category-sections {gap:16px;}
+  .boop-album-category-heading h3 {font-size:13px;}
   .boop-album-mark {width:44px;height:44px;}
   .boop-album-summary>div {padding:9px 7px;}
   .boop-album-summary strong {font-size:19px;}

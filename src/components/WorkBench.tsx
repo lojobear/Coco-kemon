@@ -5,6 +5,7 @@ import type { Material } from '../types';
 import { readCraftElements, SAVE_IMPORTED_EVENT, SAVE_CHANGED_EVENT } from '../lib/saveData';
 import { conceptMaterial } from '../lib/conceptMaterial';
 import { discoveryIdentity } from '../lib/unifiedCollection';
+import { categoryForDiscovery } from '../lib/collectionCategories';
 import { MaterialSprite } from './ElementSprite';
 import { chooseRandomProcess } from '../lib/randomProcess';
 import { EXTRA_PROCESSES } from '../lib/extraProcesses';
@@ -62,10 +63,11 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
       .sort((a,b)=>a.category.localeCompare(b.category));
   }, [availableProcesses, processQuery, process]);
 
-  const categories = useMemo(() => [...new Set<string>(materials.map(m => m.category))].sort((a,b) => a.localeCompare(b)), [materials]);
+  const categoryOf = (material: Material) => categoryForDiscovery({ name: material.displayName, category: material.category });
+  const categories = useMemo(() => [...new Set<string>(materials.map(categoryOf))].sort((a,b) => a.localeCompare(b)), [materials]);
   const filtered = useMemo(() => {
     const query = deferredSearch.trim().toLowerCase();
-    const result = materials.filter(m => (category === 'all' || m.category === category) && `${m.displayName} ${m.category} ${m.semanticTags.join(' ')}`.toLowerCase().includes(query));
+    const result = materials.filter(m => (category === 'all' || categoryOf(m) === category) && `${m.displayName} ${m.category} ${m.semanticTags.join(' ')}`.toLowerCase().includes(query));
     if (sort === 'recent') result.sort((a,b) => b.discoveredAt - a.discoveredAt);
     if (sort === 'name') result.sort((a,b) => a.displayName.localeCompare(b.displayName));
     return result;

@@ -1,6 +1,7 @@
 import type { InfiniteElement } from './infiniteCraftData';
 import type { Material, Oddkin } from '../types';
 import { isSpriteReference } from './spriteReference';
+import { categoryForDiscovery } from './collectionCategories';
 
 /** Shared collection identity: one concept name, regardless of where it was discovered. */
 export function discoveryIdentity(name: string): string {
@@ -50,6 +51,7 @@ export function mergeFoundryIntoCraft(
   for(const mat of foundry?.materials || []) {
     if (!mat?.displayName) continue;
     insert(mat.displayName, iconFor(mat.category), {
+      category: categoryForDiscovery({ name: mat.displayName, category: mat.category }),
       explanation: (mat.discoveryExplanation || mat.description || '').slice(0, 280),
       connection: (mat.category || 'Foundry').slice(0, 280),
       discoveredAt: typeof mat.discoveredAt === 'number' && Number.isFinite(mat.discoveredAt)
@@ -60,6 +62,7 @@ export function mergeFoundryIntoCraft(
   for(const oddkin of foundry?.oddkinCollection || []) {
     if (!oddkin?.speciesName) continue;
     insert(oddkin.speciesName, '🐾', {
+      category: 'Oddkin & Creatures',
       explanation: (oddkin.description || 'Discovered in Foundry').slice(0, 280),
       connection: 'Oddkin',
       customSpriteUrl: storedArtwork(oddkin.customSpriteUrl),

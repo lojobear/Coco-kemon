@@ -114,6 +114,7 @@ const unique = (items: any[], key: string) => new Set(items.map(x => x[key])).si
 export function validateCraft(v: unknown): v is InfiniteElement[] {
   return Array.isArray(v) && v.every(x => record(x) && (x.kitchenRecipe === undefined || validKitchenRecipe(x.kitchenRecipe)) && text(x.id) && text(x.name) && text(x.emoji) &&
     (['explanation', 'connection', 'variantOf'].every(k => x[k] === undefined || (text(x[k]) && x[k].length <= 280))) &&
+    (x.category === undefined || (text(x.category) && x.category.length <= 36)) &&
     (x.customSpriteUrl === undefined || (typeof x.customSpriteUrl === 'string' && x.customSpriteUrl.length <= MAX_SPRITE_CHARS && (/^data:image\/png;base64,[A-Za-z0-9+/]+={0,2}$/.test(x.customSpriteUrl) || isSpriteReference(x.customSpriteUrl)))) &&
     (x.discoveredAt === undefined || finite(x.discoveredAt)) && (x.isNew === undefined || typeof x.isNew === 'boolean') &&
     (x.isShiny === undefined || typeof x.isShiny === 'boolean') &&

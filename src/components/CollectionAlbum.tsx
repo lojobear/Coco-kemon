@@ -1,5 +1,6 @@
 import React, { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { discoveryIdentity } from '../lib/unifiedCollection';
+import { categoryForDiscovery, collectionCategoryCounts } from '../lib/collectionCategories';
 import { isProceduralDefault } from './ElementSprite';
 import { BookOpen, Search, Sparkles, GalleryVerticalEnd, LayoutGrid, ChevronRight, ArrowLeft, X, Lock, Plus, Trash2, Share2, Check, Star, GitBranch, Trophy, Shuffle } from 'lucide-react';
 import type { InfiniteElement } from '../lib/infiniteCraftData';
@@ -47,6 +48,7 @@ export function CollectionAlbum({
   const [tab,setTab]=useState<AlbumTab>('album');
   const [query,setQuery]=useState(initialSearch);
   const [filter,setFilter]=useState<AlbumFilter>('all');
+  const [categoryFilter,setCategoryFilter]=useState('all');
   const [sort,setSort]=useState<'recent'|'az'|'crafted'>('recent');
   const [visible,setVisible]=useState(72);
   const [selected,setSelected]=useState<InfiniteElement|null>(null);
@@ -69,6 +71,9 @@ export function CollectionAlbum({
     }
     return byName;
   }, [materials]);
+  const foundryCategories = useMemo(() => new Map(materials.map(m => [
+    discoveryIdentity(m.displayName), categoryForDiscovery({ name: m.displayName, category: m.category })
+  ] as const)), [materials]);
 
   useEffect(()=>setQuery(initialSearch),[initialSearch]);
   useEffect(()=>{
@@ -91,21 +96,25 @@ export function CollectionAlbum({
   const catalog=useMemo<InfiniteElement[]>(()=>{
     const seen=new Set<string>();
     return elements.filter(el=>{
-      const key=el?.name?.trim().toLowerCase();
+      const key=el?.name ? discoveryIdentity(el.name) : undefined;
       if(!key||seen.has(key))return false;
       seen.add(key);return true;
     }).map(item => {
       const linked = !item.customSpriteUrl ? materialArtwork.get(discoveryIdentity(item.name)) : undefined;
-      return normalizeElementStats(linked ? { ...item, customSpriteUrl: linked } : item);
+      const category = categoryForDiscovery({
+        name: item.name, category: item.category || foundryCategories.get(discoveryIdentity(item.name)),
+        connection: item.connection, emoji: item.emoji,
+      });
+      return normalizeElementStats({ ...item, category, ...(linked ? { customSpriteUrl: linked } : {}) });
     });
-  },[elements,materialArtwork]);
+  },[elements,materialArtwork,foundryCategories]);
   const byName=useMemo(()=>new Map<string,InfiniteElement>(catalog.map(e=>[e.name.trim().toLowerCase(),e] as [string,InfiniteElement])),[catalog]);
   const custom=useMemo(()=>new Map(catalog.flatMap(e=>e.customSpriteUrl
     ? [[e.name.toLowerCase(),e.customSpriteUrl] as const]:[])),[catalog]);
   const shown=useMemo<InfiniteElement[]>(()=>{
     const q=query.toLowerCase().trim();
     const list=catalog.filter(e=>(!q||e.name.toLowerCase().includes(q)||
-      e.connection?.toLowerCase().includes(q)) && (filter==='all'||
+      e.connection?.toLowerCase().includes(q)) && (categoryFilter==='all' || categoryForDiscovery(e)===categoryFilter) && (filter==='all'||
       (filter==='shiny'&&availableVariants(e).includes('shiny'))||
       (filter==='celestial'&&Boolean(e.unlockedCelestial))||
       (filter==='holo'&&Boolean(e.unlockedHolo))||
@@ -116,8 +125,23 @@ export function CollectionAlbum({
     else if(sort==='crafted')list.sort((a,b)=>(b.craftCount||0)-(a.craftCount||0));
     else list.sort((a,b)=>(b.discoveredAt||0)-(a.discoveredAt||0));
     return list;
-  },[catalog,query,sort,filter]);
-  useEffect(()=>setVisible(72),[query,sort,filter]);
+  },[catalog,query,sort,filter,categoryFilter]);
+  const categoryCounts=useMemo(()=>collectionCategoryCounts(catalog),[catalog]);
+  const visibleGroups=useMemo(()=>{
+    const grouped=new Map<string,InfiniteElement[]>();
+    for(const item of shown.slice(0,visible)){
+      const category=categoryForDiscovery(item);
+      const group=grouped.get(category);
+      if(group)group.push(item); else grouped.set(category,[item]);
+    }
+    return categoryCounts.filter(entry=>grouped.has(entry.name)).map(entry=>({
+      ...entry, items:grouped.get(entry.name)!,
+    }));
+  },[shown,visible,categoryCounts]);
+  useEffect(()=>setVisible(72),[query,sort,filter,categoryFilter]);
+  useEffect(()=>{
+    if(categoryFilter!=='all' && !categoryCounts.some(entry=>entry.name===categoryFilter))setCategoryFilter('all');
+  },[categoryCounts,categoryFilter]);
   const shinyCount=catalog.filter(e=>availableVariants(e).includes('shiny')).length;
   const celestialCount=catalog.filter(e=>Boolean(e.unlockedCelestial)).length;
   const holoCount=catalog.filter(e=>Boolean(e.unlockedHolo)).length;
@@ -221,9 +245,23 @@ export function CollectionAlbum({
           <select aria-label="Sort collectibles" value={sort} onChange={e=>setSort(e.target.value as typeof sort)}><option value="recent">Newest first</option><option value="az">Name A–Z</option><option value="crafted">Most crafted</option></select>
         </div>
         <div className="boop-album-filter-row">{([{id:'all',label:'All stickers'},{id:'shiny',label:'✦ Shiny'},{id:'celestial',label:'✶ Celestial'},{id:'holo',label:'◈ Holo'},{id:'glitch',label:'⟡ Glitch'},{id:'legendary',label:'★ Legendary+'},{id:'evolved',label:'❋ Evolved'}] as const).map(f=><button key={f.id} aria-pressed={filter===f.id} onClick={()=>setFilter(f.id)}>{f.label}</button>)}</div>
+        <div className="boop-album-categories">
+          <label htmlFor="boop-collection-category">Category
+            <select id="boop-collection-category" aria-label="Collection category" value={categoryFilter} onChange={event=>setCategoryFilter(event.target.value)}>
+              <option value="all">All categories ({catalog.length})</option>
+              {categoryCounts.map(entry=><option key={entry.name} value={entry.name}>{entry.name} ({entry.count})</option>)}
+            </select>
+          </label>
+          <small>{categoryCounts.length} discovered categories · New types automatically create a category</small>
+        </div>
         <div className="boop-album-section-label"><span>DISCOVERY INDEX</span><small>{shown.length} stickers</small></div>
-        {shown.length?<div className="boop-sticker-grid">{shown.slice(0,visible).map((item,i)=><CollectorCard key={item.id} item={item} index={i} onOpen={()=>openItem(item)}/>)}</div>
-          :<div className="boop-album-empty">No stickers match this filter. Try another collection category.</div>}
+        {shown.length?<div className="boop-album-category-sections">{visibleGroups.map(group=>
+          <section className="boop-album-category-section" key={group.name} aria-label={group.name}>
+            <div className="boop-album-category-heading"><h3>{group.name}</h3><small>{group.count} collected</small></div>
+            <div className="boop-sticker-grid">{group.items.map((item,i)=><CollectorCard key={item.id} item={item} index={i} onOpen={()=>openItem(item)}/>)}</div>
+          </section>
+        )}</div>
+          :<div className="boop-album-empty">No stickers match these filters. Choose another category or finish.</div>}
         {shown.length>visible&&<button className="boop-album-load" onClick={()=>setVisible(n=>n+72)}>Show more stickers <ChevronRight size={15}/></button>}
       </>}
       {tab==='sets'&&<>
@@ -291,6 +329,7 @@ export function CollectionAlbum({
         </div>
         <div className="boop-album-detail-metadata">
           <span><b>Discovered</b>{selected.discoveredAt?new Date(selected.discoveredAt).toLocaleDateString():'Starter'}</span>
+          <span><b>Category</b>{categoryForDiscovery(selected)}</span>
           <span><b>Crafted</b>{normalizeElementStats(selected).craftCount||0} times</span>
           <span><b>Recipes</b>{latestRecipes(selected).length}</span>
           <span><b>Finishes</b>{availableVariants(selected).length}/5</span>

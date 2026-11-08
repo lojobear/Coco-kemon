@@ -1,5 +1,6 @@
 import type { CraftingPlan, PlannedCraftingStep } from './originalPlanner';
 import type { InfiniteElement } from '../infiniteCraftData';
+import { categoryForDiscovery } from '../collectionCategories.js';
 export type KitchenRecipe = CraftingPlan & { goal: string; source: 'local' | 'ai'; createdAt: number };
 const key = (value: string) => value.normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase();
 const short = (v: unknown, max = 200) => typeof v === 'string' && v.trim().length > 0 && v.length <= max;
@@ -28,7 +29,9 @@ export function collectKitchenStep(elements: InfiniteElement[], step: PlannedCra
   if (existing) return recipe ? elements.map(el => el.id === existing.id ? { ...el, kitchenRecipe: recipe } : el) : elements;
   const element: InfiniteElement = {
     id: `kitchen:${encodeURIComponent(key(step.outputName))}`, name: step.outputName, emoji: step.outputEmoji,
-    explanation: step.explanation.slice(0, 280), connection: 'kitchen', discoveredAt: Date.now(), isNew: true,
+    explanation: step.explanation.slice(0, 280), connection: 'kitchen',
+    category: categoryForDiscovery({ name: step.outputName, category: step.category, connection: 'kitchen' }),
+    discoveredAt: Date.now(), isNew: true,
     ...(recipe ? { kitchenRecipe: recipe } : {}),
   };
   return [...elements, element];

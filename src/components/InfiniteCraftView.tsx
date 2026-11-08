@@ -28,6 +28,7 @@ import { queueCraftElementsSave, readCraftElements, SAVE_IMPORTED_EVENT, SAVE_CH
 import { discoveryIdentity } from '../lib/unifiedCollection';
 import { isProceduralDefault } from './ElementSprite';
 import { mergeSharedDiscoveries } from '../lib/sharedDiscoveries';
+import { categoryForDiscovery } from '../lib/collectionCategories';
 import { sound } from '../lib/audio';
 import { haptics } from '../lib/haptics';
 import type { ActiveCombination } from './CombineAnimationOverlay';
@@ -533,6 +534,7 @@ export function InfiniteCraftView() {
         id: cleanId,
         name: cleanName,
         emoji: emoji || '✨',
+        category: categoryForDiscovery({ name: cleanName, connection: apiData.connection }),
         discoveredAt: craftedAt,
         isNew: firstInCollection,
         explanation: apiData.explanation,
@@ -570,6 +572,7 @@ export function InfiniteCraftView() {
             ...tracked,
             explanation: existing.explanation || apiData.explanation,
             connection: existing.connection || apiData.connection,
+            category: existing.category || newElemObj.category,
             recipe: existing.recipe || currentRecipe,
             unlockedShiny: isShinyEncounter || existing.unlockedShiny,
             isShiny: isShinyEncounter ? true : existing.isShiny,
@@ -599,6 +602,7 @@ export function InfiniteCraftView() {
           id: bonus.result.toLowerCase().replace(/[^a-z0-9]/g, '_'),
           name: bonus.result,
           emoji: bonus.emoji,
+          category: categoryForDiscovery({ name: bonus.result, connection: 'rare variant' }),
           variantOf: bonus.variantOf,
           explanation: bonus.explanation,
           connection: 'rare variant',

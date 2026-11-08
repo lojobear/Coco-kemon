@@ -1,6 +1,7 @@
 import type { InfiniteElement } from './infiniteCraftData';
 import type { Material, Oddkin } from '../types';
 import { discoveryIdentity, mergeFoundryIntoCraft } from './unifiedCollection';
+import { categoryForDiscovery } from './collectionCategories';
 
 /**
  * Shared discoveries, re-applied from PR #107 on the restored base.
@@ -24,6 +25,7 @@ export function mergeSharedDiscoveries(craft: InfiniteElement[], materials: read
     names.add(key);
     if (shared === craft) shared = [...craft];
     shared.push({ id: `foundry_${material.id}`, name: material.displayName, emoji: '✨',
+      category: categoryForDiscovery({ name: material.displayName, category: material.category }),
       customSpriteUrl: material.customSpriteUrl, discoveredAt: material.discoveredAt,
       explanation: material.discoveryExplanation || undefined });
   }
