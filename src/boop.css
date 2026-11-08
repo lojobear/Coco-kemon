@@ -1213,6 +1213,12 @@ html.boop-native-shell .boop-app .boop-cloud-dialog {
 .boop-app .boop-spawn-quick-counts button:active:not(:disabled) {transform:scale(.89);background:#d4dce4;}
 .boop-app .boop-spawn-quick-counts button:disabled,
 .boop-app .boop-spawn-quick .boop-spawn-now:disabled {opacity:.4;cursor:not-allowed;}
+/* Long discovery names must shrink inside the visible world-unit tile width,
+   especially when the Android board is zoomed in. */
+.boop-board-layout .boop-board-item.is-random-spawn > span:not(.element-emoji) {
+  min-width:0;
+  flex-shrink:1;
+}
 .boop-board-layout .boop-board-item.is-random-spawn {
   animation:boop-random-tile-pop 220ms cubic-bezier(.19,1.24,.28,1) both;
   animation-delay:var(--spawn-delay,0ms);

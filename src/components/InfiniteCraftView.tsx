@@ -19,9 +19,9 @@ import { enqueueArtwork } from '../lib/artworkQueue';
 import { beginBoardHistory, recordBoardHistory, undoBoard, redoBoard, clampBoardZoom } from '../lib/boardHistory';
 import { CANONICAL_INFINITE_CRAFT_RECIPES } from '../lib/infiniteCraftData';
 import { findCraftDropTarget } from '../lib/craftCollision';
-import { BOARD_WIDTH, BOARD_HEIGHT, BOARD_START_X, BOARD_START_Y, boardCenter, clampBoardTile } from '../lib/boardGeometry';
+import { BOARD_WIDTH, BOARD_HEIGHT, BOARD_START_X, BOARD_START_Y, clampBoardTile } from '../lib/boardGeometry';
 import { loadBoardLayout, saveBoardLayout } from '../lib/boardLayout';
-import { spawnSourcePool, chooseSpawnElements, chooseUndiscoveredPair, spawnPositions, spreadSpawnPositions, SPAWN_COUNTS, type SpawnCount } from '../lib/randomSpawn';
+import { spawnSourcePool, chooseSpawnElements, chooseUndiscoveredPair, spawnPositions, spreadSpawnPositions, SPAWN_COUNTS, type SpawnCount, type SpawnViewport } from '../lib/randomSpawn';
 import { queueCraftElementsSave, readCraftElements, SAVE_IMPORTED_EVENT, SAVE_CHANGED_EVENT } from '../lib/saveData';
 import { discoveryIdentity } from '../lib/unifiedCollection';
 import { isProceduralDefault } from './ElementSprite';
@@ -80,9 +80,10 @@ interface CanvasItem {
 /** Only the moved/selected board tile should rerender. The other 299 tiles
  * keep their existing PNG decoders and DOM even when a discovery finishes. */
 const CanvasBoardTile = React.memo(function CanvasBoardTile({
-  item, selected, onPointerDown, onClickItem, onDuplicate, onRemove,
+  item, selected, onPointerDown, onClickItem, onDuplicate, onRemove, spawnTileMaxWidth,
 }: {
   item: CanvasItem;
+  spawnTileMaxWidth: number;
   selected: boolean;
   onPointerDown: (item: CanvasItem, event: React.PointerEvent<HTMLDivElement>) => void;
   onClickItem: (item: CanvasItem) => void;
@@ -94,7 +95,7 @@ const CanvasBoardTile = React.memo(function CanvasBoardTile({
     onPointerDown={event => onPointerDown(item, event)}
     onClick={event => { event.stopPropagation(); onClickItem(item); }}
     onDoubleClick={event => onDuplicate(item, event)}
-    style={{ transform: `translate3d(${item.x}px,${item.y}px,0)`, '--spawn-delay': `${item.spawnDelay || 0}ms` } as React.CSSProperties}>
+    style={{ transform: `translate3d(${item.x}px,${item.y}px,0)`, '--spawn-delay': `${item.spawnDelay || 0}ms`, maxWidth: item.instanceId.startsWith('spawn-') ? `${spawnTileMaxWidth}px` : undefined } as React.CSSProperties}>
     <CraftSprite name={item.name} emoji={item.emoji} isShiny={item.isShiny} />
     <span>{item.name}</span>
     <button aria-label={`Duplicate ${item.name}`} title="Duplicate" className="boop-tile-duplicate" onClick={event => onDuplicate(item, event)}><Plus size={12} /></button>
@@ -285,6 +286,36 @@ export function InfiniteCraftView() {
   const burstTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const viewportRef = useRef<HTMLDivElement>(null);
+  const [viewportPixelWidth, setViewportPixelWidth] = useState(380);
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    const update = () => {
+      const width = viewport.clientWidth;
+      if (width > 0) setViewportPixelWidth(old => old === width ? old : width);
+    };
+    update();
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', update);
+      return () => window.removeEventListener('resize', update);
+    }
+    const observer = new ResizeObserver(update);
+    observer.observe(viewport);
+    return () => observer.disconnect();
+  }, []);
+  // CSS zoom changes the world-unit width available to each pill. Truncate
+  // unusually long item names rather than letting a spawn exceed the screen.
+  const spawnTileMaxWidth = Math.min(260, Math.max(74, viewportPixelWidth / boardZoom - 24));
+  const currentWorldViewport = (): SpawnViewport | null => {
+    const viewport = viewportRef.current;
+    const zoom = zoomRef.current;
+    return viewport && viewport.clientWidth > 0 && viewport.clientHeight > 0 ? {
+      scrollLeft: viewport.scrollLeft / zoom,
+      scrollTop: viewport.scrollTop / zoom,
+      clientWidth: viewport.clientWidth / zoom,
+      clientHeight: viewport.clientHeight / zoom,
+    } : null;
+  };
   const setZoomPreservingCenter = (value:number) => {
     const next=clampBoardZoom(value),prior=zoomRef.current;
     if(next===prior)return;
@@ -607,11 +638,15 @@ export function InfiniteCraftView() {
 
   const spawnOnCanvas = (name: string, emoji: string, isShiny = false) => {
     sound.playClick(); haptics.lightTap();
-    const viewport = viewportRef.current;
-    const center = viewport ? boardCenter(viewport.scrollLeft/zoomRef.current, viewport.scrollTop/zoomRef.current, viewport.clientWidth/zoomRef.current, viewport.clientHeight/zoomRef.current) : { x: BOARD_START_X, y: BOARD_START_Y };
-    const {x,y} = clampBoardTile(center.x - 65 + (Math.random() * 120 - 60), center.y - 22 + (Math.random() * 95 - 48));
-    const newItem: CanvasItem = { instanceId: `spawn-${Date.now()}-${Math.random()}`, name, emoji, x, y, isShiny };
-    setCanvasItems(prev => [...prev, newItem]);
+    if (canvasItemsRef.current.length >= 300) {
+      setSpawnToast('Board is full. Clear or remove tiles to spawn more.');
+      return;
+    }
+    const viewport = currentWorldViewport();
+    const sequence = ++spawnSequenceRef.current;
+    const spot = spreadSpawnPositions(spawnPositions(1, viewport), canvasItemsRef.current, sequence, viewport)[0];
+    const newItem: CanvasItem = { instanceId: `spawn-${Date.now()}-${sequence}`, name, emoji, ...spot, isShiny };
+    setCanvasItems(prev => [...prev, newItem].slice(0, 300));
     setSpawnToast(`${emoji} ${isShiny ? '✨ ' : ''}${name} added`);
     setTimeout(() => setSpawnToast(null), 1800);
     // Picking from the library adds a tile; it must not unexpectedly fuse
@@ -820,15 +855,12 @@ export function InfiniteCraftView() {
       return;
     }
     const picked = (suggestion || chooseSpawnElements<InfiniteElement>(spawnPool, count)).slice(0, remaining);
-    const vp = viewportRef.current;
-    const baseSpots = spawnPositions(picked.length,vp ? {
-      scrollLeft:vp.scrollLeft/zoomRef.current,scrollTop:vp.scrollTop/zoomRef.current,
-      clientWidth:vp.clientWidth/zoomRef.current,clientHeight:vp.clientHeight/zoomRef.current
-    }:null);
+    const viewport = currentWorldViewport();
+    const baseSpots = spawnPositions(picked.length, viewport);
     const batchId = ++spawnSequenceRef.current;
     // Repeated taps spread new pills around those already visible rather than
     // stacking an identical batch right on top of its predecessor.
-    const spots = spreadSpawnPositions(baseSpots,canvasItemsRef.current,batchId);
+    const spots = spreadSpawnPositions(baseSpots,canvasItemsRef.current,batchId,viewport);
     const tiles: CanvasItem[] = picked.map((item, index) => ({
       instanceId: `spawn-${Date.now()}-${batchId}-${index}`,
       name: item.name,
@@ -904,6 +936,7 @@ export function InfiniteCraftView() {
           <div ref={canvasRef} className="boop-board-world" style={{ width:BOARD_WIDTH, height:BOARD_HEIGHT, zoom:boardZoom }}>
             <div className="boop-board-origin-hint" style={{ left:BOARD_START_X - 6, top:BOARD_START_Y - 68 }}>DROP. MIX. DISCOVER.</div>
             {canvasItems.map(item => <CanvasBoardTile key={item.instanceId} item={item}
+              spawnTileMaxWidth={spawnTileMaxWidth}
               selected={selectedCanvasId === item.instanceId} onPointerDown={onBoardPointerDown}
               onClickItem={onBoardClick} onDuplicate={onBoardDuplicate} onRemove={onBoardRemove} />)}
             {mergeFx && <div key={mergeFx.id} className="boop-board-fusion" style={{left:mergeFx.x,top:mergeFx.y}} aria-hidden="true">
