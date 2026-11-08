@@ -1,27 +1,30 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 const file=(p:string)=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
 
-test('Boop keeps white and charcoal colors with Space Grotesk title and Fredoka UI',()=>{
+test('Boop uses only Pixelify Sans across the web, title, and PWA',()=>{
   const boop=file('src/boop.css');
   const css=file('src/index.css');
   const html=file('index.html');
   assert.match(boop,/--boop-canvas: #ffffff/);
   assert.match(boop,/--boop-forest: #242a31/);
-  assert.match(boop,/--font-sans: "Fredoka"/);
-  assert.match(css,/--font-sans: "Fredoka"/);
-  assert.match(css,/--font-mono: "Fredoka"/);
-  assert.match(boop,/--font-brand: "Space Grotesk"/);
-  assert.match(css,/--font-brand: "Space Grotesk"/);
+  for (const variable of ['font-sans','font-mono','font-pixel','font-brand']) {
+    assert.match(css,new RegExp('--'+variable+': "Pixelify Sans"'));
+  }
+  assert.match(boop,/--font-sans: "Pixelify Sans"/);
+  assert.match(boop,/--font-brand: "Pixelify Sans"/);
+  assert.match(boop,/font-family: var\(--font-sans\)/);
   assert.match(boop,/\.boop-app \.collection-brand strong \{ font-family:var\(--font-brand\)/);
+  assert.match(css,/@font-face[\s\S]*?font-family: "Pixelify Sans";[\s\S]*?PixelifySans\.ttf/);
   assert.match(css,/\.collection-brand strong \{[\s\S]*?font-family: var\(--font-brand\)/);
-  assert.match(html,/family=Fredoka/);
-  assert.match(html,/family=Space\+Grotesk/);
-  assert.doesNotMatch(html,/family=Outfit/);
-  assert.doesNotMatch(boop,/Pixelify Sans/);
-  assert.doesNotMatch(css,/Pixelify Sans/);
-  assert.doesNotMatch(html,/Pixelify\+Sans/);
+  assert.doesNotMatch(html,/fonts\.googleapis\.com|fonts\.gstatic\.com/);
+  for (const old of ['Fredoka','Space Grotesk','Outfit']) {
+    assert.ok(!boop.includes(old) && !css.includes(old) && !html.includes(old));
+  }
+  const webFont = readFileSync(new URL('../public/fonts/PixelifySans.ttf',import.meta.url));
+  assert.ok(webFont.length > 50_000);
+  assert.match(file('public/fonts/OFL-PixelifySans.txt'),/SIL OPEN FONT LICENSE/);
 });
 
 test('logo is the sprouting orbit planet, not the prior green creature',()=>{
@@ -32,20 +35,24 @@ test('logo is the sprouting orbit planet, not the prior green creature',()=>{
   assert.doesNotMatch(svg,/#d7f879/i);
 });
 
-test('Android launcher and native toolbar use the same planet icon',()=>{
+test('Android icon, title, navigation and buttons use the bundled Pixelify Sans',()=>{
   const main=file('android-shell/app/src/main/java/app/boop/collect/MainActivity.java');
   const manifest=file('android-shell/app/src/main/AndroidManifest.xml');
   const vector=file('android-shell/app/src/main/res/drawable/ic_boop_planet.xml');
   const workflow=file('.github/workflows/android-apk.yml');
   assert.match(main,/setImageResource\(R\.drawable\.ic_boop_planet\)/);
-  assert.match(main,/title\.setTypeface\(spaceGroteskTypeface, Typeface\.BOLD\)/);
-  assert.match(main,/item\.setTypeface\(fredokaTypeface/);
-  assert.match(main,/button\.setTypeface\(fredokaTypeface/);
-  assert.match(main,/Typeface\.createFromAsset\(getAssets\(\), "fonts\/SpaceGrotesk\.ttf"\)/);
-  assert.match(main,/Typeface\.createFromAsset\(getAssets\(\), "fonts\/Fredoka\.ttf"\)/);
+  assert.match(main,/title\.setTypeface\(pixelifySansTypeface, Typeface\.BOLD\)/);
+  assert.match(main,/item\.setTypeface\(pixelifySansTypeface/);
+  assert.match(main,/button\.setTypeface\(pixelifySansTypeface/);
+  assert.match(main,/Typeface\.createFromAsset\(getAssets\(\), "fonts\/PixelifySans\.ttf"\)/);
+  const font = readFileSync(new URL('../android-shell/app/src/main/assets/fonts/PixelifySans.ttf',import.meta.url));
+  const webFont = readFileSync(new URL('../public/fonts/PixelifySans.ttf',import.meta.url));
+  assert.ok(font.length > 50_000);
+  assert.deepEqual(font,webFont);
+  assert.match(file('android-shell/app/src/main/assets/fonts/OFL-PixelifySans.txt'),/SIL OPEN FONT LICENSE/);
   for (const name of ['Fredoka','SpaceGrotesk']) {
-    assert.ok(readFileSync(new URL('../android-shell/app/src/main/assets/fonts/'+name+'.ttf',import.meta.url)).length > 50_000);
-    assert.match(file('android-shell/app/src/main/assets/fonts/OFL-'+name+'.txt'),/SIL OPEN FONT LICENSE/);
+    assert.ok(!existsSync(new URL('../android-shell/app/src/main/assets/fonts/'+name+'.ttf',import.meta.url)));
+    assert.doesNotMatch(main,new RegExp(name));
   }
   assert.match(manifest,/android:icon="@drawable\/ic_boop_planet"/);
   assert.match(vector,/android:viewportWidth="64"/);

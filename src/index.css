@@ -1,5 +1,14 @@
 @import "tailwindcss";
 
+/* Self-hosted SIL OFL variable pixel font: works offline in the PWA/Android WebView. */
+@font-face {
+  font-family: "Pixelify Sans";
+  src: url("/fonts/PixelifySans.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+}
+
 @layer utilities {
   .pixelated {
     image-rendering: pixelated;
@@ -12,11 +21,11 @@
   /* Browser/Android system dark mode must never recolor original sprite pixels.
      Boop renders its own light interface until an authored dark theme exists. */
   color-scheme: only light;
-  /* One friendly font throughout Boop; the brand wordmark is the exception. */
-  --font-sans: "Fredoka", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-mono: "Fredoka", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-pixel: "Fredoka", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-brand: "Space Grotesk", "Fredoka", system-ui, sans-serif;
+  /* A single crisp pixel font unifies the Boop logo, UI and labels. */
+  --font-sans: "Pixelify Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "Pixelify Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-pixel: "Pixelify Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-brand: "Pixelify Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --basic-bg: #0b0d12;
   --basic-panel: #12151c;
   --basic-panel-raised: #171b24;
