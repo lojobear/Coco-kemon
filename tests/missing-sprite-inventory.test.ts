@@ -35,7 +35,7 @@ test('saved images, pending jobs, and missing art have distinct statuses', () =>
 test('list does not generate artwork while checking stored files', async () => {
   const { readFileSync } = await import('node:fs');
   const src = readFileSync(new URL('../src/components/MissingSpritesList.tsx', import.meta.url), 'utf8');
-  assert.match(src, /getElementEmoji\(entry.name, false, '', false, entry.shiny\)/);
+  assert.match(src, /getElementEmoji\(name, false, '', false, shiny\)/);
   assert.match(src, /Queue 5 missing/);
   assert.match(src, /status.state === 'missing'/);
   const studio = readFileSync(new URL('../src/components/SpriteLabModal.tsx', import.meta.url), 'utf8');

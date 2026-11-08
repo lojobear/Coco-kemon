@@ -2,54 +2,95 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { setPersistentCacheBinding } from '../server/cacheBinding';
-import { BOOP_DAILY_IMAGE_NEURON_LIMIT, FLUX2_KLEIN_512_NEURONS, FLUX1_SCHNELL_8STEP_NEURONS, ImageBudgetExceeded, reserveFreeImageNeurons, resetImageBudgetForTests, utcBudgetDay } from '../server/imageSpendingGuard';
+import { setImageBudgetBinding } from '../server/imageBudgetBinding';
+import { BoopImageBudgetLedger } from '../server/imageBudgetLedger';
+import { BOOP_DAILY_IMAGE_NEURON_LIMIT, FLUX2_KLEIN_512_NEURONS, FLUX1_SCHNELL_8STEP_NEURONS, ImageBudgetExceeded, reserveFreeImageNeurons, getImageNeuronsUsed, utcBudgetDay } from '../server/imageSpendingGuard';
 import { publicFailure } from '../server/gemini';
 
-test('Daily per-app free neuron guard counts calls and fails closed at limit', async () => {
-  const before=process.env.BOOP_SAFE_SPENDING;
-  const kv=new Map<string,string>();
-  process.env.BOOP_SAFE_SPENDING='1';
-  resetImageBudgetForTests();
+function fakeLedger() {
+  const data = new Map<string, any>();
+  let tail: Promise<void> = Promise.resolve();
+  const storage = {
+    get: async (key: string) => data.get(key),
+    transaction: async <T>(fn: (txn: any) => Promise<T>): Promise<T> => {
+      const prev = tail;
+      let release!: () => void;
+      tail = new Promise<void>(resolve => { release = resolve; });
+      await prev;
+      try {
+        return await fn({
+          get: storage.get,
+          put: async (key: string, value: unknown) => { data.set(key, value); },
+        });
+      } finally { release(); }
+    },
+  };
+  const ledger = new BoopImageBudgetLedger({ storage });
+  return { data, binding: { idFromName: () => 'global', get: () => ({ fetch: (request: Request) => ledger.fetch(request) }) } };
+}
+test('Daily image budget is transactionally reserved even for concurrent requests', async () => {
+  const before = process.env.BOOP_SAFE_SPENDING;
+  const kv = new Map<string, string>();
+  process.env.BOOP_SAFE_SPENDING = '1';
+  const { data, binding } = fakeLedger();
+  setImageBudgetBinding(binding);
   setPersistentCacheBinding({
-    get: async k=>JSON.parse(kv.get(k)||'null'),
-    put: async (k,v)=>{kv.set(k,v);}
+    get: async key => JSON.parse(kv.get(key) || 'null'),
+    put: async (key, value) => { kv.set(key, value); },
   });
   try {
     assert.equal(BOOP_DAILY_IMAGE_NEURON_LIMIT, 10_000);
     assert.equal(FLUX2_KLEIN_512_NEURONS, 26.05);
     assert.equal(FLUX1_SCHNELL_8STEP_NEURONS, 81.6);
-    assert.equal(utcBudgetDay(Date.UTC(2026,9,28,23,30)), '2026-10-28');
+    assert.equal(utcBudgetDay(Date.UTC(2026, 9, 28, 23, 30)), '2026-10-28');
     await reserveFreeImageNeurons(9900);
-    await reserveFreeImageNeurons(80);
-    await assert.rejects(reserveFreeImageNeurons(FLUX1_SCHNELL_8STEP_NEURONS), ImageBudgetExceeded);
+    const outcomes = await Promise.allSettled([
+      reserveFreeImageNeurons(80), reserveFreeImageNeurons(80),
+    ]);
+    assert.equal(outcomes.filter(entry => entry.status === 'fulfilled').length, 1);
+    assert.equal(outcomes.filter(entry => entry.status === 'rejected').length, 1);
+    assert.equal(await getImageNeuronsUsed(), 9980);
+    assert.equal(data.get('neurons:' + utcBudgetDay()).neurons, 9980);
     assert.equal(publicFailure(new ImageBudgetExceeded()).status, 429);
-    assert.equal([...kv.values()].map(v=>JSON.parse(v).neurons)[0], 9980);
-    setPersistentCacheBinding(undefined);
-    await assert.rejects(reserveFreeImageNeurons(FLUX2_KLEIN_512_NEURONS), ImageBudgetExceeded);
+    setImageBudgetBinding(undefined);
+    await assert.rejects(reserveFreeImageNeurons(1), ImageBudgetExceeded);
   } finally {
-    resetImageBudgetForTests();
+    setImageBudgetBinding(undefined);
     setPersistentCacheBinding(undefined);
-    if(before===undefined)delete process.env.BOOP_SAFE_SPENDING;
-    else process.env.BOOP_SAFE_SPENDING=before;
+    if (before === undefined) delete process.env.BOOP_SAFE_SPENDING;
+    else process.env.BOOP_SAFE_SPENDING = before;
   }
 });
-
-test('the user-facing allowance message does not promise an account-wide cap', () => {
-  const queue = readFileSync(new URL('../src/lib/artworkQueue.ts', import.meta.url), 'utf8');
-  assert.match(queue, /not an account-wide billing cap/);
-  assert.doesNotMatch(queue, /without paid overages/);
-  const guard = readFileSync(new URL('../server/imageSpendingGuard.ts', import.meta.url), 'utf8');
-  assert.match(guard, /best-effort, NOT a hard billing cap/);
-  assert.match(guard, /leaving NO headroom/);
+test('Old KV usage remains part of the new budget during migration', async () => {
+  const before = process.env.BOOP_SAFE_SPENDING;
+  process.env.BOOP_SAFE_SPENDING = '1';
+  const { binding } = fakeLedger();
+  setImageBudgetBinding(binding);
+  setPersistentCacheBinding({ get: async () => ({ neurons: 9999 }), put: async () => undefined });
+  try {
+    assert.equal(await getImageNeuronsUsed(), 9999);
+    await assert.rejects(reserveFreeImageNeurons(26.05), ImageBudgetExceeded);
+    assert.equal(await getImageNeuronsUsed(), 9999);
+  } finally {
+    setImageBudgetBinding(undefined);
+    setPersistentCacheBinding(undefined);
+    if (before === undefined) delete process.env.BOOP_SAFE_SPENDING;
+    else process.env.BOOP_SAFE_SPENDING = before;
+  }
 });
-
-test('production config defaults to free-image-only and paid providers cannot bypass guard', () => {
-  const cfg=readFileSync(new URL('../wrangler.jsonc',import.meta.url),'utf8');
+test('production uses the atomic ledger and disables paid image provider fallbacks', () => {
+  const cfg = readFileSync(new URL('../wrangler.jsonc', import.meta.url), 'utf8');
   assert.match(cfg, /"BOOP_SAFE_SPENDING": "1"/);
-  const provider=readFileSync(new URL('../server/gemini.ts',import.meta.url),'utf8');
+  assert.match(cfg, /"new_sqlite_classes": \["BoopImageBudgetLedger"\]/);
+  const worker = readFileSync(new URL('../worker.ts', import.meta.url), 'utf8');
+  assert.match(worker, /setImageBudgetBinding\(env.BOOP_IMAGE_BUDGET\)/);
+  const provider = readFileSync(new URL('../server/gemini.ts', import.meta.url), 'utf8');
   assert.match(provider, /await reserveFreeImageNeurons\(FLUX2_KLEIN_512_NEURONS\)/);
   assert.match(provider, /await reserveFreeImageNeurons\(FLUX1_SCHNELL_8STEP_NEURONS\)/);
   assert.match(provider, /if \(safeImageSpendingEnabled\(\)\) throw new ImageBudgetExceeded\(\)/);
-  const queue=readFileSync(new URL('../src/lib/artworkQueue.ts',import.meta.url),'utf8');
-  assert.match(queue, /Boop safe daily image allowance reached/);
+  const guard = readFileSync(new URL('../server/imageSpendingGuard.ts', import.meta.url), 'utf8');
+  assert.match(guard, /NOT a hard billing cap/);
+  assert.match(guard, /leaving NO headroom/);
+  const queue = readFileSync(new URL('../src/lib/artworkQueue.ts', import.meta.url), 'utf8');
+  assert.match(queue, /not an account-wide billing cap/);
 });

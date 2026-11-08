@@ -19,6 +19,10 @@
   "ai": {
     "binding": "AI"
   },
+  "durable_objects": {
+    "bindings": [{ "name": "BOOP_IMAGE_BUDGET", "class_name": "BoopImageBudgetLedger" }]
+  },
+  "migrations": [{ "tag": "v1-image-budget-ledger", "new_sqlite_classes": ["BoopImageBudgetLedger"] }],
   "kv_namespaces": [
     {
       "binding": "QUARKPOP_CACHE",
