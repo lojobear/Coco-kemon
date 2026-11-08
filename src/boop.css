@@ -21,8 +21,9 @@
   --basic-accent: var(--boop-forest);
   --basic-focus: var(--boop-forest);
   --surface-shadow: 0 8px 24px #0f241a0f;
-  --font-sans: "Fredoka", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-brand: "Space Grotesk", "Fredoka", system-ui, sans-serif;
+  --font-sans: "Pixelify Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-brand: "Pixelify Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: var(--font-sans);
 }
 .boop-app[data-theme="quark-light"] { background:var(--boop-canvas)!important; color:var(--boop-ink)!important; display:grid; grid-template-rows:auto minmax(0,1fr) auto; grid-template-areas:'header' 'main' 'nav'; justify-content:normal; }
 .boop-app button { cursor:pointer; }

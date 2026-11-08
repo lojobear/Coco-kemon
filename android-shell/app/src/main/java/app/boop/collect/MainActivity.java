@@ -70,10 +70,8 @@ public final class MainActivity extends Activity {
     private FrameLayout webFrame;
     private ProgressBar progressBar;
     private TextView[] tabViews;
-    // Bundled SIL OFL fonts keep the native Android chrome visually consistent
-    // with the website, even when the phone is offline.
-    private Typeface fredokaTypeface = Typeface.DEFAULT;
-    private Typeface spaceGroteskTypeface = Typeface.DEFAULT;
+    // The same bundled SIL OFL pixel font powers all native Android chrome.
+    private Typeface pixelifySansTypeface = Typeface.DEFAULT;
     private String selectedTab = "infinite-craft";
     private ValueCallback<Uri[]> fileUploadCallback;
     private static final int FILE_CHOOSE_CODE = 4312;
@@ -123,12 +121,10 @@ public final class MainActivity extends Activity {
 
     private void loadBrandTypefaces() {
         try {
-            fredokaTypeface = Typeface.createFromAsset(getAssets(), "fonts/Fredoka.ttf");
-            spaceGroteskTypeface = Typeface.createFromAsset(getAssets(), "fonts/SpaceGrotesk.ttf");
+            pixelifySansTypeface = Typeface.createFromAsset(getAssets(), "fonts/PixelifySans.ttf");
         } catch (RuntimeException unavailable) {
             // Missing/unsupported font assets must never stop the game opening.
-            fredokaTypeface = Typeface.DEFAULT;
-            spaceGroteskTypeface = Typeface.DEFAULT;
+            pixelifySansTypeface = Typeface.DEFAULT;
         }
     }
 
@@ -148,7 +144,7 @@ public final class MainActivity extends Activity {
         title.setText("Boop");
         title.setTextSize(23);
         title.setTextColor(INK);
-        title.setTypeface(spaceGroteskTypeface, Typeface.BOLD);
+        title.setTypeface(pixelifySansTypeface, Typeface.BOLD);
         title.setGravity(Gravity.CENTER_VERTICAL);
         LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(0, -1, 1);
         titleParams.leftMargin = dp(10);
@@ -176,7 +172,7 @@ public final class MainActivity extends Activity {
         TextView button = new TextView(this);
         button.setText(label);
         button.setTextSize(26);
-        button.setTypeface(fredokaTypeface, Typeface.NORMAL);
+        button.setTypeface(pixelifySansTypeface, Typeface.NORMAL);
         button.setGravity(Gravity.CENTER);
         button.setTextColor(FOREST);
         button.setContentDescription(contentDescription);
@@ -199,7 +195,7 @@ public final class MainActivity extends Activity {
             TextView item = new TextView(this);
             item.setGravity(Gravity.CENTER);
             item.setTextSize(12);
-            item.setTypeface(fredokaTypeface, Typeface.NORMAL);
+            item.setTypeface(pixelifySansTypeface, Typeface.NORMAL);
             item.setIncludeFontPadding(false);
             item.setText(TABS[i][2] + "\n" + TABS[i][1]);
             item.setContentDescription(TABS[i][1]);
@@ -223,7 +219,7 @@ public final class MainActivity extends Activity {
         for (int i = 0; i < TABS.length; i++) {
             boolean active = TABS[i][0].equals(tab) || ("notebook".equals(tab) && "archive".equals(TABS[i][0]));
             TextView item = tabViews[i];
-            item.setTypeface(fredokaTypeface, active ? Typeface.BOLD : Typeface.NORMAL);
+            item.setTypeface(pixelifySansTypeface, active ? Typeface.BOLD : Typeface.NORMAL);
             item.setTextColor(active ? FOREST : MUTED);
             item.setBackground(roundRect(active ? PALE : Color.TRANSPARENT, 13, 0));
             item.setSelected(active);
