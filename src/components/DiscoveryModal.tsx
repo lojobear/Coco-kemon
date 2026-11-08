@@ -3,6 +3,8 @@ import { useEffect, useRef } from 'react';
 import { Sparkles, X, BookOpen, ArrowRight, FlaskConical } from 'lucide-react';
 import { useGame } from '../lib/gameStore';
 import { MaterialSprite } from './ElementSprite';
+import { RarityBadges } from './RarityBadges';
+import { rollOddsCaption } from '../lib/rarity';
 
 export function DiscoveryModal() {
   const { recentDiscovery, closeDiscoveryModal, setActiveTab, setInspectedItem, setSlotA, setSlotB, progression } = useGame();
@@ -20,8 +22,11 @@ export function DiscoveryModal() {
       <button className="reveal-close" aria-label="Close discovery" onClick={closeDiscoveryModal}><X size={22} /></button>
       <p className="reveal-eyebrow"><Sparkles size={16} />{!hasDiscovery ? 'Experiment recorded' : oddkin ? 'Meet your Oddkin' : recentDiscovery.isNew ? 'New discovery' : 'Discovered again'}</p>
       <h2 id="discovery-title">{name}</h2><p className="reveal-category">{oddkin?.titleOrClassification || material?.category}{recentDiscovery.isChroma ? ' · Chroma form' : ''}{recentDiscovery.variant ? ` · ${recentDiscovery.variant} variant` : ''}</p>
+      {recentDiscovery.pairRolls && <p className="reveal-roll-odds">{rollOddsCaption(recentDiscovery.pairRolls.tier, recentDiscovery.pairRolls.shiny, recentDiscovery.pairRolls.celestial, recentDiscovery.pairRolls.holo, recentDiscovery.pairRolls.glitch)}</p>}
+      {recentDiscovery.craftResult && <RarityBadges item={recentDiscovery.craftResult} compact showProgress={false}/>}
+      {recentDiscovery.bonusName && <p className="reveal-bonus">✦ Rare bonus discovery: {recentDiscovery.bonusName}</p>}
       {recentDiscovery.variant && <div className={`reveal-variant variant-${recentDiscovery.variant}`}><Sparkles size={14} /> RARE VARIANT · {recentDiscovery.variant.toUpperCase()}</div>}
-      <div className={recentDiscovery.isNew && hasDiscovery ? "boop-reveal-sprite boop-reveal-sprite-new" : "boop-reveal-sprite"}>{hasDiscovery ? (material ? <MaterialSprite material={material} className="reveal-art" alt={name} /> : <SpriteImage className="reveal-art pixelated" src={oddkin?.customSpriteUrl} alt={name} />) : <div className="reveal-no-reaction" aria-hidden="true"><FlaskConical size={52} /></div>}</div>
+      <div className={recentDiscovery.isNew && hasDiscovery ? "boop-reveal-sprite boop-reveal-sprite-new" : "boop-reveal-sprite"}>{hasDiscovery ? (material ? <MaterialSprite material={material} className="reveal-art" alt={name} isShiny={Boolean(recentDiscovery.pairRolls?.shiny)} /> : <SpriteImage className="reveal-art pixelated" src={oddkin?.customSpriteUrl} alt={name} />) : <div className="reveal-no-reaction" aria-hidden="true"><FlaskConical size={52} /></div>}</div>
       <p className="reveal-explanation">{recentDiscovery.explanation}</p>
       {recentDiscovery.isNew && hasDiscovery && <div className="reveal-progression">
         <span>🔥 Discovery streak <b>{progression.streak}</b></span>

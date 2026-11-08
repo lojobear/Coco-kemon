@@ -13,13 +13,11 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import {
   STARTER_ELEMENTS,
   InfiniteElement,
-  InfiniteCraftPairResponse,
-  validNewElementName,
 } from '../lib/infiniteCraftData';
-import { requestJson } from '../lib/api';
+import { resolveSharedPair, rollSharedPair, applySharedPairDiscovery } from '../lib/sharedCraftingEngine';
 import { enqueueArtwork } from '../lib/artworkQueue';
 import { beginBoardHistory, recordBoardHistory, undoBoard, redoBoard, clampBoardZoom } from '../lib/boardHistory';
-import { CANONICAL_INFINITE_CRAFT_RECIPES, makePairKey } from '../lib/infiniteCraftData';
+import { CANONICAL_INFINITE_CRAFT_RECIPES } from '../lib/infiniteCraftData';
 import { findCraftDropTarget } from '../lib/craftCollision';
 import { BOARD_WIDTH, BOARD_HEIGHT, BOARD_START_X, BOARD_START_Y, boardCenter, clampBoardTile } from '../lib/boardGeometry';
 import { loadBoardLayout, saveBoardLayout } from '../lib/boardLayout';
@@ -28,21 +26,17 @@ import { queueCraftElementsSave, readCraftElements, SAVE_IMPORTED_EVENT, SAVE_CH
 import { discoveryIdentity } from '../lib/unifiedCollection';
 import { isProceduralDefault } from './ElementSprite';
 import { mergeSharedDiscoveries } from '../lib/sharedDiscoveries';
-import { categoryForDiscovery } from '../lib/collectionCategories';
 import { sound } from '../lib/audio';
 import { haptics } from '../lib/haptics';
 import type { ActiveCombination } from './CombineAnimationOverlay';
 import { CraftingCrucible, CrucibleSlotItem } from './CraftingCrucible';
 import { ElementDossierModal } from './ElementDossierModal';
 import { generateConceptSprite } from '../lib/pixelRenderer';
-import { rollIsShiny, generatePhysicalData, getShinyFoilStyle } from '../lib/physicalDataEngine';
-import { rollCelestial } from '../lib/collectorData';
-import { rollRarityTier, rollHolo, rollGlitch, bestRarity, rollOddsCaption, rarityInfo } from '../lib/rarity';
+import { generatePhysicalData, getShinyFoilStyle } from '../lib/physicalDataEngine';
+import { rollOddsCaption, rarityInfo } from '../lib/rarity';
 import { RarityBadges } from './RarityBadges';
 import {
   normalizeElementStats,
-  initialCraftStats,
-  recordElementCraft,
   getElementMastery,
   getCollectionStats,
 } from '../lib/elementStats';
@@ -484,7 +478,6 @@ export function InfiniteCraftView() {
     requestRef.current = controller;
     lastPairRef.current = [itemA, itemB];
     setCombineError(null);
-    const localRecipe = CANONICAL_INFINITE_CRAFT_RECIPES[makePairKey(itemA.name, itemB.name)];
     setIsSynthesizing(true);
     sound.playCombineChime();
 
@@ -498,122 +491,37 @@ export function InfiniteCraftView() {
     mergeFxTimerRef.current = setTimeout(() => setMergeFx(null), 330);
 
     try {
-      // Known combinations never need the network. All others use the server's
-      // persistent cache before the AI fallback, without an artificial delay.
-      const apiData: InfiniteCraftPairResponse = localRecipe
-        ? { ...localRecipe, isNew: false }
-        : await requestJson<InfiniteCraftPairResponse>(
-          `/api/infinite-craft/pair?first=${encodeURIComponent(itemA.name)}&second=${encodeURIComponent(itemB.name)}`,
-          { signal: controller.signal },
-        );
-      if (typeof apiData.result !== 'string' || !validNewElementName(apiData.result) || typeof apiData.emoji !== 'string' || typeof apiData.isNew !== 'boolean') throw new Error('The AI produced an invalid or overlong element name. Please retry.');
+      // Both Craft and Foundry MIX resolve through one pair endpoint,
+      // including the same canonical shortcuts, provider and persistent cache.
+      const apiData = await resolveSharedPair(itemA.name, itemB.name, { signal: controller.signal });
       if (controller.signal.aborted) return;
-
-      const isShinyEncounter = rollIsShiny(apiData.result, itemA.name, itemB.name);
-      const isCelestialEncounter = rollCelestial();
-      const isHoloEncounter = rollHolo();
-      const isGlitchEncounter = rollGlitch();
-      const encounterTier = rollRarityTier();
+      const rolls = rollSharedPair(apiData.result, itemA.name, itemB.name);
+      const isShinyEncounter = rolls.shiny;
+      const isCelestialEncounter = rolls.celestial;
+      const isHoloEncounter = rolls.holo;
+      const isGlitchEncounter = rolls.glitch;
       if (isShinyEncounter) setActiveCombination(prev => prev ? { ...prev, isShiny: true } : null);
-      if (controller.signal.aborted) return;
-
-      const { result, emoji, isNew } = apiData;
-      const cleanName = result.trim();
-      const normName = cleanName.toLowerCase();
-      // Request artwork only for a discovery newly added to this player's collection,
-      // not whenever a library grid happens to render a saved item.
-      const firstInCollection = !elements.some(el => el.name.trim().toLowerCase() === normName);
-      const cleanId = normName.replace(/[^a-z0-9]/g, '_');
       const craftedAt = Date.now();
-      const currentRecipe = { first: itemA.name, second: itemB.name };
-      const standardPhysicalData = generatePhysicalData(cleanName, emoji || '✨', false);
-      const shinyPhysicalData = isShinyEncounter ? generatePhysicalData(cleanName, emoji || '✨', true) : undefined;
+      const recorded = applySharedPairDiscovery(elements, apiData, itemA.name, itemB.name, rolls, craftedAt);
+      const { result, emoji } = apiData;
+      const cleanName = result.trim();
+      const firstInCollection = recorded.isNew;
+      const isNew = firstInCollection;
+      const newElemObj = recorded.main;
       if (isShinyEncounter || firstInCollection) spawnRevealBurst(true);
-
-      const newElemObj: InfiniteElement = {
-        id: cleanId,
-        name: cleanName,
-        emoji: emoji || '✨',
-        category: categoryForDiscovery({ name: cleanName, connection: apiData.connection }),
-        discoveredAt: craftedAt,
-        isNew: firstInCollection,
-        explanation: apiData.explanation,
-        connection: apiData.connection,
-        recipe: currentRecipe,
-        isShiny: isShinyEncounter,
-        unlockedShiny: isShinyEncounter,
-        shinyDiscoveredAt: isShinyEncounter ? craftedAt : undefined,
-        shinyTitle: shinyPhysicalData?.shinyTitle,
-        unlockedCelestial: isCelestialEncounter,
-        celestialDiscoveredAt: isCelestialEncounter ? craftedAt : undefined,
-        unlockedHolo: isHoloEncounter,
-        holoDiscoveredAt: isHoloEncounter ? craftedAt : undefined,
-        unlockedGlitch: isGlitchEncounter,
-        glitchDiscoveredAt: isGlitchEncounter ? craftedAt : undefined,
-        rarityTier: encounterTier,
-        rarityDiscoveredAt: craftedAt,
-        physicalData: standardPhysicalData,
-        ...initialCraftStats(currentRecipe, isShinyEncounter, craftedAt),
-      };
-
       setLastResult(newElemObj);
-      // Artwork is best effort and never blocks discovery saves or the board.
-      // Provider outages pause the durable queue instead of showing one error
-      // after every newly discovered element.
+
+      // Background art is best effort and subject to Boop's existing AI cap.
       if (firstInCollection) enqueueArtwork(cleanName, false);
       if (isShinyEncounter) enqueueArtwork(cleanName, true);
-      setElements(prev => {
-        const existingIdx = prev.findIndex(el => el.id.toLowerCase() === cleanId || el.name.trim().toLowerCase() === normName);
-        if (existingIdx >= 0) {
-          const existing = prev[existingIdx];
-          const tracked = recordElementCraft(existing, currentRecipe, isShinyEncounter, craftedAt);
-          const updated = [...prev];
-          updated[existingIdx] = {
-            ...tracked,
-            explanation: existing.explanation || apiData.explanation,
-            connection: existing.connection || apiData.connection,
-            category: existing.category || newElemObj.category,
-            recipe: existing.recipe || currentRecipe,
-            unlockedShiny: isShinyEncounter || existing.unlockedShiny,
-            isShiny: isShinyEncounter ? true : existing.isShiny,
-            shinyDiscoveredAt: existing.shinyDiscoveredAt || (isShinyEncounter ? craftedAt : undefined),
-            shinyTitle: existing.shinyTitle || shinyPhysicalData?.shinyTitle,
-            unlockedCelestial: Boolean(existing.unlockedCelestial || isCelestialEncounter),
-            celestialDiscoveredAt: existing.celestialDiscoveredAt || (isCelestialEncounter ? craftedAt : undefined),
-            unlockedHolo: Boolean(existing.unlockedHolo || isHoloEncounter),
-            holoDiscoveredAt: existing.holoDiscoveredAt || (isHoloEncounter ? craftedAt : undefined),
-            unlockedGlitch: Boolean(existing.unlockedGlitch || isGlitchEncounter),
-            glitchDiscoveredAt: existing.glitchDiscoveredAt || (isGlitchEncounter ? craftedAt : undefined),
-            rarityTier: bestRarity(existing.rarityTier, encounterTier),
-            rarityDiscoveredAt: bestRarity(existing.rarityTier, encounterTier) !== existing.rarityTier
-              ? craftedAt : existing.rarityDiscoveredAt,
-            physicalData: existing.physicalData || standardPhysicalData,
-          };
-          return updated;
-        }
-        return [newElemObj, ...prev];
-      });
+      if (recorded.bonus) enqueueArtwork(recorded.bonus.name, false);
+      // Use the newest in-memory collection, so a Foundry discovery cannot be
+      // lost if the player switched modes during an asynchronous pair request.
+      setElements(prev => applySharedPairDiscovery(prev, apiData, itemA.name, itemB.name, rolls, craftedAt).elements);
 
-      const bonus = apiData.bonus;
-      if (bonus && typeof bonus.result === 'string' && validNewElementName(bonus.result) && typeof bonus.emoji === 'string' && bonus.emoji.trim() && bonus.emoji.length <= 32 && bonus.variantOf === cleanName && typeof bonus.explanation === 'string' && bonus.explanation.length <= 280) {
-        const bonusAt = Date.now();
-        const bonusRecipe = { first: itemA.name, second: itemB.name };
-        const bonusElement: InfiniteElement = {
-          id: bonus.result.toLowerCase().replace(/[^a-z0-9]/g, '_'),
-          name: bonus.result,
-          emoji: bonus.emoji,
-          category: categoryForDiscovery({ name: bonus.result, connection: 'rare variant' }),
-          variantOf: bonus.variantOf,
-          explanation: bonus.explanation,
-          connection: 'rare variant',
-          recipe: bonusRecipe,
-          discoveredAt: bonusAt,
-          physicalData: generatePhysicalData(bonus.result, bonus.emoji, false),
-          ...initialCraftStats(bonusRecipe, false, bonusAt),
-        };
-        if (!elements.some(e => e.name.toLowerCase() === bonus.result.toLowerCase())) enqueueArtwork(bonus.result, false);
-        setElements(prev => prev.some(e => e.name.toLowerCase() === bonus.result.toLowerCase()) ? prev : [bonusElement, ...prev]);
-        setSpawnToast(`✦ Rare bonus: ${bonus.result}! ${cleanName} was also saved.`);
+      const bonus = recorded.bonus;
+      if (bonus) {
+        setSpawnToast(`✦ Rare bonus: ${bonus.name}! ${cleanName} was also saved.`);
         setTimeout(() => setSpawnToast(null), 4500);
       }
 

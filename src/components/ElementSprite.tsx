@@ -93,12 +93,12 @@ export function isProceduralDefault(material: Material): boolean {
   proceduralDefaults.set(identity, { source, signature, isDefault });
   return isDefault;
 }
-export const MaterialSprite = React.memo(function MaterialSprite({ material, className, alt = '', idle = true }: { material: Material; className?: string; alt?: string; idle?: boolean }) {
+export const MaterialSprite = React.memo(function MaterialSprite({ material, className, alt = '', idle = true, isShiny = false }: { material: Material; className?: string; alt?: string; idle?: boolean; isShiny?: boolean }) {
   const fresh = useMemo(() => generateFreshPixelArt(material.displayName), [material.displayName]);
   // Avoid synthesizing an unused legacy image for ordinary Craft discoveries.
   const legacyDefault = useMemo(() => isProceduralDefault(material), [material]);
   // Preserve uploaded or remotely saved artwork. A legacy procedurally
   // generated icon may be replaced with the new hand-authored preview.
   const custom = legacyDefault ? undefined : material.customSpriteUrl;
-  return <ElementSprite name={material.displayName} custom={custom} fallback={fresh} className={className} alt={alt} idle={idle} />;
+  return <ElementSprite name={material.displayName} custom={custom} fallback={fresh} className={className} alt={alt} idle={idle} isShiny={isShiny} />;
 });

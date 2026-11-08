@@ -739,6 +739,24 @@ body {
   margin-top: 8px;
 }
 
+.reveal-roll-odds {
+  margin: 10px auto 6px;
+  max-width: 460px;
+  color: var(--basic-muted);
+  font-size: 11px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.reveal-bonus {
+  margin: 8px auto;
+  color: #4f46e5;
+  font-size: 12px;
+  font-weight: 800;
+}
+.collection-reveal .boop-rarity-badges {
+  justify-content: center;
+}
+
 .reveal-art {
   display: block;
   width: 160px;
