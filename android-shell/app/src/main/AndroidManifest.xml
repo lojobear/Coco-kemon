@@ -4,6 +4,7 @@
     <application android:allowBackup="false" android:label="Boop"
       android:icon="@drawable/ic_boop_planet"
       android:theme="@android:style/Theme.Material.Light.NoActionBar"
+      android:forceDarkAllowed="false"
       android:usesCleartextTraffic="false">
         <activity android:name=".MainActivity" android:exported="true"
           android:launchMode="singleTop">
