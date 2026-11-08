@@ -18,7 +18,7 @@ test('Schnell compact prompt fits model limit and keeps compact isometric furni 
   assert.match(prompt, /Obsidian Dragon/);
   assert.match(prompt, /upgrade-abc123/);
   assert.match(prompt, /112x112/);
-  assert.match(prompt, /50–65%/);
+  assert.match(prompt, /55–70%/);
   assert.match(prompt, /subject-specific flat pixel colours/i);
   assert.match(prompt, /#FF00FF/);
   assert.doesNotMatch(prompt, /BLACK-NAVY #1C2232/);
@@ -37,10 +37,10 @@ test('Subject-specific art direction avoids global brown cast and repeated gener
   assert.notEqual(lake, leaf);
   assert.notEqual(lake, battery);
   const prompt = buildSpritePrompt('Ice Lake');
-  assert.match(prompt, /BOOP v18 COMPACT ISOMETRIC FURNI PIXEL ART/);
+  assert.match(prompt, /BOOP v19 COMPACT ISOMETRIC FURNI PIXEL ART/);
   assert.match(prompt, /112x112/);
-  assert.match(prompt, /50–65%/);
-  assert.match(prompt, /16–40 flat pixel colours/);
+  assert.match(prompt, /55–70%/);
+  assert.match(prompt, /20–48 flat pixel colours/);
   assert.match(prompt, /disconnected fragments/i);
   assert.match(prompt, /muddy universal brown tint/i);
   assert.match(prompt, /SUBJECT-BASED PALETTE:.*Aquatic or ice elements/);

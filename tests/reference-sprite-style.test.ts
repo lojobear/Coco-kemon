@@ -19,14 +19,14 @@ test('approved pixel-art reference remains intact but is never sent as model inp
 test('new default, shiny and reroll prompts use compact isometric furni pixel art across image providers',()=>{
   const full=buildSpritePrompt('Grandfather Clock');
   assert.match(full,/112x112/);
-  assert.match(full,/50–65%/);
-  assert.match(full,/16–40 flat pixel colours/);
+  assert.match(full,/55–70%/);
+  assert.match(full,/20–48 flat pixel colours/);
   assert.match(full,/Center in a 112x112 canvas/i);
   assert.match(full,/2:1 isometric/i);
   const compact=compactSchnellImagePrompt(full);
   assert.ok(compact.length<=2048);
   assert.match(compact,/112x112/);
-  assert.match(compact,/50–65%/);
+  assert.match(compact,/55–70%/);
   assert.match(compact,/#FF00FF/);
   const shiny=buildSpritePrompt('Fox','',true);
   assert.match(shiny,/SHINY \/ ALTERNATE COLORWAY/);
@@ -35,7 +35,7 @@ test('new default, shiny and reroll prompts use compact isometric furni pixel ar
   assert.match(compactSchnellImagePrompt(buildSpritePrompt('Clock','other-angle')),/other-angle/);
 });
 
-test('new generated sprites use compact 112px canvas and up to 40 colours',()=>{
+test('new generated sprites retain crisp 112px canvas and up to 48 colours',()=>{
   const width=64,height=64;
   const src=new Uint8ClampedArray(width*height*4);
   for(let y=5;y<55;y++)for(let x=7;x<59;x++){
@@ -49,14 +49,14 @@ test('new generated sprites use compact 112px canvas and up to 40 colours',()=>{
   assert.ok(box!.width<=MINI_FOOTPRINT_WIDTH);
   assert.ok(box!.height<=MINI_FOOTPRINT_HEIGHT);
   assert.equal(box!.bottom,90);
-  assert.ok(box!.top>=21);
+  assert.ok(box!.top>=15);
   const palette=new Set<string>();
   for(let p=0;p<output.length;p+=4){
     if(output[p+3]===0)continue;
     assert.equal(output[p+3],255);
     palette.add(`${output[p]},${output[p+1]},${output[p+2]}`);
   }
-  assert.ok(palette.size<=40);
+  assert.ok(palette.size<=48);
   assert.throws(()=>composeMiniSpritePixels(new Uint8ClampedArray(16),2,2),/no usable silhouette/);
 });
 

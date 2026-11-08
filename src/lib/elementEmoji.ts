@@ -106,8 +106,8 @@ async function normalizeGeneratedImage(imageBase64: string, mimeType: string): P
     sourceContext.putImageData(sourcePixels, 0, 0);
   }
 
-  // The approved reference is a bold, full-frame collectible: 128x128 output,
-  // approx. 116px foreground silhouette and a rich 64-colour upper limit.
+  // New v19 generated art uses a 112px canvas, ~76px max silhouette,
+  // and up to 48 well-separated pixel colours for slightly finer details.
   // Process ONLY freshly generated art; saved/uploads keep their exact bytes.
   // Preserve pixel steps and use alpha-masked nearest-neighbour framing.
   const logicalSize = MINI_CANVAS_SIZE;

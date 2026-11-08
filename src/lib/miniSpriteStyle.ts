@@ -1,11 +1,11 @@
-/** Compact 112px isometric furni output for newly generated art only.
+/** Slightly fuller, sharper 112px isometric furni output for newly generated art only.
  * Cached images and user uploads remain untouched. */
 export const MINI_CANVAS_SIZE=112;
-export const MINI_FOOTPRINT_WIDTH=70;
-export const MINI_FOOTPRINT_HEIGHT=70;
+export const MINI_FOOTPRINT_WIDTH=76;
+export const MINI_FOOTPRINT_HEIGHT=76;
 export const MINI_FOOTPRINT_CENTER_X=56;
 export const MINI_FOOTPRINT_BOTTOM=91;
-export const MINI_MAX_OPAQUE_COLORS=40;
+export const MINI_MAX_OPAQUE_COLORS=48;
 
 export interface AlphaBounds {left:number;top:number;right:number;bottom:number;width:number;height:number}
 export function alphaBounds(data: Uint8ClampedArray,width:number,height:number):AlphaBounds|null {
