@@ -74,7 +74,7 @@ test('Sprite Lab can repair previously missed discoveries and rare bonus crafts 
   assert.match(lab,/Repair missing sprites/);
   assert.match(lab,/Retry queued art/);
   const craft=readFileSync(new URL('../src/components/InfiniteCraftView.tsx',import.meta.url),'utf8');
-  assert.match(craft,/enqueueArtwork\(bonus\.result, false\)/);
+  assert.match(craft,/enqueueArtwork\(recorded\.bonus\.name, false\)/);
 });
 
 test('quota-exhausted sprite jobs wait for the real Cloudflare UTC reset', () => {

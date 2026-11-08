@@ -70,14 +70,16 @@ test('roll badges survive save and rare finishes unlock trophy appearances',()=>
 
 test('every generated result displays odds above the bubble and collection renders new badges',()=>{
   const src=readFileSync(new URL('../src/components/InfiniteCraftView.tsx',import.meta.url),'utf8');
+  const shared=readFileSync(new URL('../src/lib/sharedCraftingEngine.ts',import.meta.url),'utf8');
   const album=readFileSync(new URL('../src/components/CollectionAlbum.tsx',import.meta.url),'utf8');
   const css=readFileSync(new URL('../src/boop.css',import.meta.url),'utf8');
-  assert.match(src,/rollRarityTier\(\)/);
-  assert.match(src,/bestRarity\(existing\.rarityTier, encounterTier\)/);
+  assert.match(src,/rollSharedPair\(/);
+  assert.match(shared,/rollRarityTier\(\)/);
+  assert.match(shared,/bestRarity\(old\.rarityTier, rolls\.tier\)/);
   assert.match(src,/rollOddsCaption\(lastResult\.rarityTier/);
-  assert.match(src,/rarityDiscoveredAt: craftedAt/);
-  assert.match(src,/rollHolo\(\)/);
-  assert.match(src,/rollGlitch\(\)/);
+  assert.match(shared,/rarityDiscoveredAt: timestamp/);
+  assert.match(shared,/rollHolo\(\)/);
+  assert.match(shared,/rollGlitch\(\)/);
   assert.match(album,/RarityBadges item=\{item\}/);
   assert.match(album,/id:'legendary'/);
   assert.match(css,/\.boop-board-result > \.boop-board-roll-odds[\s\S]*?bottom:calc\(100% \+ 5px\)/);
