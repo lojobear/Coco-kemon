@@ -15,7 +15,7 @@ import { FoundryFusionOverlay } from './FoundryFusionOverlay';
 
 export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Material) => void }) {
   const { materials: foundryMaterials, processes, slotA, slotB, selectedProcess, setSlotA, setSlotB,
-    setSelectedProcess, runSynthesis, isSynthesizing, synthesisStage, setActiveTab, clearSlots, progression } = useGame();
+    setSelectedProcess, runSynthesis, isSynthesizing, synthesisStage, synthesisError, setActiveTab, clearSlots, progression } = useGame();
   const [craftItems, setCraftItems] = useState(readCraftElements);
   const [search, setSearch] = useState('');
   const [processQuery, setProcessQuery] = useState('');
@@ -101,14 +101,14 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
 
   return <section className="collection-workbench" aria-label="Foundry workspace"><FoundryFusionOverlay />
     <div className="workbench-intro">
-      <div><h1>Combine.</h1><p>Two discoveries. One surprising result.</p></div>
+      <div><h1>Combine.</h1><p>Same discovery engine as Craft · extra processes when you want them.</p></div>
       <div className="craft-switch" aria-label="Crafting mode">
         <button type="button" aria-pressed="true"><FlaskConical size={19} /> Combine</button>
         <button type="button" aria-pressed="false" onClick={() => setActiveTab('infinite-craft')}><Hammer size={19} /> Craft</button>
       </div>
     </div>
     <div className={`combine-dock ${isSynthesizing ? 'is-combining' : ''}`}>
-      <div className="boop-pad-heading"><span>YOUR COMBINATION</span><span className="boop-ready-tag">{slotA ? (slotB ? 'Ready' : 'Add one more') : 'Choose an ingredient'}</span></div>
+      <div className="boop-pad-heading"><span>YOUR COMBINATION</span><span className="boop-ready-tag">{slotA ? (slotB ? 'Ready' : process?.id === 'MIX' ? 'Choose two items' : 'Ready for transformation') : 'Choose an ingredient'}</span></div>
       <div className="combine-inputs">
         {(['A', 'B'] as const).map((key, index) => {
           const item = key === 'A' ? slotA : slotB;
@@ -118,7 +118,7 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
                 {item ? <MaterialSprite material={item} className="ingredient-emoji" /> : <Plus size={24} />}
               </button>
               {item && <button className="ingredient-remove" aria-label={`Remove item ${key}`} disabled={isSynthesizing} onClick={() => key === 'A' ? setSlotA(null) : setSlotB(null)}><X size={15} /></button>}
-              <span>{item?.displayName || (key === 'A' ? 'Choose item' : 'Optional item')}</span>
+              <span>{item?.displayName || (key === 'A' ? 'Choose item' : process?.id === 'MIX' ? 'Choose item' : 'Optional item')}</span>
             </div>
           </React.Fragment>;
         })}
@@ -130,15 +130,16 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
               {group.entries.map(p => <option value={p.id} key={p.id}>{p.symbol} {p.name}</option>)}
             </optgroup>)}
           </select>
-          <small>{process?.description}</small>
+          <small>{process?.id === 'MIX' ? 'Same canonical results, first discoveries, rarity odds and sprite pipeline as Craft.' : process?.description}</small>
           <button className="random-process" disabled={isSynthesizing || !availableProcesses.length} onClick={() => setSelectedProcess(chooseRandomProcess(availableProcesses, process?.id))}><Shuffle size={13} /> Random process</button>
         </div>
       </div>
       <div className="recipe-tools"><span>{slotA ? `${slotA.displayName}${slotB ? ` + ${slotB.displayName}` : ''}` : 'Pick an item to begin'}</span><button disabled={isSynthesizing || !slotA || !slotB} aria-label="Swap ingredients" onClick={() => { setSlotA(slotB); setSlotB(slotA); }}><ArrowLeftRight size={16} /></button><button disabled={isSynthesizing || (!slotA && !slotB)} aria-label="Clear ingredients" onClick={() => { clearSlots(); setPicker(null); }}><RotateCcw size={16} /></button></div>
-      <div className="combine-actions"><button className="combine-primary" disabled={!slotA || !selectedProcess || isSynthesizing} onClick={() => void runSynthesis()}><Sparkles size={23} />{isSynthesizing ? 'Combining…' : 'Combine'}</button>
+      <div className="combine-actions"><button className="combine-primary" disabled={!slotA || !selectedProcess || (process?.id === 'MIX' && !slotB) || isSynthesizing} onClick={() => void runSynthesis()}><Sparkles size={23} />{isSynthesizing ? 'Combining…' : process?.id === 'MIX' ? 'Craft discovery' : 'Apply process'}</button>
         <button className="random-items" aria-label="Choose random ingredients" disabled={isSynthesizing || !materials.length} onClick={randomItems}><Dice5 size={23} /><span>Random</span></button>
       </div>
       {isSynthesizing && <p className="synthesis-status" role="status">{synthesisStage || 'Discovering something new…'}</p>}
+      {synthesisError && <p className="synthesis-status" role="alert">{synthesisError} <button type="button" disabled={isSynthesizing} onClick={() => void runSynthesis()}>Retry</button></p>}
     </div>
     <div className="discovery-heading"><h2>Choose ingredients <span>{materials.length}</span></h2>
       <label className="discovery-search"><Search size={17} /><input ref={searchRef} aria-label="Search your discoveries" placeholder="Search collection…" value={search} onChange={e => setSearch(e.target.value)} /></label>

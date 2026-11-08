@@ -10,11 +10,13 @@ import { Material, Oddkin, Process, ExperimentLog, Habitat, SynthesisResult, Pho
 import { STARTER_MATERIALS, ALL_PROCESSES, INITIAL_HABITATS, mergeProcesses } from './starterData';
 import { generateMaterialSprite, generateOddkinSprite, MATERIAL_SPRITE_RENDERER_VERSION } from './pixelRenderer';
 import { requestJson } from './api';
-import { getElementEmoji } from './elementEmoji';
+import { enqueueArtwork } from './artworkQueue';
+import { resolveSharedPair, rollSharedPair, applySharedPairDiscovery, type SharedPairRolls } from './sharedCraftingEngine';
+import { conceptMaterial } from './conceptMaterial';
+import type { InfiniteCraftPairResponse, InfiniteElement } from './infiniteCraftData';
 import { validMaterial, validOddkin } from './validation';
 import { readFoundrySave, saveFoundry, exportCompleteSave, importCompleteSave, readCraftElements, saveCraftElements } from './saveData';
 import { sound } from './audio';
-import { discoveryIdentity } from './unifiedCollection';
 import { matchesFoundryRecipe, validSynthesisResult, resolveMaterialDiscovery } from './foundryRecipes';
 import { dailyGoals, discoveryStreak, levelFromXp, nearMissHint, nextStreakMilestone, progressionXp, rollMaterialVariant, setProgress, streakReward } from './progression';
 
@@ -50,6 +52,10 @@ interface GameState {
     explanation: string;
     variant?: 'holographic' | 'ancient' | 'glitched' | 'corrupted';
     xpBonus?: number;
+    /** Same rarity/recipe/finish result used by Craft and Collection. */
+    craftResult?: InfiniteElement;
+    pairRolls?: SharedPairRolls;
+    bonusName?: string;
   } | null;
   progression: {
     xp: number;
@@ -270,7 +276,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
   // Main synthesis orchestration pipeline
   const runSynthesis = useCallback(async () => {
-    if (!slotA || !selectedProcess || synthesisInFlight.current) return;
+    if (!slotA || !selectedProcess || (selectedProcess.id === 'MIX' && !slotB) || synthesisInFlight.current) return;
     synthesisInFlight.current = true;
 
     setSynthesisError(null);
@@ -284,20 +290,32 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     const existingMatch = selectedProcess.id === 'MIX' ? undefined
       : materials.find(m => matchesFoundryRecipe(m, slotA, slotB, selectedProcess.id));
 
-    // Start the network work immediately for new recipes. The machine animation now runs
-    // in parallel instead of adding ~1.4s before the request even begins.
-    const synthesisRequest = existingMatch ? null : requestJson<SynthesisResult>('/api/synthesize', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        // Sprite images can be hundreds of KB and the server never reads them.
-        inputMaterialA: { ...slotA, customSpriteUrl: undefined },
-        inputMaterialB: slotB ? { ...slotB, customSpriteUrl: undefined } : undefined,
-        process: selectedProcess,
-        existingMaterialNames: materials.map(m => m.canonicalName),
-        knownOddkinNames: oddkinCollection.map(o => o.speciesName),
-      }),
-    });
+    // The standard two-item MIX uses exactly the same client request, server
+    // pair resolver, canonical recipes and caching as the Craft board.
+    // Specialized Foundry processes continue through the synthesis route.
+    const isSharedMix = selectedProcess.id === 'MIX' && Boolean(slotB);
+    const synthesisRequest: Promise<{ data: SynthesisResult; pair?: InfiniteCraftPairResponse }> | null = existingMatch
+      ? null
+      : isSharedMix && slotB
+        ? resolveSharedPair(slotA.displayName, slotB.displayName).then(pair => {
+          const material = conceptMaterial({
+            result: pair.result, emoji: pair.emoji,
+            explanation: pair.explanation, connection: pair.connection,
+          }, [slotA, slotB], 'MIX');
+          return { data: { status: 'new_material' as const, material, explanation: material.discoveryExplanation }, pair };
+        })
+        : requestJson<SynthesisResult>('/api/synthesize', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            // Sprite images are never sent to the synthesis engine.
+            inputMaterialA: { ...slotA, customSpriteUrl: undefined },
+            inputMaterialB: slotB ? { ...slotB, customSpriteUrl: undefined } : undefined,
+            process: selectedProcess,
+            existingMaterialNames: materials.map(m => m.canonicalName),
+            knownOddkinNames: oddkinCollection.map(o => o.speciesName),
+          }),
+        }).then(data => ({ data }));
 
     try {
       // 1. ANALYZING MATERIALS
@@ -357,7 +375,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       // 4. RESOLVING RESULT via API
       setSynthesisStage('RESOLVING RESULT');
 
-      const data = await synthesisRequest!;
+      const { data, pair: sharedPair } = await synthesisRequest!;
 
       if (!validSynthesisResult(data)) {
         throw new Error('The server returned an invalid discovery. Please retry.');
@@ -380,6 +398,22 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
           variantFormsDiscovered: isChromaRoll ? ['standard', 'chroma'] : ['standard'],
         };
         newOddkin.customSpriteUrl = generateOddkinSprite(newOddkin, { isChroma: isChromaRoll });
+        // Oddkin retain their biological lineage, but their collectible record
+        // shares Craft's rarity, recipe and collection persistence workflow.
+        const creaturePair: InfiniteCraftPairResponse & { category?: string } = {
+          result: newOddkin.speciesName, emoji: '🐾', isNew: true,
+          explanation: data.explanation || newOddkin.description,
+          connection: 'biology', category: 'Oddkin & Creatures',
+        };
+        const creatureRolls = rollSharedPair(creaturePair.result, slotA.displayName, slotB?.displayName || selectedProcess.name);
+        const creatureRecord = applySharedPairDiscovery(
+          readCraftElements(), creaturePair, slotA.displayName,
+          slotB?.displayName || selectedProcess.name, creatureRolls,
+        );
+        saveCraftElements(creatureRecord.elements);
+        if (creatureRecord.isNew) enqueueArtwork(newOddkin.speciesName, false);
+        if (creatureRolls.shiny) enqueueArtwork(newOddkin.speciesName, true);
+
 
         // Dramatic Oddkin awakening sound & visuals
         sound.playOddkinAwakening();
@@ -419,17 +453,32 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
         setRecentDiscovery({
           oddkin: newOddkin,
-          isNew: true,
+          isNew: creatureRecord.isNew,
           isChroma: isChromaRoll,
           explanation: data.explanation || newOddkin.description,
+          craftResult: creatureRecord.main,
+          pairRolls: creatureRolls,
           xpBonus: oddkinXpBonus,
         });
+        if (isSharedMix) { setSlotA(null); setSlotB(null); }
 
       } else if ((data.status === 'new_material' || data.status === 'existing_material') && data.material) {
-        const alreadyInCraft = readCraftElements().some(item =>
-          discoveryIdentity(item.name) === discoveryIdentity(data.material!.displayName));
         const discovery = resolveMaterialDiscovery(data.material, materials, data.status);
-        const firstAcrossCollection = discovery.isNew && !alreadyInCraft;
+        const resultPair: InfiniteCraftPairResponse & { category?: string } = {
+          result: data.material.displayName,
+          emoji: sharedPair?.emoji || '✨',
+          isNew: sharedPair?.isNew ?? discovery.isNew,
+          explanation: sharedPair?.explanation || data.explanation || data.material.discoveryExplanation,
+          connection: sharedPair?.connection || data.material.category,
+          category: data.material.category,
+          ...(sharedPair?.bonus ? { bonus: sharedPair.bonus } : {}),
+        };
+        const sharedRolls = rollSharedPair(resultPair.result, slotA.displayName, slotB?.displayName || selectedProcess.name);
+        const sharedRecord = applySharedPairDiscovery(
+          readCraftElements(), resultPair, slotA.displayName,
+          slotB?.displayName || selectedProcess.name, sharedRolls,
+        );
+        const firstAcrossCollection = sharedRecord.isNew;
         const variant = discovery.isNew ? rollMaterialVariant(discovery.material.rarity) : discovery.material.variant;
         const newMat: Material = {
           ...discovery.material,
@@ -440,8 +489,12 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
         sound.playDiscoveryChime(newMat.rarity);
         setMaterials(prev => deduplicateMaterials([newMat, ...prev]));
-        // Only genuinely new Foundry material discoveries spend image AI quota.
-        if (firstAcrossCollection) void getElementEmoji(newMat.displayName).catch(() => undefined);
+        // Every successful combination records the same rarity, finishes,
+        // bonus and recipe history in the ONE shared Craft/Foundry collection.
+        saveCraftElements(sharedRecord.elements);
+        if (firstAcrossCollection) enqueueArtwork(newMat.displayName, false);
+        if (sharedRolls.shiny) enqueueArtwork(newMat.displayName, true);
+        if (sharedRecord.bonus) enqueueArtwork(sharedRecord.bonus.name, false);
 
         // Unlock processes based on discoveries (e.g. Glass unlocks POLISH, Spark unlocks CHARGE, etc.)
         if (newMat.canonicalName.includes('GLASS') || newMat.canonicalName.includes('CERAMIC')) {
@@ -465,7 +518,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
           success: true,
           resultName: newMat.displayName,
           observation: `${discovery.isNew ? 'Discovered' : 'Rediscovered'} ${newMat.displayName} (${newMat.rarity})${newMat.variant ? ` · ${newMat.variant}` : ''}. ${data.explanation}`,
-          wasNew: discovery.isNew,
+          wasNew: firstAcrossCollection,
           rarity: newMat.rarity,
           category: newMat.category,
           variant: newMat.variant,
@@ -475,11 +528,17 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
         setRecentDiscovery({
           material: newMat,
-          isNew: discovery.isNew,
+          isNew: firstAcrossCollection,
           explanation: data.explanation || newMat.discoveryExplanation,
           variant: newMat.variant,
+          craftResult: sharedRecord.main,
+          pairRolls: sharedRolls,
+          bonusName: sharedRecord.bonus?.name,
           xpBonus: materialXpBonus,
         });
+        // Match Craft's two-ingredient workflow: consume MIX slots on success.
+        // Keep the selected process so Foundry remains ready for another pair.
+        if (isSharedMix) { setSlotA(null); setSlotB(null); }
 
       } else {
         // No transformation / resisted change

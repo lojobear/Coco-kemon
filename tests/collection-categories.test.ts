@@ -69,10 +69,12 @@ test('Foundry and Kitchen discoveries are automatically classified and safely pr
 test('all three discovery flows and the collection UI preserve category metadata',()=>{
   const album=readFileSync(new URL('../src/components/CollectionAlbum.tsx',import.meta.url),'utf8');
   const craftSource=readFileSync(new URL('../src/components/InfiniteCraftView.tsx',import.meta.url),'utf8');
+  const sharedSource=readFileSync(new URL('../src/lib/sharedCraftingEngine.ts',import.meta.url),'utf8');
   const kitchenSource=readFileSync(new URL('../src/lib/kitchen/engine.ts',import.meta.url),'utf8');
   const foundrySource=readFileSync(new URL('../src/components/WorkBench.tsx',import.meta.url),'utf8');
-  assert.match(craftSource,/category: categoryForDiscovery\(\{ name: cleanName/);
-  assert.match(craftSource,/category: categoryForDiscovery\(\{ name: bonus.result/);
+  assert.match(craftSource,/applySharedPairDiscovery\(/);
+  assert.match(sharedSource,/category: categoryForDiscovery\(\{ name, category: outcome.category/);
+  assert.match(sharedSource,/category: categoryForDiscovery\(\{ name: rare.result/);
   assert.match(kitchenSource,/category: categoryForDiscovery\(\{ name: step.outputName/);
   assert.match(foundrySource,/const categories = useMemo\(/);
   assert.match(album,/aria-label="Collection category"/);
