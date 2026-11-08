@@ -1,17 +1,17 @@
-/** Boop v18 compact isometric furni style, matching the user's earlier sprite gallery.
+/** Boop v19 slightly larger, sharper isometric furni style, preserving the approved look.
  * No image input is sent to the AI; reroll isolation remains enabled. */
 export const BOOP_SPRITE_ART_STYLE = [
- 'BOOP v18 COMPACT ISOMETRIC FURNI PIXEL ART. Illustrate only the named subject as a charming small retro game-object sprite, like classic virtual-hotel furniture, independently from every other sprite.',
- 'Use a 2:1 isometric or slight three-quarter object view, showing its top and side faces where appropriate. Center in a 112x112 canvas; the item occupies roughly 50–65% of canvas width and height, about 55–72 pixels, with generous empty margins.',
- 'Precise 1–2px local-colour stair-stepped outlines and small dark accents, clean pixel clusters, tidy highlights and stepped shading. Avoid thick uniform black sticker outlines, oversized full-frame heroes and flat badges.',
- 'Subject-specific bright 16–40 flat pixel colours; natural light/mid/shadow values. Preserve material textures, functional anatomy and strong readability without muddy universal brown tint, blur or noise.',
+ 'BOOP v19 COMPACT ISOMETRIC FURNI PIXEL ART. Illustrate only the named subject as a charming small retro game-object sprite, like classic virtual-hotel furniture, independently from every other sprite.',
+ 'Use a 2:1 isometric or slight three-quarter object view, showing its top and side faces where appropriate. Center in a 112x112 canvas; the item occupies roughly 55–70% of canvas width and height, about 62–76 pixels, with clear transparent margins.',
+ 'Precise 1–2px local-colour stair-stepped outlines and small dark accents; slightly finer, separated pixel clusters for readable seams, facets, textures and material edges. Add one or two tiny subject-specific details, plus tidy highlights and stepped shading. Avoid thick uniform black sticker outlines, tiny muddy noise, oversized full-frame heroes and flat badges.',
+ 'Subject-specific bright 20–48 flat pixel colours only where the object needs them; distinct light/mid/shadow groups and crisp one-pixel specular highlights. Preserve material textures, functional anatomy and strong readability without muddy universal brown tint, blur, anti-aliased edges, dithering haze or noise.',
  'Each item has a distinct recognizable silhouette, not a generic cube, plate, crate or pedestal unless the subject actually is one. No unrelated accessories or previous-image motifs.',
  'One isolated pixel-art object on absolutely uniform #FF00FF magenta chroma background for transparency removal. No floor, scenery, cast shadow, frame, writing or extra subjects.',
  'Rerolls are fresh standalone depictions; never reuse the prior subject or image. Crisp hard-edged pixels only; no photoreal 3D rendering or disconnected fragments.'
 ].join('\n');
 export const BOOP_SPRITE_STYLE_COMPACT = [
- 'BOOP v18 small 2:1 ISOMETRIC FURNI PIXEL ART of the named subject only. Center in 112x112 canvas; item fills 50–65% of canvas with generous clear margins.',
- 'Clean 1–2px local-colour outlines, charming angled 3/4 view, 16–40 subject-specific flat pixel colours, crisp stepped highlights and compact shadows, readable object details.',
+ 'BOOP v19 small 2:1 ISOMETRIC FURNI PIXEL ART of the named subject only. Center in 112x112 canvas; item fills 55–70% of canvas with clear transparent margins.',
+ 'Clean 1–2px local-colour outlines, charming angled 3/4 view, 20–48 subject-specific flat pixel colours only as needed, 1–2 tiny subject-specific details, crisp single-pixel highlights, separated material edges and compact shadows.',
  'Not a giant sticker, thick black border, generic cube, baseplate, noisy fragment, blurry gradient or copied previous item.',
  'Solid #FF00FF magenta background for transparent cutout; no floor, scenery, cast shadow, text or frame.'
 ].join('\n');

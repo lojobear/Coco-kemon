@@ -1637,21 +1637,23 @@ html.boop-native-shell .boop-app .boop-cloud-dialog {
 }
 
 
-/* Boop sprite size adjustment: artwork 10% smaller, unchanged touch targets. */
-/* Keep slot/card/board dimensions unchanged; shrink only sprite content. */
+/* Sprite polish v19: grow artwork ~8.9% relative to its former 90% size. */
+/* Keep card, touch-target, drag and board dimensions unchanged. */
 .boop-app .element-emoji > img {
-  width: 90% !important;
-  height: 90% !important;
+  width: 98% !important;
+  height: 98% !important;
+  image-rendering: pixelated;
 }
 .boop-app .element-emoji > span[role="img"] {
-  font-size: 90%;
+  font-size: 98%;
 }
 /* Oddkin and other directly rendered images without an ElementSprite wrapper. */
 .boop-app img.boop-editor-sprite,
 .boop-app img.boop-picker-sprite,
 .boop-app img.boop-archive-sprite {
   box-sizing: border-box;
-  padding: 5%;
+  padding: 1%;
+  image-rendering: pixelated;
 }
 
 /* Foundry pagination: discover more without mounting every sprite at once. */

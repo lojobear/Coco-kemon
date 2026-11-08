@@ -481,7 +481,7 @@ async function generateWorkersAiImage(prompt: string): Promise<GeminiImageResult
         if (subject && !/violence|weapon|sexual|nude|gore/i.test(subject)) {
           try {
             const form = new FormData();
-            form.append('prompt', `An original small isometric virtual-hotel furni pixel-art inventory sprite of ${subject}; one recognizable 2:1 angled object centered in 112x112 canvas, fills 50-65% of canvas with generous margins, 16-40 crisp clustered subject-specific colours, tidy 1-2px local-colour outlines, precise stepped highlights and shadows, no thick black sticker outline, uniform #FF00FF magenta background for transparency, no floor, text or scene.`);
+            form.append('prompt', `An original small isometric virtual-hotel furni pixel-art inventory sprite of ${subject}; one recognizable 2:1 angled object centered in 112x112 canvas, fills 55-70% of canvas with transparent margins, up to 48 crisp clustered subject-specific colours, tidy 1-2px local-colour outlines, one or two tiny recognizable details and precise stepped highlights and shadows, no thick black sticker outline, uniform #FF00FF magenta background for transparency, no floor, text or scene.`);
             form.append('width', '512');
             form.append('height', '512');
             const serialized = new Response(form);
