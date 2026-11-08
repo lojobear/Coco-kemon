@@ -214,11 +214,21 @@ public final class MainActivity extends Activity {
 
     private void createWebView() {
         webView = new WebView(this);
+        // Prevent Android's system Force Dark from recoloring transparent
+        // pixel-art sprites rendered inside the WebView.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            webView.setForceDarkAllowed(false);
+        }
         webView.setBackgroundColor(Color.WHITE);
         webView.setOverScrollMode(View.OVER_SCROLL_NEVER);
         webView.setVerticalScrollBarEnabled(false);
         webView.setHorizontalScrollBarEnabled(false);
         WebSettings settings = webView.getSettings();
+        // Supported on recent Android WebView implementations. This controls
+        // algorithmic page darkening, not the player's system preference.
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.ALGORITHMIC_DARKENING)) {
+            androidx.webkit.WebSettingsCompat.setAlgorithmicDarkeningAllowed(settings, false);
+        }
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
         settings.setAllowFileAccess(false);

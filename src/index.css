@@ -9,6 +9,9 @@
 }
 
 :root {
+  /* Browser/Android system dark mode must never recolor original sprite pixels.
+     Boop renders its own light interface until an authored dark theme exists. */
+  color-scheme: only light;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --font-pixel: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --font-sans: "Outfit", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
