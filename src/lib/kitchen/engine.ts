@@ -1,6 +1,6 @@
 import type { CraftingPlan, PlannedCraftingStep } from './originalPlanner';
 import type { InfiniteElement } from '../infiniteCraftData';
-import { categoryForDiscovery } from '../collectionCategories';
+import { categoryForDiscovery } from '../collectionCategories.js';
 export type KitchenRecipe = CraftingPlan & { goal: string; source: 'local' | 'ai'; createdAt: number };
 const key = (value: string) => value.normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase();
 const short = (v: unknown, max = 200) => typeof v === 'string' && v.trim().length > 0 && v.length <= max;
