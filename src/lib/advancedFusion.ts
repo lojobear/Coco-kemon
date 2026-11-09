@@ -63,7 +63,7 @@ export function planAdvancedFusion(
     for(let i=0;i<items.length;i++)for(let j=i+1;j<items.length;j++){
       const found=recipes.get(makePairKey(items[i].name,items[j].name));
       if(!found)continue;
-      const next=items.filter((_,index)=>index!==i&&index!==j).concat(found);
+      const next=items.filter((_,index)=>index!==i&&index!==j).concat({name:found.result,emoji:found.emoji});
       visit(next,[...steps,{first:items[i].name,second:items[j].name,...found}]);
     }
   };
