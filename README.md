@@ -61,10 +61,16 @@ See [mobile/README.md](mobile/README.md) for build commands and [docs/google-pla
 
 ## Craft accessibility and progress
 
-Craft tiles can be selected with Tab and Enter/Space, or combined by tapping or dragging. Duplicate and remove controls have 44px targets. The initial starter board fits the viewport; saved layouts retain their positions. Settings uses a native modal dialog with Escape dismissal and background focus protection.
+Craft tiles can be selected with Tab and Enter/Space or by tapping. Select two pieces, then activate Combine; dragging one piece onto another still combines immediately. Duplicate and remove controls have 44px targets. The initial starter board fits the viewport; saved layouts retain their positions. Settings uses a native modal dialog with Escape dismissal and background focus protection.
 
 Supplied starter inventory counts toward the collection but does not count as earned discoveries, crafts, or recent activity. Original untouched starter projections are recognized in older backups without removing artwork or actual crafting history. Each completed recorded craft adds 12 XP to the existing Foundry progression; the amount is derived from saved craft counts, so reloads do not award it again.
 
 Collection filters, sorting, statistics, and artwork repair live under **Filters & collection tools**, leaving stickers visible on entry.
 
 For browser regression checks, with the dev server running and Playwright available, run `node tests/audit-usability-smoke.mjs`. Set `CHROMIUM_PATH` to use an installed browser, `BOOP_BASE_URL` to change the local URL, and `BOOP_AUDIT_OUTPUT` to choose the screenshot directory (default `/tmp/boop-audit-fixes`).
+
+## Modern Toybox design
+
+The Craft screen uses a cream surface, cobalt primary actions, a butter-yellow work mat, and large pixel-art pieces. Tap or keyboard-select two pieces, then choose **Combine**; dragging one piece onto another still combines immediately. Board history, saved layouts, custom artwork, collections, advanced tools, and cloud-save behavior are preserved. New starter images are display defaults, not generated discoveries or replacements for saved artwork.
+
+Visual comparison and responsive verification are recorded in [design-qa.md](design-qa.md), with screenshots under `docs/design/toybox-*`.

@@ -73,7 +73,7 @@ export function Header({
     <header className="collection-header">
       <div className="collection-header-inner">
         <button className="collection-brand" aria-label="Boop home" onClick={() => setActiveTab('infinite-craft')}>
-          <img src="/icon.svg" alt="" /><span><strong>Boop</strong><small>DISCOVER THE UNEXPECTED</small></span>
+          <img src="/toybox/boop-planet.png" alt="" /><span><strong>Boop</strong><small>Modern Toybox</small></span>
         </button>
         <form className="boop-header-search boop-search" role="search" onSubmit={event => { event.preventDefault(); onSearchCollection(query); }}><input aria-label="Search your collection" placeholder="Search your discoveries…" value={query} onChange={event => setQuery(event.target.value)} /><button aria-label="Search collection"><Search size={18} /></button></form>
         <span className="boop-level-tag">Level {String(progression.level).padStart(2, '0')}</span>

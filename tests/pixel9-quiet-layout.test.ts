@@ -45,7 +45,7 @@ test('Crafting board has one progressive-disclosure tools menu',()=>{
   assert.match(src,/setSpawnCount\(count\)/);
   assert.match(src,/aria-label="Undo last board action"/);
   assert.match(src,/aria-label="Zoom in"/);
-  assert.match(src,/boop-board-mobile-library/);
+  assert.match(src,/toybox-mat-tools/);
   assert.doesNotMatch(src,/className="boop-spawn-quick"/);
 });
 

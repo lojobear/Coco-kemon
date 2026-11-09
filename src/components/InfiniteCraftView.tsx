@@ -66,6 +66,7 @@ import {
   Redo2,
   Minus,
   ZoomIn,
+  CheckCircle2,
   Trophy,
   SlidersHorizontal,
 } from 'lucide-react';
@@ -104,6 +105,7 @@ const CanvasBoardTile = React.memo(function CanvasBoardTile({
       <CraftSprite name={item.name} emoji={item.emoji} isShiny={item.isShiny} />
       <span>{item.name}</span>
     </button>
+    {selected && <CheckCircle2 className="toybox-piece-check" size={28} aria-hidden="true" />}
     <button aria-label={`Duplicate ${item.name}`} title="Duplicate" className="boop-tile-action boop-tile-duplicate" onClick={event => onDuplicate(item, event)}><Plus size={12} /></button>
     <button aria-label={`Remove ${item.name} from board`} title="Remove" className="boop-tile-action" onClick={event => onRemove(item.instanceId, event)}><X size={12} /></button>
   </div>;
@@ -198,6 +200,7 @@ export function InfiniteCraftView() {
       setCrucibleSlotA(null);
       setCrucibleSlotB(null);
       setSelectedCanvasId(null);
+      setSecondSelectedCanvasId(null);
       setCombineError(null);
       lastPairRef.current = null;
     };
@@ -237,8 +240,9 @@ export function InfiniteCraftView() {
     return () => window.removeEventListener(PROFILE_SPRITES_UPDATED, update);
   }, []);
 
-  const autoFrameStarters = useRef(loadBoardLayout(readCraftElements()) === null);
-  const [canvasItems, setCanvasItems] = useState<CanvasItem[]>(() => loadBoardLayout(readCraftElements()) ?? [
+  const [savedBoardLayout] = useState(() => loadBoardLayout(readCraftElements()));
+  const autoFrameStarters = useRef(savedBoardLayout === null);
+  const [canvasItems, setCanvasItems] = useState<CanvasItem[]>(() => savedBoardLayout ?? [
     { instanceId: 'init-1', name: 'Water', emoji: '💧', x: BOARD_START_X, y: BOARD_START_Y },
     { instanceId: 'init-2', name: 'Fire', emoji: '🔥', x: BOARD_START_X + 166, y: BOARD_START_Y },
     { instanceId: 'init-3', name: 'Wind', emoji: '💨', x: BOARD_START_X, y: BOARD_START_Y + 96 },
@@ -278,6 +282,7 @@ export function InfiniteCraftView() {
   const [sortMode, setSortMode] = useState<'time' | 'alpha' | 'discoveries' | 'shinies' | 'crafted'>('time');
   const isDarkMode = false;
   const [selectedCanvasId, setSelectedCanvasId] = useState<string | null>(null);
+  const [secondSelectedCanvasId, setSecondSelectedCanvasId] = useState<string | null>(null);
   const [isSynthesizing, setIsSynthesizing] = useState(false);
   const [activeCombination, setActiveCombination] = useState<ActiveCombination | null>(null);
 
@@ -311,11 +316,14 @@ export function InfiniteCraftView() {
     return ()=>window.removeEventListener('boop-open-advanced-fusion',onRequest);
   },[]);
   const [viewportPixelWidth, setViewportPixelWidth] = useState(380);
+  const [viewportPixelHeight, setViewportPixelHeight] = useState(0);
   useEffect(() => {
     const viewport = viewportRef.current;
     if (!viewport) return;
     const update = () => {
       const width = viewport.clientWidth;
+      const height = viewport.clientHeight;
+      if (height > 0) setViewportPixelHeight(old => old === height ? old : height);
       if (width > 0) setViewportPixelWidth(old => old === width ? old : width);
     };
     update();
@@ -391,24 +399,29 @@ export function InfiniteCraftView() {
     if (autoFrameStarters.current) {
       const worldWidth = viewport.clientWidth / boardZoom;
       if (!worldWidth) return;
-      const columns = worldWidth >= 520 ? 2 : 1;
-      const groupWidth = columns === 2 ? 488 : Math.min(232, worldWidth - 24);
+      const columns = worldWidth >= 800 ? 4 : worldWidth >= 272 ? 2 : 1;
+      const tileWidth = worldWidth >= 600 ? 148 : worldWidth < 320 ? 96 : 112;
+      const tileHeight = tileWidth === 148 ? 174 : tileWidth === 96 ? 116 : 144;
+      const columnStep = tileWidth + (columns === 4 ? 52 : worldWidth >= 600 ? 92 : 40);
+      const groupWidth = (columns - 1) * columnStep + tileWidth;
+      const topInset = worldWidth >= 600 ? 12 : worldWidth < 320 ? 24 : 44;
+      const rowStep = Math.max(tileHeight + 4, Math.min(tileWidth + 32, viewport.clientHeight / boardZoom - topInset - 12 - tileHeight));
       const items = canvasItemsRef.current;
       if (items.every(item => item.instanceId.startsWith('init-'))) {
-        const framed = items.map((item, index) => ({ ...item, x: BOARD_START_X + index % columns * 256,
-          y: BOARD_START_Y + Math.floor(index / columns) * 76 }));
+        const framed = items.map((item, index) => ({ ...item, x: BOARD_START_X + index % columns * columnStep,
+          y: BOARD_START_Y + Math.floor(index / columns) * rowStep }));
         historyRef.current = beginBoardHistory(framed);
         skipHistoryRef.current = true;
         setCanvasItems(framed);
       }
       viewport.scrollLeft = BOARD_START_X * boardZoom - Math.max(12, (viewport.clientWidth - groupWidth * boardZoom) / 2);
-      viewport.scrollTop = BOARD_START_Y * boardZoom - 64;
+      viewport.scrollTop = BOARD_START_Y * boardZoom - topInset * boardZoom;
     } else if (!hasFramedBoard.current) {
       viewport.scrollLeft = BOARD_START_X * boardZoom - Math.min(220, viewport.clientWidth / 4);
       viewport.scrollTop = BOARD_START_Y * boardZoom - Math.min(160, viewport.clientHeight / 3);
     }
     hasFramedBoard.current = true;
-  }, [viewportPixelWidth, boardZoom]);
+  }, [viewportPixelWidth, viewportPixelHeight, boardZoom]);
   useEffect(() => () => { if (mergeFxTimerRef.current) clearTimeout(mergeFxTimerRef.current); }, []);
 
   // A bare-area drag pans on desktop. Touch uses the browser's native kinetic
@@ -480,7 +493,7 @@ export function InfiniteCraftView() {
       } else if (e.key === 'Escape') {
         if (firstDiscoveryModal) setFirstDiscoveryModal(null);
         else if (inspectedElement) setInspectedElement(null);
-        else if (selectedCanvasId) setSelectedCanvasId(null);
+        else if (selectedCanvasId || secondSelectedCanvasId) { setSelectedCanvasId(null); setSecondSelectedCanvasId(null); }
         else if (isSidebarOpen && window.innerWidth < 1024) setIsSidebarOpen(false);
       } else if (e.key === '/' && document.activeElement !== searchInputRef.current) {
         e.preventDefault();
@@ -490,7 +503,7 @@ export function InfiniteCraftView() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [firstDiscoveryModal, inspectedElement, selectedCanvasId, isSidebarOpen, isSynthesizing]);
+  }, [firstDiscoveryModal, inspectedElement, selectedCanvasId, secondSelectedCanvasId, isSidebarOpen, isSynthesizing]);
 
   // One DOM burst per reveal; CSS handles the motion on the compositor.
   // The previous 24ms particle setInterval rerendered the entire craft view
@@ -617,7 +630,6 @@ export function InfiniteCraftView() {
         sound.playFirstDiscoveryChime();
         haptics.firstDiscovery();
         setSpawnToast(null);
-        setTimeout(() => setSpawnToast(null), 2200);
       } else {
         sound.playCraftPop();
         haptics.lightTap();
@@ -637,6 +649,7 @@ export function InfiniteCraftView() {
       setActiveCombination(null);
       setIsSynthesizing(false);
       setSelectedCanvasId(null);
+      setSecondSelectedCanvasId(null);
       if (hoveredNodeRef.current) hoveredNodeRef.current.classList.remove('is-drop-target');
       hoveredNodeRef.current = null;
 
@@ -662,12 +675,11 @@ export function InfiniteCraftView() {
   const handleCanvasItemClick = (item: CanvasItem) => {
     if (suppressCanvasClickRef.current || requestRef.current) return;
     sound.playClick(); haptics.lightTap();
-    if (!selectedCanvasId) setSelectedCanvasId(item.instanceId);
-    else if (selectedCanvasId === item.instanceId) setSelectedCanvasId(null);
-    else {
-      const firstItem = canvasItems.find(it => it.instanceId === selectedCanvasId);
-      if (firstItem) { haptics.fusionPulse(); handleCombine({ name: firstItem.name, x: firstItem.x, y: firstItem.y, idA: firstItem.instanceId }, { name: item.name, x: item.x, y: item.y, idB: item.instanceId }); }
-    }
+    if (selectedCanvasId === item.instanceId) {
+      setSelectedCanvasId(secondSelectedCanvasId); setSecondSelectedCanvasId(null);
+    } else if (secondSelectedCanvasId === item.instanceId) setSecondSelectedCanvasId(null);
+    else if (!selectedCanvasId) setSelectedCanvasId(item.instanceId);
+    else setSecondSelectedCanvasId(item.instanceId);
   };
 
   const handleDuplicate = (item: CanvasItem, e: React.MouseEvent) => {
@@ -706,8 +718,11 @@ export function InfiniteCraftView() {
   const tidyCanvas = () => {
     sound.playClick();
     if (canvasItems.length === 0) return;
-    const startX = BOARD_START_X - 40, startY = BOARD_START_Y - 35, itemWidth = 154, itemHeight = 66;
-    const cols = 5;
+    const viewport = currentWorldViewport();
+    const startX = viewport ? viewport.scrollLeft + 16 : BOARD_START_X;
+    const startY = viewport ? viewport.scrollTop + 16 : BOARD_START_Y;
+    const itemWidth = 184, itemHeight = 204;
+    const cols = Math.max(1, Math.floor((viewport?.clientWidth || 760) / itemWidth));
     setCanvasItems(prev => prev.map((item, idx) => ({ ...item, x: startX + (idx % cols) * itemWidth, y: startY + Math.floor(idx / cols) * itemHeight })));
   };
 
@@ -849,7 +864,7 @@ export function InfiniteCraftView() {
     };
   }, []);
 
-  const clearCanvas = () => { sound.playClick(); haptics.heavyTap(); setCanvasItems([]); setSelectedCanvasId(null); };
+  const clearCanvas = () => { sound.playClick(); haptics.heavyTap(); setCanvasItems([]); setSelectedCanvasId(null); setSecondSelectedCanvasId(null); };
   const lastCustomSprites = useRef<ReadonlyMap<string, string>>(new Map());
   const customSprites = useMemo(() => {
     const next = new Map<string, string>();
@@ -948,25 +963,35 @@ export function InfiniteCraftView() {
   const handleIngredientPick = useCallback((item: InfiniteElement) => ingredientPickRef.current(item), []);
   const handleIngredientInspect = useCallback((item: InfiniteElement) => setInspectedElement(item), []);
 
+  const selectedPieces = [selectedCanvasId, secondSelectedCanvasId]
+    .flatMap(id => { const item = canvasItems.find(tile => tile.instanceId === id); return item ? [item] : []; });
+  const combineSelected = () => {
+    if (selectedPieces.length !== 2 || requestRef.current) return;
+    const [first, second] = selectedPieces;
+    void handleCombine({ ...first, idA: first.instanceId }, { ...second, idB: second.instanceId });
+  };
+
   return (
     <CraftSprites.Provider value={customSprites}>
-    <div className="boop-craft-studio">
+    <div className="boop-craft-studio toybox-studio">
+      <header className="toybox-intro">
+        <h1>Let’s see what<br />happens.<img src="/toybox/curiosity-accent.png" alt="" aria-hidden="true" /></h1>
+        <span className="toybox-eyebrow">CRAFT</span>
+        <p>Pick two elements. Discover something new.</p>
+      </header>
       <section className="boop-board-layout" aria-label="Discover crafting board">
         <header className="boop-board-toolbar boop-board-toolbar--quiet">
-          <div className="boop-board-heading"><strong>Craft</strong><small>Tap two elements, or drag one onto another</small></div>
+          <div className="boop-board-heading sr-only"><strong>Craft</strong><small>Pick two elements, or drag one onto another.</small></div>
           <div className="boop-board-actions boop-board-actions--quiet">
-            <button type="button" className="boop-quiet-spawn" disabled={!spawnPool.length || canvasItems.length>=300}
-              aria-label={`Spawn ${spawnCount} random ${spawnCount===1?'element':'elements'} from ${spawnPool.length} equally likely discoveries`}
-              title={`Fair random · 1 in ${spawnPool.length} chance for each discovery on the first draw`}
-              onClick={()=>spawnRandomBatch(spawnCount)}>
-              <Shuffle size={18}/><span>Spawn</span>
-            </button>
-            <button type="button" aria-label="Undo last board action" title="Undo" disabled={isSynthesizing || !historySize.past} onClick={undoLayout}><Undo2 size={19}/></button>
-            <button type="button" className="boop-board-library-toggle" aria-expanded={isSidebarOpen} aria-controls="boop-board-library"
-              aria-label="Open element library" onClick={()=>setIsSidebarOpen(v=>!v)}><Search size={19}/><span>Elements</span></button>
             <details className="boop-board-more" aria-label="More crafting tools">
               <summary aria-label="More crafting tools" title="More crafting tools"><SlidersHorizontal size={19}/></summary>
               <div className="boop-board-more-panel">
+                <button type="button" className="boop-quiet-spawn" disabled={!spawnPool.length || canvasItems.length>=300}
+                  aria-label={`Spawn ${spawnCount} random ${spawnCount===1?'element':'elements'} from ${spawnPool.length} equally likely discoveries`}
+                  title={`Fair random · 1 in ${spawnPool.length} chance for each discovery on the first draw`}
+                  onClick={()=>spawnRandomBatch(spawnCount)}>
+                  <Shuffle size={18}/><span>Spawn</span>
+                </button>
                 <span className="boop-board-more-label">SMART RANDOMIZER</span>
                 <label className="boop-smart-field">Pick from
                   <select aria-label="Random spawn source" value={spawnSource} onChange={e=>setSpawnSource(e.target.value as SpawnSource)}>
@@ -1027,7 +1052,7 @@ export function InfiniteCraftView() {
             <div className="boop-board-origin-hint" style={{ left:BOARD_START_X - 6, top:BOARD_START_Y - 68 }}>DROP. MIX. DISCOVER.</div>
             {canvasItems.map(item => <CanvasBoardTile key={item.instanceId} item={item}
               spawnTileMaxWidth={spawnTileMaxWidth}
-              selected={selectedCanvasId === item.instanceId} onPointerDown={onBoardPointerDown}
+              selected={selectedCanvasId === item.instanceId || secondSelectedCanvasId === item.instanceId} onPointerDown={onBoardPointerDown}
               onClickItem={onBoardClick} onDuplicate={onBoardDuplicate} onRemove={onBoardRemove} />)}
             {mergeFx && <div key={mergeFx.id} className="boop-board-fusion" style={{left:mergeFx.x,top:mergeFx.y}} aria-hidden="true">
               <span className="boop-merge-piece boop-merge-a" style={{'--from-x':`${mergeFx.dxA}px`,'--from-y':`${mergeFx.dyA}px`} as React.CSSProperties}>{mergeFx.a}</span>
@@ -1047,9 +1072,13 @@ export function InfiniteCraftView() {
           <button aria-label="Dismiss result" onClick={()=>setLastResult(null)}><X size={16}/></button>
         </div>}
         {combineError && <div className="boop-board-alert" role="alert">{combineError}<button onClick={()=>{if(lastPairRef.current)void handleCombine(lastPairRef.current[0],lastPairRef.current[1]);}}>Retry</button><button onClick={()=>setCombineError(null)}>Dismiss</button></div>}
-        {selectedCanvasId && !activeCombination && <p className="boop-selection-status" role="status">{canvasItems.find(item => item.instanceId === selectedCanvasId)?.name} selected. Choose another element to combine.</p>}
+        <p className="sr-only" role="status">{selectedPieces.length === 2 ? `${selectedPieces[0].name} and ${selectedPieces[1].name} selected. Ready to combine.` : selectedPieces.length === 1 ? `${selectedPieces[0].name} selected. Pick one more element.` : 'Pick two elements to combine.'}</p>
         {spawnToast && <div className="boop-board-toast" role="status">{spawnToast}</div>}
-        <button className="boop-board-mobile-library" onClick={()=>setIsSidebarOpen(true)} aria-label="Open element library"><Plus size={21}/> Add an element</button>
+        <div className="toybox-mat-tools">
+          <button type="button" aria-label="Undo last board action" disabled={isSynthesizing || !historySize.past} onClick={undoLayout}><Undo2 size={19}/>Undo</button>
+          <button type="button" disabled={isSynthesizing || !canvasItems.length} onClick={clearCanvas}><Trash2 size={19}/>Clear</button>
+          <button type="button" onClick={()=>setIsSidebarOpen(true)} aria-label="Open element library"><Plus size={20}/>Add</button>
+        </div>
         {isSidebarOpen && <div className="boop-board-drawer-backdrop" onClick={()=>setIsSidebarOpen(false)} aria-hidden="true"/>}
         <aside id="boop-board-library" className={`boop-board-drawer ${isSidebarOpen ? 'is-open' : ''}`} aria-label="Your element library" aria-hidden={!isSidebarOpen}>
           <div className="boop-board-drawer-head"><div><h2>Ingredients</h2><small>{elements.length} discovered · tap to add to board</small></div><button aria-label="Close ingredients" onClick={()=>setIsSidebarOpen(false)}><X size={21}/></button></div>
@@ -1061,6 +1090,8 @@ export function InfiniteCraftView() {
           <div className="boop-board-drawer-footer"><span>{collectionStats.totalCrafts.toLocaleString()} crafts</span><span>{collectionStats.totalShinies} shinies</span><button onClick={()=>setActiveTab('profile')}>Profile stats →</button></div>
         </aside>
       </section>
+      <button type="button" className="toybox-combine" disabled={selectedPieces.length !== 2 || isSynthesizing}
+        onClick={combineSelected}>{isSynthesizing ? 'Combining…' : selectedPieces.length === 2 ? `Combine ${selectedPieces[0].name} + ${selectedPieces[1].name}` : 'Pick two elements to combine'}</button>
       {firstDiscoveryModal && <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn" onClick={() => setFirstDiscoveryModal(null)}><div onClick={e => e.stopPropagation()} className={`w-full max-w-sm rounded-2xl p-6 border shadow-2xl text-center relative overflow-hidden ${isDarkMode ? 'bg-[#18181b] border-amber-500/40 text-white' : 'bg-white border-amber-400 text-black'}`}><div className="absolute -top-12 -left-12 w-32 h-32 bg-amber-500/20 rounded-full blur-2xl pointer-events-none" /><div className="absolute -bottom-12 -right-12 w-32 h-32 bg-amber-500/20 rounded-full blur-2xl pointer-events-none" /><div className="text-5xl mb-3 animate-bounce"><CraftSprite name={firstDiscoveryModal.name} emoji={firstDiscoveryModal.emoji} isShiny={firstDiscoveryModal.isShiny} /></div><div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40 text-xs font-mono font-bold tracking-widest uppercase mb-2"><Sparkles className="w-3.5 h-3.5" />FIRST DISCOVERY!</div><h3 className="text-2xl font-black tracking-tight mb-1">{firstDiscoveryModal.name}</h3><p className="text-xs text-zinc-400 mb-5 leading-relaxed">You are the very first crafter to unlock this combination in the global matrix!</p>{firstDiscoveryModal.recipe && <div className={`p-3 rounded-xl border text-xs font-mono mb-5 ${isDarkMode ? 'bg-black/30 border-zinc-800 text-zinc-300' : 'bg-zinc-100 border-zinc-200 text-zinc-700'}`}>{firstDiscoveryModal.recipe.first} + {firstDiscoveryModal.recipe.second} = {firstDiscoveryModal.name}</div>}<button onClick={() => { sound.playClick(); setFirstDiscoveryModal(null); }} className="w-full py-2.5 rounded-xl font-bold text-sm bg-gradient-to-r from-amber-500 to-amber-600 text-black hover:brightness-110 shadow-lg transition-all active:scale-95">Continue Crafting</button></div></div>}
 
       {advancedFusionOpen&&<AdvancedFusionModal elements={sharedElements} busy={isSynthesizing||Boolean(requestRef.current)}

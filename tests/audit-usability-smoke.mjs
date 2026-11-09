@@ -11,9 +11,9 @@ for(const width of [320,390,412,768,1440]){
  const bounds=await p.locator('.boop-board-item').evaluateAll(es=>es.map(e=>({name:e.textContent,left:e.getBoundingClientRect().left,right:e.getBoundingClientRect().right,bottom:e.getBoundingClientRect().bottom})));
  const viewport=await p.locator('.boop-board-viewport').boundingBox();
  assert.equal(bounds.length,4);
- assert.ok(await p.locator('.boop-board-heading small').isVisible());
- assert.ok(await p.locator('.boop-board-heading small').evaluate(e => parseFloat(getComputedStyle(e).fontSize) >= 12));
- for(const box of bounds){assert.ok(box.left>=viewport.x && box.right<=viewport.x+viewport.width,`${width}: ${JSON.stringify(box)} outside ${JSON.stringify(viewport)}`);assert.ok(box.bottom<=viewport.y+viewport.height,`tile below viewport`);}
+ assert.ok(await p.locator('.toybox-intro p').isVisible());
+ assert.ok(await p.locator('.toybox-intro p').evaluate(e => parseFloat(getComputedStyle(e).fontSize) >= 12));
+ for(const box of bounds){assert.ok(box.left>=viewport.x && box.right<=viewport.x+viewport.width,`${width}: ${JSON.stringify(box)} outside ${JSON.stringify(viewport)}`);assert.ok(box.bottom<=viewport.y+viewport.height,`${width}: tile below viewport: ${JSON.stringify(box)} vs ${JSON.stringify(viewport)}`);}
  const targets=await p.locator('.boop-tile-action').evaluateAll(es=>es.map(e=>({w:e.getBoundingClientRect().width,h:e.getBoundingClientRect().height})));
  assert.ok(targets.every(t=>t.w>=44&&t.h>=44));
  await p.screenshot({path:`${output}/fixed-craft-${width}.png`});
@@ -22,7 +22,7 @@ for(const width of [320,390,412,768,1440]){
    const profile=await p.locator('main').innerText();assert.match(profile,/0\s+Total crafts/);
    await p.getByRole('navigation',{name:'Main navigation'}).getByRole('button',{name:'Craft',exact:true}).click();
    const water=p.getByRole('button',{name:'Select Water to combine'});await water.focus();await p.keyboard.press('Enter');assert.equal(await water.getAttribute('aria-pressed'),'true');
-   await p.getByRole('button',{name:'Select Fire to combine'}).focus();await p.keyboard.press('Space');await p.locator('.boop-board-result').waitFor();await p.waitForTimeout(1100);assert.equal(await p.getByRole('button',{name:'Select Steam to combine'}).count(),1);
+   await p.getByRole('button',{name:'Select Fire to combine'}).focus();await p.keyboard.press('Space');await p.getByRole('button',{name:'Combine Water + Fire',exact:true}).focus();await p.keyboard.press('Enter');await p.locator('.boop-board-result').waitFor();await p.waitForTimeout(1100);assert.equal(await p.getByRole('button',{name:'Select Steam to combine'}).count(),1);
    await p.getByRole('button',{name:'Your profile',exact:true}).click();await p.getByRole('heading',{name:'Explorer',exact:true}).waitFor();await p.waitForTimeout(300);const after=await p.locator('main').innerText();assert.match(after,/1\s+Total crafts/);assert.match(after,/84 \/ 90 XP/);await p.screenshot({path:`${output}/fixed-profile.png`});
    await p.getByRole('button',{name:'Settings and tools'}).click();const dialog=p.getByRole('dialog',{name:'BOOP SETTINGS & DATA'});await dialog.waitFor();
    for(let i=0;i<16;i++){await p.keyboard.press('Tab');assert.ok(await p.evaluate(()=>document.activeElement===document.body || Boolean(document.activeElement.closest('dialog[open]'))),'focus reached a background control');}
@@ -42,6 +42,7 @@ const touch = await b.newPage({ viewport: { width: 390, height: 844 }, hasTouch:
 await touch.goto(process.env.BOOP_BASE_URL || 'http://127.0.0.1:3000', { waitUntil: 'networkidle' });
 await touch.getByRole('button', { name: 'Select Water to combine' }).tap();
 await touch.getByRole('button', { name: 'Select Fire to combine' }).tap();
+await touch.getByRole('button',{name:'Combine Water + Fire',exact:true}).tap();
 await touch.locator('.boop-board-result').waitFor();
 assert.equal(await touch.getByRole('button', { name: 'Select Steam to combine' }).count(), 1);
 await touch.close();
