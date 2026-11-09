@@ -13,6 +13,8 @@ import { RarityBadges } from './RarityBadges';
 import { CraftSprite, CraftSprites } from './CraftSprite';
 import { exportTrophyPostcard } from '../lib/trophyPostcard';
 import { queueMissingArtwork } from '../lib/artworkQueue';
+import { buildCollectionPassport, passportTotals } from '../lib/collectionPassport';
+import { buildDiscoveryFamily } from '../lib/discoveryFamily';
 import type { Material, Oddkin } from '../types';
 
 const LegacyArchive = lazy(() => import('./ArchiveView').then(m=>({default:m.ArchiveView})));
@@ -48,6 +50,7 @@ export function CollectionAlbum({
   const [tab,setTab]=useState<AlbumTab>('album');
   const [query,setQuery]=useState(initialSearch);
   const [filter,setFilter]=useState<AlbumFilter>('all');
+  const [passportFilter,setPassportFilter]=useState<'all'|'incomplete'|'completed'>('all');
   const [categoryFilter,setCategoryFilter]=useState('all');
   const [sort,setSort]=useState<'recent'|'az'|'crafted'>('recent');
   const [visible,setVisible]=useState(72);
@@ -108,7 +111,10 @@ export function CollectionAlbum({
       return normalizeElementStats({ ...item, category, ...(linked ? { customSpriteUrl: linked } : {}) });
     });
   },[elements,materialArtwork,foundryCategories]);
-  const byName=useMemo(()=>new Map<string,InfiniteElement>(catalog.map(e=>[e.name.trim().toLowerCase(),e] as [string,InfiniteElement])),[catalog]);
+  const byName=useMemo(()=>new Map<string,InfiniteElement>(catalog.map(e=>[discoveryIdentity(e.name),e] as [string,InfiniteElement])),[catalog]);
+  const passport=useMemo(()=>buildCollectionPassport(catalog),[catalog]);
+  const passportStats=useMemo(()=>passportTotals(passport),[passport]);
+  const family=useMemo(()=>selected?buildDiscoveryFamily(selected.name,catalog):null,[selected,catalog]);
   const custom=useMemo(()=>new Map(catalog.flatMap(e=>e.customSpriteUrl
     ? [[e.name.toLowerCase(),e.customSpriteUrl] as const]:[])),[catalog]);
   const shown=useMemo<InfiniteElement[]>(()=>{
@@ -236,7 +242,7 @@ export function CollectionAlbum({
       </div>
       <p className="boop-rarity-counts">◈ Holo {holoCount} · ⟡ Glitch {glitchCount} · ★ Legendary+ {legendaryCount} · 7 rarity tiers</p>
       <nav className="boop-album-tabs" aria-label="Collection views">
-        {([{id:'album',label:'Sticker album',icon:LayoutGrid},{id:'sets',label:'Themed sets',icon:Sparkles},
+        {([{id:'album',label:'Sticker album',icon:LayoutGrid},{id:'sets',label:'Passport',icon:Sparkles},
           {id:'room',label:'Trophy room',icon:Trophy},{id:'foundry',label:'Foundry archive',icon:GalleryVerticalEnd}] as const)
           .map(t=><button type="button" key={t.id} aria-current={tab===t.id?'page':undefined} onClick={()=>setTab(t.id)}><t.icon size={16}/>{t.label}</button>)}
       </nav>
@@ -265,18 +271,32 @@ export function CollectionAlbum({
         {shown.length>visible&&<button className="boop-album-load" onClick={()=>setVisible(n=>n+72)}>Show more stickers <ChevronRight size={15}/></button>}
       </>}
       {tab==='sets'&&<>
-        <p className="boop-album-intro">Complete a themed page by discovering every named item. Missing stickers stay as silhouettes until you craft them.</p>
-        <div className="boop-album-set-list">{ALBUM_SETS.map(set=>{
+        <div className="boop-passport-header">
+          <div><small>THE BOOP COLLECTION PASSPORT</small><h2>Six worlds to discover.</h2>
+            <p>Earn bronze and silver stamps as you explore, gold for each completed set, and platinum when every sticker also has its shiny form. Existing progress counts automatically.</p></div>
+          <div className="boop-passport-totals"><span><b>{passportStats.stamps}/{passportStats.total}</b>Stamped</span><span><b>{passportStats.completed}</b>Complete</span><span><b>{passportStats.platinum}</b>Platinum</span></div>
+        </div>
+        <div className="boop-passport-filters" aria-label="Filter passport pages">
+          {([{id:'all',label:'All pages'},{id:'incomplete',label:'In progress'},{id:'completed',label:'Completed'}] as const).map(item=>
+            <button key={item.id} type="button" aria-pressed={passportFilter===item.id} onClick={()=>setPassportFilter(item.id)}>{item.label}</button>)}
+        </div>
+        <div className="boop-album-set-list">{ALBUM_SETS.filter(set=>{
+          const page=passport.find(item=>item.id===set.id)!;
+          return passportFilter==='all'||(passportFilter==='completed'?page.complete:!page.complete);
+        }).map(set=>{
           const progress=albumSetProgress(catalog,set.names);
+          const page=passport.find(item=>item.id===set.id)!;
           return <section className="boop-album-set" key={set.id}>
-            <div className="boop-album-set-header"><span className="boop-set-icon">{set.emoji}</span><div><h2>{set.title}</h2><small>{set.subtitle}</small></div><b>{progress.count}/{progress.total}</b></div>
+            <div className="boop-album-set-header"><span className="boop-set-icon">{set.emoji}</span><div><h2>{set.title}</h2><small>{set.subtitle}</small></div>
+              <span className={`boop-passport-medal level-${page.medal.toLowerCase()}`} aria-label={`${page.medal} passport medal`}>{page.medal==='Unstarted'?'○':page.medal==='Platinum'?'✦':'★'} {page.medal}</span><b>{progress.count}/{progress.total}</b></div>
+            <p className="boop-passport-page-details">{page.percent}% collected · {page.shinyCount}/{page.total} shiny forms · {page.nextMissing?`Next target: ${page.nextMissing}`:'All stickers discovered!'}</p>
             <div className="boop-album-set-meter"><i style={{width:`${progress.count/progress.total*100}%`}}/></div>
             <div className="boop-sticker-grid boop-sticker-grid--set">{set.names.map((name,i)=>{
               const item=byName.get(name.toLowerCase());
               return item?<CollectorCard key={name} item={item} index={i} onOpen={()=>openItem(item)}/>
                 :<div key={name} className="boop-sticker-card boop-sticker-locked"><span className="boop-sticker-index">#{String(i+1).padStart(3,'0')}</span><span className="boop-sticker-missing"><Lock size={23}/><span>?</span></span><span className="boop-sticker-name">{name}</span><span className="boop-sticker-footer"><small>Not discovered</small></span></div>;
             })}</div>
-            {progress.complete&&<div className="boop-set-completed"><Check size={16}/> Set complete! You earned the collector completion stamp.</div>}
+            {progress.complete&&<div className="boop-set-completed"><Check size={16}/> Gold completion stamp earned! {page.medal==='Platinum'?'Platinum mastery unlocked!':'Unlock all eight shiny forms for platinum.'}</div>}}
           </section>;
         })}</div>
       </>}
@@ -342,6 +362,25 @@ export function CollectionAlbum({
             ?`Next: ${evolutionFor(selected).next.minimumCrafts} crafts${evolutionFor(selected).next.minimumRecipes?` and ${evolutionFor(selected).next.minimumRecipes} distinct recipes`:''}.`
             :'Highest evolution reached. Your collection keeps growing.'}</small>
         </div>
+        {family&&<section className="boop-family-tree" aria-label={`Discovery family tree for ${selected.name}`}>
+          <div className="boop-album-section-label"><span><GitBranch size={17}/> DISCOVERY FAMILY TREE</span><small>Up to two generations</small></div>
+          <p>Follow your saved recipe history backward to ingredients and forward to discoveries. Tap an owned element to explore its family.</p>
+          <div className="boop-family-generation"><h4>Ancestors · ingredients</h4><div className="boop-family-nodes">
+            {family.ancestors.length?family.ancestors.map((node,index)=>{
+              const related=byName.get(discoveryIdentity(node.name));
+              return <button key={`ancestor-${index}`} type="button" disabled={!related} onClick={()=>related&&openItem(related)}
+                title={`Generation ${node.depth} parent`}><small>GEN {node.depth}</small><b>{node.emoji} {node.name}</b></button>;
+            }):<span className="boop-family-empty">No recorded parent recipes yet.</span>}
+          </div></div>
+          <div className="boop-family-root"><span>✦</span><strong>{selected.emoji} {selected.name}</strong><small>SELECTED DISCOVERY</small></div>
+          <div className="boop-family-generation"><h4>Descendants · creations</h4><div className="boop-family-nodes">
+            {family.descendants.length?family.descendants.map((node,index)=>{
+              const related=byName.get(discoveryIdentity(node.name));
+              return <button key={`descendant-${index}`} type="button" disabled={!related} onClick={()=>related&&openItem(related)}
+                title={`Generation ${node.depth} descendant`}><small>GEN {node.depth}</small><b>{node.emoji} {node.name}</b></button>;
+            }):<span className="boop-family-empty">Combine this element to grow its family.</span>}
+          </div></div>
+        </section>}
         <div className="boop-album-detail-section"><h3><GitBranch size={17}/> Known recipes</h3>
           {latestRecipes(selected).length?latestRecipes(selected).map((recipe,i)=><div className="boop-recipe-chip" key={i}><span>{recipe.first}</span>＋<span>{recipe.second}</span><b>→ {selected.name}</b><small>{recipe.count}×</small></div>)
             :<p>No alternate recipes recorded yet. Keep experimenting.</p>}</div>

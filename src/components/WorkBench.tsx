@@ -96,6 +96,13 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
     setPicker(null);
     sound.playClick();
   };
+  const openAdvancedFusion = () => {
+    // Craft owns the same saved two-item discovery ledger as Foundry MIX.
+    // Route there instead of creating a divergent multi-item inventory.
+    try { sessionStorage.setItem('boop-open-advanced-fusion','1'); } catch { /* optional */ }
+    setActiveTab('infinite-craft');
+    window.dispatchEvent(new Event('boop-open-advanced-fusion'));
+  };
   // Synchronize the displayed default with the existing synthesis state.
   useEffect(() => { if (!selectedProcess && process && !isSynthesizing) setSelectedProcess(process); }, [selectedProcess, process, isSynthesizing, setSelectedProcess]);
 
@@ -138,6 +145,8 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
       <div className="combine-actions"><button className="combine-primary" disabled={!slotA || !selectedProcess || (process?.id === 'MIX' && !slotB) || isSynthesizing} onClick={() => void runSynthesis()}><Sparkles size={23} />{isSynthesizing ? 'Combining…' : process?.id === 'MIX' ? 'Craft discovery' : 'Apply process'}</button>
         <button className="random-items" aria-label="Choose random ingredients" disabled={isSynthesizing || !materials.length} onClick={randomItems}><Dice5 size={23} /><span>Random</span></button>
       </div>
+      <button type="button" className="boop-advanced-foundry-link" disabled={isSynthesizing}
+        onClick={openAdvancedFusion}><Sparkles size={16}/> Advanced Fusion · 3–4 ingredients <small>Uses the shared Craft recipe ledger with no paid AI calls</small></button>
       {isSynthesizing && <p className="synthesis-status" role="status">{synthesisStage || 'Discovering something new…'}</p>}
       {synthesisError && <p className="synthesis-status" role="alert">{synthesisError} <button type="button" disabled={isSynthesizing} onClick={() => void runSynthesis()}>Retry</button></p>}
     </div>

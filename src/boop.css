@@ -2058,3 +2058,103 @@ html.boop-native-shell .boop-app .boop-cloud-dialog {
 @media(prefers-reduced-motion:reduce) {
   .boop-sprite-preview .boop-preview-zoom {transition:none;}
 }
+
+
+/* Collection Passport, Smart Randomizer, Advanced Fusion and Family Trees.
+   These styles never modify sprite pixels or the underlying board mechanics. */
+.boop-passport-header{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;
+  padding:19px;border:1px solid #e4e7f3;border-radius:18px;background:#f8f9ff;color:#312e81;}
+.boop-passport-header>div:first-child{max-width:580px;}
+.boop-passport-header small{font-size:10px;letter-spacing:1.2px;font-weight:800;}
+.boop-passport-header h2{font-size:23px;font-weight:800;margin:5px 0 6px;}
+.boop-passport-header p{font-size:12px;line-height:1.6;color:#514b8f;margin:0;}
+.boop-passport-totals{display:flex;gap:9px;flex-wrap:wrap;}
+.boop-passport-totals span{display:flex;flex-direction:column;align-items:center;min-width:66px;padding:8px;
+  border-radius:11px;background:#fff;border:1px solid #e5e7f4;font-size:10px;color:#514b8f;}
+.boop-passport-totals b{font-size:22px;color:#312e81;}
+.boop-passport-filters{display:flex;gap:7px;flex-wrap:wrap;margin:12px 0 17px;}
+.boop-passport-filters button{border:1px solid #dce0f0;border-radius:12px;background:white;color:#514b8f;
+  font-size:12px;font-weight:700;padding:9px 12px;min-height:36px;}
+.boop-passport-filters button[aria-pressed=true]{background:#312e81;color:white;border-color:#312e81;}
+.boop-passport-medal{display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:5px 9px;
+  font-size:11px;white-space:nowrap;font-weight:800;border:1px solid #dce0ed;background:#f4f6fc;color:#71788b;}
+.boop-passport-medal.level-bronze{background:#fff4ec;color:#914c26;border-color:#ebd0ba;}
+.boop-passport-medal.level-silver{background:#f3f6f9;color:#5d6d7f;border-color:#ccd7e0;}
+.boop-passport-medal.level-gold{background:#fff7de;color:#9d7114;border-color:#edd38b;}
+.boop-passport-medal.level-platinum{background:#eef1ff;color:#4e40a7;border-color:#c4c4ee;}
+.boop-passport-page-details{font-size:11px;color:#514b8f;margin:5px 2px 10px;line-height:1.5;}
+.boop-family-tree{margin:15px 0;padding:16px;background:#f8f9ff;border:1px solid #e2e6f3;border-radius:16px;color:#312e81;}
+.boop-family-tree>p{font-size:12px;line-height:1.5;margin:8px 0 12px;color:#514b8f;}
+.boop-family-tree .boop-album-section-label{display:flex;align-items:center;gap:8px;}
+.boop-family-tree .boop-album-section-label span{display:inline-flex;align-items:center;gap:6px;}
+.boop-family-generation{margin:10px 0;}
+.boop-family-generation h4{font-size:12px;font-weight:800;margin:0 0 9px;}
+.boop-family-nodes{display:flex;flex-wrap:wrap;gap:7px;}
+.boop-family-nodes button{display:flex;flex-direction:column;gap:3px;min-width:92px;max-width:170px;
+  background:#fff;border:1px solid #dfe2f1;border-radius:11px;padding:9px;text-align:left;
+  color:#312e81;min-height:54px;}
+.boop-family-nodes button small{font-size:9px;color:#7a78a0;}
+.boop-family-nodes button b{font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;}
+.boop-family-nodes button:disabled{opacity:.55;cursor:default;}
+.boop-family-empty{font-size:11px;color:#787795;padding:9px 0;}
+.boop-family-root{display:flex;flex-direction:column;align-items:center;gap:4px;padding:14px;
+  border:2px solid #bfc3ef;border-radius:13px;background:#fff;}
+.boop-family-root>span{color:#8179ca;}
+.boop-family-root strong{font-size:17px;}
+.boop-family-root small{font-size:9px;letter-spacing:1px;}
+.boop-smart-field{display:flex;flex-direction:column;gap:5px;font-size:11px;font-weight:700;color:#312e81;margin:7px 0;}
+.boop-smart-field select{width:100%;min-height:36px;padding:6px 8px;background:#fff;border:1px solid #dfe2ee;
+  border-radius:9px;font-size:12px;color:#312e81;}
+.boop-smart-odds{font-size:10px;line-height:1.4;color:#514b8f;margin:5px 0 10px;}
+.boop-advanced-foundry-link{display:flex;align-items:center;justify-content:center;gap:7px;flex-wrap:wrap;
+  min-height:42px;width:100%;padding:10px;margin-top:9px;border:1px solid #c9c8ee;border-radius:12px;
+  background:#f5f4ff;color:#312e81;font-size:13px;font-weight:800;}
+.boop-advanced-foundry-link small{font-weight:500;font-size:10px;flex-basis:100%;text-align:center;}
+.boop-feature-backdrop{position:fixed;inset:0;z-index:110;display:flex;align-items:center;justify-content:center;
+  padding:12px;background:rgba(17,19,45,.72);backdrop-filter:blur(7px);}
+.boop-feature-modal{width:min(100%,540px);max-height:min(92dvh,860px);overflow-y:auto;border-radius:20px;
+  background:#fff;color:#312e81;box-shadow:0 24px 60px #12153d55;border:1px solid #d8dded;}
+.boop-feature-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;
+  padding:19px 19px 12px;border-bottom:1px solid #e6e9f3;}
+.boop-feature-head small{font-size:10px;color:#655c9e;letter-spacing:.6px;}
+.boop-feature-head h2{display:flex;align-items:center;gap:8px;font-size:21px;font-weight:800;margin:5px 0;}
+.boop-feature-head p{font-size:12px;line-height:1.55;color:#514b8f;margin:0 0 4px;}
+.boop-feature-head>button{border:0;background:#f1f2f9;color:#312e81;border-radius:9px;padding:8px;flex-shrink:0;}
+.boop-feature-content{padding:16px 19px 20px;}
+.boop-feature-switch{display:flex;gap:7px;margin-bottom:13px;}
+.boop-feature-switch button{flex:1;border-radius:11px;background:#f5f6fc;border:1px solid #dde1ee;
+  min-height:38px;color:#312e81;font-weight:750;}
+.boop-feature-switch button[aria-pressed=true]{background:#312e81;color:#fff;border-color:#312e81;}
+.boop-fusion-slots{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}
+.boop-fusion-slots button{min-height:64px;max-width:100%;border:1px solid #dfe1ee;border-radius:12px;
+  text-align:left;padding:9px 11px;background:#fafaff;color:#312e81;overflow:hidden;}
+.boop-fusion-slots button[aria-pressed=true]{border:2px solid #655bb1;background:#f3f0ff;}
+.boop-fusion-slots button small{display:block;font-size:9px;color:#827da5;margin-bottom:5px;}
+.boop-fusion-slots button strong{display:block;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.boop-fusion-picker{margin-top:12px;padding:10px;border:1px solid #e1e4f0;border-radius:12px;}
+.boop-fusion-picker label{display:flex;align-items:center;gap:7px;background:#f6f7fd;padding:6px 9px;border-radius:8px;}
+.boop-fusion-picker input{background:transparent;border:0;outline:0;flex:1;min-width:0;font-size:13px;}
+.boop-fusion-picker-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;
+  max-height:190px;overflow:auto;margin:8px 0;}
+.boop-fusion-picker-list button{display:flex;align-items:center;gap:7px;background:#fff;border:1px solid #e7e9f2;
+  border-radius:8px;min-height:34px;padding:6px;font-size:11px;text-align:left;color:#312e81;min-width:0;}
+.boop-fusion-picker>small{display:block;color:#6a6589;font-size:10px;}
+.boop-fusion-preview{margin:13px 0;padding:12px;border:1px solid #dfe3f1;border-radius:12px;background:#fafbff;}
+.boop-fusion-preview>p{font-size:12px;line-height:1.55;margin:5px 0;}
+.boop-fusion-preview>p small{font-size:9px;color:#6f6a95;}
+.boop-fusion-ready{display:flex;align-items:center;gap:7px;font-weight:800;font-size:12px;}
+.boop-fusion-final{display:block;margin-top:8px;font-size:15px;}
+.boop-feature-primary{display:flex;align-items:center;justify-content:center;gap:7px;background:#312e81;
+  color:white;border:0;border-radius:12px;min-height:44px;width:100%;padding:10px;font-weight:800;}
+.boop-feature-primary:disabled{background:#a6a5b9;cursor:not-allowed;}
+.boop-feature-note{font-size:10px;line-height:1.5;margin-top:11px;color:#666283;}
+@media(max-width:650px){
+  .boop-passport-header{flex-direction:column;padding:14px;}
+  .boop-passport-header h2{font-size:20px;}
+  .boop-passport-totals{width:100%;}
+  .boop-passport-totals span{flex:1;}
+  .boop-feature-head{padding:15px;}
+  .boop-feature-content{padding:13px 15px 18px;}
+  .boop-feature-modal{max-height:93dvh;}
+  .boop-family-tree{padding:11px;}
+}
