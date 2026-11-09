@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { isNativeTab, NATIVE_TABS, isAndroidNativeShell, sendToAndroid } from '../src/lib/nativeShell';
+import { isNativeTab, NATIVE_TABS, isAndroidNativeShell, usesNativeAndroidChrome, sendToAndroid } from '../src/lib/nativeShell';
 
 const file = (path: string) => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 
@@ -37,7 +37,7 @@ test('native tab changes reach React and the website does not display a duplicat
   const css = file('src/boop.css');
   assert.match(app, /boop-native-tab/);
   assert.match(app, /boop-native-profile/);
-  assert.match(app, /!nativeShell && <BottomNav/);
+  assert.match(app, /!nativeChrome && <BottomNav/);
   assert.match(css, /html\.boop-native-shell \.boop-app \.boop-navigation/);
 });
 
@@ -52,4 +52,19 @@ test('native Google PKCE OAuth uses Chrome and returns its code to the same WebV
   assert.match(html, /boop:\/\/oauth-callback\?code=/);
   assert.match(java, /getQueryParameter\("code"\)/);
   assert.match(manifest, /android:scheme="boop"/);
+});
+
+
+test('bundled preview keeps the Android bridge while using web navigation', () => {
+  const oldWindow = globalThis.window;
+  try {
+    Object.assign(globalThis, {window:{location:{search:'?boop_android=1&boop_web_chrome=1'},navigator:{userAgent:'BoopAndroid/2'}}});
+    assert.equal(isAndroidNativeShell(),true);
+    assert.equal(usesNativeAndroidChrome(),false);
+    window.location.search='?boop_android=1';
+    assert.equal(usesNativeAndroidChrome(),true);
+  } finally {
+    if (oldWindow === undefined) delete (globalThis as any).window;
+    else Object.assign(globalThis,{window:oldWindow});
+  }
 });

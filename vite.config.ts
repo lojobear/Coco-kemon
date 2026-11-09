@@ -13,6 +13,7 @@ export default defineConfig(() => {
       react(),
       tailwindcss(),
       VitePWA({
+        disable: process.env.BOOP_BUNDLED_WEB === '1',
         registerType: 'autoUpdate',
         includeAssets: ['icon.svg', 'apple-touch-icon.png'],
         manifest: {
