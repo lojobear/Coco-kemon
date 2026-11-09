@@ -1,8 +1,8 @@
-import React, { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import React, { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { discoveryIdentity } from '../lib/unifiedCollection';
 import { categoryForDiscovery, collectionCategoryCounts } from '../lib/collectionCategories';
 import { isProceduralDefault } from './ElementSprite';
-import { BookOpen, Search, Sparkles, GalleryVerticalEnd, LayoutGrid, ChevronRight, ArrowLeft, X, Lock, Plus, Trash2, Share2, Check, Star, GitBranch, Trophy, Shuffle } from 'lucide-react';
+import { BookOpen, Search, Sparkles, GalleryVerticalEnd, LayoutGrid, ChevronRight, ArrowLeft, X, Lock, Plus, Trash2, Share2, Check, Star, GitBranch, Trophy, Shuffle, Upload } from 'lucide-react';
 import type { InfiniteElement } from '../lib/infiniteCraftData';
 import { useGame } from '../lib/gameStore';
 import { readCraftElements, readCollectorRoom, saveCollectorRoom, SAVE_CHANGED_EVENT, SAVE_IMPORTED_EVENT } from '../lib/saveData';
@@ -15,6 +15,7 @@ import { exportTrophyPostcard } from '../lib/trophyPostcard';
 import { queueMissingArtwork } from '../lib/artworkQueue';
 import { buildCollectionPassport, passportTotals } from '../lib/collectionPassport';
 import { buildDiscoveryFamily } from '../lib/discoveryFamily';
+import { fileToSprite, persistSpriteEdit } from '../lib/customSpriteUpload';
 import type { Material, Oddkin } from '../types';
 
 const LegacyArchive = lazy(() => import('./ArchiveView').then(m=>({default:m.ArchiveView})));
@@ -27,16 +28,21 @@ function CollectibleArt({ item, variant = 'normal' }: {item: InfiniteElement; va
     {variant!=='normal' && <i aria-hidden="true">{variant==='celestial'?'✶':variant==='holo'?'◈':variant==='glitch'?'⟡':'✦'}</i>}
   </span>;
 }
-function CollectorCard({item,index,onOpen}: {key?:string;item:InfiniteElement;index:number;onOpen:()=>void}) {
+function CollectorCard({item,index,onOpen,onReplace,uploading=false}: {
+  key?:string;item:InfiniteElement;index:number;onOpen:()=>void;onReplace:()=>void;uploading?:boolean
+}) {
   const evo=evolutionFor(item);
   const variant:CollectorVariant=item.unlockedCelestial?'celestial':availableVariants(item).includes('shiny')?'shiny':item.unlockedGlitch?'glitch':item.unlockedHolo?'holo':'normal';
-  return <button className={`boop-sticker-card is-${variant}`} type="button" onClick={onOpen} aria-label={`Inspect collectible ${item.name}`}>
+  return <div className="boop-sticker-entry"><button className={`boop-sticker-card is-${variant}`} type="button" onClick={onOpen} aria-label={`Inspect collectible ${item.name}`}>
     <span className="boop-sticker-index">#{String(index+1).padStart(3,'0')}</span>
     <CollectibleArt item={item} variant={variant}/>
     <span className="boop-sticker-name">{item.name}</span>
     <span className="boop-sticker-footer"><small>{evo.tier.marker} {evo.tier.name}</small></span>
     <RarityBadges item={item} compact/>
-  </button>;
+  </button>
+    <button type="button" className="boop-sticker-replace" disabled={uploading} onClick={onReplace}
+      aria-label={`Replace sprite for ${item.name}`}><Upload size={13}/> Replace sprite</button>
+  </div>;
 }
 export function CollectionAlbum({
   initialSearch='', inspectedItem, onCloseInspect,
@@ -63,7 +69,11 @@ export function CollectionAlbum({
   const [exporting,setExporting]=useState(false);
   const [repairingArt,setRepairingArt]=useState(false);
   const [repairStatus,setRepairStatus]=useState('');
-  const {setActiveTab, materials}=useGame();
+  const [spriteUploading,setSpriteUploading]=useState(false);
+  const [spriteUploadStatus,setSpriteUploadStatus]=useState('');
+  const spriteUploadRef=useRef<HTMLInputElement>(null);
+  const pendingSpriteTarget=useRef<{id:string;name:string}|null>(null);
+  const {setActiveTab, materials, exportSaveData, importSaveData}=useGame();
   // Recover real Foundry art for an older Craft discovery lacking a sprite.
   // This is a read-only projection: no recipe, uploaded image or save changes.
   const materialArtwork = useMemo(() => {
@@ -167,6 +177,38 @@ export function CollectionAlbum({
       setRepairStatus('Could not inspect some saved artwork. Your collection is unchanged.');
     }finally{setRepairingArt(false);}
   };
+  // Remember the clicked collectible before Android's native file picker
+  // opens, so an unrelated gallery selection cannot redirect the upload.
+  const openSpritePicker=(item:InfiniteElement)=>{
+    if(spriteUploading || !spriteUploadRef.current)return;
+    pendingSpriteTarget.current={id:item.id,name:item.name};
+    setSpriteUploadStatus('');
+    spriteUploadRef.current.value='';
+    spriteUploadRef.current.click();
+  };
+  const replaceCollectionSprite=async(file:File|undefined)=>{
+    const target=pendingSpriteTarget.current;
+    if(!file || !target || spriteUploading)return;
+    setSpriteUploading(true);
+    setSpriteUploadStatus(`Replacing ${target.name}'s artwork…`);
+    try{
+      const sprite=await fileToSprite(file);
+      await persistSpriteEdit({type:'craft',id:target.id,name:target.name},sprite,{
+        materials,exportSaveData,importSaveData,
+      });
+      const updated=[...readCraftElements()];
+      setElements(updated);
+      const replacement=updated.find(item=>discoveryIdentity(item.name)===discoveryIdentity(target.name));
+      if(replacement)setSelected(previous=>previous&&discoveryIdentity(previous.name)===discoveryIdentity(target.name)?normalizeElementStats(replacement):previous);
+      setSpriteUploadStatus(`${target.name} sprite replaced in Collection, Sprites and linked Foundry entries.`);
+    }catch(error){
+      setSpriteUploadStatus(error instanceof Error?error.message:'Could not replace the sprite. Your existing artwork was kept.');
+    }finally{
+      setSpriteUploading(false);
+      pendingSpriteTarget.current=null;
+      if(spriteUploadRef.current)spriteUploadRef.current.value='';
+    }
+  };
   const openItem=(item:InfiniteElement)=>{
     setSelected(item);
     setViewVariant(item.unlockedCelestial?'celestial':availableVariants(item).includes('shiny')?'shiny':'normal');
@@ -230,7 +272,10 @@ export function CollectionAlbum({
         </div>
         <span className="boop-collected-count">{catalog.length.toLocaleString()} collected</span>
       </header>
+      <input ref={spriteUploadRef} type="file" accept="image/png,image/webp,image/jpeg" className="hidden"
+        aria-label="Choose replacement sprite image" onChange={event=>void replaceCollectionSprite(event.target.files?.[0])}/>
       {repairStatus&&<p className="boop-album-repair-status" role="status">{repairStatus}</p>}
+      {spriteUploadStatus&&<p className="boop-album-repair-status" role="status" aria-live="polite">{spriteUploadStatus}</p>}
       <nav className="boop-album-tabs" aria-label="Collection views">
         {([{id:'album',label:'Sticker album',icon:LayoutGrid},{id:'sets',label:'Passport',icon:Sparkles},
           {id:'room',label:'Trophy room',icon:Trophy},{id:'foundry',label:'Foundry archive',icon:GalleryVerticalEnd}] as const)
@@ -271,7 +316,7 @@ export function CollectionAlbum({
         {shown.length?<div className="boop-album-category-sections">{visibleGroups.map(group=>
           <section className="boop-album-category-section" key={group.name} aria-label={group.name}>
             <div className="boop-album-category-heading"><h3>{group.name}</h3><small>{group.count} collected</small></div>
-            <div className="boop-sticker-grid">{group.items.map((item,i)=><CollectorCard key={item.id} item={item} index={i} onOpen={()=>openItem(item)}/>)}</div>
+            <div className="boop-sticker-grid">{group.items.map((item,i)=><CollectorCard key={item.id} item={item} index={i} onOpen={()=>openItem(item)} onReplace={()=>openSpritePicker(item)} uploading={spriteUploading}/>)}</div>
           </section>
         )}</div>
           :<div className="boop-album-empty">No stickers match these filters. Choose another category or finish.</div>}
@@ -300,7 +345,7 @@ export function CollectionAlbum({
             <div className="boop-album-set-meter"><i style={{width:`${progress.count/progress.total*100}%`}}/></div>
             <div className="boop-sticker-grid boop-sticker-grid--set">{set.names.map((name,i)=>{
               const item=byName.get(name.toLowerCase());
-              return item?<CollectorCard key={name} item={item} index={i} onOpen={()=>openItem(item)}/>
+              return item?<CollectorCard key={name} item={item} index={i} onOpen={()=>openItem(item)} onReplace={()=>openSpritePicker(item)} uploading={spriteUploading}/>
                 :<div key={name} className="boop-sticker-card boop-sticker-locked"><span className="boop-sticker-index">#{String(i+1).padStart(3,'0')}</span><span className="boop-sticker-missing"><Lock size={23}/><span>?</span></span><span className="boop-sticker-name">{name}</span><span className="boop-sticker-footer"><small>Not discovered</small></span></div>;
             })}</div>
             {progress.complete&&<div className="boop-set-completed"><Check size={16}/> Gold completion stamp earned! {page.medal==='Platinum'?'Platinum mastery unlocked!':'Unlock all eight shiny forms for platinum.'}</div>}
@@ -346,6 +391,12 @@ export function CollectionAlbum({
           <CollectibleArt item={selected} variant={viewVariant}/>
           <div><span className="boop-album-kicker">COLLECTION STICKER</span><h2>{selected.name}</h2><p>{selected.explanation||'A curious new object for your collection.'}</p><RarityBadges item={selected}/></div>
         </div>
+        <div className="boop-collection-sprite-tools">
+          <button type="button" className="boop-collection-replace" disabled={spriteUploading}
+            onClick={()=>openSpritePicker(selected)}><Upload size={17}/>{spriteUploading?'Saving artwork…':'Replace sprite'}</button>
+          <small>Choose PNG, WebP or JPG. Changes appear in Collection, Sprites and Foundry without AI credits.</small>
+        </div>
+        {spriteUploadStatus&&<p className="boop-collection-upload-status" role="status">{spriteUploadStatus}</p>}
         <div className="boop-album-detail-tabs" role="group" aria-label="Collector colorway">
           {(['normal','shiny','celestial','holo','glitch'] as const).map(variant=><button key={variant}
             disabled={!availableVariants(selected).includes(variant)}
