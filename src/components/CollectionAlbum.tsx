@@ -296,7 +296,7 @@ export function CollectionAlbum({
               return item?<CollectorCard key={name} item={item} index={i} onOpen={()=>openItem(item)}/>
                 :<div key={name} className="boop-sticker-card boop-sticker-locked"><span className="boop-sticker-index">#{String(i+1).padStart(3,'0')}</span><span className="boop-sticker-missing"><Lock size={23}/><span>?</span></span><span className="boop-sticker-name">{name}</span><span className="boop-sticker-footer"><small>Not discovered</small></span></div>;
             })}</div>
-            {progress.complete&&<div className="boop-set-completed"><Check size={16}/> Gold completion stamp earned! {page.medal==='Platinum'?'Platinum mastery unlocked!':'Unlock all eight shiny forms for platinum.'}</div>}}
+            {progress.complete&&<div className="boop-set-completed"><Check size={16}/> Gold completion stamp earned! {page.medal==='Platinum'?'Platinum mastery unlocked!':'Unlock all eight shiny forms for platinum.'}</div>}
           </section>;
         })}</div>
       </>}
