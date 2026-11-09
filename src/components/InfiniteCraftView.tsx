@@ -104,7 +104,7 @@ const CanvasBoardTile = React.memo(function CanvasBoardTile({
     <button type="button" className="boop-tile-select" aria-label={`Select ${item.name} to combine`}
       aria-pressed={selected} onClick={event => { event.stopPropagation(); onClickItem(item); }}>
       <CraftSprite name={item.name} emoji={item.emoji} isShiny={item.isShiny} />
-      <span>{item.name}</span>
+      <span title={item.name}>{item.name}</span>
     </button>
     {selected && <CheckCircle2 className="toybox-piece-check" size={28} aria-hidden="true" />}
     <button aria-label={`Duplicate ${item.name}`} title="Duplicate" className="boop-tile-action boop-tile-duplicate" onClick={event => onDuplicate(item, event)}><Plus size={12} /></button>
@@ -401,11 +401,11 @@ export function InfiniteCraftView() {
       const worldWidth = viewport.clientWidth / boardZoom;
       if (!worldWidth) return;
       const columns = worldWidth >= 800 ? 4 : worldWidth >= 272 ? 2 : 1;
-      const tileWidth = worldWidth >= 600 ? 148 : worldWidth < 320 ? 96 : 112;
-      const tileHeight = tileWidth === 148 ? 174 : tileWidth === 96 ? 116 : 144;
-      const columnStep = tileWidth + (columns === 4 ? 52 : worldWidth >= 600 ? 92 : 40);
+      const tileWidth = worldWidth >= 600 ? 156 : worldWidth < 320 ? 120 : 136;
+      const tileHeight = tileWidth === 156 ? 120 : tileWidth === 120 ? 96 : 104;
+      const columnStep = tileWidth + (columns === 4 ? 36 : worldWidth >= 600 ? 64 : 24);
       const groupWidth = (columns - 1) * columnStep + tileWidth;
-      const topInset = worldWidth >= 600 ? 12 : worldWidth < 320 ? 24 : 44;
+      const topInset = worldWidth >= 600 ? 12 : 24;
       const rowStep = Math.max(tileHeight + 4, Math.min(tileWidth + 32, viewport.clientHeight / boardZoom - topInset - 12 - tileHeight));
       const items = canvasItemsRef.current;
       if (items.every(item => item.instanceId.startsWith('init-'))) {
@@ -722,9 +722,18 @@ export function InfiniteCraftView() {
     const viewport = currentWorldViewport();
     const startX = viewport ? viewport.scrollLeft + 16 : BOARD_START_X;
     const startY = viewport ? viewport.scrollTop + 16 : BOARD_START_Y;
-    const itemWidth = 184, itemHeight = 204;
+    const itemWidth = 184;
     const cols = Math.max(1, Math.floor((viewport?.clientWidth || 760) / itemWidth));
-    setCanvasItems(prev => prev.map((item, idx) => ({ ...item, x: startX + (idx % cols) * itemWidth, y: startY + Math.floor(idx / cols) * itemHeight })));
+    const heights = new Map(Array.from(canvasRef.current?.querySelectorAll<HTMLElement>('[data-craft-instance]') || [])
+      .map(node => [node.dataset.craftInstance!, node.getBoundingClientRect().height / zoomRef.current]));
+    setCanvasItems(prev => {
+      let rowY = startY, rowHeight = 0;
+      return prev.map((item, idx) => {
+        if (idx && idx % cols === 0) { rowY += rowHeight + 56; rowHeight = 0; }
+        rowHeight = Math.max(rowHeight, heights.get(item.instanceId) || 120);
+        return { ...item, x: startX + idx % cols * itemWidth, y: rowY };
+      });
+    });
   };
 
   const handlePointerDown = (item: CanvasItem, e: React.PointerEvent<HTMLDivElement>) => {
@@ -1032,6 +1041,12 @@ export function InfiniteCraftView() {
                 <button type="button" className="boop-suggest-pair" onClick={()=>setAdvancedFusionOpen(true)}>
                   <Sparkles size={16}/> Advanced Fusion <small>3–4 items · known recipes · no AI cost</small>
                 </button>
+                {selectedPieces.length > 0 && <>
+                  <span className="boop-board-more-label">SELECTED ELEMENT</span>
+                  <small style={{overflowWrap:'anywhere'}}>{selectedPieces[0].name}</small>
+                  <button type="button" onClick={event=>handleDuplicate(selectedPieces[0],event)}><Plus size={16}/>Duplicate selected element</button>
+                  <button type="button" onClick={event=>handleRemoveFromCanvas(selectedPieces[0].instanceId,event)}><Trash2 size={16}/>Remove selected element</button>
+                </>}
                 <span className="boop-board-more-label">BOARD TOOLS</span>
                 <div className="boop-board-more-actions">
                   <button type="button" aria-label="Redo board action" disabled={isSynthesizing||!historySize.future} onClick={redoLayout}><Redo2 size={16}/> Redo</button>
@@ -1092,7 +1107,8 @@ export function InfiniteCraftView() {
         </aside>
       </section>
       <button type="button" className="toybox-combine" disabled={selectedPieces.length !== 2 || isSynthesizing}
-        onClick={combineSelected}>{isSynthesizing ? 'Combining…' : selectedPieces.length === 2 ? `Combine ${selectedPieces[0].name} + ${selectedPieces[1].name}` : 'Pick two elements to combine'}</button>
+        aria-label={selectedPieces.length === 2 ? `Combine ${selectedPieces[0].name} + ${selectedPieces[1].name}` : undefined}
+        onClick={combineSelected}>{isSynthesizing ? 'Combining…' : selectedPieces.length === 2 ? 'Combine selected' : 'Pick two elements to combine'}</button>
       {firstDiscoveryModal && <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn" onClick={() => setFirstDiscoveryModal(null)}><div onClick={e => e.stopPropagation()} className={`w-full max-w-sm rounded-2xl p-6 border shadow-2xl text-center relative overflow-hidden ${isDarkMode ? 'bg-[#18181b] border-amber-500/40 text-white' : 'bg-white border-amber-400 text-black'}`}><div className="absolute -top-12 -left-12 w-32 h-32 bg-amber-500/20 rounded-full blur-2xl pointer-events-none" /><div className="absolute -bottom-12 -right-12 w-32 h-32 bg-amber-500/20 rounded-full blur-2xl pointer-events-none" /><div className="text-5xl mb-3 animate-bounce"><CraftSprite name={firstDiscoveryModal.name} emoji={firstDiscoveryModal.emoji} isShiny={firstDiscoveryModal.isShiny} /></div><div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40 text-xs font-mono font-bold tracking-widest uppercase mb-2"><Sparkles className="w-3.5 h-3.5" />FIRST DISCOVERY!</div><h3 className="text-2xl font-black tracking-tight mb-1">{firstDiscoveryModal.name}</h3><p className="text-xs text-zinc-400 mb-5 leading-relaxed">You are the very first crafter to unlock this combination in the global matrix!</p>{firstDiscoveryModal.recipe && <div className={`p-3 rounded-xl border text-xs font-mono mb-5 ${isDarkMode ? 'bg-black/30 border-zinc-800 text-zinc-300' : 'bg-zinc-100 border-zinc-200 text-zinc-700'}`}>{firstDiscoveryModal.recipe.first} + {firstDiscoveryModal.recipe.second} = {firstDiscoveryModal.name}</div>}<button onClick={() => { sound.playClick(); setFirstDiscoveryModal(null); }} className="w-full py-2.5 rounded-xl font-bold text-sm bg-gradient-to-r from-amber-500 to-amber-600 text-black hover:brightness-110 shadow-lg transition-all active:scale-95">Continue Crafting</button></div></div>}
 
       {advancedFusionOpen&&<AdvancedFusionModal elements={sharedElements} busy={isSynthesizing||Boolean(requestRef.current)}
