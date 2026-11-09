@@ -47,12 +47,12 @@ test('spawn positions keep tiles near viewport center and inside the world',()=>
 
 test("Discover Spawn is immediate while count selection lives inside More tools",()=>{
   const component=readFileSync(new URL('../src/components/InfiniteCraftView.tsx',import.meta.url),'utf8');
-  assert.match(component,/className="boop-quiet-spawn"/);
+  assert.match(component,/className="toybox-random"/);
   assert.match(component,/className="boop-board-more"/);
   assert.match(component,/aria-label="Random spawn count"/);
   assert.match(component,/aria-pressed=\{spawnCount===count\}/);
   assert.match(component,/onClick=\{\(\)=>setSpawnCount\(count\)\}/);
-  assert.match(component,/onClick=\{\(\)=>spawnRandomBatch\(spawnCount\)\}/);
+  assert.match(component,/onClick=\{\(\) => spawnRandomBatch\(spawnCount\)\}/);
   assert.match(component,/SPAWN_COUNTS\.map/);
   assert.doesNotMatch(component,/spawnMenuOpen|boop-spawn-menu|SPAWN_SOURCES\.map/);
   assert.match(component,/chooseSpawnElements<InfiniteElement>\(spawnPool, count\)/);

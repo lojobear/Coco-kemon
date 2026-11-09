@@ -3,6 +3,18 @@ import assert from 'node:assert/strict';
 import { FOUNDRY_ACTIONS } from '../src/lib/foundryActions';
 import { ALL_PROCESSES } from '../src/lib/starterData';
 import { EXTRA_PROCESSES } from '../src/lib/extraProcesses';
+import { availableProcesses } from '../src/lib/availableProcesses';
+
+test('shared procedure picker exposes at least 50 distinct actions and preserves saved locks', () => {
+  const catalog = availableProcesses(ALL_PROCESSES);
+  assert.ok(catalog.length >= 50);
+  assert.equal(new Set(catalog.map(p => p.id)).size, catalog.length);
+  for (const id of ['MIX', 'MELT', 'HEAT', 'FREEZE', 'CRUSH']) {
+    assert.ok(catalog.some(p => p.id === id));
+  }
+  const melt = FOUNDRY_ACTIONS.find(p => p.id === 'MELT')!;
+  assert.equal(availableProcesses([{ ...melt, unlocked: false }]).some(p => p.id === 'MELT'), false);
+});
 
 test('foundry actions: exactly 50 entries with unique ids', () => {
   assert.equal(FOUNDRY_ACTIONS.length, 50);
