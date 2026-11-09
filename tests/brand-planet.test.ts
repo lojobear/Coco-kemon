@@ -45,9 +45,9 @@ test('Android icon, title, navigation and buttons use the bundled Reddit Sans',(
   const vector=file('android-shell/app/src/main/res/drawable/ic_boop_planet.xml');
   const workflow=file('.github/workflows/android-apk.yml');
   assert.match(main,/setImageResource\(R\.drawable\.ic_boop_planet\)/);
-  assert.match(main,/title\.setTypeface\(pixelifySansTypeface, Typeface\.BOLD\)/);
-  assert.match(main,/item\.setTypeface\(pixelifySansTypeface/);
-  assert.match(main,/button\.setTypeface\(pixelifySansTypeface/);
+  assert.match(main,/title\.setTypeface\(redditSansTypeface, Typeface\.BOLD\)/);
+  assert.match(main,/item\.setTypeface\(redditSansTypeface/);
+  assert.match(main,/button\.setTypeface\(redditSansTypeface/);
   assert.match(main,/Typeface\.createFromAsset\(getAssets\(\), "fonts\/RedditSans\.ttf"\)/);
   const font = readFileSync(new URL('../android-shell/app/src/main/assets/fonts/RedditSans.ttf',import.meta.url));
   const webFont = readFileSync(new URL('../public/fonts/RedditSans.ttf',import.meta.url));
