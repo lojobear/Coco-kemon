@@ -8,7 +8,7 @@ The wallet and sold-copy receipts share a single durable storage commit. Sales r
 
 ## Deployment
 
-Apply `supabase/migrations/20261109121858_boop_economy_save_format.sql` before deploying wallet-aware cloud backups. It permits version 3 snapshots alongside version 2 without changing ownership policies, grants, or the existing compare-and-swap write RPC. Until applied, local play and JSON exports work, but the database rejects version 3 cloud saves.
+Apply `supabase/migrations/20261109181249_boop_economy_save_format.sql` before deploying wallet-aware cloud backups. It permits version 3 snapshots alongside version 2 without changing ownership policies, grants, or the existing compare-and-swap write RPC. Until applied, local play and JSON exports work, but the database rejects version 3 cloud saves.
 
 The migration is tested using a local Postgres engine. It is not automatically applied to production.
 

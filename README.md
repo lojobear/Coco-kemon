@@ -83,7 +83,7 @@ Each craft earns one sellable copy, assigned to the highest-valued form rolled o
 
 Save format 3 includes the wallet and receipts in local storage and JSON/cloud backups. The existing storage key is intentionally retained so older builds’ version guards reject the new save rather than dropping the wallet. Versions 1 and 2 remain importable. Importing an old v2 snapshot resets the wallet with that snapshot; a v1 Foundry-only import preserves current Craft and wallet data.
 
-**Before deploying wallet-aware cloud backups, apply `supabase/migrations/20261109121858_boop_economy_save_format.sql`.** It allows both v2 and v3 backups without changing RLS, ownership, grants, or the existing compare-and-swap RPC. Without it, local play/export still works but the database rejects v3 cloud saves. The migration is tested locally and is not automatically applied to production.
+**Before deploying wallet-aware cloud backups, apply `supabase/migrations/20261109181249_boop_economy_save_format.sql`.** It allows both v2 and v3 backups without changing RLS, ownership, grants, or the existing compare-and-swap RPC. Without it, local play/export still works but the database rejects v3 cloud saves. The migration is tested locally and is not automatically applied to production.
 
 Boop Coins are a local game currency. Cross-player trading and a shared economy are separate future features; future online transactions must revalidate inventory and prices on the server.
 
