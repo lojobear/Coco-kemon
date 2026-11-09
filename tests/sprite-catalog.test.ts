@@ -63,7 +63,9 @@ test('no sprite tab source record disappears merely because two names match',()=
   const album=readFileSync(new URL('../src/components/CollectionAlbum.tsx',import.meta.url),'utf8');
   assert.match(view,/buildSpriteCatalog\(craftElements, materials, oddkinCollection/);
   assert.match(view,/item\.sourceTypes\.join\(' · '\)/);
-  assert.match(view,/withUnifiedDiscoveryArtwork\(payload/);
+  const shared=readFileSync(new URL('../src/lib/customSpriteUpload.ts',import.meta.url),'utf8');
+  assert.match(view,/persistSpriteEdit\(target/);
+  assert.match(shared,/withUnifiedDiscoveryArtwork\(payload/);
   assert.match(view,/items\.slice\(0, galleryLimit\)\.map/);
   assert.match(album,/materialArtwork\.get\(discoveryIdentity\(item\.name\)\)/);
 });

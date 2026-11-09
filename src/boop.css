@@ -193,8 +193,8 @@
 .boop-sprite-tools button { display:flex; align-items:center; gap:5px; font-size:11px; color:var(--boop-muted); text-decoration:underline; min-height:30px; }
 .boop-sprite-picker { display:flex; flex-direction:column; gap:16px; padding:20px; background:white; border:1px solid var(--boop-line); border-radius:20px; min-width:0; }
 .boop-sprite-picker-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
-.boop-sprite-picker-grid > button { min-width:0; border:1px solid var(--boop-line); border-radius:12px; display:flex; align-items:center; flex-direction:column; gap:5px; padding:10px; }
-.boop-sprite-picker-grid > button[aria-pressed="true"] { border-color:var(--boop-forest); box-shadow:inset 0 0 0 1px var(--boop-forest); background:var(--boop-sage); }
+.boop-sprite-picker-grid .boop-sprite-card { min-width:0; width:100%; border:1px solid var(--boop-line); border-radius:12px; display:flex; align-items:center; flex-direction:column; gap:5px; padding:10px; flex:1; }
+.boop-sprite-picker-grid .boop-sprite-card[aria-pressed="true"] { border-color:var(--boop-forest); box-shadow:inset 0 0 0 1px var(--boop-forest); background:var(--boop-sage); }
 .boop-sprite-picker-grid .boop-picker-sprite { width:64px; height:64px; font-size:32px; object-fit:contain; }
 .boop-sprite-picker-grid strong { font-size:12px; width:100%; text-align:center; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
 .boop-sprite-picker-grid small { font-size:10px; color:var(--boop-muted); text-transform:capitalize; }
@@ -2157,4 +2157,37 @@ html.boop-native-shell .boop-app .boop-cloud-dialog {
   .boop-feature-content{padding:13px 15px 18px;}
   .boop-feature-modal{max-height:93dvh;}
   .boop-family-tree{padding:11px;}
+}
+
+
+/* One-tap sprite replacement on both the Collection cards and Sprite screen.
+   Separate sibling buttons avoid nested click targets on touch devices. */
+.boop-sprite-picker-grid .boop-sprite-grid-cell{min-width:0;display:flex;flex-direction:column;gap:5px;}
+.boop-sprite-picker-grid .boop-sprite-grid-cell > .boop-sprite-card{min-height:111px;justify-content:center;}
+.boop-app .boop-sprite-quick-replace{display:flex;align-items:center;justify-content:center;gap:5px;
+  min-height:34px;width:100%;padding:6px 8px;border:1px solid #d2d6ed;border-radius:9px;
+  background:#f4f3ff;color:#312e81;font-size:11px;font-weight:800;}
+.boop-app .boop-sprite-quick-replace:hover,.boop-app .boop-sprite-quick-replace:focus-visible{background:#e6e3ff;border-color:#9992d9;}
+.boop-app .boop-sprite-quick-replace:disabled{opacity:.45;}
+.boop-sticker-entry{min-width:0;display:flex;flex-direction:column;gap:6px;}
+.boop-sticker-entry .boop-sticker-card{width:100%;flex:1;}
+.boop-app .boop-sticker-replace{display:inline-flex;align-items:center;justify-content:center;gap:4px;
+  min-height:33px;width:100%;padding:6px 5px;background:#f5f4ff;
+  border:1px solid #d9d6ed;border-radius:9px;color:#312e81;font-size:10px;font-weight:800;}
+.boop-app .boop-sticker-replace:hover,.boop-app .boop-sticker-replace:focus-visible{background:#e8e6ff;border-color:#a49ddd;}
+.boop-app .boop-sticker-replace:disabled{opacity:.5;}
+.boop-collection-sprite-tools{display:flex;align-items:center;flex-wrap:wrap;gap:8px 13px;
+  border:1px solid #e1e4f2;background:#f8f8ff;border-radius:13px;padding:11px;}
+.boop-app .boop-collection-replace{display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  min-height:44px;background:#312e81;color:#fff;border:0;border-radius:11px;
+  padding:9px 14px;font-size:12px;font-weight:800;white-space:nowrap;}
+.boop-app .boop-collection-replace:disabled{opacity:.55;}
+.boop-collection-sprite-tools small{color:#625c82;font-size:11px;line-height:1.45;flex:1 1 165px;}
+.boop-collection-upload-status{font-size:12px;line-height:1.5;color:#433d8d;
+  border:1px solid #d7d1f6;background:#f7f4ff;border-radius:10px;padding:9px;}
+@media(max-width:650px){
+  .boop-sprite-picker-grid .boop-sprite-grid-cell > .boop-sprite-card{min-height:105px;}
+  .boop-app .boop-sprite-quick-replace,.boop-app .boop-sticker-replace{font-size:10px;min-height:36px;}
+  .boop-collection-sprite-tools{padding:9px;}
+  .boop-app .boop-collection-replace{width:100%;}
 }
