@@ -1,0 +1,20 @@
+.boop-element-value-badge {display:inline-flex;align-items:center;justify-content:center;gap:5px;color:#815115;background:#fff1c9;border:1px solid #e8d8aa;border-radius:20px;padding:4px 9px;font-size:12px;font-weight:750;line-height:1.2;white-space:nowrap;}
+.boop-element-value-panel {border:1px solid #e8d8aa;background:#fff8e6;color:#392d15;border-radius:18px;padding:16px;text-align:left;}
+.boop-element-value-heading {display:flex;flex-direction:column;gap:6px;}
+.boop-element-value-heading > span {font-size:12px;font-weight:700;color:#775221;}
+.boop-element-value-heading strong {display:flex;align-items:center;gap:7px;font-size:22px;line-height:1.3;flex-wrap:wrap;}
+.boop-element-value-panel p {font-size:13px!important;color:#604a25!important;margin:9px 0!important;line-height:1.5;}
+.boop-element-value-panel small {display:block;font-size:12px;line-height:1.5;color:#705b39;}
+.boop-sticker-card .boop-element-value-badge {margin-top:5px;font-size:11px;padding:4px 7px;}
+.boop-board-result .boop-element-value-badge {margin-top:4px;}
+@media(max-width:360px) {.boop-sticker-card .boop-element-value-badge {font-size:10px;}}
+.boop-element-sell-row {display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:14px 0 10px;}
+.boop-element-sell-row > span {font-size:13px;font-weight:700;}
+.boop-element-sell-row > button {min-height:44px;border:0;border-radius:13px;background:#073ee6;color:#fff;padding:10px 14px;font-size:14px;font-weight:750;}
+.boop-element-sell-row > button:disabled {background:#e7e1d6;color:#74674e;opacity:1;}
+.boop-wallet-balance {display:inline-flex;align-items:center;gap:6px;color:#815115;font-size:13px;background:#fff1c9;border:1px solid #e8d8aa;border-radius:20px;padding:8px 11px;white-space:nowrap;}
+.boop-wallet-balance strong {color:inherit!important;font-size:inherit!important;}
+.boop-collection-wallet {display:flex;align-items:center;gap:9px;flex-wrap:wrap;}
+.boop-profile-wallet {border:1px solid #e8d8aa;border-radius:18px;background:#fff8e6;padding:14px;}
+.boop-profile-wallet p {font-size:13px;line-height:1.5;color:#705b39;margin:8px 0 0;}
+@media(max-width:600px) {.boop-collection-wallet {width:100%;justify-content:space-between;}.boop-wallet-balance {font-size:12px;padding:7px 10px;}}

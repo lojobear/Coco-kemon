@@ -1,3 +1,7 @@
+import { emptyEconomy, validEconomy, applySale, type Economy } from './economy';
+import { validCopyCounts } from './elementCopies';
+import type { CollectorVariant } from './collectorData';
+import { discoveryIdentity } from './unifiedCollection';
 import { isSpriteReference } from './spriteReference';
 import { isRarityTier } from './rarity';
 import { validKitchenRecipe } from './kitchen/engine';
@@ -21,7 +25,7 @@ export const SAVE_KEY = 'coco_kemon_save_v2';
  * elsewhere — those paths still validate structure, but version is the
  * only deployment guard. Do not claim a stronger guarantee than that.
  */
-export const SAVE_FORMAT_VERSION = 2;
+export const SAVE_FORMAT_VERSION = 3;
 export const NEWER_SAVE_MESSAGE = 'This save was created by a newer version of Boop and cannot be opened by this build. Update the app instead of overwriting it.';
 export class NewerSaveError extends Error {
   constructor() { super(NEWER_SAVE_MESSAGE); this.name = 'NewerSaveError'; }
@@ -117,6 +121,7 @@ export function validateCraft(v: unknown): v is InfiniteElement[] {
     (x.category === undefined || (text(x.category) && x.category.length <= 36)) &&
     (x.customSpriteUrl === undefined || (typeof x.customSpriteUrl === 'string' && x.customSpriteUrl.length <= MAX_SPRITE_CHARS && (/^data:image\/png;base64,[A-Za-z0-9+/]+={0,2}$/.test(x.customSpriteUrl) || isSpriteReference(x.customSpriteUrl)))) &&
     (x.discoveredAt === undefined || finite(x.discoveredAt)) && (x.isNew === undefined || typeof x.isNew === 'boolean') &&
+    (x.copyCounts === undefined || validCopyCounts(x.copyCounts)) &&
     (x.isStarter === undefined || typeof x.isStarter === 'boolean') &&
     (x.isShiny === undefined || typeof x.isShiny === 'boolean') &&
     (x.unlockedShiny === undefined || typeof x.unlockedShiny === 'boolean') &&
@@ -148,7 +153,8 @@ function storedEnvelope(): any {
   }
   const v = JSON.parse(raw);
   assertSaveVersion(v.version);
-  if (!record(v) || v.version !== SAVE_FORMAT_VERSION || !validateCraft(v.crafting) || (v.foundry !== null && !validateFoundry(v.foundry))) throw new Error('Invalid saved data');
+  if (!record(v) || ![2, SAVE_FORMAT_VERSION].includes(v.version) || !validateCraft(v.crafting) || (v.foundry !== null && !validateFoundry(v.foundry))) throw new Error('Invalid saved data');
+  if (v.version === 3 && !validEconomy(v.economy)) throw new Error('Invalid wallet data');
   envelopeLoaded = true;
   envelopeMemory = v;
   lastSeenSavedAt ??= Number.isFinite(v.savedAt) ? v.savedAt : 0;
@@ -171,7 +177,7 @@ export function readCraftElements(): InfiniteElement[] {
     return craftMemory = mergeFoundryIntoCraft(v, storedEnvelope()?.foundry);
   } catch (error) { recoveryRequired = true; status(error instanceof NewerSaveError ? error.message : 'Crafting save could not be loaded. Import a valid backup to recover.'); return STARTER_ELEMENTS; }
 }
-function write(foundry: any, crafting: InfiniteElement[], force = false, collectorRoom?: TrophyRoom, boardLayout?: SavedBoardTile[] | null) {
+function write(foundry: any, crafting: InfiniteElement[], force = false, collectorRoom?: TrophyRoom, boardLayout?: SavedBoardTile[] | null, economy?: Economy) {
   // Deployment guard first: never let an older build overwrite a save written
   // by a newer one, even if the envelope is otherwise unreadable here. This
   // runs before any setItem and before the stale-tab check.
@@ -193,7 +199,8 @@ function write(foundry: any, crafting: InfiniteElement[], force = false, collect
   const savedAt = Math.max(Date.now(), (lastSeenSavedAt ?? 0) + 1);
   // One setItem commits both collections atomically. Quota failures leave the old save intact.
   const previousRoom = collectorRoom ?? storedEnvelope()?.collectorRoom;
-  localStorage.setItem(SAVE_KEY, JSON.stringify({ version: 2, savedAt, foundry, crafting: unifiedCrafting,
+  localStorage.setItem(SAVE_KEY, JSON.stringify({ version: SAVE_FORMAT_VERSION, savedAt, foundry, crafting: unifiedCrafting,
+    economy: economy ?? storedEnvelope()?.economy ?? emptyEconomy(),
     collectorRoom: sanitizeTrophyRoom(previousRoom, unifiedCrafting),
     boardLayout: boardLayout ?? loadBoardLayout(crafting) ?? [] }));
   lastSeenSavedAt = savedAt;
@@ -251,30 +258,54 @@ export function saveCollectorRoom(room: TrophyRoom): void {
   } catch (error) { status(error instanceof NewerSaveError ? error.message : 'Trophy room could not be saved. Export a backup before changing devices.'); }
 }
 export function exportCompleteSave(foundry: any): string {
-  return JSON.stringify({ version: 2, exportedAt: new Date().toISOString(), foundry,
+  return JSON.stringify({ version: SAVE_FORMAT_VERSION, economy: readEconomy(), exportedAt: new Date().toISOString(), foundry,
     crafting: readCraftElements(), collectorRoom: readCollectorRoom(),
     boardLayout: loadBoardLayout(readCraftElements()) ?? [] }, null, 2);
 }
 export function parseSave(json: string) {
   const v = JSON.parse(json);
   assertSaveVersion(v.version);
-  if (!record(v) || ![1, 2].includes(v.version)) throw new Error('Unsupported save version');
-  const foundry = v.version === 2 ? v.foundry : { ...v, oddkinCollection: v.oddkinCollection ?? [], processes: v.processes ?? ALL_PROCESSES, experiments: v.experiments ?? [], habitats: v.habitats ?? INITIAL_HABITATS };
-  const crafting = v.version === 2 ? v.crafting : readCraftElements();
+  if (!record(v) || ![1, 2, 3].includes(v.version)) throw new Error('Unsupported save version');
+  const foundry = v.version >= 2 ? v.foundry : { ...v, oddkinCollection: v.oddkinCollection ?? [], processes: v.processes ?? ALL_PROCESSES, experiments: v.experiments ?? [], habitats: v.habitats ?? INITIAL_HABITATS };
+  const crafting = v.version >= 2 ? v.crafting : readCraftElements();
   if (!validateFoundry(foundry) || !validateCraft(crafting)) throw new Error('Invalid backup');
-  return { foundry, crafting,
-    collectorRoom: sanitizeTrophyRoom(v.version === 2 ? v.collectorRoom : null, crafting),
-    boardLayout: v.version === 2 && 'boardLayout' in v
+  if (v.version === 3 && !validEconomy(v.economy)) throw new Error('Invalid wallet data');
+  return { foundry, crafting, economy: v.version === 3 ? v.economy as Economy : v.version === 1 ? readEconomy() : emptyEconomy(),
+    collectorRoom: sanitizeTrophyRoom(v.version >= 2 ? v.collectorRoom : null, crafting),
+    boardLayout: v.version >= 2 && 'boardLayout' in v
       ? parseBoardLayout(v.boardLayout, crafting) : null };
 }
 export function importCompleteSave(json: string) {
   const parsed = parseSave(json);
   queuedCraftWrite = null;
   cancelCraftWriteTimer();
-  write(parsed.foundry, parsed.crafting, true, parsed.collectorRoom, parsed.boardLayout);
+  write(parsed.foundry, parsed.crafting, true, parsed.collectorRoom, parsed.boardLayout, parsed.economy);
   if (parsed.boardLayout !== null) saveBoardLayout(parsed.boardLayout);
   recoveryRequired = false;
   craftMemory = mergeFoundryIntoCraft(parsed.crafting, parsed.foundry);
   window.dispatchEvent(new Event(SAVE_IMPORTED_EVENT));
   return parsed.foundry;
+}
+
+/** Wallet data shares the same durable commit as sale receipts and both collections. */
+export function readEconomy(): Economy {
+  try { return structuredClone(storedEnvelope()?.economy ?? emptyEconomy()); }
+  catch { return emptyEconomy(); }
+}
+export function sellElement(name: string, form: CollectorVariant, quantity = 1, expectedPrice?: number) {
+  flushQueuedCraftSave();
+  if (recoveryRequired || getSaveError()) throw new Error('Save your progress successfully before selling.');
+  const envelope = storedEnvelope();
+  const crafting = readCraftElements();
+  const element = crafting.find(item => discoveryIdentity(item.name) === discoveryIdentity(name));
+  if (!element) throw new Error('This discovery is not in your collection.');
+  const result = applySale(element, envelope?.economy ?? emptyEconomy(), form, quantity);
+  if (expectedPrice !== undefined && expectedPrice !== result.price) throw new Error('Value changed. Close and reopen this discovery before selling.');
+  const foundry = envelope ? envelope.foundry : JSON.parse(localStorage.getItem(LEGACY_FOUNDRY) || 'null');
+  try { write(foundry, crafting, false, undefined, undefined, result.economy); }
+  catch (error) {
+    if (!(error instanceof StaleSaveError)) status('Sale could not be saved. Your coins and copies have not changed.');
+    throw error;
+  }
+  return result;
 }

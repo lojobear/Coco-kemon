@@ -11,7 +11,7 @@ test('cloud backup preserves the current version’s shiny discoveries and both 
     foundry: { materials: STARTER_MATERIALS, oddkinCollection: [], processes: ALL_PROCESSES, habitats: INITIAL_HABITATS, experiments: [] },
   };
   assert.deepEqual(JSON.parse(validateCloudPayload(payload)), payload);
-  assert.throws(() => validateCloudPayload({ ...payload, version: 3 }), /Unsupported/);
+  assert.throws(() => validateCloudPayload({ ...payload, version: 4 }), /Unsupported/);
   assert.throws(() => validateCloudPayload({ ...payload, crafting: [{ id: 'broken', isShiny: 'yes' }] }), /Invalid/);
   assert.throws(() => validateCloudPayload({ ...payload, extra: 'x'.repeat(8 * 1024 * 1024) }), /cloud limit/);
 });

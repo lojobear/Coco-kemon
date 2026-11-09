@@ -1,3 +1,4 @@
+import { addCraftCopy } from './elementCopies';
 /**
  * One two-ingredient crafting engine shared by Craft's board and Foundry MIX.
  * A single API/cache, a single first-discovery check, and one collection
@@ -71,7 +72,9 @@ export function applySharedPairDiscovery(
   const isNew = index < 0;
   const physical = generatePhysicalData(name, emoji, false);
   const shinyPhysical = rolls.shiny ? generatePhysicalData(name, emoji, true) : undefined;
+  const copyForm = rolls.glitch ? 'glitch' : rolls.celestial ? 'celestial' : rolls.holo ? 'holo' : rolls.shiny ? 'shiny' : 'normal';
   const initial: InfiniteElement = {
+    copyCounts: addCraftCopy(undefined, copyForm),
     id: normalized.replace(/[^a-z0-9]/g, '_') || `discovery_${timestamp}`,
     name, emoji,
     category: categoryForDiscovery({ name, category: outcome.category, connection: outcome.connection }),
@@ -102,6 +105,7 @@ export function applySharedPairDiscovery(
     const tier = bestRarity(old.rarityTier, rolls.tier);
     main = {
       ...tracked,
+      copyCounts: addCraftCopy(old, copyForm),
       explanation: old.explanation || outcome.explanation,
       connection: old.connection || outcome.connection,
       category: old.category || initial.category,
@@ -133,6 +137,7 @@ export function applySharedPairDiscovery(
       rare.variantOf === name && typeof rare.explanation === 'string' && rare.explanation.length <= 280 &&
       !updated.some(item => discoveryIdentity(item.name) === discoveryIdentity(rare.result))) {
     bonus = {
+      copyCounts: addCraftCopy(undefined, 'normal'),
       id: discoveryIdentity(rare.result).replace(/[^a-z0-9]/g, '_') || `bonus_${timestamp}`,
       name: rare.result, emoji: rare.emoji,
       category: categoryForDiscovery({ name: rare.result, connection: 'rare variant' }),

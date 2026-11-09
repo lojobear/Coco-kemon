@@ -17,7 +17,7 @@ const emptyFoundry = { materials: [], oddkinCollection: [], processes: [], exper
 
 test('a save from a newer build is refused, never overwritten, and says so', async () => {
   store.clear();
-  const newer = JSON.stringify({ version: 3, savedAt: 1, foundry: emptyFoundry, crafting: [{ id: 'future', name: 'Future', emoji: '🔮' }] });
+  const newer = JSON.stringify({ version: 4, savedAt: 1, foundry: emptyFoundry, crafting: [{ id: 'future', name: 'Future', emoji: '🔮' }] });
   store.set('coco_kemon_save_v2', newer);
   const session = await load('newer-save-1');
   session.readCraftElements();
