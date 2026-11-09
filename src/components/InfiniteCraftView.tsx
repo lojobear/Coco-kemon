@@ -21,7 +21,11 @@ import { CANONICAL_INFINITE_CRAFT_RECIPES } from '../lib/infiniteCraftData';
 import { findCraftDropTarget } from '../lib/craftCollision';
 import { BOARD_WIDTH, BOARD_HEIGHT, BOARD_START_X, BOARD_START_Y, clampBoardTile } from '../lib/boardGeometry';
 import { loadBoardLayout, saveBoardLayout } from '../lib/boardLayout';
-import { spawnSourcePool, chooseSpawnElements, chooseUndiscoveredPair, spawnPositions, spreadSpawnPositions, SPAWN_COUNTS, type SpawnCount, type SpawnViewport } from '../lib/randomSpawn';
+import { chooseSpawnElements, chooseUndiscoveredPair, spawnPositions, spreadSpawnPositions, SPAWN_COUNTS, type SpawnCount, type SpawnSource, type SpawnViewport } from '../lib/randomSpawn';
+import { smartSpawnPool, chooseUntriedPair, type SmartRarity } from '../lib/smartRandomizer';
+import { categoryForDiscovery } from '../lib/collectionCategories';
+import { planAdvancedFusion, applyAdvancedFusion, type FusionPlan } from '../lib/advancedFusion';
+import { AdvancedFusionModal } from './AdvancedFusionModal';
 import { queueCraftElementsSave, readCraftElements, SAVE_IMPORTED_EVENT, SAVE_CHANGED_EVENT } from '../lib/saveData';
 import { discoveryIdentity } from '../lib/unifiedCollection';
 import { isProceduralDefault } from './ElementSprite';
@@ -277,6 +281,10 @@ export function InfiniteCraftView() {
   const [crucibleSlotA, setCrucibleSlotA] = useState<CrucibleSlotItem | null>(null);
   const [crucibleSlotB, setCrucibleSlotB] = useState<CrucibleSlotItem | null>(null);
   const [spawnCount, setSpawnCount] = useState<SpawnCount>(2);
+  const [spawnSource, setSpawnSource] = useState<SpawnSource>('all');
+  const [spawnCategory, setSpawnCategory] = useState('all');
+  const [spawnRarity, setSpawnRarity] = useState<SmartRarity>('all');
+  const [advancedFusionOpen, setAdvancedFusionOpen] = useState(false);
   const spawnSequenceRef = useRef(0);
   const crucibleRef = useRef<HTMLDivElement | null>(null);
 
@@ -286,6 +294,19 @@ export function InfiniteCraftView() {
   const burstTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const viewportRef = useRef<HTMLDivElement>(null);
+  useEffect(()=>{
+    const open=()=>{
+      let requested=false;
+      try{ requested=sessionStorage.getItem('boop-open-advanced-fusion')==='1';
+        if(requested)sessionStorage.removeItem('boop-open-advanced-fusion');
+      }catch{/* optional navigation intent */}
+      if(requested)setAdvancedFusionOpen(true);
+    };
+    const onRequest=()=>{open();setAdvancedFusionOpen(true)};
+    window.addEventListener('boop-open-advanced-fusion',onRequest);
+    open();
+    return ()=>window.removeEventListener('boop-open-advanced-fusion',onRequest);
+  },[]);
   const [viewportPixelWidth, setViewportPixelWidth] = useState(380);
   useEffect(() => {
     const viewport = viewportRef.current;
@@ -840,8 +861,12 @@ export function InfiniteCraftView() {
     [elements],
   );
 
-  // One familiar random pool; no slow AI calls or category picker.
-  const spawnPool = useMemo(() => spawnSourcePool(sharedElements, 'all'), [sharedElements]);
+  // Smart randomizer: filter the player's existing discoveries only.
+  // Uniform draw within that pool, with no unlocks or AI requests.
+  const spawnCategories = useMemo(() => [...new Set(sharedElements.map(item=>categoryForDiscovery(item)))].sort(),[sharedElements]);
+  const spawnPool = useMemo(() => smartSpawnPool(sharedElements,
+    {source:spawnSource,category:spawnCategory,rarity:spawnRarity}),
+    [sharedElements,spawnSource,spawnCategory,spawnRarity]);
 
   const spawnRandomBatch = (count: SpawnCount, suggestion?: InfiniteElement[]) => {
     setSpawnCount(count);
@@ -877,6 +902,20 @@ export function InfiniteCraftView() {
       : `✦ +${picked.length} random ${picked.length===1?'element':'elements'} · 1/${spawnPool.length} per first pick`);
   };
 
+  const fuseAdvanced = (plan:FusionPlan) => {
+    if(requestRef.current||isSynthesizing)return;
+    // Roll once outside any React state-updater callback; the shared ledger
+    // writes the same recipes, rarity and finishes as ordinary two-item Craft.
+    const rolls=plan.steps.map(step=>rollSharedPair(step.result,step.first,step.second));
+    const at=Date.now();
+    const result=applyAdvancedFusion(elements,plan,rolls,at);
+    setElements(prev=>applyAdvancedFusion(prev,plan,rolls,at).elements);
+    setLastResult({...result.final,isNew:result.newDiscoveries>0});
+    setSpawnToast(`Advanced Fusion: ${plan.steps.length} known stages → ${result.final.name}. No AI credits used.`);
+    if(result.newDiscoveries)spawnRevealBurst(true);
+    sound.playCraftPop();haptics.mediumTap();
+  };
+
   // Reuse callback references so memoized discovery cards are skipped entirely
   // when only the slot contents or the random-button animation changes.
   const ingredientPickRef = useRef<(item: InfiniteElement) => void>(() => undefined);
@@ -906,6 +945,25 @@ export function InfiniteCraftView() {
             <details className="boop-board-more" aria-label="More crafting tools">
               <summary aria-label="More crafting tools" title="More crafting tools"><SlidersHorizontal size={19}/></summary>
               <div className="boop-board-more-panel">
+                <span className="boop-board-more-label">SMART RANDOMIZER</span>
+                <label className="boop-smart-field">Pick from
+                  <select aria-label="Random spawn source" value={spawnSource} onChange={e=>setSpawnSource(e.target.value as SpawnSource)}>
+                    <option value="all">All discoveries</option><option value="recent">Recent 40</option>
+                    <option value="shiny">Shiny forms</option><option value="starters">Starter elements</option>
+                  </select>
+                </label>
+                <label className="boop-smart-field">Category
+                  <select aria-label="Random spawn category" value={spawnCategory} onChange={e=>setSpawnCategory(e.target.value)}>
+                    <option value="all">All categories</option>{spawnCategories.map(category=><option key={category} value={category}>{category}</option>)}
+                  </select>
+                </label>
+                <label className="boop-smart-field">Minimum rarity
+                  <select aria-label="Random spawn rarity" value={spawnRarity} onChange={e=>setSpawnRarity(e.target.value as SmartRarity)}>
+                    <option value="all">Any rarity</option><option value="rare">Rare+</option>
+                    <option value="epic">Epic+</option><option value="legendary">Legendary+</option>
+                  </select>
+                </label>
+                <p className="boop-smart-odds" role="status">{spawnPool.length} eligible discoveries · {spawnPool.length?`1/${spawnPool.length} per first pick`:'No items match; adjust filters'}</p>
                 <span className="boop-board-more-label">SPAWN AMOUNT</span>
                 <div className="boop-board-more-counts" role="group" aria-label="Random spawn count">
                   {SPAWN_COUNTS.map(count=><button type="button" key={count} aria-pressed={spawnCount===count}
@@ -916,6 +974,16 @@ export function InfiniteCraftView() {
                   if (pair) spawnRandomBatch(2, pair);
                   else { spawnRandomBatch(2); setSpawnToast('No known undiscovered pair yet — added two random items.'); }
                 }}><Sparkles size={16}/> Suggest a discovery <small>Two items from your collection</small></button>
+                <button type="button" className="boop-suggest-pair" disabled={!spawnPool.length || canvasItems.length > 298}
+                  onClick={()=>{
+                    const pair=chooseUntriedPair(spawnPool,sharedElements);
+                    if(pair)spawnRandomBatch(2,pair);
+                    else setSpawnToast('No untried pair found in this filtered collection.');
+                  }}><Sparkles size={16}/> Try an untried pair <small>Uses only owned elements; no AI call until you combine</small></button>
+                <span className="boop-board-more-label">ADVANCED CRAFTING</span>
+                <button type="button" className="boop-suggest-pair" onClick={()=>setAdvancedFusionOpen(true)}>
+                  <Sparkles size={16}/> Advanced Fusion <small>3–4 items · known recipes · no AI cost</small>
+                </button>
                 <span className="boop-board-more-label">BOARD TOOLS</span>
                 <div className="boop-board-more-actions">
                   <button type="button" aria-label="Redo board action" disabled={isSynthesizing||!historySize.future} onClick={redoLayout}><Redo2 size={16}/> Redo</button>
@@ -972,6 +1040,8 @@ export function InfiniteCraftView() {
       </section>
       {firstDiscoveryModal && <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn" onClick={() => setFirstDiscoveryModal(null)}><div onClick={e => e.stopPropagation()} className={`w-full max-w-sm rounded-2xl p-6 border shadow-2xl text-center relative overflow-hidden ${isDarkMode ? 'bg-[#18181b] border-amber-500/40 text-white' : 'bg-white border-amber-400 text-black'}`}><div className="absolute -top-12 -left-12 w-32 h-32 bg-amber-500/20 rounded-full blur-2xl pointer-events-none" /><div className="absolute -bottom-12 -right-12 w-32 h-32 bg-amber-500/20 rounded-full blur-2xl pointer-events-none" /><div className="text-5xl mb-3 animate-bounce"><CraftSprite name={firstDiscoveryModal.name} emoji={firstDiscoveryModal.emoji} isShiny={firstDiscoveryModal.isShiny} /></div><div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40 text-xs font-mono font-bold tracking-widest uppercase mb-2"><Sparkles className="w-3.5 h-3.5" />FIRST DISCOVERY!</div><h3 className="text-2xl font-black tracking-tight mb-1">{firstDiscoveryModal.name}</h3><p className="text-xs text-zinc-400 mb-5 leading-relaxed">You are the very first crafter to unlock this combination in the global matrix!</p>{firstDiscoveryModal.recipe && <div className={`p-3 rounded-xl border text-xs font-mono mb-5 ${isDarkMode ? 'bg-black/30 border-zinc-800 text-zinc-300' : 'bg-zinc-100 border-zinc-200 text-zinc-700'}`}>{firstDiscoveryModal.recipe.first} + {firstDiscoveryModal.recipe.second} = {firstDiscoveryModal.name}</div>}<button onClick={() => { sound.playClick(); setFirstDiscoveryModal(null); }} className="w-full py-2.5 rounded-xl font-bold text-sm bg-gradient-to-r from-amber-500 to-amber-600 text-black hover:brightness-110 shadow-lg transition-all active:scale-95">Continue Crafting</button></div></div>}
 
+      {advancedFusionOpen&&<AdvancedFusionModal elements={sharedElements} busy={isSynthesizing||Boolean(requestRef.current)}
+        onClose={()=>setAdvancedFusionOpen(false)} onFuse={fuseAdvanced}/>}
       {inspectedElement && <ElementDossierModal element={normalizeElementStats(inspectedElement)} onClose={() => setInspectedElement(null)} onSpawnOnCanvas={(name, emoji, isShiny) => spawnOnCanvas(name, emoji, isShiny)} isDarkMode={isDarkMode} />}
     </div>
     </CraftSprites.Provider>
