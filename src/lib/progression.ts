@@ -1,3 +1,5 @@
+import type { InfiniteElement } from './infiniteCraftData';
+import { getCollectionStats, normalizeElementStats } from './elementStats';
 import type { ExperimentLog, Material, Oddkin, Rarity } from '../types';
 
 export type MaterialVariant = 'holographic' | 'ancient' | 'glitched' | 'corrupted';
@@ -108,4 +110,9 @@ export function streakReward(streak: number): number {
   if (streak === 5) return 75;
   if (streak === 3) return 35;
   return 0;
+}
+
+/** Twelve XP per completed craft; starter inventory never grants earned Craft XP. */
+export function craftProgressionXp(elements: readonly InfiniteElement[]): number {
+  return getCollectionStats(elements.map(normalizeElementStats)).totalCrafts * 12;
 }

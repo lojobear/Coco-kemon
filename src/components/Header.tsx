@@ -1,6 +1,6 @@
 /** Boop - top bar header */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useGame } from '../lib/gameStore';
 import { Volume2, VolumeX, Mic, Camera, BookOpen, RotateCcw, Download, Upload, Sparkles, Zap, CheckCircle2, Smartphone, Vibrate, Settings2, Cloud, NotebookPen, X, Search, UserRound } from 'lucide-react';
 import { sound } from '../lib/audio';
@@ -49,6 +49,12 @@ export function Header({
   } = useGame();
 
   const [showSettings, setShowSettings] = useState(false);
+  const settingsDialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const dialog = settingsDialog.current;
+    if (showSettings && dialog && !dialog.open) dialog.showModal();
+    if (!showSettings && dialog?.open) dialog.close();
+  }, [showSettings]);
   const [query, setQuery] = useState('');
   const [aiHealth, setAiHealth] = useState<AiHealth>({ hasAiKey: false, hasGroqKey: false });
   const [hapticsOn, setHapticsOn] = useState<boolean>(() => haptics.isEnabled());
@@ -79,11 +85,11 @@ export function Header({
       </div>
 
       {/* Settings / Save Modal dropdown */}
-      {showSettings && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+      <dialog ref={settingsDialog} aria-labelledby="boop-settings-title" onCancel={() => setShowSettings(false)}
+        onClose={() => setShowSettings(false)} className="boop-settings-dialog">
           <div className="boop-settings bg-[#181b20] border border-[#2e3440] rounded-2xl p-5 max-w-sm w-full shadow-2xl space-y-4 max-h-[90dvh] overflow-y-auto">
             <div className="flex items-center justify-between pb-2 border-b border-[#282d37]">
-              <h3 className="text-sm font-bold font-mono text-[#f3f4f6] flex items-center gap-2">
+              <h3 id="boop-settings-title" className="text-sm font-bold font-mono text-[#f3f4f6] flex items-center gap-2">
                 <span>⚙️</span> BOOP SETTINGS & DATA
               </h3>
               <button
@@ -226,8 +232,7 @@ export function Header({
               </div>
             </div>
           </div>
-        </div>
-      )}
+      </dialog>
     </header>
   );
 }

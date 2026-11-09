@@ -97,13 +97,15 @@ const CanvasBoardTile = React.memo(function CanvasBoardTile({
   return <div data-craft-instance={item.instanceId}
     className={`boop-board-item ${selected ? 'is-selected' : ''} ${item.instanceId.startsWith('fusion-') ? 'is-fusion-result' : ''} ${item.instanceId.startsWith('spawn-') ? 'is-random-spawn' : ''}`}
     onPointerDown={event => onPointerDown(item, event)}
-    onClick={event => { event.stopPropagation(); onClickItem(item); }}
     onDoubleClick={event => onDuplicate(item, event)}
-    style={{ transform: `translate3d(${item.x}px,${item.y}px,0)`, '--spawn-delay': `${item.spawnDelay || 0}ms`, maxWidth: item.instanceId.startsWith('spawn-') ? `${spawnTileMaxWidth}px` : undefined } as React.CSSProperties}>
-    <CraftSprite name={item.name} emoji={item.emoji} isShiny={item.isShiny} />
-    <span>{item.name}</span>
-    <button aria-label={`Duplicate ${item.name}`} title="Duplicate" className="boop-tile-duplicate" onClick={event => onDuplicate(item, event)}><Plus size={12} /></button>
-    <button aria-label={`Remove ${item.name} from board`} title="Remove" onClick={event => onRemove(item.instanceId, event)}><X size={12} /></button>
+    style={{ transform: `translate3d(${item.x}px,${item.y}px,0)`, '--spawn-delay': `${item.spawnDelay || 0}ms`, maxWidth: `${spawnTileMaxWidth}px` } as React.CSSProperties}>
+    <button type="button" className="boop-tile-select" aria-label={`Select ${item.name} to combine`}
+      aria-pressed={selected} onClick={event => { event.stopPropagation(); onClickItem(item); }}>
+      <CraftSprite name={item.name} emoji={item.emoji} isShiny={item.isShiny} />
+      <span>{item.name}</span>
+    </button>
+    <button aria-label={`Duplicate ${item.name}`} title="Duplicate" className="boop-tile-action boop-tile-duplicate" onClick={event => onDuplicate(item, event)}><Plus size={12} /></button>
+    <button aria-label={`Remove ${item.name} from board`} title="Remove" className="boop-tile-action" onClick={event => onRemove(item.instanceId, event)}><X size={12} /></button>
   </div>;
 });
 
@@ -235,6 +237,7 @@ export function InfiniteCraftView() {
     return () => window.removeEventListener(PROFILE_SPRITES_UPDATED, update);
   }, []);
 
+  const autoFrameStarters = useRef(loadBoardLayout(readCraftElements()) === null);
   const [canvasItems, setCanvasItems] = useState<CanvasItem[]>(() => loadBoardLayout(readCraftElements()) ?? [
     { instanceId: 'init-1', name: 'Water', emoji: '💧', x: BOARD_START_X, y: BOARD_START_Y },
     { instanceId: 'init-2', name: 'Fire', emoji: '🔥', x: BOARD_START_X + 166, y: BOARD_START_Y },
@@ -379,14 +382,33 @@ export function InfiniteCraftView() {
     };
   }, []);
   const panningRef = useRef<{ id: number; startX: number; startY: number; scrollX: number; scrollY: number } | null>(null);
+  const hasFramedBoard = useRef(false);
   const [mergeFx, setMergeFx] = useState<{ id: number; x: number; y: number; dxA: number; dyA: number; dxB: number; dyB: number; a: string; b: string } | null>(null);
   const mergeFxTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     const viewport = viewportRef.current;
     if (!viewport) return;
-    viewport.scrollLeft = BOARD_START_X * zoomRef.current - Math.min(220, viewport.clientWidth / 4);
-    viewport.scrollTop = BOARD_START_Y * zoomRef.current - Math.min(160, viewport.clientHeight / 3);
-  }, []);
+    if (autoFrameStarters.current) {
+      const worldWidth = viewport.clientWidth / boardZoom;
+      if (!worldWidth) return;
+      const columns = worldWidth >= 520 ? 2 : 1;
+      const groupWidth = columns === 2 ? 488 : Math.min(232, worldWidth - 24);
+      const items = canvasItemsRef.current;
+      if (items.every(item => item.instanceId.startsWith('init-'))) {
+        const framed = items.map((item, index) => ({ ...item, x: BOARD_START_X + index % columns * 256,
+          y: BOARD_START_Y + Math.floor(index / columns) * 76 }));
+        historyRef.current = beginBoardHistory(framed);
+        skipHistoryRef.current = true;
+        setCanvasItems(framed);
+      }
+      viewport.scrollLeft = BOARD_START_X * boardZoom - Math.max(12, (viewport.clientWidth - groupWidth * boardZoom) / 2);
+      viewport.scrollTop = BOARD_START_Y * boardZoom - 64;
+    } else if (!hasFramedBoard.current) {
+      viewport.scrollLeft = BOARD_START_X * boardZoom - Math.min(220, viewport.clientWidth / 4);
+      viewport.scrollTop = BOARD_START_Y * boardZoom - Math.min(160, viewport.clientHeight / 3);
+    }
+    hasFramedBoard.current = true;
+  }, [viewportPixelWidth, boardZoom]);
   useEffect(() => () => { if (mergeFxTimerRef.current) clearTimeout(mergeFxTimerRef.current); }, []);
 
   // A bare-area drag pans on desktop. Touch uses the browser's native kinetic
@@ -594,7 +616,7 @@ export function InfiniteCraftView() {
       } else if (firstInCollection) {
         sound.playFirstDiscoveryChime();
         haptics.firstDiscovery();
-        setSpawnToast(`✦ New discovery: ${cleanName}`);
+        setSpawnToast(null);
         setTimeout(() => setSpawnToast(null), 2200);
       } else {
         sound.playCraftPop();
@@ -690,9 +712,9 @@ export function InfiniteCraftView() {
   };
 
   const handlePointerDown = (item: CanvasItem, e: React.PointerEvent<HTMLDivElement>) => {
-    if (e.button !== 0 || (e.target as HTMLElement).closest('button')) return;
-    e.preventDefault();
+    if (e.button !== 0 || (e.target as HTMLElement).closest('.boop-tile-action')) return;
     e.stopPropagation();
+    autoFrameStarters.current = false;
     sound.unlock();
     suppressCanvasClickRef.current = false;
     draggingItemRef.current = {
@@ -931,7 +953,7 @@ export function InfiniteCraftView() {
     <div className="boop-craft-studio">
       <section className="boop-board-layout" aria-label="Discover crafting board">
         <header className="boop-board-toolbar boop-board-toolbar--quiet">
-          <div className="boop-board-heading"><strong>Craft</strong><small>Drag elements together to discover</small></div>
+          <div className="boop-board-heading"><strong>Craft</strong><small>Tap two elements, or drag one onto another</small></div>
           <div className="boop-board-actions boop-board-actions--quiet">
             <button type="button" className="boop-quiet-spawn" disabled={!spawnPool.length || canvasItems.length>=300}
               aria-label={`Spawn ${spawnCount} random ${spawnCount===1?'element':'elements'} from ${spawnPool.length} equally likely discoveries`}
@@ -1025,6 +1047,7 @@ export function InfiniteCraftView() {
           <button aria-label="Dismiss result" onClick={()=>setLastResult(null)}><X size={16}/></button>
         </div>}
         {combineError && <div className="boop-board-alert" role="alert">{combineError}<button onClick={()=>{if(lastPairRef.current)void handleCombine(lastPairRef.current[0],lastPairRef.current[1]);}}>Retry</button><button onClick={()=>setCombineError(null)}>Dismiss</button></div>}
+        {selectedCanvasId && !activeCombination && <p className="boop-selection-status" role="status">{canvasItems.find(item => item.instanceId === selectedCanvasId)?.name} selected. Choose another element to combine.</p>}
         {spawnToast && <div className="boop-board-toast" role="status">{spawnToast}</div>}
         <button className="boop-board-mobile-library" onClick={()=>setIsSidebarOpen(true)} aria-label="Open element library"><Plus size={21}/> Add an element</button>
         {isSidebarOpen && <div className="boop-board-drawer-backdrop" onClick={()=>setIsSidebarOpen(false)} aria-hidden="true"/>}

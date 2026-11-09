@@ -2158,3 +2158,41 @@ html.boop-native-shell .boop-app .boop-cloud-dialog {
   .boop-feature-modal{max-height:93dvh;}
   .boop-family-tree{padding:11px;}
 }
+
+/* Audit fixes: readable guidance, accessible tiles, and compact collection entry. */
+.boop-app .boop-board-toolbar--quiet .boop-board-heading small {
+  display:block; font-size:12px; line-height:1.4; color:#526071;
+  white-space:normal; overflow:visible;
+}
+.boop-app .boop-board-heading {min-width:0;}
+.boop-app .boop-board-toolbar--quiet {flex-wrap:wrap;}
+.boop-app .boop-board-layout .boop-board-item {
+  width:232px; min-width:0; min-height:56px; gap:0; padding:5px;
+}
+.boop-app .boop-board-layout .boop-board-item .boop-tile-select {
+  display:flex; align-items:center; gap:6px; flex:1 1 auto; width:auto;
+  min-width:0; height:44px; color:inherit; cursor:grab; padding:0 3px;
+}
+.boop-app .boop-tile-select > span:last-child {overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.boop-app .boop-board-layout .boop-board-item .boop-tile-action {
+  width:44px; height:44px; flex:0 0 44px; color:#526071;
+}
+.boop-app .boop-board-item button:focus-visible {outline:3px solid #5146a6; outline-offset:1px;}
+.boop-selection-status {position:absolute;left:12px;bottom:78px;z-index:8;margin:0;max-width:calc(100% - 24px);padding:10px 12px;border:1px solid #dce1e6;border-radius:10px;background:#fff;color:#303741;font-size:12px;pointer-events:none;}
+.boop-settings-dialog {border:0;padding:0;background:transparent;width:calc(100% - 32px);max-width:384px;max-height:90dvh;margin:auto;color:inherit;}
+.boop-settings-dialog::backdrop {background:#0009;backdrop-filter:blur(4px);}
+.boop-settings-dialog .boop-settings {width:100%;margin:0;}
+.boop-collected-count {font-size:13px;font-weight:700;color:#526071;}
+.boop-album-refine {border:1px solid #dce1e6;border-radius:12px;background:#fff;}
+.boop-album-refine > summary {padding:12px;font-size:13px;font-weight:700;cursor:pointer;min-height:44px;}
+.boop-album-refine-content {padding:0 12px 12px;display:grid;gap:12px;}
+.boop-album-refine-content > select {min-height:44px;border:1px solid #dce1e6;border-radius:8px;padding:8px;background:#fff;}
+@media(max-width:600px) {
+  .boop-app .boop-board-toolbar--quiet .boop-board-heading {flex:1 1 100%;}
+  .boop-app .boop-board-toolbar {gap:8px;}
+  .boop-app .boop-board-actions {margin-left:auto;}
+  .boop-app .boop-album-title p,.boop-app .boop-album-title small {display:none;}
+  .boop-app .boop-album-page {gap:10px;}
+  .boop-app .boop-album-controls {gap:0;}
+  .boop-app .boop-album-search {width:100%;}
+}
