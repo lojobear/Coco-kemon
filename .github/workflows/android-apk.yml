@@ -15,8 +15,24 @@ jobs:
   build-android-apk:
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    env:
+      BOOP_BUNDLED_WEB: '1'
+      BOOP_VERSION_NAME: '3.0.1-preview'
+      BOOP_VERSION_CODE: ${{ github.run_number }}
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: oven-sh/setup-bun@v2
+      - name: Bundle the exact frontend from this revision
+        run: |
+          bun install --frozen-lockfile
+          npm run build
+          test ! -f dist/sw.js
+          mkdir -p android-shell/app/src/main/assets/web
+          cp -R dist/. android-shell/app/src/main/assets/web/
+          git rev-parse HEAD > android-shell/app/src/main/assets/web/source-commit.txt
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -33,11 +49,11 @@ jobs:
       - name: Verify vector launcher icon
         run: test -s android-shell/app/src/main/res/drawable/ic_boop_planet.xml
       - name: Build installable Android debug APK
-        run: gradle --no-daemon -p android-shell assembleDebug bundleRelease
+        run: gradle --no-daemon -p android-shell assembleDebug
       - name: Upload Boop APK
         uses: actions/upload-artifact@v4
         with:
-          name: Boop-Android-APK
+          name: Boop-Preview-APK
           path: android-shell/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 30
           if-no-files-found: error

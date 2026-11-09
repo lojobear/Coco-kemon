@@ -32,11 +32,12 @@ const VoiceLabModal = lazy(() => loadVoiceLabModal().then(module => ({ default: 
 const PlayerProfile = lazy(() => import('./components/PlayerProfile').then(module => ({ default: module.PlayerProfile })));
 import { SAVE_STATUS_EVENT, getSaveError } from './lib/saveData';
 import { sound } from './lib/audio';
-import { isAndroidNativeShell, isNativeTab, sendToAndroid } from './lib/nativeShell';
+import { isAndroidNativeShell, usesNativeAndroidChrome, isNativeTab, sendToAndroid } from './lib/nativeShell';
 
 function GameContent() {
   const { activeTab, setActiveTab, inspectedItem, setInspectedItem } = useGame();
   const nativeShell = isAndroidNativeShell();
+  const nativeChrome = usesNativeAndroidChrome();
 
   const [showCloud, setShowCloud] = useState(false);
   const [collectionSearch, setCollectionSearch] = useState('');
@@ -142,9 +143,9 @@ function GameContent() {
   }, [nativeShell, activeTab]);
 
   return (
-    <div data-theme="quark-light" className="boop-app h-[100dvh] max-h-[100dvh] w-full collection-app bg-white text-neutral-900 flex flex-col justify-between overflow-hidden selection:bg-neutral-900 selection:text-white">
+    <div data-theme="quark-light" className="boop-app boop-toybox h-[100dvh] max-h-[100dvh] w-full collection-app bg-white text-neutral-900 flex flex-col justify-between overflow-hidden selection:bg-neutral-900 selection:text-white">
       {/* Top Header */}
-      {!nativeShell && <Header
+      {!nativeChrome && <Header
         onOpenProfile={() => setShowCloud(true)}
         onSearchCollection={query => { setCollectionSearch(query); setActiveTab('archive'); }}
         onOpenSeeds={() => setShowSeedsModal(true)}
@@ -188,7 +189,7 @@ function GameContent() {
       </main>
 
       {/* Bottom Navigation */}
-      {!nativeShell && <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} onOpenProfile={() => setShowCloud(true)} />}
+      {!nativeChrome && <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} onOpenProfile={() => setShowCloud(true)} />}
       <CloudSaves open={showCloud} onClose={() => setShowCloud(false)} />
 
       {/* Floating Modals */}

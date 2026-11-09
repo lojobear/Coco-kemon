@@ -20,6 +20,8 @@ export interface InfiniteElement {
   discoveredAt?: number;
   /** Supplied inventory is collectible but does not count as an earned discovery. */
   isStarter?: boolean;
+  /** Lifetime earned copies, one highest rolled form per successful craft. */
+  copyCounts?: Partial<Record<'normal'|'shiny'|'holo'|'celestial'|'glitch', number>>;
   isNew?: boolean;
   recipe?: { first: string; second: string };
   explanation?: string;

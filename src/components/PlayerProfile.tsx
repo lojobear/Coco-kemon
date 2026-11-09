@@ -1,3 +1,4 @@
+import { WalletBalance } from './ElementValue';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useGame } from '../lib/gameStore';
 import { cloud } from '../lib/cloudSave';
@@ -86,6 +87,7 @@ export function PlayerProfile({ onOpenCloud }: { onOpenCloud: () => void }) {
         <button onClick={()=>setEditing(false)}>Cancel</button>
       </div>}
       {message && <p role="status" className="boop-profile-note">{message}</p>}
+      <div className="boop-profile-wallet"><WalletBalance/><p>Earn coins by selling crafted copies from your collection.</p></div>
       <div className="boop-profile-progress">
         <div><strong>Level {progression.level}</strong><span>{progression.levelCurrent.toLocaleString()} / {progression.levelRequired.toLocaleString()} XP to next level</span></div>
         <div role="progressbar" aria-label="Progress to next level" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progression.levelRequired ? progression.levelCurrent / progression.levelRequired * 100 : 100)} className="boop-profile-progress-track"><i style={{width:`${Math.max(0,Math.min(100,progression.levelRequired?progression.levelCurrent / progression.levelRequired*100:100))}%`}}/></div>

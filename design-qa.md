@@ -1,37 +1,68 @@
-# Option 2 design QA
+# Modern Toybox design QA
 
 final result: passed
 
-## Evidence
-Source: selected option 2 reference exec-dc96d4d9-42be-4ebd-9c4f-3125bd3c709b.png, 853 × 1844 pixels.
-Implementation: docs/design/option2-mobile-final.jpg, 390 × 844 pixels.
-Full comparison: docs/design/option2-comparison-final.jpg, source and browser render together.
-Viewport: 390 × 844 CSS pixels, density 1. Reference fitted to same CSS region; no device chrome. State: disposable six-item collection, Mouse + Spark selected, Mix, Foundry tab. Test fixture excluded from release.
-All controls and text are readable in the full comparison; no separate focused crop needed.
+## Source and implementation
 
-## Findings and iterations
-Initial P2: artwork and headline too small. Increased image scale and display text size.
-Second P2: dog artwork overlapped label. Reduced dog-specific scale.
-Final comparison confirms readable labels, large art, visible combine dock and navigation. No actionable P0/P1/P2 differences remain.
-P3: active navigation underline is wider than reference; acceptable follow-up polish.
+- Selected visual truth: latest ideation option 3, `/workspace/generated_images/exec-7c1cab9a-22d1-451e-b3b1-2125b8d3ca35.png`.
+- Repository source copy: `docs/design/toybox-reference.jpg`.
+- Browser-rendered implementation: `docs/design/toybox-mobile.jpg`.
+- Full-view comparison input: `docs/design/toybox-comparison.jpg` (reference left, implementation right).
+- Focused image/selection comparison: `docs/design/toybox-pieces-comparison.jpg`.
+- CSS viewport: 390 × 844, deviceScaleFactor 1. Source: 852 × 1846 raster pixels, normalized to 390 × 844 (under 0.2% aspect-ratio adjustment); implementation: 390 × 844 raster pixels, no browser/device chrome.
+- State: fresh Craft board with Water and Fire selected, ready to combine. No mocked discoveries or generated credits were required.
 
-## Fidelity surfaces
-- Typography: Plus Jakarta Sans, bold cream heading with intended two-line wrap, smaller lavender control text.
-- Layout: three-column mobile collection, persistent dock, four tabs. Process area accommodates random-process button.
-- Colors: midnight purple, cream, mint actions/selection, coral counter match intended palette.
-- Images: independently generated pixel-style mascot and six item illustrations. Correct subjects and fitted crops, with detail variation from mock. User custom sprites preserved.
-- Copy: actual discovery count replaces decorative New badge. Cloud/settings controls replace decorative tagline; intentional functional adaptations.
+## Findings and comparison history
 
-## Verification
-Browser-tested search, selection, random ingredients/process, Mouse + Spark → Pikachu, result reuse, details, Sprites navigation and settings.
-Latest browser console: no app errors; two extension metadata errors unrelated to application.
-TypeScript and production build pass. Tests: 22 pass, 1 opt-in Cloudflare smoke test skipped.
-Build warns about JavaScript chunk size; generated art also increases initial PWA cache size.
-Google OAuth, live Gemini and production deployment not tested. Import chooser test did not complete and is not claimed as passing.
+Initial comparison was blocked by P2 differences: starter artwork had excessive transparent padding; the original pill layout did not match the large toy pieces; the headline was undersized; pointer focus exposed duplicate/remove controls over the labels; and the first tablet layout clipped the second row slightly.
 
-## Checklist
-- [x] Match collection layout and palette
-- [x] Preserve functional controls
-- [x] Fix image scale and overlap
-- [x] Save browser evidence, exclude disposable fixture
-- [ ] User review before merge/deploy
+Fixes: trim/resize the generated PNG assets; render prominent sprite pieces and separate labels; establish the cream/cobalt/yellow tokens and headline hierarchy; expose piece actions on hover or keyboard focus rather than every pointer selection; and frame untouched starters using both viewport width and height. Use smaller pieces on 320px phones and a four-column starter row on wide desktop boards. Recheck after each layout change.
+
+Final full-view and focused comparisons show no remaining actionable P0/P1/P2 differences. The yellow mat, two-row mobile composition, cream base, cobalt CTA, generous artwork, bold headline, branded header, and five-destination navigation follow the chosen reference. Supporting controls for settings/cloud saves and advanced crafting remain available as intentional production requirements.
+
+## Required fidelity surfaces
+
+- **Fonts and typography:** existing bundled Reddit Sans retained. Heavy, two-line headline, readable instruction, strong piece labels, and hierarchy checked in the full comparison. Actual font rendering is slightly different from the generated mock; no clipping.
+- **Spacing and rhythm:** header, hero, work mat, Combine button, and navigation fit 390 × 844. Responsive checks cover 320 × 740, 412 × 900, 768 × 900, and 1440 × 900. Starter bounds fit the visible board; saved layouts are preserved rather than reset. The mat scrolls for expanded boards.
+- **Colors/tokens:** cream `#fcf9f4`, ink `#0b1230`, cobalt `#073ee6`, butter yellow `#ffea9c`. Existing screens inherit the same palette; blue focus rings and selected states remain explicit.
+- **Image quality:** independently generated raster Water/Fire/Wind/Earth sprites, sprouting-planet logo, and coral accent inspected in-browser. Transparent edges are clean, assets are optimized, and images stay sharp. Custom/uploaded and existing saved artwork continue to override the defaults. Existing Lucide icons are retained for standard functional controls.
+- **Copy/content:** headline, Craft label, instruction, Undo/Clear/Add controls, selected ingredient names, and Combine action match the selected concept. Combine is explicit after selecting two pieces; drag-to-combine remains immediate. No currencies, goals, or unrelated features were introduced.
+
+## Interaction and regression verification
+
+- Keyboard selection (Enter/Space), explicit Combine action, and correct selected-state announcements.
+- Touch selection and Combine; desktop drag combination.
+- Water + Fire discovers Steam, updates stats and XP, and preserves collection behavior.
+- Undo, Clear, ingredient drawer, adding another Water, advanced tools menu, collection filters, and navigation to Kitchen, Collection, Sprites, and Profile.
+- Settings Escape dismissal, focus restoration, and background focus protection retained.
+- No page console exceptions in browser smoke checks.
+- TypeScript and production build pass; 251 tests pass, one skipped. Existing bundle-size warning remains.
+
+## Implementation checklist
+
+- [x] Selected source resolved and inspected.
+- [x] Generated assets placed, optimized, and inspected in browser.
+- [x] Full and focused source/implementation comparisons inspected together.
+- [x] P2 layout and asset issues corrected, then recaptured.
+- [x] Phone/tablet/desktop and keyboard/touch/drag flows checked.
+- [x] Save/artwork precedence and existing collection features retained.
+
+## Follow-up polish and limits
+
+P3: source-specific sticker silhouettes and highlight texture differ slightly from the optimized generated sprites; real Reddit Sans wrapping and standard icon strokes differ slightly from image-generation lettering/icons. These do not block acceptance.
+
+Live AI generation, authenticated cloud saves, and native Android shell rendering were not exercised. This pass verifies the responsive web app and existing shell integration boundaries, not a native Android toolbar redesign.
+
+## Element values and selling addendum
+
+User-requested after the selected visual redesign. Added compact coin values to cards/reveals, a wallet in Collection/Profile, and a value/stock/sell panel in element details. Existing typography and palette retained; no changes to the selected Craft composition. Evidence: `docs/design/economy-before-sale.jpg` and `docs/design/economy-after-sale.jpg`, captured in Chromium at 390 × 844, density 1. The sale flow, disabled resale state, retained discovery, sorting, wallet reload, and console were inspected. No blocking layout issue was found. Full suite: 263 passed, one skipped; TypeScript/build passed. Wallet/save failure, stale-tab, queued-write, form-count, backup, and migration tests also pass. Live cloud migration is prepared and locally tested, not applied to production. Cross-player trading remains outside this update.
+
+final result: passed
+
+## Pixel 9 compact-layout correction
+
+User feedback supersedes the original mock's large sprite scale. Craft sprites now use 48px on typical phones (44px on narrow phones) instead of 84px. Tiles are wider, labels wrap fully with automatic height and long-word breaking, and the primary button uses “Combine selected” while preserving the full accessible ingredient names. Collection/picker names also wrap. Tidy measures actual tile heights. Touch no longer shows sticky hover controls over the names; selected-item actions remain available in the tools menu.
+
+Browser checks: 320/390/412 CSS widths, including a Pixel 9-like 412 × 867 viewport at density 2.625, Android WebView user agent, touch input, and label sizes 14px/20px. Fixtures include Time Machine, Potion of Invisibility, Interdimensional Jellyfish, and a long unbroken word. All names stay within their buttons without horizontal or vertical clipping; touch selection and the Combine action work. Evidence: `docs/design/pixel9-compact-labels.jpg`. These are browser simulations, not physical-device verification.
+
+final result: passed

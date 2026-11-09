@@ -26,7 +26,7 @@ export function validateCloudPayload(payload: unknown): string {
   if (!json || new TextEncoder().encode(json).length > 8 * 1024 * 1024) {
     throw new Error('This save exceeds the cloud limit. Export a JSON backup instead.');
   }
-  if ((payload as { version?: number })?.version !== 2) throw new Error('Unsupported cloud save version.');
+  if (![2, 3].includes((payload as { version: number })?.version)) throw new Error('Unsupported cloud save version.');
   parseSave(json);
   return json;
 }

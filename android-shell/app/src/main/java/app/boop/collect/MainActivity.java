@@ -26,6 +26,11 @@ import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.webkit.WebResourceResponse;
+import android.webkit.MimeTypeMap;
+import androidx.webkit.WebViewAssetLoader;
+import java.io.InputStream;
+import java.io.IOException;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -50,7 +55,7 @@ import java.util.Collections;
  */
 public final class MainActivity extends Activity {
     private static final String ORIGIN = "https://coco-kemon.logaandavid.workers.dev";
-    private static final String START_URL = ORIGIN + "/?boop_android=1";
+    private static final String START_URL = ORIGIN + "/?boop_android=1" + (BuildConfig.BUNDLED_WEB ? "&boop_web_chrome=1" : "");
     private static final String AUTH_SCHEME = "boop";
     private static final String AUTH_HOST = "oauth-callback";
     private static final int FOREST = Color.rgb(42, 48, 56);
@@ -103,7 +108,7 @@ public final class MainActivity extends Activity {
             screen.requestApplyInsets();
         }
 
-        screen.addView(buildToolbar(), new LinearLayout.LayoutParams(-1, dp(57)));
+        if (!BuildConfig.BUNDLED_WEB) screen.addView(buildToolbar(), new LinearLayout.LayoutParams(-1, dp(57)));
         progressBar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
         progressBar.setMax(100);
         progressBar.setIndeterminate(true);
@@ -114,7 +119,7 @@ public final class MainActivity extends Activity {
         screen.addView(webFrame, new LinearLayout.LayoutParams(-1, 0, 1));
         createWebView();
 
-        screen.addView(buildBottomNav(), new LinearLayout.LayoutParams(-1, dp(73)));
+        if (!BuildConfig.BUNDLED_WEB) screen.addView(buildBottomNav(), new LinearLayout.LayoutParams(-1, dp(73)));
         selectTabVisual(selectedTab);
         webView.loadUrl(urlForOAuthCode(pendingOAuthCode));
     }
@@ -297,7 +302,30 @@ public final class MainActivity extends Activity {
                 return true;
             }
         });
+        // Serve this APK's exact frontend build under the trusted HTTPS game origin.
+        // API requests still reach the existing backend, with no CORS workaround or embedded secrets.
+        final WebViewAssetLoader bundledAssets = new WebViewAssetLoader.Builder()
+            .setDomain(Uri.parse(ORIGIN).getHost())
+            .addPathHandler("/", assetPath -> {
+                String path = assetPath.isEmpty() ? "index.html" : assetPath;
+                if (path.contains("..")) return null;
+                try {
+                    InputStream stream = getAssets().open("web/" + path);
+                    String extension = MimeTypeMap.getFileExtensionFromUrl(path);
+                    String mime = "js".equals(extension) ? "application/javascript" : MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension);
+                    if (mime == null) mime = "application/octet-stream";
+                    WebResourceResponse response = new WebResourceResponse(mime, mime.startsWith("text/") || "application/javascript".equals(mime) || "application/json".equals(mime) ? "UTF-8" : null, stream);
+                    response.setResponseHeaders(Collections.singletonMap("Cache-Control", "no-store"));
+                    return response;
+                } catch (IOException missing) { return null; }
+            }).build();
         webView.setWebViewClient(new WebViewClient() {
+            @Override public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+                String path = request.getUrl().getPath();
+                if (!BuildConfig.BUNDLED_WEB || !"GET".equals(request.getMethod()) ||
+                    path == null || path.equals("/api") || path.startsWith("/api/")) return null;
+                return bundledAssets.shouldInterceptRequest(request.getUrl());
+            }
             @Override public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 if (!request.isForMainFrame()) return false;
                 Uri url = request.getUrl();
@@ -311,7 +339,7 @@ public final class MainActivity extends Activity {
                 return true;
             }
             @Override public void onPageFinished(WebView view, String url) {
-                if (isGameUrl(Uri.parse(url))) {
+                if (!BuildConfig.BUNDLED_WEB && isGameUrl(Uri.parse(url))) {
                     // Web renderer is online; native controls do not depend on
                     // the web site's original header or bottom navigation.
                     view.evaluateJavascript("document.documentElement.classList.add('boop-native-shell')", null);

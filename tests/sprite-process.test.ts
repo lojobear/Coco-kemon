@@ -26,7 +26,7 @@ test('craft visuals preserve uploaded art while defaults render original pixel s
   assert.match(markup, /<img/);
   assert.match(markup, /data:image\/png;base64/);
   const defaultMarkup = renderToStaticMarkup(React.createElement(CraftSprite, { name: 'Water', emoji: '💧' }));
-  assert.match(defaultMarkup, /data:image\/svg\+xml/);
+  assert.match(defaultMarkup, /src="\/toybox\/water\.png"/);
   assert.doesNotMatch(defaultMarkup, /💧/);
 });
 

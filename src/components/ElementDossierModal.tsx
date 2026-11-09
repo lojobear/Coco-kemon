@@ -1,3 +1,4 @@
+import { ElementValuePanel } from './ElementValue';
 import { CraftSprite } from './CraftSprite';
 import React, { useState } from 'react';
 import { X, Sparkles, PlusCircle, Lock, ArrowRight, CalendarDays } from 'lucide-react';
@@ -85,6 +86,7 @@ export function ElementDossierModal({
             </div>
           </div>
 
+          <ElementValuePanel element={element} variant={viewingShiny ? 'shiny' : 'normal'}/>
           {element.explanation && (
             <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-3.5">
               <p className="text-sm leading-relaxed text-slate-200">{element.explanation}</p>

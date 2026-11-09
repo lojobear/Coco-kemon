@@ -29,3 +29,8 @@ export function sendToAndroid(message: { type: string; tab?: NativeTab; url?: st
 export function nativeOAuthRedirect() {
   return `${window.location.origin}/?boop_native_oauth=1`;
 }
+
+/** Preview APKs use the same bridge/OAuth path while rendering the selected web chrome. */
+export function usesNativeAndroidChrome() {
+  return isAndroidNativeShell() && new URLSearchParams(window.location.search).get('boop_web_chrome') !== '1';
+}

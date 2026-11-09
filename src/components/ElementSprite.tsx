@@ -67,10 +67,12 @@ export function ElementSprite({ name, custom, fallback, className = '', alt = ''
     const unobserve = host.current ? observeSpriteViewport(host.current, load) : (() => { load(); return () => undefined; })();
     return () => { cancelled = true; unobserve(); };
   }, [key, custom, retry, isShiny, normalKey]);
+  const toyboxDefault = ['water', 'fire', 'wind', 'earth'].includes(name.trim().toLowerCase()) ? `/toybox/${name.trim().toLowerCase()}.png` : undefined;
   const ownShiny = isShiny && art?.key === key && Boolean(art.url);
   const url = (isShiny && ownShiny ? art?.url : undefined)
     || custom
     || (art?.key === key || (isShiny && art?.key === normalKey) ? art?.url : undefined)
+    || toyboxDefault
     || (temporary?.key === key ? temporary.url : undefined);
   return <span ref={host} className={`element-emoji${idle ? ' sprite-idle' : ''}${isShiny ? ' boop-shiny-sprite' : ''}${ownShiny ? ' boop-shiny-authored' : ''} ${className}`} title={error ? `Sprite unavailable: ${error} Retry in Sprites.` : isShiny ? `Shiny variant of ${name}` : undefined}>
     <SpriteImage src={url || ((fallback?.startsWith('data:') || fallback?.startsWith('/')) ? fallback : freshArt)} alt={alt || name} draggable={false} decoding="async" />

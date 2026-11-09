@@ -1,3 +1,5 @@
+import { ElementValueBadge, ElementValuePanel, WalletBalance } from './ElementValue';
+import { elementValue } from '../lib/elementValue';
 import React, { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { discoveryIdentity } from '../lib/unifiedCollection';
 import { categoryForDiscovery, collectionCategoryCounts } from '../lib/collectionCategories';
@@ -32,13 +34,14 @@ function CollectorCard({item,index,onOpen,onReplace,uploading=false}: {
   key?:string;item:InfiniteElement;index:number;onOpen:()=>void;onReplace:()=>void;uploading?:boolean
 }) {
   const evo=evolutionFor(item);
-  const variant:CollectorVariant=item.unlockedCelestial?'celestial':availableVariants(item).includes('shiny')?'shiny':item.unlockedGlitch?'glitch':item.unlockedHolo?'holo':'normal';
+  const variant = elementValue(item).variant;
   return <div className="boop-sticker-entry"><button className={`boop-sticker-card is-${variant}`} type="button" onClick={onOpen} aria-label={`Inspect collectible ${item.name}`}>
     <span className="boop-sticker-index">#{String(index+1).padStart(3,'0')}</span>
     <CollectibleArt item={item} variant={variant}/>
     <span className="boop-sticker-name">{item.name}</span>
     <span className="boop-sticker-footer"><small>{evo.tier.marker} {evo.tier.name}</small></span>
     <RarityBadges item={item} compact/>
+    <ElementValueBadge element={item} variant={variant}/>
   </button>
     <button type="button" className="boop-sticker-replace" disabled={uploading} onClick={onReplace}
       aria-label={`Replace sprite for ${item.name}`}><Upload size={13}/> Replace sprite</button>
@@ -58,7 +61,7 @@ export function CollectionAlbum({
   const [filter,setFilter]=useState<AlbumFilter>('all');
   const [passportFilter,setPassportFilter]=useState<'all'|'incomplete'|'completed'>('all');
   const [categoryFilter,setCategoryFilter]=useState('all');
-  const [sort,setSort]=useState<'recent'|'az'|'crafted'>('recent');
+  const [sort,setSort]=useState<'recent'|'az'|'crafted'|'value'>('recent');
   const [visible,setVisible]=useState(72);
   const [selected,setSelected]=useState<InfiniteElement|null>(null);
   const [viewVariant,setViewVariant]=useState<CollectorVariant>('normal');
@@ -138,12 +141,14 @@ export function CollectionAlbum({
       (filter==='legendary'&&rarityRank(e.rarityTier)>=rarityRank('legendary'))||
       (filter==='evolved'&&evolutionFor(e).level>0)));
     if(sort==='az')list.sort((a,b)=>a.name.localeCompare(b.name));
+    else if(sort==='value')list.sort((a,b)=>elementValue(b).coins-elementValue(a).coins || a.name.localeCompare(b.name));
     else if(sort==='crafted')list.sort((a,b)=>(b.craftCount||0)-(a.craftCount||0));
     else list.sort((a,b)=>(b.discoveredAt||0)-(a.discoveredAt||0));
     return list;
   },[catalog,query,sort,filter,categoryFilter]);
   const categoryCounts=useMemo(()=>collectionCategoryCounts(catalog),[catalog]);
   const visibleGroups=useMemo(()=>{
+    if (sort === 'value') return [{ name: 'By guide value', count: shown.length, items: shown.slice(0, visible) }];
     const grouped=new Map<string,InfiniteElement[]>();
     for(const item of shown.slice(0,visible)){
       const category=categoryForDiscovery(item);
@@ -153,7 +158,7 @@ export function CollectionAlbum({
     return categoryCounts.filter(entry=>grouped.has(entry.name)).map(entry=>({
       ...entry, items:grouped.get(entry.name)!,
     }));
-  },[shown,visible,categoryCounts]);
+  },[shown,visible,categoryCounts,sort]);
   useEffect(()=>setVisible(72),[query,sort,filter,categoryFilter]);
   useEffect(()=>{
     if(categoryFilter!=='all' && !categoryCounts.some(entry=>entry.name===categoryFilter))setCategoryFilter('all');
@@ -211,7 +216,7 @@ export function CollectionAlbum({
   };
   const openItem=(item:InfiniteElement)=>{
     setSelected(item);
-    setViewVariant(item.unlockedCelestial?'celestial':availableVariants(item).includes('shiny')?'shiny':'normal');
+    setViewVariant(elementValue(item).variant);
   };
   const persistRoom=(next:TrophyRoom)=>{
     const available=new Map<string,InfiniteElement>(catalog.map(e=>[e.name.toLowerCase(),e] as [string,InfiniteElement]));
@@ -270,7 +275,7 @@ export function CollectionAlbum({
         <div className="boop-album-title"><span className="boop-album-mark"><BookOpen size={23}/></span>
           <div><small>YOUR PERSONAL COLLECTION</small><h1>Collection.</h1><p>A little museum of everything you've discovered.</p></div>
         </div>
-        <span className="boop-collected-count">{catalog.length.toLocaleString()} collected</span>
+        <div className="boop-collection-wallet"><span className="boop-collected-count">{catalog.length.toLocaleString()} collected</span><WalletBalance/></div>
       </header>
       <input ref={spriteUploadRef} type="file" accept="image/png,image/webp,image/jpeg" className="hidden"
         aria-label="Choose replacement sprite image" onChange={event=>void replaceCollectionSprite(event.target.files?.[0])}/>
@@ -287,7 +292,7 @@ export function CollectionAlbum({
         <details className="boop-album-refine">
           <summary>Filters & collection tools{filter !== 'all' || categoryFilter !== 'all' ? ' · Active filters' : ''}</summary>
           <div className="boop-album-refine-content">
-          <select aria-label="Sort collectibles" value={sort} onChange={e=>setSort(e.target.value as typeof sort)}><option value="recent">Newest first</option><option value="az">Name A–Z</option><option value="crafted">Most crafted</option></select>
+          <select aria-label="Sort collectibles" value={sort} onChange={e=>setSort(e.target.value as typeof sort)}><option value="recent">Newest first</option><option value="az">Name A–Z</option><option value="crafted">Most crafted</option><option value="value">Highest value</option></select>
 
             <div className="boop-album-filter-row">{([{id:'all',label:'All stickers'},{id:'shiny',label:'✦ Shiny'},{id:'celestial',label:'✶ Celestial'},{id:'holo',label:'◈ Holo'},{id:'glitch',label:'⟡ Glitch'},{id:'legendary',label:'★ Legendary+'},{id:'evolved',label:'❋ Evolved'}] as const).map(f=><button key={f.id} aria-pressed={filter===f.id} onClick={()=>setFilter(f.id)}>{f.label}</button>)}</div>
             <div className="boop-album-categories">
@@ -405,6 +410,7 @@ export function CollectionAlbum({
             {!availableVariants(selected).includes(variant)&&<Lock size={12}/>}
           </button>)}
         </div>
+        <ElementValuePanel element={selected} variant={viewVariant}/>
         <div className="boop-album-detail-metadata">
           <span><b>Discovered</b>{selected.discoveredAt?new Date(selected.discoveredAt).toLocaleDateString():'Starter'}</span>
           <span><b>Category</b>{categoryForDiscovery(selected)}</span>
