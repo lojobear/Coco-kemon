@@ -167,7 +167,7 @@ export function Header({
                 </div>
               </div>
 
-              <p>Backups include both crafting elements and Foundry collections, creatures, habitats, and experiment history.</p>
+              <p>Backups include your wallet, sold-copy history, crafting elements, and Foundry collections, creatures, habitats, and experiment history.</p>
 
               <div className="grid grid-cols-2 gap-2 pt-1">
                 <button

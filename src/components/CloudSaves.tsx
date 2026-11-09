@@ -110,7 +110,7 @@ export function CloudSaves({ open, onClose }: { open: boolean; onClose: () => vo
       <h2 id="cloud-title" className="text-lg font-bold">Cloud saves</h2>
       <button className={button} onClick={onClose} aria-label="Close cloud saves">Close</button>
     </div>
-    <p className="mb-4 text-sm boop-cloud-muted">Keep both your crafting discoveries and Foundry collection with your Google account.</p>
+    <p className="mb-4 text-sm boop-cloud-muted">Keep your discoveries, Foundry collection, wallet, and sold-copy history with your Google account.</p>
     {!cloud ? <p className="text-sm boop-cloud-notice">Cloud saves are coming soon. You can keep playing and export a backup from Save Management.</p> : !ready ? <p role="status">Checking your account…</p> : !user ? <>
       <button className={button} disabled={busy} onClick={() => run(async () => {
         // Google's OAuth disallows sign-in inside an embedded Android WebView.

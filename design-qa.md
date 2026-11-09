@@ -52,3 +52,9 @@ Final full-view and focused comparisons show no remaining actionable P0/P1/P2 di
 P3: source-specific sticker silhouettes and highlight texture differ slightly from the optimized generated sprites; real Reddit Sans wrapping and standard icon strokes differ slightly from image-generation lettering/icons. These do not block acceptance.
 
 Live AI generation, authenticated cloud saves, and native Android shell rendering were not exercised. This pass verifies the responsive web app and existing shell integration boundaries, not a native Android toolbar redesign.
+
+## Element values and selling addendum
+
+User-requested after the selected visual redesign. Added compact coin values to cards/reveals, a wallet in Collection/Profile, and a value/stock/sell panel in element details. Existing typography and palette retained; no changes to the selected Craft composition. Evidence: `docs/design/economy-before-sale.jpg` and `docs/design/economy-after-sale.jpg`, captured in Chromium at 390 × 844, density 1. The sale flow, disabled resale state, retained discovery, sorting, wallet reload, and console were inspected. No blocking layout issue was found. Full suite: 263 passed, one skipped; TypeScript/build passed. Wallet/save failure, stale-tab, queued-write, form-count, backup, and migration tests also pass. Live cloud migration is prepared and locally tested, not applied to production. Cross-player trading remains outside this update.
+
+final result: passed

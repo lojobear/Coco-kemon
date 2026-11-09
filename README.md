@@ -31,7 +31,7 @@ New element/discovery sprites use Cloudflare Workers AI in production, preferrin
 
 ## Backups
 
-Save Management exports a version 2 JSON backup containing **both** the crafting collection (including element recipes) and the Foundry materials, Oddkin, processes, habitats, and experiment history. Imports validate nested data before writing. Version 1 Foundry backups remain supported and preserve the current crafting collection.
+Save Management exports a version 3 JSON backup containing **both** the crafting collection (including element recipes) and the Foundry materials, Oddkin, processes, habitats, and experiment history. Imports validate nested data before writing. Version 1 Foundry backups remain supported and preserve the current crafting collection and wallet. Version 2 backups restore both collections with an empty wallet because those backups predate selling.
 
 Both collections are committed in one browser-storage write. If storage is full, the previous committed save is preserved and a visible warning asks you to export your in-memory progress. Progress remains specific to this browser/device; export regularly before clearing browser data. Invalid saved data is preserved for recovery instead of overwritten with starters.
 
@@ -74,3 +74,17 @@ For browser regression checks, with the dev server running and Playwright availa
 The Craft screen uses a cream surface, cobalt primary actions, a butter-yellow work mat, and large pixel-art pieces. Tap or keyboard-select two pieces, then choose **Combine**; dragging one piece onto another still combines immediately. Board history, saved layouts, custom artwork, collections, advanced tools, and cloud-save behavior are preserved. New starter images are display defaults, not generated discoveries or replacements for saved artwork.
 
 Visual comparison and responsive verification are recorded in [design-qa.md](design-qa.md), with screenshots under `docs/design/toybox-*`.
+
+## Element values and selling
+
+Every collected concept has a deterministic base value of 10–40 Boop Coins. Rarity multiplies that value: Common ×1, Uncommon ×2, Rare ×5, Epic ×12, Legendary ×30, Mythic ×80, Secret ×250. Individual forms multiply by Standard ×1, Shiny ×4, Holo ×6, Celestial ×10, Glitch ×15; unlocked forms never stack multipliers. Cards show the highest-value owned form and collection sorting supports **Highest value**. Details show the selected form’s value and breakdown.
+
+Each craft earns one sellable copy, assigned to the highest-valued form rolled on that craft. Legacy inventory is conservatively allocated from saved craft counts and known finishes without creating extra copies. Supplied starters have zero stock. Sell one copy from its details panel; the element and its unlocked forms remain in the discovery catalog. Wallet credit and sold-copy receipts commit together, and receipts prevent reselling the same earned copy. Repeated normal crafts do not mint additional special-form copies.
+
+Save format 3 includes the wallet and receipts in local storage and JSON/cloud backups. The existing storage key is intentionally retained so older builds’ version guards reject the new save rather than dropping the wallet. Versions 1 and 2 remain importable. Importing an old v2 snapshot resets the wallet with that snapshot; a v1 Foundry-only import preserves current Craft and wallet data.
+
+**Before deploying wallet-aware cloud backups, apply `supabase/migrations/20261109121858_boop_economy_save_format.sql`.** It allows both v2 and v3 backups without changing RLS, ownership, grants, or the existing compare-and-swap RPC. Without it, local play/export still works but the database rejects v3 cloud saves. The migration is tested locally and is not automatically applied to production.
+
+Boop Coins are a local game currency. Cross-player trading and a shared economy are separate future features; future online transactions must revalidate inventory and prices on the server.
+
+Browser selling regression: with the local server running and Playwright available, run `node tests/economy-smoke.mjs` (supports `BOOP_BASE_URL`, `CHROMIUM_PATH`, and `BOOP_AUDIT_OUTPUT`). It crafts Steam, checks values/sorting, sells one earned copy, verifies the discovery remains unlocked, and reloads to verify the wallet and exhausted stock.
