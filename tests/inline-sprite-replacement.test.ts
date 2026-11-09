@@ -12,7 +12,7 @@ const old='data:image/png;base64,AAAA';
 
 test('Collection cards and details offer native one-tap replacement without going to another tab',()=>{
   const album=file('src/components/CollectionAlbum.tsx');
-  assert.match(album,/function CollectorCard\([\s\S]*?onReplace:()=>void/);
+  assert.match(album,/function CollectorCard\([\s\S]*?onReplace:\(\)=>void/);
   assert.match(album,/aria-label=\{`Replace sprite for \$\{item.name\}`\}/);
   assert.match(album,/className="boop-sticker-replace"/);
   assert.match(album,/className="boop-collection-replace"/);
