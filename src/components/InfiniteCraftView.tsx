@@ -724,8 +724,10 @@ export function InfiniteCraftView() {
     const startY = viewport ? viewport.scrollTop + 16 : BOARD_START_Y;
     const itemWidth = 184;
     const cols = Math.max(1, Math.floor((viewport?.clientWidth || 760) / itemWidth));
-    const heights = new Map(Array.from(canvasRef.current?.querySelectorAll<HTMLElement>('[data-craft-instance]') || [])
-      .map(node => [node.dataset.craftInstance!, node.getBoundingClientRect().height / zoomRef.current]));
+    const heights = new Map<string, number>();
+    canvasRef.current?.querySelectorAll<HTMLElement>('[data-craft-instance]').forEach(node => {
+      heights.set(node.dataset.craftInstance!, node.getBoundingClientRect().height / zoomRef.current);
+    });
     setCanvasItems(prev => {
       let rowY = startY, rowHeight = 0;
       return prev.map((item, idx) => {
