@@ -8,8 +8,7 @@ import { discoveryIdentity } from '../lib/unifiedCollection';
 import { categoryForDiscovery } from '../lib/collectionCategories';
 import { MaterialSprite } from './ElementSprite';
 import { chooseRandomProcess } from '../lib/randomProcess';
-import { EXTRA_PROCESSES } from '../lib/extraProcesses';
-import { FOUNDRY_ACTIONS } from '../lib/foundryActions';
+import { availableProcesses as getAvailableProcesses } from '../lib/availableProcesses';
 import { sound } from '../lib/audio';
 import { FoundryFusionOverlay } from './FoundryFusionOverlay';
 
@@ -48,7 +47,7 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
       return { ...material, discoveredAt: item.discoveredAt || 0, customSpriteUrl: item.customSpriteUrl };
     })];
   }, [foundryMaterials, craftItems]);
-  const availableProcesses = useMemo(() => [...processes, ...EXTRA_PROCESSES.filter(extra => !processes.some(p => p.id === extra.id)), ...FOUNDRY_ACTIONS.filter(action => ![...processes, ...EXTRA_PROCESSES].some(p => p.id === action.id))].filter(p => p.unlocked), [processes]);
+  const availableProcesses = useMemo(() => getAvailableProcesses(processes), [processes]);
   // Mix is the useful default; all unlocked transformations remain available.
   const process = selectedProcess || availableProcesses.find(p => p.id === 'MIX') || availableProcesses[0];
   const processGroups = useMemo(() => {
@@ -108,7 +107,7 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
 
   return <section className="collection-workbench" aria-label="Foundry workspace"><FoundryFusionOverlay />
     <div className="workbench-intro">
-      <div><h1>Combine.</h1><p>Same discovery engine as Craft · extra processes when you want them.</p></div>
+      <div><h1>Foundry procedures</h1><p>Mix, melt, freeze and transform your discoveries.</p></div>
       <div className="craft-switch" aria-label="Crafting mode">
         <button type="button" aria-pressed="true"><FlaskConical size={19} /> Combine</button>
         <button type="button" aria-pressed="false" onClick={() => setActiveTab('infinite-craft')}><Hammer size={19} /> Craft</button>
