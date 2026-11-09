@@ -117,6 +117,7 @@ export function validateCraft(v: unknown): v is InfiniteElement[] {
     (x.category === undefined || (text(x.category) && x.category.length <= 36)) &&
     (x.customSpriteUrl === undefined || (typeof x.customSpriteUrl === 'string' && x.customSpriteUrl.length <= MAX_SPRITE_CHARS && (/^data:image\/png;base64,[A-Za-z0-9+/]+={0,2}$/.test(x.customSpriteUrl) || isSpriteReference(x.customSpriteUrl)))) &&
     (x.discoveredAt === undefined || finite(x.discoveredAt)) && (x.isNew === undefined || typeof x.isNew === 'boolean') &&
+    (x.isStarter === undefined || typeof x.isStarter === 'boolean') &&
     (x.isShiny === undefined || typeof x.isShiny === 'boolean') &&
     (x.unlockedShiny === undefined || typeof x.unlockedShiny === 'boolean') &&
     (x.unlockedCelestial === undefined || typeof x.unlockedCelestial === 'boolean') &&

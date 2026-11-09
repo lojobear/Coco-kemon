@@ -270,22 +270,12 @@ export function CollectionAlbum({
         <div className="boop-album-title"><span className="boop-album-mark"><BookOpen size={23}/></span>
           <div><small>YOUR PERSONAL COLLECTION</small><h1>Collection.</h1><p>A little museum of everything you've discovered.</p></div>
         </div>
-        <div className="boop-album-header-actions">
-          <button type="button" className="boop-album-outline-button" disabled={repairingArt} onClick={()=>void repairMissing()}><Sparkles size={16}/>{repairingArt?'Checking…':'Find missing art'}</button>
-          <button type="button" className="boop-album-outline-button" onClick={()=>setActiveTab('infinite-craft')}><Plus size={16}/> Discover more</button>
-        </div>
+        <span className="boop-collected-count">{catalog.length.toLocaleString()} collected</span>
       </header>
       <input ref={spriteUploadRef} type="file" accept="image/png,image/webp,image/jpeg" className="hidden"
         aria-label="Choose replacement sprite image" onChange={event=>void replaceCollectionSprite(event.target.files?.[0])}/>
       {repairStatus&&<p className="boop-album-repair-status" role="status">{repairStatus}</p>}
       {spriteUploadStatus&&<p className="boop-album-repair-status" role="status" aria-live="polite">{spriteUploadStatus}</p>}
-      <div className="boop-album-summary" aria-label="Collection statistics">
-        <div><strong>{catalog.length.toLocaleString()}</strong><small>Collected</small></div>
-        <div><strong>{shinyCount}</strong><small>Shiny forms</small></div>
-        <div><strong>{celestialCount}</strong><small>Celestial</small></div>
-        <div><strong>{evolvedCount}</strong><small>Evolved</small></div>
-      </div>
-      <p className="boop-rarity-counts">◈ Holo {holoCount} · ⟡ Glitch {glitchCount} · ★ Legendary+ {legendaryCount} · 7 rarity tiers</p>
       <nav className="boop-album-tabs" aria-label="Collection views">
         {([{id:'album',label:'Sticker album',icon:LayoutGrid},{id:'sets',label:'Passport',icon:Sparkles},
           {id:'room',label:'Trophy room',icon:Trophy},{id:'foundry',label:'Foundry archive',icon:GalleryVerticalEnd}] as const)
@@ -293,10 +283,14 @@ export function CollectionAlbum({
       </nav>
       {tab==='album'&&<>
         <div className="boop-album-controls"><label className="boop-album-search"><Search size={18}/><input aria-label="Search collectibles" placeholder="Find a discovery…" value={query} onChange={e=>setQuery(e.target.value)}/></label>
-          <select aria-label="Sort collectibles" value={sort} onChange={e=>setSort(e.target.value as typeof sort)}><option value="recent">Newest first</option><option value="az">Name A–Z</option><option value="crafted">Most crafted</option></select>
         </div>
-        <div className="boop-album-filter-row">{([{id:'all',label:'All stickers'},{id:'shiny',label:'✦ Shiny'},{id:'celestial',label:'✶ Celestial'},{id:'holo',label:'◈ Holo'},{id:'glitch',label:'⟡ Glitch'},{id:'legendary',label:'★ Legendary+'},{id:'evolved',label:'❋ Evolved'}] as const).map(f=><button key={f.id} aria-pressed={filter===f.id} onClick={()=>setFilter(f.id)}>{f.label}</button>)}</div>
-        <div className="boop-album-categories">
+        <details className="boop-album-refine">
+          <summary>Filters & collection tools{filter !== 'all' || categoryFilter !== 'all' ? ' · Active filters' : ''}</summary>
+          <div className="boop-album-refine-content">
+          <select aria-label="Sort collectibles" value={sort} onChange={e=>setSort(e.target.value as typeof sort)}><option value="recent">Newest first</option><option value="az">Name A–Z</option><option value="crafted">Most crafted</option></select>
+
+            <div className="boop-album-filter-row">{([{id:'all',label:'All stickers'},{id:'shiny',label:'✦ Shiny'},{id:'celestial',label:'✶ Celestial'},{id:'holo',label:'◈ Holo'},{id:'glitch',label:'⟡ Glitch'},{id:'legendary',label:'★ Legendary+'},{id:'evolved',label:'❋ Evolved'}] as const).map(f=><button key={f.id} aria-pressed={filter===f.id} onClick={()=>setFilter(f.id)}>{f.label}</button>)}</div>
+            <div className="boop-album-categories">
           <label htmlFor="boop-collection-category">Category
             <select id="boop-collection-category" aria-label="Collection category" value={categoryFilter} onChange={event=>setCategoryFilter(event.target.value)}>
               <option value="all">All categories ({catalog.length})</option>
@@ -304,7 +298,20 @@ export function CollectionAlbum({
             </select>
           </label>
           <small>{categoryCounts.length} discovered categories · New types automatically create a category</small>
-        </div>
+            </div>
+          <div className="boop-album-summary" aria-label="Collection statistics">
+            <div><strong>{catalog.length.toLocaleString()}</strong><small>Collected</small></div>
+            <div><strong>{shinyCount}</strong><small>Shiny forms</small></div>
+            <div><strong>{celestialCount}</strong><small>Celestial</small></div>
+            <div><strong>{evolvedCount}</strong><small>Evolved</small></div>
+          </div>
+          <p className="boop-rarity-counts">◈ Holo {holoCount} · ⟡ Glitch {glitchCount} · ★ Legendary+ {legendaryCount} · 7 rarity tiers</p>
+            <div className="boop-album-header-actions">
+          <button type="button" className="boop-album-outline-button" disabled={repairingArt} onClick={()=>void repairMissing()}><Sparkles size={16}/>{repairingArt?'Checking…':'Find missing art'}</button>
+          <button type="button" className="boop-album-outline-button" onClick={()=>setActiveTab('infinite-craft')}><Plus size={16}/> Discover more</button>
+            </div>
+          </div>
+        </details>
         <div className="boop-album-section-label"><span>DISCOVERY INDEX</span><small>{shown.length} stickers</small></div>
         {shown.length?<div className="boop-album-category-sections">{visibleGroups.map(group=>
           <section className="boop-album-category-section" key={group.name} aria-label={group.name}>

@@ -18,6 +18,8 @@ export interface InfiniteElement {
   category?: string;
   customSpriteUrl?: string;
   discoveredAt?: number;
+  /** Supplied inventory is collectible but does not count as an earned discovery. */
+  isStarter?: boolean;
   isNew?: boolean;
   recipe?: { first: string; second: string };
   explanation?: string;

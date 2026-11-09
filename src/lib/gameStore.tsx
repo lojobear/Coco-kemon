@@ -15,10 +15,10 @@ import { resolveSharedPair, rollSharedPair, applySharedPairDiscovery, type Share
 import { conceptMaterial } from './conceptMaterial';
 import type { InfiniteCraftPairResponse, InfiniteElement } from './infiniteCraftData';
 import { validMaterial, validOddkin } from './validation';
-import { readFoundrySave, saveFoundry, exportCompleteSave, importCompleteSave, readCraftElements, saveCraftElements } from './saveData';
+import { readFoundrySave, saveFoundry, exportCompleteSave, importCompleteSave, readCraftElements, saveCraftElements, SAVE_CHANGED_EVENT, SAVE_IMPORTED_EVENT } from './saveData';
 import { sound } from './audio';
 import { matchesFoundryRecipe, validSynthesisResult, resolveMaterialDiscovery } from './foundryRecipes';
-import { dailyGoals, discoveryStreak, levelFromXp, nearMissHint, nextStreakMilestone, progressionXp, rollMaterialVariant, setProgress, streakReward } from './progression';
+import { craftProgressionXp, dailyGoals, discoveryStreak, levelFromXp, nearMissHint, nextStreakMilestone, progressionXp, rollMaterialVariant, setProgress, streakReward } from './progression';
 
 const STORAGE_KEY = 'oddkin_foundry_save_v1';
 
@@ -838,8 +838,19 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     }
   }, [isSynthesizing, clearSlots]);
 
+  const [craftXp, setCraftXp] = useState(() => craftProgressionXp(readCraftElements()));
+  useEffect(() => {
+    const refresh = () => setCraftXp(craftProgressionXp(readCraftElements()));
+    refresh();
+    window.addEventListener(SAVE_CHANGED_EVENT, refresh);
+    window.addEventListener(SAVE_IMPORTED_EVENT, refresh);
+    return () => {
+      window.removeEventListener(SAVE_CHANGED_EVENT, refresh);
+      window.removeEventListener(SAVE_IMPORTED_EVENT, refresh);
+    };
+  }, []);
   const progression = useMemo(() => {
-    const xp = progressionXp(materials, oddkinCollection, experiments);
+    const xp = progressionXp(materials, oddkinCollection, experiments) + craftXp;
     const level = levelFromXp(xp);
     const streak = discoveryStreak(experiments);
     return {
@@ -853,7 +864,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       dailyGoals: dailyGoals(materials, experiments),
       hint: nearMissHint(materials),
     };
-  }, [materials, oddkinCollection, experiments]);
+  }, [materials, oddkinCollection, experiments, craftXp]);
 
   const value = useMemo<GameState>(() => ({
     materials,

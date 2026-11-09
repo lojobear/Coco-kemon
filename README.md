@@ -58,3 +58,13 @@ The repository now includes a Capacitor 8 Android packaging layer in `mobile/` a
 The default Android package ID is `com.logaandavid.quarkpop`; choose the final package ID before the first Play Console upload because it should not change afterward. Release signing is supported through GitHub Actions secrets so the upload keystore never needs to be committed.
 
 See [mobile/README.md](mobile/README.md) for build commands and [docs/google-play-release.md](docs/google-play-release.md) for the Play Console checklist.
+
+## Craft accessibility and progress
+
+Craft tiles can be selected with Tab and Enter/Space, or combined by tapping or dragging. Duplicate and remove controls have 44px targets. The initial starter board fits the viewport; saved layouts retain their positions. Settings uses a native modal dialog with Escape dismissal and background focus protection.
+
+Supplied starter inventory counts toward the collection but does not count as earned discoveries, crafts, or recent activity. Original untouched starter projections are recognized in older backups without removing artwork or actual crafting history. Each completed recorded craft adds 12 XP to the existing Foundry progression; the amount is derived from saved craft counts, so reloads do not award it again.
+
+Collection filters, sorting, statistics, and artwork repair live under **Filters & collection tools**, leaving stickers visible on entry.
+
+For browser regression checks, with the dev server running and Playwright available, run `node tests/audit-usability-smoke.mjs`. Set `CHROMIUM_PATH` to use an installed browser, `BOOP_BASE_URL` to change the local URL, and `BOOP_AUDIT_OUTPUT` to choose the screenshot directory (default `/tmp/boop-audit-fixes`).

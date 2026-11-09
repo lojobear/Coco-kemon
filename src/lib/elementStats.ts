@@ -1,3 +1,4 @@
+import { isSuppliedStarter } from './starterIdentity';
 import type { InfiniteElement } from './infiniteCraftData';
 
 export interface ElementMastery {
@@ -22,8 +23,14 @@ const recipeKey = (first: string, second: string) =>
   [first.trim().toLowerCase(), second.trim().toLowerCase()].sort().join(':::');
 
 export function normalizeElementStats(element: InfiniteElement): InfiniteElement {
-  const legacyMinimum = element.discoveredAt || element.recipe || element.isNew ? 1 : 0;
-  const craftCount = cleanCount(element.craftCount, legacyMinimum);
+  const supplied = isSuppliedStarter(element);
+  const legacyMinimum = !supplied && (element.discoveredAt || element.recipe || element.isNew) ? 1 : 0;
+  // Older projections assigned one phantom craft to each Foundry starter.
+  // Keep every real recipe/history/count, removing only that known untouched baseline.
+  const untouchedStarter = supplied && !element.recipe && !element.recipeHistory?.length &&
+    (!element.craftCount || element.craftCount === 1) &&
+    (!element.lastCraftedAt || element.lastCraftedAt === element.discoveredAt);
+  const craftCount = untouchedStarter ? 0 : cleanCount(element.craftCount, legacyMinimum);
   const shinyCraftCount = cleanCount(
     element.shinyCraftCount,
     element.unlockedShiny || element.isShiny ? 1 : 0
@@ -51,10 +58,11 @@ export function normalizeElementStats(element: InfiniteElement): InfiniteElement
 
   return {
     ...element,
+    ...(supplied ? { isStarter: true, discoveredAt: 0 } : {}),
     craftCount,
     shinyCraftCount,
-    firstCraftedAt: element.firstCraftedAt || element.discoveredAt,
-    lastCraftedAt: element.lastCraftedAt || element.discoveredAt,
+    firstCraftedAt: untouchedStarter ? 0 : element.firstCraftedAt || element.discoveredAt,
+    lastCraftedAt: untouchedStarter ? 0 : element.lastCraftedAt || element.discoveredAt,
     recipeHistory,
   };
 }
