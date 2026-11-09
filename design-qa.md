@@ -58,3 +58,11 @@ Live AI generation, authenticated cloud saves, and native Android shell renderin
 User-requested after the selected visual redesign. Added compact coin values to cards/reveals, a wallet in Collection/Profile, and a value/stock/sell panel in element details. Existing typography and palette retained; no changes to the selected Craft composition. Evidence: `docs/design/economy-before-sale.jpg` and `docs/design/economy-after-sale.jpg`, captured in Chromium at 390 × 844, density 1. The sale flow, disabled resale state, retained discovery, sorting, wallet reload, and console were inspected. No blocking layout issue was found. Full suite: 263 passed, one skipped; TypeScript/build passed. Wallet/save failure, stale-tab, queued-write, form-count, backup, and migration tests also pass. Live cloud migration is prepared and locally tested, not applied to production. Cross-player trading remains outside this update.
 
 final result: passed
+
+## Pixel 9 compact-layout correction
+
+User feedback supersedes the original mock's large sprite scale. Craft sprites now use 48px on typical phones (44px on narrow phones) instead of 84px. Tiles are wider, labels wrap fully with automatic height and long-word breaking, and the primary button uses “Combine selected” while preserving the full accessible ingredient names. Collection/picker names also wrap. Tidy measures actual tile heights. Touch no longer shows sticky hover controls over the names; selected-item actions remain available in the tools menu.
+
+Browser checks: 320/390/412 CSS widths, including a Pixel 9-like 412 × 867 viewport at density 2.625, Android WebView user agent, touch input, and label sizes 14px/20px. Fixtures include Time Machine, Potion of Invisibility, Interdimensional Jellyfish, and a long unbroken word. All names stay within their buttons without horizontal or vertical clipping; touch selection and the Combine action work. Evidence: `docs/design/pixel9-compact-labels.jpg`. These are browser simulations, not physical-device verification.
+
+final result: passed

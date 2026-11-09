@@ -1,11 +1,15 @@
 plugins {
     id 'com.android.application'
 }
+def bundledWeb = System.getenv('BOOP_BUNDLED_WEB') == '1'
 android {
+    buildFeatures { buildConfig true }
     namespace 'app.boop.collect'
     compileSdk 36
     defaultConfig {
-        applicationId 'app.boop.collect'
+        applicationId = bundledWeb ? 'app.boop.collect.preview' : 'app.boop.collect'
+        buildConfigField 'boolean', 'BUNDLED_WEB', bundledWeb.toString()
+        resValue 'string', 'app_name', bundledWeb ? 'Boop Preview' : 'Boop'
         minSdk 23
         targetSdk 36
         versionCode = (System.getenv('BOOP_VERSION_CODE') ?: '2').toInteger()
