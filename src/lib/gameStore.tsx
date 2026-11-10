@@ -81,7 +81,7 @@ interface GameState {
   setInspectedItem: (item: { type: 'material' | 'oddkin'; item: Material | Oddkin } | null) => void;
   closeDiscoveryModal: () => void;
   toggleMute: () => void;
-  runSynthesis: () => Promise<void>;
+  runSynthesis: (inputs?: SynthesisInputs) => Promise<GameState['recentDiscovery']>;
   assignOddkinToHabitat: (oddkinId: string, habitatId: string) => void;
   harvestHabitat: (habitatId: string) => void;
   addPhotoSeedMaterial: (data: PhotoSeedResult) => Material;
@@ -91,6 +91,13 @@ interface GameState {
   exportSaveData: () => string;
   importSaveData: (jsonStr: string) => boolean;
   applyProfileSpriteChanges: (changes: SpriteChange[]) => void;
+}
+
+export interface SynthesisInputs {
+  slotA: Material;
+  slotB: Material | null;
+  selectedProcess: Process;
+  inline?: boolean;
 }
 
 const GameContext = createContext<GameState | null>(null);
@@ -275,8 +282,15 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // Main synthesis orchestration pipeline
-  const runSynthesis = useCallback(async () => {
-    if (!slotA || !selectedProcess || (selectedProcess.id === 'MIX' && !slotB) || synthesisInFlight.current) return;
+  const synthesisInputs = useMemo(() => ({ slotA, slotB, selectedProcess }), [slotA, slotB, selectedProcess]);
+  const runSynthesis = useCallback(async (inputs?: SynthesisInputs): Promise<GameState['recentDiscovery']> => {
+    const { slotA, slotB, selectedProcess } = inputs || synthesisInputs;
+    let outcome: GameState['recentDiscovery'] = null;
+    const publish = (result: NonNullable<GameState['recentDiscovery']>) => {
+      outcome = result;
+      if (!inputs?.inline) setRecentDiscovery(result);
+    };
+    if (!slotA || !selectedProcess || (selectedProcess.id === 'MIX' && !slotB) || synthesisInFlight.current) return null;
     synthesisInFlight.current = true;
 
     setSynthesisError(null);
@@ -316,6 +330,11 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             knownOddkinNames: oddkinCollection.map(o => o.speciesName),
           }),
         }).then(data => ({ data }));
+    // Handle rejection immediately while the synthesis animation is running.
+    const settledRequest = synthesisRequest?.then(
+      value => ({ ok: true as const, value }),
+      error => ({ ok: false as const, error }),
+    );
 
     try {
       // 1. ANALYZING MATERIALS
@@ -361,21 +380,32 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         };
         setExperiments(prev => [log, ...prev]);
 
-        setRecentDiscovery({
+        const rolls = rollSharedPair(existingMatch.displayName, slotA.displayName, slotB?.displayName || selectedProcess.name);
+        const record = applySharedPairDiscovery(readCraftElements(), {
+          result: existingMatch.displayName, emoji: '✨', isNew: false,
+          explanation: existingMatch.discoveryExplanation, connection: existingMatch.category,
+        }, slotA.displayName, slotB?.displayName || selectedProcess.name, rolls);
+        saveCraftElements(record.elements);
+        publish({
           material: existingMatch,
           isNew: false,
+          craftResult: record.main,
+          pairRolls: rolls,
           explanation: `Already in Archive: ${existingMatch.discoveryExplanation}`
         });
 
         setIsSynthesizing(false);
         setSynthesisStage(null);
-        return;
+        return outcome;
       }
 
       // 4. RESOLVING RESULT via API
       setSynthesisStage('RESOLVING RESULT');
 
-      const { data, pair: sharedPair } = await synthesisRequest!;
+      const settled = await settledRequest;
+      if (!settled) throw new Error('The procedure did not return a result.');
+      if (settled.ok === false) throw settled.error;
+      const { data, pair: sharedPair } = settled.value;
 
       if (!validSynthesisResult(data)) {
         throw new Error('The server returned an invalid discovery. Please retry.');
@@ -451,7 +481,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         };
         setExperiments(prev => [log, ...prev]);
 
-        setRecentDiscovery({
+        publish({
           oddkin: newOddkin,
           isNew: creatureRecord.isNew,
           isChroma: isChromaRoll,
@@ -526,7 +556,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         };
         setExperiments(prev => [log, ...prev]);
 
-        setRecentDiscovery({
+        publish({
           material: newMat,
           isNew: firstAcrossCollection,
           explanation: data.explanation || newMat.discoveryExplanation,
@@ -549,13 +579,13 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
           inputNames: [slotA.displayName, ...(slotB ? [slotB.displayName] : [])],
           processName: selectedProcess.name,
           success: false,
-          observation: data.observationIfFailed || `The material resisted ${selectedProcess.name.toLowerCase()} processing with no structural change.`,
+          observation: data.observationIfFailed || data.explanation || `The material resisted ${selectedProcess.name.toLowerCase()} processing with no structural change.`,
           hint: data.hintIfFailed || `Try combining with a reactive solvent or applying thermal excitation first.`,
           wasNew: false,
         };
         setExperiments(prev => [log, ...prev]);
 
-        setRecentDiscovery({
+        publish({
           isNew: false,
           explanation: log.observation
         });
@@ -570,7 +600,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       setIsSynthesizing(false);
       setSynthesisStage(null);
     }
-  }, [slotA, slotB, selectedProcess, isSynthesizing, materials, oddkinCollection, habitats, experiments]);
+    return outcome;
+  }, [synthesisInputs, isSynthesizing, materials, oddkinCollection, habitats, experiments]);
 
   // Habitat oddkin assignment
   const assignOddkinToHabitat = useCallback((oddkinId: string, habitatId: string) => {

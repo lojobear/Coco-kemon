@@ -1,5 +1,7 @@
 import { ElementValueBadge } from './ElementValue';
 import { useGame } from '../lib/gameStore';
+import { BoardProcedures } from './BoardProcedures';
+import { tidyBoard } from '../lib/tidyBoard';
 import { conceptMaterial } from '../lib/conceptMaterial';
 import { availableProcesses } from '../lib/availableProcesses';
 import { DiscoveryCard } from './DiscoveryCard';
@@ -29,7 +31,7 @@ import { smartSpawnPool, chooseUntriedPair, type SmartRarity } from '../lib/smar
 import { categoryForDiscovery } from '../lib/collectionCategories';
 import { planAdvancedFusion, applyAdvancedFusion, type FusionPlan } from '../lib/advancedFusion';
 import { AdvancedFusionModal } from './AdvancedFusionModal';
-import { queueCraftElementsSave, readCraftElements, SAVE_IMPORTED_EVENT, SAVE_CHANGED_EVENT } from '../lib/saveData';
+import { queueCraftElementsSave, flushQueuedCraftSave, readCraftElements, SAVE_IMPORTED_EVENT, SAVE_CHANGED_EVENT } from '../lib/saveData';
 import { discoveryIdentity } from '../lib/unifiedCollection';
 import { isProceduralDefault } from './ElementSprite';
 import { mergeSharedDiscoveries } from '../lib/sharedDiscoveries';
@@ -179,7 +181,10 @@ export function sanitizeElements(list: InfiniteElement[]): InfiniteElement[] {
 
 export function InfiniteCraftView() {
   const { setActiveTab, materials: foundryMaterials, oddkinCollection: foundryOddkin,
-    processes, setSlotA, setSlotB, setSelectedProcess, isSynthesizing: foundryBusy } = useGame();
+    processes, runSynthesis, isSynthesizing: foundryBusy } = useGame();
+  const [procedureId, setProcedureId] = useState('MIX');
+  const [usedProcedure, setUsedProcedure] = useState<{ id: string; at: number } | null>(null);
+  const procedureRequest = useRef(false);
   const showFreeform = true;
   const procedureCatalog = useMemo(() => availableProcesses(processes), [processes]);
   const [ingredientFilter, setIngredientFilter] = useState<'all' | 'new' | 'shiny'>('all');
@@ -265,16 +270,16 @@ export function InfiniteCraftView() {
     saveBoardLayout(canvasItems);
   }, [canvasItems]);
   const undoLayout = () => {
-    if (requestRef.current) return;
+    if (requestRef.current || procedureRequest.current || foundryBusy) return;
     const next=undoBoard(historyRef.current);
     if(next===historyRef.current)return;
-    historyRef.current=next;skipHistoryRef.current=true;setCanvasItems(next.present);haptics.lightTap();
+    historyRef.current=next;skipHistoryRef.current=true;setCanvasItems(next.present);setSelectedCanvasId(null);setSecondSelectedCanvasId(null);haptics.lightTap();
   };
   const redoLayout = () => {
-    if (requestRef.current) return;
+    if (requestRef.current || procedureRequest.current || foundryBusy) return;
     const next=redoBoard(historyRef.current);
     if(next===historyRef.current)return;
-    historyRef.current=next;skipHistoryRef.current=true;setCanvasItems(next.present);haptics.lightTap();
+    historyRef.current=next;skipHistoryRef.current=true;setCanvasItems(next.present);setSelectedCanvasId(null);setSecondSelectedCanvasId(null);haptics.lightTap();
   };
   const [boardZoom,setBoardZoom] = useState(()=>{
     try {return clampBoardZoom(Number(localStorage.getItem('boop-board-zoom')||'1')); }
@@ -565,7 +570,7 @@ export function InfiniteCraftView() {
     itemA: { name: string; emoji?: string; x: number; y: number; idA?: string },
     itemB: { name: string; emoji?: string; x: number; y: number; idB?: string }
   ) => {
-    if (requestRef.current) return;
+    if (requestRef.current || procedureRequest.current || foundryBusy) return;
     const controller = new AbortController();
     requestRef.current = controller;
     lastPairRef.current = [itemA, itemB];
@@ -678,7 +683,7 @@ export function InfiniteCraftView() {
   };
 
   const handleCanvasItemClick = (item: CanvasItem) => {
-    if (suppressCanvasClickRef.current || requestRef.current) return;
+    if (suppressCanvasClickRef.current || requestRef.current || procedureRequest.current || foundryBusy) return;
     sound.playClick(); haptics.lightTap();
     if (selectedCanvasId === item.instanceId) {
       setSelectedCanvasId(secondSelectedCanvasId); setSecondSelectedCanvasId(null);
@@ -721,25 +726,27 @@ export function InfiniteCraftView() {
   };
 
   const tidyCanvas = () => {
-    sound.playClick();
-    if (canvasItems.length === 0) return;
-    const viewport = currentWorldViewport();
-    const startX = viewport ? viewport.scrollLeft + 16 : BOARD_START_X;
-    const startY = viewport ? viewport.scrollTop + 16 : BOARD_START_Y;
-    const itemWidth = 184;
-    const cols = Math.max(1, Math.floor((viewport?.clientWidth || 760) / itemWidth));
-    const heights = new Map<string, number>();
+    if (!canvasItems.length || procedureRequest.current || requestRef.current) return;
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    autoFrameStarters.current = false;
+    const sizes = new Map<string, { width: number; height: number }>();
     canvasRef.current?.querySelectorAll<HTMLElement>('[data-craft-instance]').forEach(node => {
-      heights.set(node.dataset.craftInstance!, node.getBoundingClientRect().height / zoomRef.current);
+      const rect = node.getBoundingClientRect();
+      sizes.set(node.dataset.craftInstance!, { width: rect.width / zoomRef.current, height: rect.height / zoomRef.current });
     });
-    setCanvasItems(prev => {
-      let rowY = startY, rowHeight = 0;
-      return prev.map((item, idx) => {
-        if (idx && idx % cols === 0) { rowY += rowHeight + 56; rowHeight = 0; }
-        rowHeight = Math.max(rowHeight, heights.get(item.instanceId) || 120);
-        return { ...item, x: startX + idx % cols * itemWidth, y: rowY };
-      });
-    });
+    const layout = tidyBoard(canvasItems.map(item => ({ instanceId: item.instanceId,
+      ...(sizes.get(item.instanceId) || { width: 136, height: 120 }) })), {
+      width: viewport.clientWidth, height: viewport.clientHeight,
+      left: viewport.scrollLeft / zoomRef.current, top: viewport.scrollTop / zoomRef.current,
+    }, zoomRef.current);
+    zoomRef.current = layout.zoom; setBoardZoom(layout.zoom);
+    try { localStorage.setItem('boop-board-zoom', String(layout.zoom)); } catch { /* optional */ }
+    const positions = new Map(layout.positions.map(position => [position.instanceId, position]));
+    setCanvasItems(previous => previous.map(item => ({ ...item, ...positions.get(item.instanceId) })));
+    requestAnimationFrame(() => { viewport.scrollLeft = layout.left * layout.zoom; viewport.scrollTop = layout.top * layout.zoom; });
+    setSpawnToast(layout.fits ? 'Board tidied to fit your screen.' : 'Board tidied into columns. Pan down to see the remaining pieces.');
+    sound.playClick();
   };
 
   const handlePointerDown = (item: CanvasItem, e: React.PointerEvent<HTMLDivElement>) => {
@@ -880,7 +887,7 @@ export function InfiniteCraftView() {
     };
   }, []);
 
-  const clearCanvas = () => { sound.playClick(); haptics.heavyTap(); setCanvasItems([]); setSelectedCanvasId(null); setSecondSelectedCanvasId(null); };
+  const clearCanvas = () => { if (procedureRequest.current || requestRef.current || foundryBusy) return; sound.playClick(); haptics.heavyTap(); setCanvasItems([]); setSelectedCanvasId(null); setSecondSelectedCanvasId(null); };
   const lastCustomSprites = useRef<ReadonlyMap<string, string>>(new Map());
   const customSprites = useMemo(() => {
     const next = new Map<string, string>();
@@ -921,8 +928,8 @@ export function InfiniteCraftView() {
     {source:spawnSource,category:spawnCategory,rarity:spawnRarity}),
     [sharedElements,spawnSource,spawnCategory,spawnRarity]);
 
-  const spawnRandomBatch = (count: SpawnCount, suggestion?: InfiniteElement[]) => {
-    setSpawnCount(count);
+  const spawnRandomBatch = (count: SpawnCount, suggestion?: InfiniteElement[], selectPair = false) => {
+    if (!selectPair) setSpawnCount(count);
     if (!spawnPool.length) {
       setSpawnToast('Discover an element first.');
       return;
@@ -950,6 +957,10 @@ export function InfiniteCraftView() {
     haptics.mediumTap();
     sound.playClick();
     setCanvasItems(previous => [...previous, ...tiles].slice(0, 300));
+    if (selectPair && tiles.length === 2) {
+      setSelectedCanvasId(tiles[0].instanceId); setSecondSelectedCanvasId(tiles[1].instanceId);
+      setProcedureId('MIX');
+    }
     if (picked.length < count) setSpawnToast(`✦ +${picked.length} elements · Board full`);
     else setSpawnToast(suggestion ? `Try ${picked[0].name} + ${picked[1].name}`
       : `✦ +${picked.length} random ${picked.length===1?'element':'elements'} · 1/${spawnPool.length} per first pick`);
@@ -986,17 +997,43 @@ export function InfiniteCraftView() {
     const [first, second] = selectedPieces;
     void handleCombine({ ...first, idA: first.instanceId }, { ...second, idB: second.instanceId });
   };
-  const openProcedure = (id: string) => {
-    if (isSynthesizing || requestRef.current || foundryBusy) return;
-    const process = procedureCatalog.find(p => p.id === id);
-    if (!process) return;
-    const inputs = selectedPieces.map(piece => foundryMaterials.find(material =>
-      discoveryIdentity(material.displayName) === discoveryIdentity(piece.name)) ||
-      conceptMaterial({ result: piece.name, emoji: piece.emoji }));
-    setSlotA(inputs[0] || null);
-    setSlotB(inputs[1] || null);
-    setSelectedProcess(process);
-    setActiveTab('foundry');
+  const activeProcedure = procedureCatalog.find(process => process.id === procedureId) || procedureCatalog.find(process => process.id === 'MIX');
+  const applyProcedure = async () => {
+    if (!activeProcedure || !selectedPieces.length || procedureRequest.current || requestRef.current || foundryBusy) return;
+    if (activeProcedure.id === 'MIX') {
+      if (selectedPieces.length !== 2) return;
+      setUsedProcedure({ id: 'MIX', at: Date.now() });
+      combineSelected(); return;
+    }
+    procedureRequest.current = true;
+    setIsSynthesizing(true); setCombineError(null);
+    const selected = [...selectedPieces];
+    const inputs = selected.map(piece => foundryMaterials.find(material =>
+      discoveryIdentity(material.displayName) === discoveryIdentity(piece.name)) || {
+        ...conceptMaterial({ result: piece.name, emoji: piece.emoji }),
+        customSpriteUrl: customSprites.get(discoveryIdentity(piece.name)),
+      });
+    setUsedProcedure({ id: activeProcedure.id, at: Date.now() });
+    try {
+      flushQueuedCraftSave();
+      const result = await runSynthesis({ slotA: inputs[0], slotB: inputs[1] || null, selectedProcess: activeProcedure, inline: true });
+      setElements(sanitizeElements(readCraftElements()));
+      if (!result) { setCombineError(`${activeProcedure.name} could not finish. Your elements are unchanged. Try Apply again.`); return; }
+      const name = result.craftResult?.name || result.material?.displayName || result.oddkin?.speciesName;
+      if (!name) { setSpawnToast(result.explanation || 'No reaction this time. Try another procedure.'); return; }
+      const saved = readCraftElements().find(element => discoveryIdentity(element.name) === discoveryIdentity(name));
+      const item = result.craftResult || saved;
+      const emoji = item?.emoji || '✨';
+      if (item) setLastResult({ ...item, isNew: result.isNew });
+      setCanvasItems(previous => [...previous.filter(tile => !selected.some(input => input.instanceId === tile.instanceId)), {
+        instanceId: `procedure-${Date.now()}`, name, emoji, isShiny: item?.isShiny,
+        x: selected[0].x, y: selected[0].y,
+      }]);
+      setSelectedCanvasId(null); setSecondSelectedCanvasId(null);
+      setSpawnToast(`${activeProcedure.name}: ${name}. ${result.explanation}`);
+    } catch (error) {
+      setCombineError(error instanceof Error ? error.message : 'The procedure could not finish. Your elements are unchanged.');
+    } finally { procedureRequest.current = false; setIsSynthesizing(false); }
   };
 
   return (
@@ -1005,27 +1042,26 @@ export function InfiniteCraftView() {
       <header className="toybox-intro">
         <h1>Let’s see what<br />happens.<img src="/toybox/curiosity-accent.png" alt="" aria-hidden="true" /></h1>
         <span className="toybox-eyebrow">CRAFT</span>
-        <p>Pick two elements. Discover something new.</p>
+        <p>Pick elements. Mix them or apply a procedure.</p>
       </header>
       <div className="toybox-primary-actions">
-      <button type="button" className="toybox-combine" disabled={selectedPieces.length !== 2 || isSynthesizing}
-        aria-label={selectedPieces.length === 2 ? `Combine ${selectedPieces[0].name} + ${selectedPieces[1].name}` : undefined}
-        onClick={combineSelected}>{isSynthesizing ? 'Combining…' : selectedPieces.length === 2 ? 'Combine selected' : 'Pick two elements to combine'}</button>
-      <button type="button" className="toybox-random" disabled={!spawnPool.length || canvasItems.length >= 300}
+      <button type="button" className="toybox-combine" disabled={isSynthesizing || foundryBusy || !selectedPieces.length || (activeProcedure?.id === 'MIX' && selectedPieces.length !== 2)}
+        aria-label={activeProcedure?.id === 'MIX' && selectedPieces.length === 2 ? `Combine ${selectedPieces[0].name} + ${selectedPieces[1].name}` : undefined}
+        onClick={() => void applyProcedure()}>{isSynthesizing ? 'Working…' : activeProcedure?.id === 'MIX'
+          ? selectedPieces.length === 2 ? 'Combine selected' : 'Pick two elements to combine'
+          : selectedPieces.length ? `Apply ${activeProcedure?.name}` : `Select an element to ${activeProcedure?.name.toLowerCase()}`}</button>
+      <button type="button" className="toybox-random" disabled={isSynthesizing || foundryBusy || !spawnPool.length || canvasItems.length >= 300}
         aria-label={`Spawn ${spawnCount} random ${spawnCount === 1 ? 'element' : 'elements'} from ${spawnPool.length} equally likely discoveries`}
         title={`Random adds ${spawnCount} elements. Change the amount and filters in More crafting tools.`}
         onClick={() => spawnRandomBatch(spawnCount)}><Shuffle size={20}/><span>Random</span></button>
       </div>
-      <section className="toybox-procedures" aria-label="Foundry procedures">
-        <div><strong>Foundry procedures</strong><span>Select elements, then choose a procedure.</span></div>
-        <div className="toybox-procedure-buttons">
-          {['MIX', 'MELT', 'HEAT', 'FREEZE', 'CRUSH'].map(id => <button key={id} type="button"
-            disabled={isSynthesizing || foundryBusy} onClick={() => openProcedure(id)}>
-            {id === 'MIX' ? 'Mix' : id === 'MELT' ? 'Melt' : id === 'HEAT' ? 'Heat' : id === 'FREEZE' ? 'Freeze' : 'Crush'}
-          </button>)}
-          <button type="button" disabled={isSynthesizing || foundryBusy} onClick={() => openProcedure('MIX')}>All {procedureCatalog.length} procedures →</button>
-        </div>
-      </section>
+      <div className="toybox-board-secondary">
+        <button type="button" disabled={isSynthesizing || foundryBusy || !spawnPool.length || canvasItems.length > 298}
+          onClick={() => spawnRandomBatch(2, undefined, true)}><Shuffle size={17}/>Random pair</button>
+        <button type="button" disabled={isSynthesizing || foundryBusy || !canvasItems.length} onClick={tidyCanvas}><LayoutGrid size={17}/>Tidy board</button>
+      </div>
+      <BoardProcedures catalog={procedureCatalog} selected={activeProcedure?.id || 'MIX'} busy={isSynthesizing || foundryBusy}
+        used={usedProcedure} onSelect={setProcedureId}/>
       <section className="boop-board-layout" aria-label="Discover crafting board">
         <header className="boop-board-toolbar boop-board-toolbar--quiet">
           <div className="boop-board-heading sr-only"><strong>Craft</strong><small>Pick two elements, or drag one onto another.</small></div>
@@ -1095,7 +1131,7 @@ export function InfiniteCraftView() {
           </div>
         </header>
         <div className="boop-board-viewport" ref={viewportRef} aria-label="Pan and drag crafting board" onPointerDown={startPan} onPointerMove={movePan} onPointerUp={endPan} onPointerCancel={endPan}>
-          <div ref={canvasRef} className="boop-board-world" style={{ width:BOARD_WIDTH, height:BOARD_HEIGHT, zoom:boardZoom }}>
+          <div ref={canvasRef} className="boop-board-world" style={{ width:BOARD_WIDTH, height:Math.max(BOARD_HEIGHT, ...canvasItems.map(item => item.y + 320)), zoom:boardZoom }}>
             <div className="boop-board-origin-hint" style={{ left:BOARD_START_X - 6, top:BOARD_START_Y - 68 }}>DROP. MIX. DISCOVER.</div>
             {canvasItems.map(item => <CanvasBoardTile key={item.instanceId} item={item}
               spawnTileMaxWidth={spawnTileMaxWidth}
@@ -1118,8 +1154,10 @@ export function InfiniteCraftView() {
           <button onClick={()=>spawnOnCanvas(lastResult.name,lastResult.emoji,Boolean(lastResult.isShiny))}>Add to board <Plus size={15}/></button>
           <button aria-label="Dismiss result" onClick={()=>setLastResult(null)}><X size={16}/></button>
         </div>}
-        {combineError && <div className="boop-board-alert" role="alert">{combineError}<button onClick={()=>{if(lastPairRef.current)void handleCombine(lastPairRef.current[0],lastPairRef.current[1]);}}>Retry</button><button onClick={()=>setCombineError(null)}>Dismiss</button></div>}
-        <p className="sr-only" role="status">{selectedPieces.length === 2 ? `${selectedPieces[0].name} and ${selectedPieces[1].name} selected. Ready to combine.` : selectedPieces.length === 1 ? `${selectedPieces[0].name} selected. Pick one more element.` : 'Pick two elements to combine.'}</p>
+        {combineError && <div className="boop-board-alert" role="alert">{combineError}<button onClick={()=>{if(activeProcedure?.id !== 'MIX')void applyProcedure();else if(lastPairRef.current)void handleCombine(lastPairRef.current[0],lastPairRef.current[1]);}}>Retry</button><button onClick={()=>setCombineError(null)}>Dismiss</button></div>}
+        <p className="sr-only" role="status">{activeProcedure?.id !== 'MIX'
+          ? selectedPieces.length ? `${selectedPieces.map(piece => piece.name).join(' and ')} selected. Ready to ${activeProcedure?.name.toLowerCase()}.` : 'Select one or two elements for this procedure.'
+          : selectedPieces.length === 2 ? `${selectedPieces[0].name} and ${selectedPieces[1].name} selected. Ready to combine.` : selectedPieces.length === 1 ? `${selectedPieces[0].name} selected. Pick one more element.` : 'Pick two elements to combine.'}</p>
         {spawnToast && <div className="boop-board-toast" role="status">{spawnToast}</div>}
         <div className="toybox-mat-tools">
           <button type="button" aria-label="Undo last board action" disabled={isSynthesizing || !historySize.past} onClick={undoLayout}><Undo2 size={19}/>Undo</button>
