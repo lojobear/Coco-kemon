@@ -1,4 +1,5 @@
 import { ElementValueBadge } from './ElementValue';
+import { buildCollectionValueBook } from '../lib/elementValue';
 import { useGame } from '../lib/gameStore';
 import { BoardProcedures } from './BoardProcedures';
 import { tidyBoard } from '../lib/tidyBoard';
@@ -536,6 +537,7 @@ export function InfiniteCraftView() {
   // without rewriting either saved collection. Saved state still uses
   // `elements` (see the save effect), never this derived list.
   const sharedElements = useMemo(() => mergeSharedDiscoveries(elements, foundryMaterials, foundryOddkin), [elements, foundryMaterials, foundryOddkin]);
+  const valueBook = useMemo(() => buildCollectionValueBook(elements), [elements]);
 
   const filteredElements = useMemo(() => {
     let list = sanitizeElements(sharedElements);
@@ -1151,7 +1153,7 @@ export function InfiniteCraftView() {
             {rollOddsCaption(lastResult.rarityTier, Boolean(lastResult.isShiny), Boolean(lastResult.unlockedCelestial), Boolean(lastResult.unlockedHolo), Boolean(lastResult.unlockedGlitch))}
           </div>
           <CraftSprite name={lastResult.name} emoji={lastResult.emoji} isShiny={lastResult.isShiny}/>
-          <div className="boop-result-info"><small>{lastResult.isNew ? '✦ NEW DISCOVERY' : 'CREATED'}</small><strong>{lastResult.name}</strong><RarityBadges item={lastResult} compact showProgress={false}/><ElementValueBadge element={lastResult}/></div>
+          <div className="boop-result-info"><small>{lastResult.isNew ? '✦ NEW DISCOVERY' : 'CREATED'}</small><strong>{lastResult.name}</strong><RarityBadges item={lastResult} compact showProgress={false}/><ElementValueBadge element={lastResult} valueBook={valueBook}/></div>
           <button onClick={()=>spawnOnCanvas(lastResult.name,lastResult.emoji,Boolean(lastResult.isShiny))}>Add to board <Plus size={15}/></button>
           <button aria-label="Dismiss result" onClick={()=>setLastResult(null)}><X size={16}/></button>
         </div>}
@@ -1181,7 +1183,7 @@ export function InfiniteCraftView() {
 
       {advancedFusionOpen&&<AdvancedFusionModal elements={sharedElements} busy={isSynthesizing||Boolean(requestRef.current)}
         onClose={()=>setAdvancedFusionOpen(false)} onFuse={fuseAdvanced}/>}
-      {inspectedElement && <ElementDossierModal element={normalizeElementStats(inspectedElement)} onClose={() => setInspectedElement(null)} onSpawnOnCanvas={(name, emoji, isShiny) => spawnOnCanvas(name, emoji, isShiny)} isDarkMode={isDarkMode} />}
+      {inspectedElement && <ElementDossierModal element={normalizeElementStats(inspectedElement)} valueBook={valueBook} onClose={() => setInspectedElement(null)} onSpawnOnCanvas={(name, emoji, isShiny) => spawnOnCanvas(name, emoji, isShiny)} isDarkMode={isDarkMode} />}
     </div>
     </CraftSprites.Provider>
   );

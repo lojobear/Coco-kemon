@@ -4,7 +4,7 @@ import { pathToFileURL } from 'node:url';
 import path from 'node:path';
 import { emptyEconomy, availableCopies, applySale, validEconomy } from '../src/lib/economy';
 import { earnedCopyCounts } from '../src/lib/elementCopies';
-import { elementValue } from '../src/lib/elementValue';
+import { elementValue, buildCollectionValueBook, elementValueKey } from '../src/lib/elementValue';
 import { applySharedPairDiscovery } from '../src/lib/sharedCraftingEngine';
 import type { InfiniteElement } from '../src/lib/infiniteCraftData';
 
@@ -91,4 +91,19 @@ test('selling flushes an outstanding craft save and rejects a changed quote with
   assert.equal(a.readCraftElements()[0].craftCount,2);
   a.sellElement('Steam','normal',1,elementValue(item,'normal').coins);
   assert.equal(availableCopies(a.readCraftElements()[0],a.readEconomy(),'normal'),1);
+});
+
+
+test('sale credits the exact collision-resolved collection quote and never trusts old prices',()=>{
+  const owned=Array.from({length:330},(_,index):InfiniteElement=>({
+    id:'coin-'+index,name:'Coin Test '+String(index).padStart(4,'0'),emoji:'🪙',craftCount:2,
+  }));
+  const book=buildCollectionValueBook(owned);
+  const first=owned[0];
+  const price=book.get(elementValueKey(first.name,'normal'))!;
+  const result=applySale(first,emptyEconomy(),'normal',1,owned);
+  assert.equal(result.price,price);
+  assert.equal(result.proceeds,price);
+  assert.equal(result.economy.coins,price);
+  assert.equal(availableCopies(first,result.economy,'normal'),1);
 });

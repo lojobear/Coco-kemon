@@ -1,21 +1,21 @@
-# Element values and selling
+# Unique element values and Boop Coins
 
-Element values are denominated in in-game Boop Coins. The price is derived from the normalized concept name, retained rarity tier, and selected owned form. It is independent of artwork, account identifiers, device time, and craft repetition. Cards show the highest-valued owned form; details show the selected form. Rarity and form multipliers are documented in README.md and exported from `src/lib/elementValue.ts`.
+Every concept in the collection has a **deterministic in-game guide value**, not a real-money valuation. Version 2 expands the old 10–40 base-value range: every base price includes the normalized name's length and word complexity, its name-derived collection category, the shortest known canonical recipe depth (when available), and a deterministic name-identity bonus. These criteria are independent of device, player account, time, artwork, editable recipes, and the number of times an item is crafted.
 
-Each completed craft earns one sellable copy, assigned to the highest-valued form rolled on that craft. Known historical finishes are conservatively allocated from legacy craft counts without creating more copies than recorded crafts. Supplied starter inventory grants no stock. Selling a copy keeps the discovery, recipes, artwork, badges, and unlocked forms in the collection.
+The existing **rarity** (Common through Secret) and **finish** (Standard, Shiny, Holo, Celestial, Glitch) multipliers still apply. Unowned finishes cannot be sold or quoted as unlocked.
 
-The wallet and sold-copy receipts share a single durable storage commit. Sales recheck stock and the displayed price; exhausted inventory, stale saves, changed prices, and failed writes do not award coins. Existing delayed craft writes are flushed before selling.
+## Guarantee and limitations
 
-## Deployment
+`buildCollectionValueBook` calculates prices for every distinct normalized name and **all five forms** in the currently saved collection. It sorts proposed prices deterministically and resolves collisions by adding the smallest available whole-coin offset. Therefore no two distinct name/form pairs in that collection share a value, even when names have the same shape or hash. Case/whitespace/NFKC equivalents refer to one concept. Reordering or filtering the collection never changes prices.
 
-Apply `supabase/migrations/20261109181249_boop_economy_save_format.sql` before deploying wallet-aware cloud backups. It permits version 3 snapshots alongside version 2 without changing ownership policies, grants, or the existing compare-and-swap write RPC. Until applied, local play and JSON exports work, but the database rejects version 3 cloud saves.
+The guarantee is **collection-scoped**, not that every possible future Unicode name across all players can have a globally unique bounded integer. A newly discovered colliding concept or upgraded rarity can reprice entries; prices are recalculated on load and are not frozen forever. This is why a sale always rechecks the latest price against the displayed quote before committing.
 
-The migration is tested using a local Postgres engine. It is not automatically applied to production.
+## Storage and selling
 
-Version 3 local and JSON/cloud saves include the wallet and receipts. The existing storage key is retained so older builds' version guards protect the new data. Version 2 snapshots restore the older complete game state with an empty wallet; version 1 Foundry-only imports preserve current Craft and wallet progress.
+The value schedule has no new stored fields, no schema migration, no AI costs and no network dependency. Existing in-game wallets, sold-copy receipts, recipes, art, rarity unlocks and save version 3 are unchanged. **Already completed sales are never retroactively modified.** A successful sale atomically credits the server-checked-by-local-ledger price into the private Boop wallet only after checking earned copies, price, save state and integer overflow. This isn't a real-money market, and online trading would require authoritative server validation.
 
-## Verification and scope
+Collection cards, sorting, detailed price breakdowns and Craft/Dossier quotes share the same collection price book. The breakdown explains complexity, category, canonical recipe chain and name-identity bonus as well as the rarity and form multipliers. Any rare collision adjustment appears separately.
 
-Run `npm test`, `npm run lint`, and `npm run build`. With the local server and Playwright available, run `node tests/economy-smoke.mjs` for the craft/value/sort/sell/reload flow. The browser script supports `BOOP_BASE_URL`, `CHROMIUM_PATH`, and `BOOP_AUDIT_OUTPUT`.
+## Verification
 
-This feature implements a private game wallet and selling. Cross-player trading requires a separate authoritative inventory and transaction service. Future online transactions must revalidate inventory and prices on the server.
+`npm test`, `npm run lint`, `npm run build`, and the Android and viewport workflows must pass before deployment. Tests check determinism, rarity/finish multipliers, duplicate normalization, case-insensitive values, generated names, thousands of name/form pairs, collision resolution and sale proceeds.

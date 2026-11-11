@@ -2,7 +2,7 @@ import type { InfiniteElement } from './infiniteCraftData';
 import type { CollectorVariant } from './collectorData';
 import { availableVariants } from './collectorData';
 import { earnedCopyCounts, validCopyCounts, type CopyCounts } from './elementCopies';
-import { elementValue } from './elementValue';
+import { elementValue, buildCollectionValueBook } from './elementValue';
 import { discoveryIdentity } from './unifiedCollection';
 export interface Economy { version: 1; coins: number; sold: Record<string, Partial<CopyCounts>>; }
 export const emptyEconomy = (): Economy => ({version:1,coins:0,sold:{}});
@@ -20,10 +20,10 @@ export function availableCopies(element: InfiniteElement, economy: Economy, form
   return Math.max(0, earnedCopyCounts(element)[form] - sold);
 }
 /** Pure sale; the caller must commit wallet and receipts atomically before reporting success. */
-export function applySale(element: InfiniteElement, economy: Economy, form: CollectorVariant, quantity = 1) {
+export function applySale(element: InfiniteElement, economy: Economy, form: CollectorVariant, quantity = 1, collection?: readonly InfiniteElement[]) {
   if (!validEconomy(economy) || !Number.isSafeInteger(quantity) || quantity < 1 ||
     quantity > availableCopies(element, economy, form)) throw new Error('Not enough earned copies to sell.');
-  const price = elementValue(element, form).coins;
+  const price = elementValue(element, form, collection ? buildCollectionValueBook(collection) : undefined).coins;
   const proceeds = price * quantity;
   if (!Number.isSafeInteger(proceeds) || !Number.isSafeInteger(economy.coins + proceeds)) throw new Error('Wallet limit reached.');
   const name = discoveryIdentity(element.name);
