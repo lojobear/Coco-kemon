@@ -108,7 +108,8 @@ export function buildCollectionValueBook(elements:readonly InfiniteElement[]):Co
     return FORMS.map(form=>({key:elementValueKey(element.name,form),
       coins:base*tier*FORM_VALUE_MULTIPLIERS[form]}));
   });
-  raw.sort((a,b)=>a.coins-b.coins||a.key.localeCompare(b.key));
+  // Codepoint ordering never varies with browser or device language.
+  raw.sort((a,b)=>a.coins-b.coins||(a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
   const book=new Map<string,number>();
   const assigned=new Set<number>();
   for(const entry of raw){

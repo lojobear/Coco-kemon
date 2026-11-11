@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { baseElementValue, elementValue, elementValueCriteria, buildCollectionValueBook, elementValueKey, RARITY_VALUE_MULTIPLIERS, FORM_VALUE_MULTIPLIERS, VALUE_VERSION } from '../src/lib/elementValue';
 import { RARITY_TIERS } from '../src/lib/rarity';
 import type { InfiniteElement } from '../src/lib/infiniteCraftData';
@@ -112,4 +113,16 @@ test('normalized duplicates represent one concept but separate names get their o
   const fromFields={...items[2],id:'changed',emoji:'🎲',discoveredAt:Date.now(),
     craftCount:9999,customSpriteUrl:'data:image/png;base64,AAAA'};
   assert.equal(elementValue(fromFields,'normal',book).coins,elementValue(items[2],'normal',book).coins);
+});
+
+
+test('collision tie-break sorting uses stable codepoint order, independent of device locale',()=>{
+  const source=readFileSync(new URL('../src/lib/elementValue.ts',import.meta.url),'utf8');
+  assert.doesNotMatch(source,/a\.key\.localeCompare\(b\.key\)/);
+  const elements=['Zèbre','Éclair','éclair','Alpha','Álpha','水','🪐']
+    .map((name,i):InfiniteElement=>({id:String(i),name,emoji:'✨',rarityTier:'common'}));
+  const original=buildCollectionValueBook(elements);
+  const shuffled=buildCollectionValueBook([...elements].reverse());
+  assert.deepEqual([...original.entries()],[...shuffled.entries()]);
+  assert.equal(original.size,new Set(elements.map(x=>x.name.normalize('NFKC').trim().toLowerCase())).size*5);
 });
