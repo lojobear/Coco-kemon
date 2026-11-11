@@ -81,7 +81,26 @@
 .boop-toybox .toybox-combine:disabled {background:#e4e5ef;color:#545c77;opacity:1;}
 .toybox-primary-actions {display:flex;gap:10px;flex:none;width:100%;max-width:660px;align-self:center;}
 .boop-toybox .toybox-primary-actions .toybox-combine {flex:1;min-width:0;width:auto;white-space:normal;letter-spacing:0;}
-.boop-toybox .toybox-random {display:flex;align-items:center;justify-content:center;gap:7px;flex:none;min-height:54px;padding:12px 18px;border:2px solid #073ee6;border-radius:24px;background:#fffdf9;color:#073ee6;font-size:17px;font-weight:800;}
+/* Random now lives on the board, immediately left of the top-right filter.
+   Keep the control readable on Android without covering the mat or spawning
+   a duplicate action above the board. */
+.boop-toybox.boop-app .boop-board-toolbar--quiet {flex-wrap:nowrap;}
+.boop-toybox.boop-app .boop-board-actions--quiet {margin-left:auto;gap:6px;flex-wrap:nowrap!important;}
+.boop-toybox.boop-app .boop-board-actions--quiet > .toybox-random {
+  display:flex;align-items:center;justify-content:center;gap:6px;flex:none;
+  min-height:40px;min-width:0;padding:7px 12px;
+  border:1.5px solid #073ee6!important;border-radius:13px;
+  background:#fffdf9!important;color:#073ee6!important;
+  box-shadow:0 2px 0 #e3dbe0!important;font-size:13px;font-weight:800;
+}
+.boop-toybox.boop-app .boop-board-actions--quiet > .toybox-random span {
+  display:inline!important;font-size:12px;font-weight:800;
+}
+.boop-toybox.boop-app .boop-board-actions--quiet > .toybox-random:disabled {opacity:.5;box-shadow:none!important;}
+@media(max-width:359px) {
+  .boop-toybox.boop-app .boop-board-actions--quiet > .toybox-random {gap:4px;padding:7px 9px;}
+  .boop-toybox.boop-app .boop-board-actions--quiet > .toybox-random span {font-size:11px;}
+}
 .toybox-procedures {flex:none;padding:0 7px;}
 .toybox-procedures > div:first-child {display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;margin-bottom:8px;}
 .toybox-procedures strong {font-size:14px;color:#0b1230;}
@@ -108,7 +127,6 @@
 .boop-procedure-list strong,.boop-procedure-list small {display:block;overflow-wrap:anywhere;}
 .boop-procedure-list small {font-size:12px;line-height:1.4;margin-top:4px;}
 @media(max-width:359px) {
-  .boop-toybox .toybox-random {padding:10px;font-size:15px;gap:4px;}
   .boop-toybox .toybox-primary-actions .toybox-combine {font-size:16px;}
 }
 .boop-toybox.boop-app .boop-board-result {bottom:74px;background:#fffdf9;border:0;border-radius:20px;box-shadow:0 8px 28px #785a2926;color:#0b1230;}
