@@ -1,4 +1,5 @@
 import { ElementValuePanel } from './ElementValue';
+import type { CollectionValueBook } from '../lib/elementValue';
 import { CraftSprite } from './CraftSprite';
 import React, { useState } from 'react';
 import { X, Sparkles, PlusCircle, Lock, ArrowRight, CalendarDays } from 'lucide-react';
@@ -8,6 +9,7 @@ import { haptics } from '../lib/haptics';
 
 interface ElementDossierModalProps {
   element: InfiniteElement | null;
+  valueBook?: CollectionValueBook;
   onClose: () => void;
   onSpawnOnCanvas?: (name: string, emoji: string, isShiny: boolean) => void;
   onToggleShinyForm?: (elementId: string) => void;
@@ -18,6 +20,7 @@ export function ElementDossierModal({
   element,
   onClose,
   onSpawnOnCanvas,
+  valueBook,
 }: ElementDossierModalProps) {
   const [viewingShiny, setViewingShiny] = useState<boolean>(Boolean(element?.isShiny || element?.unlockedShiny));
   if (!element) return null;
@@ -86,7 +89,7 @@ export function ElementDossierModal({
             </div>
           </div>
 
-          <ElementValuePanel element={element} variant={viewingShiny ? 'shiny' : 'normal'}/>
+          <ElementValuePanel element={element} variant={viewingShiny ? 'shiny' : 'normal'} valueBook={valueBook}/>
           {element.explanation && (
             <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-3.5">
               <p className="text-sm leading-relaxed text-slate-200">{element.explanation}</p>

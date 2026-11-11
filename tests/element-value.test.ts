@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { baseElementValue, elementValue, RARITY_VALUE_MULTIPLIERS, FORM_VALUE_MULTIPLIERS } from '../src/lib/elementValue';
+import { readFileSync } from 'node:fs';
+import { baseElementValue, elementValue, elementValueCriteria, buildCollectionValueBook, elementValueKey, RARITY_VALUE_MULTIPLIERS, FORM_VALUE_MULTIPLIERS, VALUE_VERSION } from '../src/lib/elementValue';
 import { RARITY_TIERS } from '../src/lib/rarity';
 import type { InfiniteElement } from '../src/lib/infiniteCraftData';
 import { parseSave } from '../src/lib/saveData';
@@ -14,7 +15,7 @@ test('every existing and generated concept gets a deterministic positive whole-c
   for (let i = 0; i < 200; i++) names.push(`Future element ${i}`);
   for (const name of names) {
     const value = elementValue({ ...water, name });
-    assert.ok(Number.isSafeInteger(value.coins) && value.coins >= 10 && value.coins <= 40);
+    assert.ok(Number.isSafeInteger(value.coins) && value.coins >= 25 && value.coins <= 6000);
     assert.equal(elementValue({ ...water, name }).coins, value.coins);
   }
   assert.equal(baseElementValue('  WATER  '), baseElementValue('Water'));
@@ -36,7 +37,7 @@ test('rarer tiers and forms increase a concept’s value without stacking unlock
     }
     assert.equal(elementValue(item).variant, 'glitch');
     assert.equal(elementValue(item).coins, base.coins * 15);
-    assert.ok(elementValue(item).coins <= 150000);
+    assert.ok(elementValue(item).coins <= 25_000_000);
   }
 });
 
@@ -57,4 +58,71 @@ test('old saves need no migration and backup imports preserve quoted values and 
   assert.equal(elementValue(restored, 'shiny').coins, elementValue(element, 'shiny').coins);
   assert.equal(Object.hasOwn(restored, 'value'), false);
   assert.ok(elementValue(parseSave(JSON.stringify({ version: 2, crafting: [water], foundry })).crafting![0]).coins > 0);
+});
+
+
+test('v2 value criteria reward real concept characteristics without depending on IDs or device timestamps',()=>{
+  assert.equal(VALUE_VERSION,2);
+  const simple=elementValueCriteria('Water');
+  const compound=elementValueCriteria('Ancient Crystal Dragon');
+  assert.equal(simple.words,1);
+  assert.equal(compound.words,3);
+  assert.ok(compound.complexityBonus > simple.complexityBonus);
+  assert.equal(simple.canonicalSteps,0);
+  assert.equal(elementValueCriteria('Steam').canonicalSteps,1);
+  assert.equal(elementValueCriteria('Cloud').canonicalSteps,2);
+  assert.ok(elementValueCriteria('Water').category.length>0);
+  assert.ok(elementValueCriteria('Dragon').category.length>0);
+  assert.equal(baseElementValue('  WATER '),baseElementValue('Water'));
+  assert.notEqual(baseElementValue('Water'),baseElementValue('Cloud'));
+  const item={...water,category:'Mysterious',recipe:{first:'Poison',second:'Banana'},id:'different',craftCount:300};
+  assert.equal(elementValue(item).coins,elementValue(water).coins);
+});
+
+test('collection price book guarantees distinct prices across names and all five forms, even after collisions',()=>{
+  // Thousands of identically structured generated concepts intentionally force
+  // several raw-price collisions while covering the real future-discovery case.
+  const items=Array.from({length:2200},(_,index):InfiniteElement=>({
+    id:'item-'+index,name:'Token '+String(index).padStart(5,'0'),emoji:'🧩',
+    rarityTier:index%9===0?'rare':'common',
+    unlockedShiny:true,unlockedHolo:true,unlockedCelestial:true,unlockedGlitch:true,
+  }));
+  const book=buildCollectionValueBook(items);
+  assert.equal(book.size,items.length*5);
+  assert.equal(new Set(book.values()).size,book.size);
+  assert.ok([...book.values()].every(x=>Number.isSafeInteger(x)&&x>0));
+  assert.deepEqual([...book.entries()], [...buildCollectionValueBook([...items].reverse()).entries()]);
+  for(const item of [items[0],items[247],items[1700]]){
+    for(const form of ['normal','shiny','holo','celestial','glitch'] as const){
+      const quote=elementValue(item,form,book);
+      assert.equal(quote.coins,book.get(elementValueKey(item.name,form)));
+      assert.equal(quote.coins,quote.baseCoins*quote.rarityMultiplier*quote.formMultiplier+quote.uniquenessAdjustment);
+    }
+  }
+});
+
+test('normalized duplicates represent one concept but separate names get their own quotes',()=>{
+  const items=[{...water,name:'Water'},
+    {...water,id:'water-other',name:' ＷＡＴＥＲ '},
+    {...water,id:'steam',name:'Steam'},
+  ];
+  const book=buildCollectionValueBook(items);
+  assert.equal(book.size,10);
+  assert.equal(elementValue(items[0],'normal',book).coins,elementValue(items[1],'normal',book).coins);
+  assert.notEqual(elementValue(items[0],'normal',book).coins,elementValue(items[2],'normal',book).coins);
+  const fromFields={...items[2],id:'changed',emoji:'🎲',discoveredAt:Date.now(),
+    craftCount:9999,customSpriteUrl:'data:image/png;base64,AAAA'};
+  assert.equal(elementValue(fromFields,'normal',book).coins,elementValue(items[2],'normal',book).coins);
+});
+
+
+test('collision tie-break sorting uses stable codepoint order, independent of device locale',()=>{
+  const source=readFileSync(new URL('../src/lib/elementValue.ts',import.meta.url),'utf8');
+  assert.doesNotMatch(source,/a\.key\.localeCompare\(b\.key\)/);
+  const elements=['Zèbre','Éclair','éclair','Alpha','Álpha','水','🪐']
+    .map((name,i):InfiniteElement=>({id:String(i),name,emoji:'✨',rarityTier:'common'}));
+  const original=buildCollectionValueBook(elements);
+  const shuffled=buildCollectionValueBook([...elements].reverse());
+  assert.deepEqual([...original.entries()],[...shuffled.entries()]);
+  assert.equal(original.size,new Set(elements.map(x=>x.name.normalize('NFKC').trim().toLowerCase())).size*5);
 });

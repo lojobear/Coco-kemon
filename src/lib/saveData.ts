@@ -299,7 +299,7 @@ export function sellElement(name: string, form: CollectorVariant, quantity = 1, 
   const crafting = readCraftElements();
   const element = crafting.find(item => discoveryIdentity(item.name) === discoveryIdentity(name));
   if (!element) throw new Error('This discovery is not in your collection.');
-  const result = applySale(element, envelope?.economy ?? emptyEconomy(), form, quantity);
+  const result = applySale(element, envelope?.economy ?? emptyEconomy(), form, quantity, crafting);
   if (expectedPrice !== undefined && expectedPrice !== result.price) throw new Error('Value changed. Close and reopen this discovery before selling.');
   const foundry = envelope ? envelope.foundry : JSON.parse(localStorage.getItem(LEGACY_FOUNDRY) || 'null');
   try { write(foundry, crafting, false, undefined, undefined, result.economy); }
