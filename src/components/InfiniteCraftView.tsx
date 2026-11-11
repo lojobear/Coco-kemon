@@ -1050,10 +1050,7 @@ export function InfiniteCraftView() {
         onClick={() => void applyProcedure()}>{isSynthesizing ? 'Working…' : activeProcedure?.id === 'MIX'
           ? selectedPieces.length === 2 ? 'Combine selected' : 'Pick two elements to combine'
           : selectedPieces.length ? `Apply ${activeProcedure?.name}` : `Select an element to ${activeProcedure?.name.toLowerCase()}`}</button>
-      <button type="button" className="toybox-random" disabled={isSynthesizing || foundryBusy || !spawnPool.length || canvasItems.length >= 300}
-        aria-label={`Spawn ${spawnCount} random ${spawnCount === 1 ? 'element' : 'elements'} from ${spawnPool.length} equally likely discoveries`}
-        title={`Random adds ${spawnCount} elements. Change the amount and filters in More crafting tools.`}
-        onClick={() => spawnRandomBatch(spawnCount)}><Shuffle size={20}/><span>Random</span></button>
+
       </div>
       <div className="toybox-board-secondary">
         <button type="button" disabled={isSynthesizing || foundryBusy || !spawnPool.length || canvasItems.length > 298}
@@ -1066,6 +1063,10 @@ export function InfiniteCraftView() {
         <header className="boop-board-toolbar boop-board-toolbar--quiet">
           <div className="boop-board-heading sr-only"><strong>Craft</strong><small>Pick two elements, or drag one onto another.</small></div>
           <div className="boop-board-actions boop-board-actions--quiet">
+            <button type="button" className="toybox-random" disabled={isSynthesizing || foundryBusy || !spawnPool.length || canvasItems.length >= 300}
+              aria-label={`Spawn ${spawnCount} random ${spawnCount === 1 ? 'element' : 'elements'} from ${spawnPool.length} equally likely discoveries`}
+              title={`Random adds ${spawnCount} elements. Change the amount and filters in More crafting tools.`}
+              onClick={() => spawnRandomBatch(spawnCount)}><Shuffle size={18}/><span>Random</span></button>
             <details className="boop-board-more" aria-label="More crafting tools">
               <summary aria-label="More crafting tools" title="More crafting tools"><SlidersHorizontal size={19}/></summary>
               <div className="boop-board-more-panel">
