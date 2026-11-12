@@ -1,3 +1,4 @@
+import { meaningCategory } from './conceptMeaning.js';
 /**
  * One shared collection taxonomy for Craft, Kitchen, Foundry and legacy saves.
  * Classification is free and deterministic: opening the Collection never calls AI,
@@ -114,6 +115,8 @@ function familyForNovelConcept(name: string): string {
 /** Determine a shelf when first discovering an element (and for older saves).
  * New subject families emerge automatically without an extra AI call. */
 export function categoryForDiscovery(item: CategorizedDiscovery): string {
+  const sense = meaningCategory(item.name);
+  if(sense)return sense;
   const explicit = canonicalCollectionCategory(item.category);
   if (explicit) return explicit;
   const name = typeof item.name === 'string' ? item.name.trim() : '';
@@ -127,6 +130,8 @@ export function categoryForDiscovery(item: CategorizedDiscovery): string {
 
 /** Improve older automatic family shelves in the collection view without changing saves or prices. */
 export function collectionDisplayCategory(item: CategorizedDiscovery): string {
+  const sense = meaningCategory(item.name);
+  if (sense) return sense;
   const current = categoryForDiscovery(item);
   const name = typeof item.name === 'string' ? item.name.trim().normalize('NFKC') : '';
   // Keep custom shelves and intentional character/brand/creature identities.

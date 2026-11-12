@@ -3,6 +3,10 @@ on:
   pull_request:
     paths:
       - 'src/**'
+      - 'server/arena*.ts'
+      - 'worker.ts'
+      - 'wrangler.jsonc'
+      - 'tests/arena*'
       - 'tests/viewport-smoke.mjs'
       - '.github/workflows/viewport-smoke.yml'
 jobs:
@@ -25,6 +29,9 @@ jobs:
           node tests/viewport-smoke.mjs
           node tests/procedures-smoke.mjs
           node tests/collection-order-smoke.mjs
+          node tests/arena-smoke.mjs
+      - name: Check multiplayer Durable Objects
+        run: ARENA_RUNTIME=1 node --import tsx --test tests/arena-runtime.test.ts
       - uses: actions/upload-artifact@v4
         if: always()
         with:

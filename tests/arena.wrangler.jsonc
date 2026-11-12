@@ -1,0 +1,8 @@
+{
+ "name":"boop-arena-runtime-tests",
+ "main":"arena-worker.ts",
+ "compatibility_date":"2026-09-15",
+ "compatibility_flags":["nodejs_compat"],
+ "durable_objects":{"bindings":[{"name":"BOOP_ARENA","class_name":"BoopArena"}]},
+ "migrations":[{"tag":"v1","new_sqlite_classes":["BoopArena"]}]
+}

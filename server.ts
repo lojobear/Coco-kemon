@@ -1,3 +1,4 @@
+import { qualifiedConceptName } from './src/lib/conceptMeaning.js';
 import { conceptMaterial } from './src/lib/conceptMaterial.js';
 import { CULTURE_RECIPES } from './src/lib/cultureRecipes.js';
 /**
@@ -11,6 +12,7 @@ if ((globalThis as unknown as { __dirname?: string }).__dirname === '.') {
 }
 
 import express from 'express';
+import { registerArenaProxy } from './server/arenaProxy.js';
 import { registerKitchenRoute } from './server/kitchen.js';
 import { registerEmojiRoute } from './server/emoji.js';
 import { registerSpriteRecoveryRoutes } from './server/spriteRecovery.js';
@@ -44,6 +46,7 @@ app.use((error: any, _req: express.Request, res: express.Response, next: express
 registerEmojiRoute(app);
 registerSpriteRecoveryRoutes(app);
 registerKitchenRoute(app);
+registerArenaProxy(app);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -89,7 +92,7 @@ async function resolveInfiniteCraftPair(
   if (dynamicInfiniteCraftCache.has(key)) {
     const cached = dynamicInfiniteCraftCache.get(key)!;
     // Defensive upgrade: no recycled dynamic discovery can exceed the cap.
-    if (validNewElementName(cached.result)) return { ...cached, isNew: false };
+    if (validNewElementName(cached.result)) return { ...cached, result: qualifiedConceptName(cached.result, `${cached.explanation} ${first} ${second}`), isNew: false };
     dynamicInfiniteCraftCache.delete(key);
   }
 
@@ -99,7 +102,7 @@ async function resolveInfiniteCraftPair(
   if (CANONICAL_INFINITE_CRAFT_RECIPES[key] || TRAIL_RECIPES[key] || CULTURE_RECIPES[key] || legacyConcept) {
     const match = CANONICAL_INFINITE_CRAFT_RECIPES[key] || TRAIL_RECIPES[key] || CULTURE_RECIPES[key] || legacyConcept;
     dynamicInfiniteCraftCache.set(key, match);
-    return { ...match, isNew: false };
+    return { ...match, result: qualifiedConceptName(match.result, `${'explanation' in match ? match.explanation : ''} ${first} ${second}`), isNew: false };
   }
 
   // 3. AI generation: Groq primary, Workers AI secondary, Gemini fallback:
@@ -137,7 +140,8 @@ HARD NEGATIVES:
   is a plausible independent concept because Turkish delight is traditionally
   served alongside coffee, including at a morning table.
 - No unsupported "___ Delight", "___ Treat", "___ Surprise" filler names.
-- OUTPUT NAME HARD LIMIT: ONE, TWO OR THREE WORDS TOTAL. Count hyphenated
+- For ambiguous nouns, append a short parenthetical sense, e.g. Smoker (barbecue) or Smoker (cigarettes), Mouse (computer) or Mouse (animal). Different senses are different discoveries. Do not qualify unambiguous names.
+- OUTPUT NAME HARD LIMIT: ONE, TWO OR THREE WORDS TOTAL (excluding a short meaning qualifier). Count hyphenated
   parts as words. NEVER output four or more words, even for fantasy titles.
   Do not abbreviate/truncate a long phrase; choose a different real concept.
 - Don't choose from genre/category first; infer the bridge, then name the result.
@@ -183,7 +187,7 @@ Both ingredients matter more than novelty. Avoid any private reasoning.`;
             typeof chosen.emoji !== 'string' || !chosen.emoji.trim() || chosen.emoji.length > 32) {
           return undefined;
         }
-        return { ...chosen, result: chosen.result.trim(), emoji: (chosen.emoji || '✨').trim() };
+        return { ...chosen, result: qualifiedConceptName(chosen.result, `${chosen.explanation} ${first} ${second}`), emoji: (chosen.emoji || '✨').trim() };
       };
 
       // Fresh v4 persistent namespace: the prior v3 cache contains stitched
@@ -204,7 +208,7 @@ Both ingredients matter more than novelty. Avoid any private reasoning.`;
       return result;
     });
 
-    const cleanedResult = resolved.value.result.trim();
+    const cleanedResult = qualifiedConceptName(resolved.value.result, `${resolved.value.explanation} ${first} ${second}`);
     // The old cached namespace is retired. Guard all future cache entries too.
     if (!validNewElementName(cleanedResult)) throw new ApiFailure(502, 'The AI produced a name longer than three words. Please retry.');
     const lowerRes = cleanedResult.toLowerCase();
@@ -739,6 +743,7 @@ EXISTING DISCOVERED MATERIALS: ${(existingMaterialNames || []).slice(-25).join('
 KNOWN ODDKIN: ${(knownOddkinNames || []).join(', ')}
 
 RULES & CRITIQUE:
+For ambiguous output nouns, use a parenthetical sense: Smoker (barbecue) versus Smoker (cigarettes), Bass (fish) versus Bass (instrument). Keep genuinely different senses separate.
 1. SEMANTIC COHERENCE: Use recognizable associations, function, pop culture, wordplay and transformations. The process and both inputs must contribute. Does the process meaningfully connect these inputs? (Heat on stone melts it into Lava or cracks it; Dry on mud yields Clay; Freeze on water yields Ice). Do not produce arbitrary word associations.
 2. CANONICALIZATION: If this recipe results in something semantically identical to an existing discovered material, reuse that canonical name!
 3. OPEN DISCOVERY SPACE: At EVERY depth, prefer a recognizable named result. Animals, foods, brands, fictional characters, games, films, objects, places and concepts are first-class discoveries. Do not reduce a dog to organic matter, Mario to pigment, or Nintendo to plastic. Do not drift toward crystals, alloys, essences, quantum matter or adjective+noun inventions just because depth increases. Brand and character names are allowed when meaningfully connected. Consider three different domains internally, then return the clearest satisfying result. Never force an unrelated brand just for variety.
@@ -886,6 +891,9 @@ Format your response as a strict JSON object with this structure:
       });
     }
     if (parsed.material) {
+      const qualifiedName = qualifiedConceptName(parsed.material.displayName || parsed.material.canonicalName, `${parsed.explanation || ''} ${parsed.material.discoveryExplanation || ''} ${inputMaterialA.displayName} ${inputMaterialB?.displayName || ''}`);
+      parsed.material.displayName = qualifiedName;
+      parsed.material.canonicalName = qualifiedName.toUpperCase();
       const matObj = {
         ...parsed.material,
         id: `mat_${parsed.material.canonicalName.toLowerCase().replace(/[^a-z0-9]/g, '_')}_${Date.now()}`,

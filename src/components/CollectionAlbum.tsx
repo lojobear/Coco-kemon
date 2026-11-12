@@ -1,3 +1,4 @@
+import { displayConceptName } from '../lib/conceptMeaning';
 import { ElementValueBadge, ElementValuePanel, WalletBalance } from './ElementValue';
 import { elementValue, buildCollectionValueBook, type CollectionValueBook } from '../lib/elementValue';
 import React, { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
@@ -35,10 +36,10 @@ function CollectorCard({item,index,onOpen,onReplace,uploading=false,valueBook}: 
 }) {
   const evo=evolutionFor(item);
   const variant = elementValue(item,'best',valueBook).variant;
-  return <div className="boop-sticker-entry"><button className={`boop-sticker-card is-${variant}`} type="button" onClick={onOpen} aria-label={`Inspect collectible ${item.name}`}>
+  return <div className="boop-sticker-entry"><button className={`boop-sticker-card is-${variant}`} type="button" onClick={onOpen} aria-label={`Inspect collectible ${displayConceptName(item)}`}>
     <span className="boop-sticker-index">#{String(index+1).padStart(3,'0')}</span>
     <CollectibleArt item={item} variant={variant}/>
-    <span className="boop-sticker-name">{item.name}</span>
+    <span className="boop-sticker-name">{displayConceptName(item)}</span>
     <span className="boop-sticker-footer"><small>{evo.tier.marker} {evo.tier.name}</small></span>
     <RarityBadges item={item} compact/>
     <ElementValueBadge element={item} variant={variant} valueBook={valueBook}/>
@@ -133,7 +134,7 @@ export function CollectionAlbum({
     ? [[e.name.toLowerCase(),e.customSpriteUrl] as const]:[])),[catalog]);
   const shown=useMemo<InfiniteElement[]>(()=>{
     const q=query.toLowerCase().trim();
-    const list=catalog.filter(e=>(!q||e.name.toLowerCase().includes(q)||
+    const list=catalog.filter(e=>(!q||displayConceptName(e).toLowerCase().includes(q)||
       e.connection?.toLowerCase().includes(q)||e.category?.toLowerCase().includes(q)) && (categoryFilter==='all' || categoryForDiscovery(e)===categoryFilter) && (filter==='all'||
       (filter==='shiny'&&availableVariants(e).includes('shiny'))||
       (filter==='celestial'&&Boolean(e.unlockedCelestial))||

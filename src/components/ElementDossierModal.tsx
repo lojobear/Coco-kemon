@@ -1,3 +1,4 @@
+import { displayConceptName } from '../lib/conceptMeaning';
 import { ElementValuePanel } from './ElementValue';
 import type { CollectionValueBook } from '../lib/elementValue';
 import { CraftSprite } from './CraftSprite';
@@ -80,7 +81,7 @@ export function ElementDossierModal({
 
             <div>
               <div className="flex items-center justify-center gap-2">
-                <h2 className="text-2xl font-black text-white">{element.name}</h2>
+                <h2 className="text-2xl font-black text-white">{displayConceptName(element)}</h2>
                 {element.isNew && <span className="px-2 py-0.5 rounded-md bg-amber-500/20 border border-amber-500/40 text-amber-300 text-[9px] font-bold">NEW</span>}
               </div>
               {element.connection && (

@@ -76,7 +76,11 @@ export function elementNameWordCount(name: string): number {
   return name.trim().match(/[\p{L}\p{N}]+(?:['’][\p{L}\p{N}]+)*/gu)?.length ?? 0;
 }
 export function validNewElementName(name: string): boolean {
-  const count = elementNameWordCount(name);
+  const qualifier = name.match(/\s+\(([^()]{1,48})\)$/u);
+  if (qualifier && elementNameWordCount(qualifier[1]) > 3) return false;
+  const base = qualifier ? name.slice(0, qualifier.index) : name;
+  if (/[()]/.test(base)) return false;
+  const count = elementNameWordCount(base);
   return count >= 1 && count <= MAX_ELEMENT_WORDS && name.trim().length <= 160;
 }
 
