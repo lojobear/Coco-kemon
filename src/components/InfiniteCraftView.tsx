@@ -1061,6 +1061,15 @@ export function InfiniteCraftView() {
       </div>
       <BoardProcedures catalog={procedureCatalog} selected={activeProcedure?.id || 'MIX'} busy={isSynthesizing || foundryBusy}
         used={usedProcedure} onSelect={setProcedureId}/>
+        {lastResult && <div className={`boop-board-result ${lastResult.isNew ? "boop-board-result-new" : "boop-board-result-repeat"} tier-${rarityInfo(lastResult.rarityTier).id}`} key={lastResult.discoveredAt} role="status">
+          <div className="boop-board-roll-odds" title="Independent probabilities per successful combination; recipe discoveries do not have fixed odds">
+            {rollOddsCaption(lastResult.rarityTier, Boolean(lastResult.isShiny), Boolean(lastResult.unlockedCelestial), Boolean(lastResult.unlockedHolo), Boolean(lastResult.unlockedGlitch))}
+          </div>
+          <CraftSprite name={lastResult.name} emoji={lastResult.emoji} isShiny={lastResult.isShiny}/>
+          <div className="boop-result-info"><small>{lastResult.isNew ? '✦ NEW DISCOVERY' : 'CREATED'}</small><strong>{lastResult.name}</strong><RarityBadges item={lastResult} compact showProgress={false}/><ElementValueBadge element={lastResult} valueBook={valueBook}/></div>
+          <button onClick={()=>spawnOnCanvas(lastResult.name,lastResult.emoji,Boolean(lastResult.isShiny))} aria-label="Add another copy to board" title="Add another copy"><Plus size={17}/></button>
+          <button aria-label="Dismiss result" onClick={()=>setLastResult(null)}><X size={16}/></button>
+        </div>}
       <section className="boop-board-layout" aria-label="Discover crafting board">
         <header className="boop-board-toolbar boop-board-toolbar--quiet">
           <div className="boop-board-heading sr-only"><strong>Craft</strong><small>Pick two elements, or drag one onto another.</small></div>
@@ -1148,15 +1157,6 @@ export function InfiniteCraftView() {
           </div>
         </div>
         {activeCombination && <div className="boop-board-status" role="status"><span className="boop-inline-spinner"/>Combining {activeCombination.nameA} + {activeCombination.nameB}… <small>Keep moving tiles</small></div>}
-        {lastResult && <div className={`boop-board-result ${lastResult.isNew ? "boop-board-result-new" : "boop-board-result-repeat"} tier-${rarityInfo(lastResult.rarityTier).id}`} key={lastResult.discoveredAt} role="status">
-          <div className="boop-board-roll-odds" title="Independent probabilities per successful combination; recipe discoveries do not have fixed odds">
-            {rollOddsCaption(lastResult.rarityTier, Boolean(lastResult.isShiny), Boolean(lastResult.unlockedCelestial), Boolean(lastResult.unlockedHolo), Boolean(lastResult.unlockedGlitch))}
-          </div>
-          <CraftSprite name={lastResult.name} emoji={lastResult.emoji} isShiny={lastResult.isShiny}/>
-          <div className="boop-result-info"><small>{lastResult.isNew ? '✦ NEW DISCOVERY' : 'CREATED'}</small><strong>{lastResult.name}</strong><RarityBadges item={lastResult} compact showProgress={false}/><ElementValueBadge element={lastResult} valueBook={valueBook}/></div>
-          <button onClick={()=>spawnOnCanvas(lastResult.name,lastResult.emoji,Boolean(lastResult.isShiny))}>Add to board <Plus size={15}/></button>
-          <button aria-label="Dismiss result" onClick={()=>setLastResult(null)}><X size={16}/></button>
-        </div>}
         {combineError && <div className="boop-board-alert" role="alert">{combineError}<button onClick={()=>{if(activeProcedure?.id !== 'MIX')void applyProcedure();else if(lastPairRef.current)void handleCombine(lastPairRef.current[0],lastPairRef.current[1]);}}>Retry</button><button onClick={()=>setCombineError(null)}>Dismiss</button></div>}
         <p className="sr-only" role="status">{activeProcedure?.id !== 'MIX'
           ? selectedPieces.length ? `${selectedPieces.map(piece => piece.name).join(' and ')} selected. Ready to ${activeProcedure?.name.toLowerCase()}.` : 'Select one or two elements for this procedure.'

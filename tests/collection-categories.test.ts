@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { categoryForDiscovery, collectionCategoryCounts, canonicalCollectionCategory } from '../src/lib/collectionCategories';
+import { categoryForDiscovery, collectionCategoryCounts, canonicalCollectionCategory, collectionDisplayCategory } from '../src/lib/collectionCategories';
 import { mergeFoundryIntoCraft } from '../src/lib/unifiedCollection';
 import { mergeSharedDiscoveries } from '../src/lib/sharedDiscoveries';
 import { conceptMaterial } from '../src/lib/conceptMaterial';
@@ -42,6 +42,16 @@ test('category list is derived automatically without a separate mutable registry
     ['Animals',1],['Food & Drink',1],['Hoppers',2],['Zorblax Family',1],
   ]);
   assert.equal(JSON.stringify(owned),original);
+});
+
+test('collection view repairs automatic family shelves while preserving explicit shelves and saves',()=>{
+  const old = {name:'Golden Fox',category:'Foxes'};
+  const before = JSON.stringify(old);
+  assert.equal(collectionDisplayCategory(old),'Animals');
+  assert.equal(collectionDisplayCategory({name:'Golden Fox',category:'Custom Creatures'}),'Custom Creatures');
+  assert.equal(collectionDisplayCategory({name:'Ferrum Hopper',category:'Hoppers'}),'Hoppers');
+  assert.equal(collectionDisplayCategory({name:'Moon Cake',category:'Cakes'}),'Food & Drink');
+  assert.equal(JSON.stringify(old),before);
 });
 
 test('save validation accepts a category without changing legacy saves or artwork',()=>{

@@ -2,7 +2,7 @@ import { ElementValueBadge, ElementValuePanel, WalletBalance } from './ElementVa
 import { elementValue, buildCollectionValueBook, type CollectionValueBook } from '../lib/elementValue';
 import React, { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { discoveryIdentity } from '../lib/unifiedCollection';
-import { categoryForDiscovery, collectionCategoryCounts } from '../lib/collectionCategories';
+import { categoryForDiscovery, collectionDisplayCategory, collectionCategoryCounts } from '../lib/collectionCategories';
 import { isProceduralDefault } from './ElementSprite';
 import { BookOpen, Search, Sparkles, GalleryVerticalEnd, LayoutGrid, ChevronRight, ArrowLeft, X, Lock, Plus, Trash2, Share2, Check, Star, GitBranch, Trophy, Shuffle, Upload } from 'lucide-react';
 import type { InfiniteElement } from '../lib/infiniteCraftData';
@@ -117,7 +117,7 @@ export function CollectionAlbum({
       seen.add(key);return true;
     }).map(item => {
       const linked = !item.customSpriteUrl ? materialArtwork.get(discoveryIdentity(item.name)) : undefined;
-      const category = categoryForDiscovery({
+      const category = collectionDisplayCategory({
         name: item.name, category: item.category || foundryCategories.get(discoveryIdentity(item.name)),
         connection: item.connection, emoji: item.emoji,
       });
@@ -134,7 +134,7 @@ export function CollectionAlbum({
   const shown=useMemo<InfiniteElement[]>(()=>{
     const q=query.toLowerCase().trim();
     const list=catalog.filter(e=>(!q||e.name.toLowerCase().includes(q)||
-      e.connection?.toLowerCase().includes(q)) && (categoryFilter==='all' || categoryForDiscovery(e)===categoryFilter) && (filter==='all'||
+      e.connection?.toLowerCase().includes(q)||e.category?.toLowerCase().includes(q)) && (categoryFilter==='all' || categoryForDiscovery(e)===categoryFilter) && (filter==='all'||
       (filter==='shiny'&&availableVariants(e).includes('shiny'))||
       (filter==='celestial'&&Boolean(e.unlockedCelestial))||
       (filter==='holo'&&Boolean(e.unlockedHolo))||
@@ -157,7 +157,7 @@ export function CollectionAlbum({
       if(group)group.push(item); else grouped.set(category,[item]);
     }
     return categoryCounts.filter(entry=>grouped.has(entry.name)).map(entry=>({
-      ...entry, items:grouped.get(entry.name)!,
+      ...entry, count:shown.filter(item=>categoryForDiscovery(item)===entry.name).length, items:grouped.get(entry.name)!,
     }));
   },[shown,visible,categoryCounts,sort]);
   useEffect(()=>setVisible(72),[query,sort,filter,categoryFilter]);
@@ -290,12 +290,6 @@ export function CollectionAlbum({
       {tab==='album'&&<>
         <div className="boop-album-controls"><label className="boop-album-search"><Search size={18}/><input aria-label="Search collectibles" placeholder="Find a discovery…" value={query} onChange={e=>setQuery(e.target.value)}/></label>
         </div>
-        <details className="boop-album-refine">
-          <summary>Filters & collection tools{filter !== 'all' || categoryFilter !== 'all' ? ' · Active filters' : ''}</summary>
-          <div className="boop-album-refine-content">
-          <select aria-label="Sort collectibles" value={sort} onChange={e=>setSort(e.target.value as typeof sort)}><option value="recent">Newest first</option><option value="az">Name A–Z</option><option value="crafted">Most crafted</option><option value="value">Highest value</option></select>
-
-            <div className="boop-album-filter-row">{([{id:'all',label:'All stickers'},{id:'shiny',label:'✦ Shiny'},{id:'celestial',label:'✶ Celestial'},{id:'holo',label:'◈ Holo'},{id:'glitch',label:'⟡ Glitch'},{id:'legendary',label:'★ Legendary+'},{id:'evolved',label:'❋ Evolved'}] as const).map(f=><button key={f.id} aria-pressed={filter===f.id} onClick={()=>setFilter(f.id)}>{f.label}</button>)}</div>
             <div className="boop-album-categories">
           <label htmlFor="boop-collection-category">Category
             <select id="boop-collection-category" aria-label="Collection category" value={categoryFilter} onChange={event=>setCategoryFilter(event.target.value)}>
@@ -303,8 +297,14 @@ export function CollectionAlbum({
               {categoryCounts.map(entry=><option key={entry.name} value={entry.name}>{entry.name} ({entry.count})</option>)}
             </select>
           </label>
-          <small>{categoryCounts.length} discovered categories · New types automatically create a category</small>
+          <small>{categoryCounts.length} discovered categories · Search by name or category</small>
             </div>
+        <details className="boop-album-refine">
+          <summary>Filters & collection tools{filter !== 'all' || categoryFilter !== 'all' ? ' · Active filters' : ''}</summary>
+          <div className="boop-album-refine-content">
+          <select aria-label="Sort collectibles" value={sort} onChange={e=>setSort(e.target.value as typeof sort)}><option value="recent">Newest first</option><option value="az">Name A–Z</option><option value="crafted">Most crafted</option><option value="value">Highest value</option></select>
+
+            <div className="boop-album-filter-row">{([{id:'all',label:'All stickers'},{id:'shiny',label:'✦ Shiny'},{id:'celestial',label:'✶ Celestial'},{id:'holo',label:'◈ Holo'},{id:'glitch',label:'⟡ Glitch'},{id:'legendary',label:'★ Legendary+'},{id:'evolved',label:'❋ Evolved'}] as const).map(f=><button key={f.id} aria-pressed={filter===f.id} onClick={()=>setFilter(f.id)}>{f.label}</button>)}</div>
           <div className="boop-album-summary" aria-label="Collection statistics">
             <div><strong>{catalog.length.toLocaleString()}</strong><small>Collected</small></div>
             <div><strong>{shinyCount}</strong><small>Shiny forms</small></div>
@@ -321,7 +321,7 @@ export function CollectionAlbum({
         <div className="boop-album-section-label"><span>DISCOVERY INDEX</span><small>{shown.length} stickers</small></div>
         {shown.length?<div className="boop-album-category-sections">{visibleGroups.map(group=>
           <section className="boop-album-category-section" key={group.name} aria-label={group.name}>
-            <div className="boop-album-category-heading"><h3>{group.name}</h3><small>{group.count} collected</small></div>
+            <div className="boop-album-category-heading"><h3>{group.name}</h3><small>{group.count} matching</small></div>
             <div className="boop-sticker-grid">{group.items.map((item,i)=><CollectorCard key={item.id} item={item} index={i} onOpen={()=>openItem(item)} onReplace={()=>openSpritePicker(item)} uploading={spriteUploading} valueBook={valueBook}/>)}</div>
           </section>
         )}</div>

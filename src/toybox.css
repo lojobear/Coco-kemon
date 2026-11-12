@@ -194,3 +194,14 @@
   .boop-toybox.boop-app .boop-sticker-card {min-height:180px;}
   .boop-toybox.boop-app .boop-sprite-picker-grid .boop-picker-sprite {width:44px;height:44px;}
 }
+
+/* Result sits above the board, leaving every tile accessible. */
+.boop-toybox.boop-app .boop-board-result { position:relative; inset:auto; transform:none; flex:none; align-self:flex-end; width:min(100%, 340px); min-width:0; max-width:100%; box-sizing:border-box; margin:0; padding:5px 6px; gap:6px; border:1px solid #e6e0d7; border-radius:12px; }
+.boop-toybox.boop-app .boop-board-result .craft-emoji {width:30px;height:30px;}
+.boop-toybox.boop-app .boop-board-result .boop-result-info {gap:0;}
+.boop-toybox.boop-app .boop-board-result .boop-result-info strong {font-size:13px;line-height:1.2;}
+.boop-toybox.boop-app .boop-board-result .boop-result-info small {font-size:8px;line-height:1.2;}
+.boop-toybox.boop-app .boop-board-result .boop-result-info > .boop-rarity-badges,
+.boop-toybox.boop-app .boop-board-result .boop-element-value-badge {display:none;}
+.boop-toybox.boop-app .boop-board-result button {min-width:36px;min-height:36px;justify-content:center;padding:6px;}
+.boop-toybox.boop-app .boop-board-result .boop-board-roll-odds {display:block;position:static;order:4;flex:0 1 auto;width:auto;max-width:90px;padding:0;border:0;background:transparent;box-shadow:none;white-space:normal;text-align:right;font-size:8px;line-height:1.15;}
