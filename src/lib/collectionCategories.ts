@@ -24,7 +24,7 @@ export const COLLECTION_CATEGORY_ORDER = [
 
 const ALIASES: Record<string, string> = {
   animal: 'Animals', animals: 'Animals', fauna: 'Animals', wildlife: 'Animals',
-  biology: 'Animals', biological: 'Animals', zoology: 'Animals',
+  biology: 'Science & Medicine', biological: 'Science & Medicine', zoology: 'Animals',
   food: 'Food & Drink', edible: 'Food & Drink', culinary: 'Food & Drink', kitchen: 'Food & Drink',
   organic: 'Plants & Nature', botanical: 'Plants & Nature', botany: 'Plants & Nature',
   flora: 'Plants & Nature', plant: 'Plants & Nature', plants: 'Plants & Nature', ecology: 'Plants & Nature',
@@ -75,6 +75,12 @@ const PATTERNS: ReadonlyArray<readonly [string, RegExp]> = [
   ['Language & Ideas', /\b(?:time|memory|dream|idea|language|word|thought|emotion|knowledge|paradox|philosophy|joke|pun|letter|alphabet|symbol)\b/i],
 ];
 
+// Display-only additions leave name-based coin quotes on their existing taxonomy.
+const DISPLAY_PATTERNS: ReadonlyArray<readonly [string, RegExp]> = [
+  ['Materials & Minerals', /\b(?:biochar|charcoal|carbon|ash|humus|compost)\b/i],
+  ...PATTERNS,
+];
+
 /** Clean and reuse existing category names; reject sentences and filler labels. */
 export function canonicalCollectionCategory(value: unknown): string | undefined {
   if (typeof value !== 'string') return undefined;
@@ -123,13 +129,22 @@ export function categoryForDiscovery(item: CategorizedDiscovery): string {
 export function collectionDisplayCategory(item: CategorizedDiscovery): string {
   const current = categoryForDiscovery(item);
   const name = typeof item.name === 'string' ? item.name.trim().normalize('NFKC') : '';
-  // Preserve meaningful explicitly supplied categories. Only reconsider an
-  // automatically generated family label (or an uncategorized legacy item).
+  // Keep custom shelves and intentional character/brand/creature identities.
+  // Standard automatic labels can be corrected by the actual subject noun.
   const stored = canonicalCollectionCategory(item.category);
-  if (stored && stored !== familyForNovelConcept(name)) return current;
+  const standard = COLLECTION_CATEGORY_ORDER.includes(stored as typeof COLLECTION_CATEGORY_ORDER[number]);
+  if (stored && stored !== familyForNovelConcept(name) && !standard) return current;
+  if (stored && ['Characters', 'Brands', 'Oddkin & Creatures'].includes(stored)) return current;
+  const characterPattern = PATTERNS.find(([label]) => label === 'Characters')![1];
+  if (characterPattern.test(name)) return 'Characters';
   const words = name.match(/[\p{L}\p{N}]+/gu) ?? [];
   for (let i = words.length - 1; i >= 0; i--) {
-    for (const [label, pattern] of PATTERNS) if (pattern.test(words.slice(i).join(' '))) return label;
+    const subject = words.slice(i).join(' ');
+    const matches = DISPLAY_PATTERNS.filter(([, pattern]) => pattern.test(subject));
+    // Preserve an existing standard label when this same subject supports it.
+    // This keeps intentionally ambiguous elements such as Wind stable.
+    if (stored && matches.some(([label]) => label === stored)) return stored;
+    if (matches.length) return matches[0][0];
   }
   return current;
 }

@@ -17,6 +17,13 @@ try {
   });
   await page.goto(process.env.BOOP_BASE_URL||'http://127.0.0.1:3000',{waitUntil:'networkidle'});
   const procedures=page.getByRole('region',{name:'Board procedures'});
+  const originalCount=await page.locator('.boop-board-item').count();
+  await procedures.getByRole('button',{name:'Random procedure',exact:true}).click();
+  assert.doesNotMatch(await procedures.locator('strong').first().innerText(),/^Procedure: Mix$/);
+  assert.equal(requests,0,'Random procedure must not synthesize');
+  assert.equal(await page.locator('.boop-board-item').count(),originalCount);
+  await procedures.getByRole('button',{name:'Mix',exact:true}).click();
+
   await page.getByRole('button',{name:'Select Water to combine',exact:true}).click();
   await procedures.getByRole('button',{name:'Melt',exact:true}).click();assert.ok(await page.getByRole('button',{name:'Apply Melt',exact:true}).isEnabled());assert.equal(await page.getByRole('region',{name:'Foundry workspace'}).count(),0);
   const all=procedures.getByRole('button',{name:/^All \d+ procedures/});await all.click();const dialog=page.getByRole('dialog',{name:'Choose a procedure'});await dialog.waitFor();

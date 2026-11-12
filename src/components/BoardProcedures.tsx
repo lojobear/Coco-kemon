@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Process } from '../types';
+import { chooseRandomProcess } from '../lib/randomProcess';
 import { parseProcedurePreferences, PROCEDURE_PREFERENCES_KEY, rememberProcedure } from '../lib/procedurePreferences';
 
 export function BoardProcedures({ catalog, selected, busy, used, onSelect }: {
@@ -34,11 +35,15 @@ export function BoardProcedures({ catalog, selected, busy, used, onSelect }: {
     (category === 'all' || process.category === category) &&
     `${process.name} ${process.description} ${process.category}`.toLowerCase().includes(query.trim().toLowerCase()));
   return <section className="toybox-procedures" aria-label="Board procedures">
-    <div><strong>Procedure</strong><span>{byId.get(selected)?.description}</span></div>
+    <div><strong>Procedure: {byId.get(selected)?.name}</strong><span>{byId.get(selected)?.description}</span></div>
     <div className="toybox-procedure-buttons">
       {['MIX', 'MELT', 'HEAT', 'FREEZE', 'CRUSH'].map(id => byId.get(id)).filter(Boolean).map(process => <button type="button"
         key={process!.id} aria-pressed={selected === process!.id} disabled={busy} onClick={() => choose(process!.id)}>{process!.name}</button>)}
       <button type="button" disabled={busy} onClick={() => dialog.current?.showModal()}>All {catalog.length} procedures →</button>
+      <button type="button" disabled={busy || !catalog.length} onClick={() => {
+        const process = chooseRandomProcess(catalog, selected);
+        if (process) choose(process.id);
+      }}>Random procedure</button>
     </div>
     {shortcuts(preferences.favorites, 'Favorites')}
     {shortcuts(preferences.recent, 'Recently used')}

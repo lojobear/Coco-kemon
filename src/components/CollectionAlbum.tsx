@@ -61,7 +61,7 @@ export function CollectionAlbum({
   const [filter,setFilter]=useState<AlbumFilter>('all');
   const [passportFilter,setPassportFilter]=useState<'all'|'incomplete'|'completed'>('all');
   const [categoryFilter,setCategoryFilter]=useState('all');
-  const [sort,setSort]=useState<'recent'|'az'|'crafted'|'value'>('recent');
+  const [sort,setSort]=useState<'recent'|'az'|'crafted'|'value'|'category'>('recent');
   const [visible,setVisible]=useState(72);
   const [selected,setSelected]=useState<InfiniteElement|null>(null);
   const [viewVariant,setViewVariant]=useState<CollectorVariant>('normal');
@@ -141,7 +141,7 @@ export function CollectionAlbum({
       (filter==='glitch'&&Boolean(e.unlockedGlitch))||
       (filter==='legendary'&&rarityRank(e.rarityTier)>=rarityRank('legendary'))||
       (filter==='evolved'&&evolutionFor(e).level>0)));
-    if(sort==='az')list.sort((a,b)=>a.name.localeCompare(b.name));
+    if(sort==='az'||sort==='category')list.sort((a,b)=>a.name.localeCompare(b.name));
     else if(sort==='value')list.sort((a,b)=>elementValue(b,'best',valueBook).coins-elementValue(a,'best',valueBook).coins || a.name.localeCompare(b.name));
     else if(sort==='crafted')list.sort((a,b)=>(b.craftCount||0)-(a.craftCount||0));
     else list.sort((a,b)=>(b.discoveredAt||0)-(a.discoveredAt||0));
@@ -149,7 +149,7 @@ export function CollectionAlbum({
   },[catalog,query,sort,filter,categoryFilter,valueBook]);
   const categoryCounts=useMemo(()=>collectionCategoryCounts(catalog),[catalog]);
   const visibleGroups=useMemo(()=>{
-    if (sort === 'value') return [{ name: 'By guide value', count: shown.length, items: shown.slice(0, visible) }];
+    if (sort !== 'category') return [{ name: sort === 'recent' ? 'Newest discoveries' : sort === 'az' ? 'Name A–Z' : sort === 'crafted' ? 'Most crafted' : 'By guide value', count: shown.length, items: shown.slice(0, visible) }];
     const grouped=new Map<string,InfiniteElement[]>();
     for(const item of shown.slice(0,visible)){
       const category=categoryForDiscovery(item);
@@ -302,7 +302,7 @@ export function CollectionAlbum({
         <details className="boop-album-refine">
           <summary>Filters & collection tools{filter !== 'all' || categoryFilter !== 'all' ? ' · Active filters' : ''}</summary>
           <div className="boop-album-refine-content">
-          <select aria-label="Sort collectibles" value={sort} onChange={e=>setSort(e.target.value as typeof sort)}><option value="recent">Newest first</option><option value="az">Name A–Z</option><option value="crafted">Most crafted</option><option value="value">Highest value</option></select>
+          <select aria-label="Sort collectibles" value={sort} onChange={e=>setSort(e.target.value as typeof sort)}><option value="recent">Newest first</option><option value="az">Name A–Z</option><option value="crafted">Most crafted</option><option value="value">Highest value</option><option value="category">Group by category</option></select>
 
             <div className="boop-album-filter-row">{([{id:'all',label:'All stickers'},{id:'shiny',label:'✦ Shiny'},{id:'celestial',label:'✶ Celestial'},{id:'holo',label:'◈ Holo'},{id:'glitch',label:'⟡ Glitch'},{id:'legendary',label:'★ Legendary+'},{id:'evolved',label:'❋ Evolved'}] as const).map(f=><button key={f.id} aria-pressed={filter===f.id} onClick={()=>setFilter(f.id)}>{f.label}</button>)}</div>
           <div className="boop-album-summary" aria-label="Collection statistics">
