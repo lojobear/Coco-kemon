@@ -20,9 +20,9 @@
     "binding": "AI"
   },
   "durable_objects": {
-    "bindings": [{ "name": "BOOP_IMAGE_BUDGET", "class_name": "BoopImageBudgetLedger" }]
+    "bindings": [{ "name": "BOOP_IMAGE_BUDGET", "class_name": "BoopImageBudgetLedger" }, { "name": "BOOP_ARENA", "class_name": "BoopArena" }]
   },
-  "migrations": [{ "tag": "v1-image-budget-ledger", "new_sqlite_classes": ["BoopImageBudgetLedger"] }],
+  "migrations": [{ "tag": "v1-image-budget-ledger", "new_sqlite_classes": ["BoopImageBudgetLedger"] }, {"tag":"v2-value-arena","new_sqlite_classes":["BoopArena"]}],
   "kv_namespaces": [
     {
       "binding": "QUARKPOP_CACHE",

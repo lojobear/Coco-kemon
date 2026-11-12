@@ -1,3 +1,4 @@
+import { displayConceptName } from '../lib/conceptMeaning';
 import { ElementValueBadge } from './ElementValue';
 import { buildCollectionValueBook } from '../lib/elementValue';
 import { useGame } from '../lib/gameStore';
@@ -91,9 +92,10 @@ interface CanvasItem {
 /** Only the moved/selected board tile should rerender. The other 299 tiles
  * keep their existing PNG decoders and DOM even when a discovery finishes. */
 const CanvasBoardTile = React.memo(function CanvasBoardTile({
-  item, selected, onPointerDown, onClickItem, onDuplicate, onRemove, spawnTileMaxWidth,
+  item, selected, onPointerDown, onClickItem, onDuplicate, onRemove, spawnTileMaxWidth, label,
 }: {
   item: CanvasItem;
+  label?: string;
   spawnTileMaxWidth: number;
   selected: boolean;
   onPointerDown: (item: CanvasItem, event: React.PointerEvent<HTMLDivElement>) => void;
@@ -106,10 +108,10 @@ const CanvasBoardTile = React.memo(function CanvasBoardTile({
     onPointerDown={event => onPointerDown(item, event)}
     onDoubleClick={event => onDuplicate(item, event)}
     style={{ transform: `translate3d(${item.x}px,${item.y}px,0)`, '--spawn-delay': `${item.spawnDelay || 0}ms`, maxWidth: `${spawnTileMaxWidth}px` } as React.CSSProperties}>
-    <button type="button" className="boop-tile-select" aria-label={`Select ${item.name} to combine`}
+    <button type="button" className="boop-tile-select" aria-label={`Select ${label || item.name} to combine`}
       aria-pressed={selected} onClick={event => { event.stopPropagation(); onClickItem(item); }}>
       <CraftSprite name={item.name} emoji={item.emoji} isShiny={item.isShiny} />
-      <span title={item.name}>{item.name}</span>
+      <span title={label || item.name}>{label || item.name}</span>
     </button>
     {selected && <CheckCircle2 className="toybox-piece-check" size={28} aria-hidden="true" />}
     <button aria-label={`Duplicate ${item.name}`} title="Duplicate" className="boop-tile-action boop-tile-duplicate" onClick={event => onDuplicate(item, event)}><Plus size={12} /></button>
@@ -603,7 +605,7 @@ export function InfiniteCraftView() {
       const craftedAt = Date.now();
       const recorded = applySharedPairDiscovery(elements, apiData, itemA.name, itemB.name, rolls, craftedAt);
       const { result, emoji } = apiData;
-      const cleanName = result.trim();
+      const cleanName = recorded.main.name;
       const firstInCollection = recorded.isNew;
       const isNew = firstInCollection;
       const newElemObj = recorded.main;
@@ -992,6 +994,8 @@ export function InfiniteCraftView() {
   const handleIngredientPick = useCallback((item: InfiniteElement) => ingredientPickRef.current(item), []);
   const handleIngredientInspect = useCallback((item: InfiniteElement) => setInspectedElement(item), []);
 
+  const meaningLabels = useMemo(() => new Map(sharedElements.map(element => [discoveryIdentity(element.name), displayConceptName(element)])), [sharedElements]);
+
   const selectedPieces = [selectedCanvasId, secondSelectedCanvasId]
     .flatMap(id => { const item = canvasItems.find(tile => tile.instanceId === id); return item ? [item] : []; });
   const combineSelected = () => {
@@ -1055,6 +1059,7 @@ export function InfiniteCraftView() {
 
       </div>
       <div className="toybox-board-secondary">
+        <button type="button" onClick={() => setActiveTab('arena')}>🏆 Arena</button>
         <button type="button" disabled={isSynthesizing || foundryBusy || !spawnPool.length || canvasItems.length > 298}
           onClick={() => spawnRandomBatch(2, undefined, true)}><Shuffle size={17}/>Random pair</button>
         <button type="button" disabled={isSynthesizing || foundryBusy || !canvasItems.length} onClick={tidyCanvas}><LayoutGrid size={17}/>Tidy board</button>
@@ -1146,6 +1151,7 @@ export function InfiniteCraftView() {
           <div ref={canvasRef} className="boop-board-world" style={{ width:BOARD_WIDTH, height:Math.max(BOARD_HEIGHT, ...canvasItems.map(item => item.y + 320)), zoom:boardZoom }}>
             <div className="boop-board-origin-hint" style={{ left:BOARD_START_X - 6, top:BOARD_START_Y - 68 }}>DROP. MIX. DISCOVER.</div>
             {canvasItems.map(item => <CanvasBoardTile key={item.instanceId} item={item}
+              label={meaningLabels.get(discoveryIdentity(item.name)) || item.name}
               spawnTileMaxWidth={spawnTileMaxWidth}
               selected={selectedCanvasId === item.instanceId || secondSelectedCanvasId === item.instanceId} onPointerDown={onBoardPointerDown}
               onClickItem={onBoardClick} onDuplicate={onBoardDuplicate} onRemove={onBoardRemove} />)}

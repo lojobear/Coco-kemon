@@ -1,3 +1,4 @@
+import { qualifiedConceptName } from './conceptMeaning';
 import { addCraftCopy } from './elementCopies';
 /**
  * One two-ingredient crafting engine shared by Craft's board and Foundry MIX.
@@ -31,7 +32,7 @@ export async function resolveSharedPair(
       typeof result.isNew !== 'boolean') {
     throw new Error('The AI produced an invalid or overlong element name. Please retry.');
   }
-  return result;
+  return { ...result, result: qualifiedConceptName(result.result, `${result.explanation || ''} ${first} ${second}`) };
 }
 
 export interface SharedPairRolls {
@@ -64,7 +65,7 @@ export function applySharedPairDiscovery(
   rolls: SharedPairRolls,
   timestamp = Date.now(),
 ): { elements: InfiniteElement[]; main: InfiniteElement; bonus?: InfiniteElement; isNew: boolean } {
-  const name = outcome.result.trim();
+  const name = qualifiedConceptName(outcome.result, `${outcome.explanation || ''} ${first} ${second}`);
   const emoji = outcome.emoji || '✨';
   const normalized = discoveryIdentity(name);
   const recipe = { first, second };

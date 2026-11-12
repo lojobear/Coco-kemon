@@ -108,7 +108,7 @@
 .toybox-procedure-buttons {display:flex;flex-wrap:wrap;gap:6px;}
 .boop-toybox .toybox-procedure-buttons button {min-height:44px;padding:8px 12px;border:1px solid #e6e0d7;border-radius:16px;background:#fffdf9;color:#0b1230;font-size:14px;font-weight:700;}
 .boop-toybox .toybox-procedure-buttons button:last-child {color:#073ee6;}
-.toybox-board-secondary {display:flex;justify-content:center;gap:10px;flex:none;}
+.toybox-board-secondary {display:flex;flex-wrap:wrap;justify-content:center;gap:10px;flex:none;}
 .toybox-board-secondary button,.toybox-procedure-shortcuts button {display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:8px 12px;border:1px solid #ded8d0;border-radius:16px;background:#fffdf9;color:#0b1230;font-weight:700;}
 .toybox-procedure-shortcuts {display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-top:8px;}
 .toybox-procedure-shortcuts strong {font-size:12px;margin-right:4px;}
@@ -205,3 +205,14 @@
 .boop-toybox.boop-app .boop-board-result .boop-element-value-badge {display:none;}
 .boop-toybox.boop-app .boop-board-result button {min-width:36px;min-height:36px;justify-content:center;padding:6px;}
 .boop-toybox.boop-app .boop-board-result .boop-board-roll-odds {display:block;position:static;order:4;flex:0 1 auto;width:auto;max-width:90px;padding:0;border:0;background:transparent;box-shadow:none;white-space:normal;text-align:right;font-size:8px;line-height:1.15;}
+.boop-arena {width:100%;max-width:1000px;margin:0 auto;padding:20px 16px 110px;box-sizing:border-box;color:#0b1230;}
+.boop-arena header {display:flex;align-items:start;justify-content:space-between;gap:14px;flex-wrap:wrap;}
+.boop-arena h1 {font-size:36px;font-weight:900;}.boop-arena h2 {font-size:24px;font-weight:800;}.boop-arena h3 {font-size:28px;font-weight:850;}
+.boop-arena p {margin:10px 0;line-height:1.5;}.boop-arena-rules {color:#596077;}
+.boop-arena-panel {margin-top:16px;border:1px solid #e6e0d7;background:#fffdf9;border-radius:22px;padding:18px;}
+.boop-arena button {min-height:44px;margin:4px;padding:10px 14px;border:1px solid #dcd5cc;border-radius:15px;background:#f5f0e8;color:#0b1230;font-weight:750;}
+.boop-arena button[aria-pressed=true],.boop-arena button:enabled:hover {background:#073ee6;color:white;}.boop-arena button:disabled {opacity:.55;}
+.boop-arena label {display:flex;flex-direction:column;gap:5px;font-weight:700;}.boop-arena input,.boop-arena select {min-height:44px;padding:8px;border:1px solid #dcd5cc;border-radius:10px;background:white;color:#0b1230;max-width:100%;}
+.boop-arena-cards {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:8px;max-height:45dvh;overflow:auto;margin:12px 0;}
+.boop-arena-cards button {text-align:left;margin:0;}.boop-arena-cards strong,.boop-arena-cards small {display:block;overflow-wrap:anywhere;}
+.boop-arena-reveal {display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:16px 0;}.boop-arena-reveal div {padding:12px;background:#ffea9c;border-radius:15px;min-width:0;}.boop-arena-reveal strong,.boop-arena-reveal b {display:block;overflow-wrap:anywhere;margin-top:8px;}

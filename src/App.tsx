@@ -29,6 +29,7 @@ const SpriteLabModal = lazy(() => loadSpriteLabModal().then(module => ({ default
 const NotebookView = lazy(() => loadNotebookView().then(module => ({ default: module.NotebookView })));
 const SeedsModal = lazy(() => loadSeedsModal().then(module => ({ default: module.SeedsModal })));
 const VoiceLabModal = lazy(() => loadVoiceLabModal().then(module => ({ default: module.VoiceLabModal })));
+const ValueArena = lazy(() => import('./components/ValueArena').then(module => ({ default: module.ValueArena })));
 const PlayerProfile = lazy(() => import('./components/PlayerProfile').then(module => ({ default: module.PlayerProfile })));
 import { SAVE_STATUS_EVENT, getSaveError } from './lib/saveData';
 import { sound } from './lib/audio';
@@ -127,6 +128,7 @@ function GameContent() {
       else if (showSeedsModal) setShowSeedsModal(false);
       else if (showVoiceModal) setShowVoiceModal(false);
       else if (inspectedItem) setInspectedItem(null);
+      else if (activeTab === 'arena') setActiveTab('infinite-craft');
     };
     window.addEventListener('boop-native-tab', navigate);
     window.addEventListener('boop-native-profile', openCloud);
@@ -136,10 +138,10 @@ function GameContent() {
       window.removeEventListener('boop-native-profile', openCloud);
       window.removeEventListener('boop-native-back', handleBack);
     };
-  }, [nativeShell, setActiveTab, showCloud, showSeedsModal, showVoiceModal, inspectedItem, setInspectedItem]);
+  }, [nativeShell, setActiveTab, showCloud, showSeedsModal, showVoiceModal, inspectedItem, setInspectedItem, activeTab]);
 
   useEffect(() => {
-    if (nativeShell) sendToAndroid({ type: 'tab', tab: activeTab === 'seeds' ? 'foundry' : activeTab });
+    if (nativeShell) sendToAndroid({ type: 'tab', tab: activeTab === 'arena' ? 'infinite-craft' : activeTab === 'seeds' ? 'foundry' : activeTab });
   }, [nativeShell, activeTab]);
 
   return (
@@ -156,6 +158,8 @@ function GameContent() {
       <main className={`boop-main flex-1 w-full min-h-0 flex flex-col ${(activeTab === 'infinite-craft') ? 'overflow-hidden' : 'overflow-y-auto'}`}>
         {saveError && <div role="alert" className="boop-save-alert">{saveError}</div>}
         {kitchenOpened && <div hidden={activeTab !== 'kitchen'}><Suspense fallback={<div className="view-loading-card">Opening Kitchen…</div>}><KitchenView visible={activeTab === 'kitchen'} /></Suspense></div>}
+
+        {activeTab === 'arena' && <Suspense fallback={<div className="view-loading-card">Opening Arena…</div>}><ValueArena onCloud={() => setShowCloud(true)} onBack={() => setActiveTab('infinite-craft')}/></Suspense>}
 
         {activeTab === 'foundry' && <Suspense fallback={<div className="view-loading-card">Opening Foundry…</div>}><WorkBench onInspectMaterial={item => setInspectedItem({ type: 'material', item })} /></Suspense>}
 

@@ -9,4 +9,5 @@ declare module 'cloudflare:node' {
 
 declare module 'cloudflare:workers' {
   export const env: Record<string, string | undefined>;
+  export const DurableObject: typeof import('@cloudflare/workers-types/index.ts').CloudflareWorkersModule.DurableObject;
 }

@@ -3,7 +3,7 @@ import { sound } from '../lib/audio';
 import { haptics } from '../lib/haptics';
 import { FlaskConical, LayoutGrid, Cat, ChefHat, Cloud, UserRound } from 'lucide-react';
 
-export type BottomTab = 'foundry' | 'kitchen' | 'infinite-craft' | 'archive' | 'sprite-lab' | 'profile';
+export type BottomTab = 'arena' | 'foundry' | 'kitchen' | 'infinite-craft' | 'archive' | 'sprite-lab' | 'profile';
 
 const TABS = [
   { id: 'kitchen', label: 'Kitchen', icon: ChefHat },
@@ -44,7 +44,7 @@ function BottomNavInner({
       <p className="boop-nav-label">YOUR STUDIO</p>
       <div className="boop-nav-items">
         {TABS.map(tab => {
-          const current = visualTab === tab.id || (visualTab === 'foundry' && tab.id === 'infinite-craft');
+          const current = visualTab === tab.id || ((visualTab === 'foundry' || visualTab === 'arena') && tab.id === 'infinite-craft');
           return (
             <button
               key={tab.id}

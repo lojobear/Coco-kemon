@@ -1,3 +1,5 @@
+import { arenaFetch, type ArenaEnv } from './server/arenaApi.js';
+export { BoopArena } from './server/arenaObjects.js';
 import { handleAsNodeRequest } from 'cloudflare:node';
 import { app } from './server.js';
 import { setWorkersAiBinding } from './server/workersAi.js';
@@ -16,7 +18,8 @@ app.use((error: any, _req: any, res: any, _next: any) => {
 app.listen(3000);
 
 export default {
-  fetch(request: Request, env: { AI?: any; QUARKPOP_CACHE?: any; BOOP_IMAGE_BUDGET?: any }) {
+  fetch(request: Request, env: { AI?: any; QUARKPOP_CACHE?: any; BOOP_IMAGE_BUDGET?: any } & ArenaEnv) {
+    if (new URL(request.url).pathname.startsWith('/api/arena/')) return arenaFetch(request, env);
     setWorkersAiBinding(env.AI);
     setPersistentCacheBinding(env.QUARKPOP_CACHE);
     setImageBudgetBinding(env.BOOP_IMAGE_BUDGET);
