@@ -11,6 +11,33 @@ import type { InfiniteElement } from '../src/lib/infiniteCraftData';
 
 const craft = (name:string, category?:string):InfiniteElement => ({id:'id_'+name.toLowerCase().replaceAll(' ','_'),name,emoji:'✨', ...(category?{category}:{})});
 
+test('collection display corrects stale standard categories using the subject without changing save identity', () => {
+  for (const [name, category, expected] of [
+    ['Biochar', 'Animals', 'Materials & Minerals'],
+    ['Charcoal', 'Animals', 'Materials & Minerals'],
+    ['Cat Food', 'Animals', 'Food & Drink'],
+    ['Fire Truck', 'Elements & Energy', 'Vehicles'],
+    ['Cloud Server', 'Weather & Climate', 'Technology'],
+    ['Moon Cake', 'Space & Cosmos', 'Food & Drink'],
+    ['Robot', 'Animals', 'Technology'],
+    ['Golden Fox', 'Materials & Minerals', 'Animals'],
+    ['Wind', 'Elements & Energy', 'Elements & Energy'],
+    ['Golden Fox', 'Custom Creatures', 'Custom Creatures'],
+  ]) {
+    const item = { name, category };
+    assert.equal(collectionDisplayCategory(item), expected, name);
+    assert.equal(item.category, category);
+  }
+});
+
+test('biology metadata does not imply an animal', () => {
+  assert.equal(collectionDisplayCategory({ name: 'Biochar', connection: 'biology' }), 'Materials & Minerals');
+  assert.equal(categoryForDiscovery({ name: 'Biochar', category: 'Biological' }), 'Science & Medicine');
+  assert.equal(collectionDisplayCategory({ name: 'Biochar', category: 'Biological' }), 'Materials & Minerals');
+  assert.equal(categoryForDiscovery({ name: 'Unidentified specimen', connection: 'biology' }), 'Science & Medicine');
+  assert.equal(categoryForDiscovery({ name: 'Fox', connection: 'biology' }), 'Animals');
+});
+
 test('collection categories put discoveries in meaningful reusable shelves',()=>{
   assert.equal(categoryForDiscovery({name:'Pikachu'}),'Characters');
   assert.equal(categoryForDiscovery({name:'Toaster Strudel',connection:'wordplay'}),'Food & Drink');
