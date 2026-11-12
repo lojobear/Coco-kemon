@@ -11,14 +11,15 @@ const SENSES: Record<string, readonly (readonly [string, RegExp])[]> = {
 export function qualifiedConceptName(name: string, context = ''): string {
   const clean = name.normalize('NFKC').trim().replace(/\s+/g, ' ');
   if (/\([^()]+\)$/.test(clean)) return clean.replace(/\((?:barbeque|bbq)\)$/i, '(barbecue)').replace(/\(cigarette\)$/i, '(cigarettes)');
-  const senses = SENSES[clean.toLowerCase()];
+  const key = clean.toLowerCase();
+  const senses = Object.hasOwn(SENSES, key) ? SENSES[key] : undefined;
   if (!senses) return clean;
   const matching = senses.filter(([, pattern]) => pattern.test(context));
   return matching.length === 1 ? `${clean} (${matching[0][0]})` : clean;
 }
 export function displayConceptName(item: { name: string; explanation?: string; recipe?: { first: string; second: string } }): string {
   const qualified = qualifiedConceptName(item.name, [item.explanation, item.recipe?.first, item.recipe?.second].filter(Boolean).join(' '));
-  return SENSES[qualified.toLowerCase()] ? `${qualified} (unspecified)` : qualified;
+  return Object.hasOwn(SENSES, qualified.toLowerCase()) ? `${qualified} (unspecified)` : qualified;
 }
 export function meaningCategory(name: string): string | undefined {
   const key = name.toLowerCase();
@@ -39,5 +40,5 @@ export function meaningCategory(name: string): string | undefined {
     planet:'Space & Cosmos',element:'Materials & Minerals',metal:'Materials & Minerals',gemstone:'Materials & Minerals',
     mythology:'Fantasy & Mythology',god:'Fantasy & Mythology',
   };
-  return qualifier ? categories[qualifier] : undefined;
+  return qualifier && Object.hasOwn(categories, qualifier) ? categories[qualifier] : undefined;
 }

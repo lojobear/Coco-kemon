@@ -11,7 +11,7 @@ test('different senses retain separate names, recipe keys and categories',()=>{
  assert.equal(collectionDisplayCategory({name:'Python (programming)'}),'Technology');assert.equal(collectionDisplayCategory({name:'Python (snake)'}),'Animals');
  assert.equal(displayConceptName({name:'Smoker'}),'Smoker (unspecified)');
  assert.equal(qualifiedConceptName('Smoker','Smoke'),'Smoker');assert.equal(qualifiedConceptName('Smoker','Barbecue and tobacco'),'Smoker');
- assert.equal(qualifiedConceptName('Pizza','Barbecue'),'Pizza');assert.equal(qualifiedConceptName(grill,'Tobacco'),grill);
+ assert.equal(qualifiedConceptName('Pizza','Barbecue'),'Pizza');assert.equal(qualifiedConceptName('Constructor','computer'),'Constructor');assert.equal(displayConceptName({name:'Constructor'}),'Constructor');assert.equal(qualifiedConceptName(grill,'Tobacco'),grill);
  assert.equal(validNewElementName('Smoker (barbecue)'),true);assert.equal(validNewElementName('Three Word Concept (computer device)'),true);assert.equal(validNewElementName('Four Word Concept Name (animal)'),false);
 });
 test('legacy meaning labels do not rename saved concepts and Arena scores come from the guide',()=>{
