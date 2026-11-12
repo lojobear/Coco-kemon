@@ -119,6 +119,21 @@ export function categoryForDiscovery(item: CategorizedDiscovery): string {
   return familyForNovelConcept(name);
 }
 
+/** Improve older automatic family shelves in the collection view without changing saves or prices. */
+export function collectionDisplayCategory(item: CategorizedDiscovery): string {
+  const current = categoryForDiscovery(item);
+  const name = typeof item.name === 'string' ? item.name.trim().normalize('NFKC') : '';
+  // Preserve meaningful explicitly supplied categories. Only reconsider an
+  // automatically generated family label (or an uncategorized legacy item).
+  const stored = canonicalCollectionCategory(item.category);
+  if (stored && stored !== familyForNovelConcept(name)) return current;
+  const words = name.match(/[\p{L}\p{N}]+/gu) ?? [];
+  for (let i = words.length - 1; i >= 0; i--) {
+    for (const [label, pattern] of PATTERNS) if (pattern.test(words.slice(i).join(' '))) return label;
+  }
+  return current;
+}
+
 export function collectionCategoryCounts<T extends CategorizedDiscovery>(items: readonly T[]) {
   const counts = new Map<string, number>();
   for (const item of items) {
