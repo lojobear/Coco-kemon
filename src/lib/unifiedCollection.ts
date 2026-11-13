@@ -2,7 +2,7 @@ import type { InfiniteElement } from './infiniteCraftData';
 import type { Material, Oddkin } from '../types';
 import { isSpriteReference } from './spriteReference';
 import { LEGACY_STARTER_DATE } from './starterIdentity';
-import { categoryForDiscovery } from './collectionCategories';
+import { canonicalCollectionCategory, categoryForDiscovery } from './collectionCategories';
 
 /** Shared collection identity: one concept name, regardless of where it was discovered. */
 export function discoveryIdentity(name: string): string {
@@ -54,7 +54,7 @@ export function mergeFoundryIntoCraft(
     const isStarter = mat.discoveredAt === LEGACY_STARTER_DATE && mat.lineage?.depth === 0;
     insert(mat.displayName, iconFor(mat.category), {
       ...(isStarter ? { isStarter: true, craftCount: 0 } : {}),
-      category: mat.category || categoryForDiscovery({ name: mat.displayName }),
+      category: canonicalCollectionCategory(mat.category) || categoryForDiscovery({ name: mat.displayName }),
       explanation: (mat.discoveryExplanation || mat.description || '').slice(0, 280),
       connection: (mat.category || 'Foundry').slice(0, 280),
       discoveredAt: isStarter ? 0 : typeof mat.discoveredAt === 'number' && Number.isFinite(mat.discoveredAt)

@@ -163,7 +163,7 @@ const EXTRA_ALIASES:Record<string,string>={
   'living things':'Plants & Nature','fictional characters':'Characters','fictional character':'Characters',
   'video games':'Games & Toys','video game':'Games & Toys','apparel':'Clothing & Accessories',
   'natural resources':'Materials & Minerals','minerals':'Materials & Minerals','metals':'Materials & Minerals',
-  'chemical':'Science & Medicine','geology':'Materials & Minerals','geographical':'Places & Geography',
+  'chemical':'Science & Medicine','alchemy':'Science & Medicine','geology':'Materials & Minerals','geographical':'Places & Geography',
   'astronomy':'Space & Cosmos','invention':'Technology','inventions':'Technology','machinery':'Technology',
   'mechanical':'Technology','composite':'Materials & Minerals','synthetic':'Materials & Minerals',
   'biological organisms':'Science & Medicine','medical equipment':'Science & Medicine',
@@ -224,7 +224,7 @@ const SUBJECTS:ReadonlyArray<readonly [string,RegExp]>=[
  ['Animals',/^(?:squirrels?|ducks?|caterpillars?|chrysalis|jellyfish|woodpeckers?|tadpoles?|flock|herd|insects?|turtles?|penguins?|foxes|wolves|bears|birds|cats|dogs|fish|bees)$/i],
  ['Plants & Nature',/^(?:bonsai|topiary|sapling|saplings|orchard|orchards|coral|reef|fungi|fungus|mushrooms|seeds|flowers|trees|vines|tendril|tendrils|sunflower|onion|grass|berries|pollen)$/i],
  ['Technology',/^(?:engine|engines|motor|motors|gear|gears|generator|diode|inverter|transformer|capacitor|switch|photodiode|sensor|receiver|charger|router|server|circuit|circuit board|chip|microchip|microprocessor|radar|antenna|software|keyboard|monitor|controller|console|printer|nanobot|android|robot|automaton|computer|machine|turbine|device|hydraulic jack|air cylinder|optical fiber|fiber optic|radio wave)$/i],
- ['Materials & Minerals',/^(?:biochar|charcoal|carbon|ash|humus|compost|pebbles?|gravel|sandstone|limestone|resin|rubber|silk|cotton|fiber|wool|fabric|leather|paper|concrete|grout|alloy|amalgam|polymer|nanofiber|coating|plating|filings|timber|veneer|plywood|steel|patina|tarnish|briquette|mineral|crystals|gems|stones|rocks|metals|plastics)$/i],
+ ['Materials & Minerals',/^(?:biochar|charcoal|carbon|ash|humus|compost|pebbles?|gravel|sandstone|limestone|resin|rubber|silk|cotton|fiber|wool|fabric|leather|paper|concrete|grout|alloy|amalgam|polymer|nanofiber|coating|plating|filings|timber|veneer|plywood|steel|patina|tarnish|briquette|solvent|solvents|mineral|crystals|gems|stones|rocks|metals|plastics)$/i],
  ['Science & Medicine',/^(?:fossils?|skeleton|microbe|microbes|syringe|thermometer|tablet|antibiotic|prism|chromatogram|ester|alkene|cell|cells|enzyme|molecule|atom|chemical|vaccine|diagnosis|disease|surgery|medicine|medication|laboratory)$/i],
  ['People & Professions',/^(?:doctor|nurse|physician|scientist|teacher|programmer|firefighter|astronaut|pilot|sailor|pirate|castaway|farmer|chef|engineer|plumber|clown|artist|king|queen|human|person|family|profession|worker|merchant|student|dentist|lawyer)$/i],
  ['Tools & Objects',/^(?:box|boxes|bottle|bottles|jar|jars|tray|pouch|wrap|spindle|bolt|nut|bushing|knob|hole|keyway|screw|bead|beads|joint|jack|gauge|lantern|globe|thermos|clock|calendar|capsule|notebook|diary|map|relic|mirror|screwdriver|hammer|toolbox|utensil|tools|tool|pottery|container|nest|hook|hinge|lock)$/i],
@@ -272,10 +272,10 @@ export function categoryForDiscovery(item:CategorizedDiscovery):string {
  if(known)return known;
  const explicit=standardCategory(item.category);
  const hint=standardCategory(item.connection);
- // Intentional identities are stronger than an incidental subject (Robot Cat,
- // for example, can be a named character). Known exact names above win.
- if(explicit&&protectedIdentity.has(explicit))return explicit;
+ // A named character/brand connection is stronger than an incidental noun,
+ // but a stale stored Characters/Brands shelf alone cannot mislabel a clear subject.
  if(hint&&protectedIdentity.has(hint))return hint;
+ if(explicit==='Oddkin & Creatures')return explicit;
  const subject=subjectPattern(name);
  if(subject)return subject;
  // Only genuinely meaningful subject metadata, not legacy arbitrary shelves.

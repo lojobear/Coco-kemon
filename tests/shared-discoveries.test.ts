@@ -41,3 +41,14 @@ test('live Oddkin are visible in Craft without mutating either source', () => {
   assert.equal(merged[1].customSpriteUrl, oddkin[0].customSpriteUrl);
   assert.equal(mergeSharedDiscoveries(merged, [], oddkin), merged);
 });
+
+test('shared metadata only enriches a missing category with a valid label',()=>{
+ const craft=[{id:'old',name:'Unknown Thing',emoji:'✨'}];
+ const invalid={...material('m','Unknown Thing'),category:'x'.repeat(80)};
+ assert.equal(mergeSharedDiscoveries(craft,[invalid]),craft);
+ const valid={...invalid,category:'Invented Wonders'};
+ const enriched=mergeSharedDiscoveries(craft,[valid]);
+ assert.equal(enriched[0].category,'Invented Wonders');
+ assert.equal(Object.hasOwn(craft[0],'category'),false);
+ assert.equal(mergeSharedDiscoveries(enriched,[valid]),enriched);
+});

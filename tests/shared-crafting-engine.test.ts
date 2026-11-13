@@ -84,9 +84,9 @@ test('rare bonus is inserted once, with its own category and recipe, without ext
   assert.ok(validateCraft(second.elements));
 });
 
-test('Foundry specialized transformations retain their own categories but use shared collection quality and rarity',()=>{
+test('Foundry specialized transformations use subject categories while retaining lineage and rarity',()=>{
   const built=applySharedPairDiscovery([],{...response('Silver Solvent'),category:'Alchemy'},'Stone','Distill',common,77);
-  assert.equal(built.main.category,'Alchemy');
+  assert.equal(built.main.category,'Materials & Minerals');
   assert.equal(built.main.recipe?.second,'Distill');
   const oddkin=applySharedPairDiscovery([],{...response('Flickerbeast'),category:'Oddkin & Creatures'},'Spark','Incubate',rare,88);
   assert.equal(oddkin.main.category,'Oddkin & Creatures');

@@ -58,7 +58,7 @@ test('unrecognized Foundry categories remain grouped until there is a real famil
   assert.equal(categoryForDiscovery({name:'Fancy Name',category:'Miscellaneous'}),FALLBACK_CATEGORY);
   assert.equal(canonicalCollectionCategory('too many words for an arbitrary paragraph'),undefined);
   assert.equal(canonicalCollectionCategory('  made-up   artifacts '),'Made-Up Artifacts');
-  assert.equal(categoryForDiscovery({name:'Luminous Hopper',category:'Invented Machinery'}),'Invented Machinery');
+  assert.equal(categoryForDiscovery({name:'Luminous Hopper',category:'Invented Machinery'}),FALLBACK_CATEGORY);
 });
 
 test('category list is derived automatically without a separate mutable registry',()=>{
@@ -139,7 +139,7 @@ test('recognized names and subject nouns beat stale or misleading labels',()=>{
  const examples=[
   ['Fire Truck','Elements & Energy','Vehicles'],['Cat Food','Animals','Food & Drink'],
   ['Hot Dog','Animals','Food & Drink'],['Moon Cake','Space & Cosmos','Food & Drink'],
-  ['Cloud Server','Weather & Climate','Technology'],['Gold Dragon','Materials & Minerals','Fantasy & Mythology'],
+  ['Cloud Server','Weather & Climate','Technology'],['Gold Dragon','Materials & Minerals','Fantasy & Mythology'],['Golden Fox','Characters','Animals'],
   ['Tim Hortons','Food & Drink','Brands'],['Minecraft','Materials & Minerals','Games & Toys'],
   ['Winnie the Pooh','Animals','Characters'],['WALL-E','Technology','Characters'],
   ['Ghost Ship','Vehicles','Fantasy & Mythology'],['Snow Globe','Weather & Climate','Tools & Objects'],

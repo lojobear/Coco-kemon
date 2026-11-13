@@ -1,7 +1,7 @@
 import type { InfiniteElement } from './infiniteCraftData';
 import type { Material, Oddkin } from '../types';
 import { discoveryIdentity, mergeFoundryIntoCraft } from './unifiedCollection';
-import { categoryForDiscovery } from './collectionCategories';
+import { canonicalCollectionCategory, categoryForDiscovery } from './collectionCategories';
 
 /**
  * Shared discoveries, re-applied from PR #107 on the restored base.
@@ -24,8 +24,10 @@ export function mergeSharedDiscoveries(craft: InfiniteElement[], materials: read
   for(let i=0;i<craft.length;i++){
     const item=craft[i],material=byName.get(discoveryIdentity(item.name));
     if(!material||item.category)continue;
+    const label=canonicalCollectionCategory(material.category);
+    if(!label)continue;
     if(enriched===craft)enriched=[...craft];
-    enriched[i]={...item,category:material.category};
+    enriched[i]={...item,category:label};
   }
   // Preserve identity on no-op merges so mounted Craft galleries do not rerender.
   let shared = enriched;
@@ -35,7 +37,7 @@ export function mergeSharedDiscoveries(craft: InfiniteElement[], materials: read
     names.add(key);
     if (shared === enriched) shared = [...enriched];
     shared.push({ id: `foundry_${material.id}`, name: material.displayName, emoji: '✨',
-      category: material.category || categoryForDiscovery({ name: material.displayName }),
+      category: canonicalCollectionCategory(material.category) || categoryForDiscovery({ name: material.displayName }),
       customSpriteUrl: material.customSpriteUrl, discoveredAt: material.discoveredAt,
       explanation: material.discoveryExplanation || undefined });
   }

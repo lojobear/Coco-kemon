@@ -121,7 +121,7 @@ export function CollectionAlbum({
     });
   },[shared,materialArtwork]);
   const categoryIndex=useMemo(()=>buildCollectionCategoryIndex(catalog),[catalog]);
-  const valueBook=useMemo(()=>buildCollectionValueBook(elements),[elements]);
+  const valueBook=useMemo(()=>buildCollectionValueBook(shared),[shared]);
   const byName=useMemo(()=>new Map<string,InfiniteElement>(catalog.map(e=>[discoveryIdentity(e.name),e] as [string,InfiniteElement])),[catalog]);
   const passport=useMemo(()=>buildCollectionPassport(catalog),[catalog]);
   const passportStats=useMemo(()=>passportTotals(passport),[passport]);
