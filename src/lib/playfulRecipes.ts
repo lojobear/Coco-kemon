@@ -4,6 +4,7 @@ import { makePairKey } from './infiniteCraftData.js';
 // recognizable concept, a satisfying cultural reference, or a genuine pun.
 // These are additive: existing canonical, trail and culture routes win.
 export const PLAYFUL_RECIPE_ENTRIES = [
+  ['Life','Forest','Animal','🐾','biology','A Forest teeming with Life is home to animals.'],
   ['Animal','Tree','Squirrel','🐿️','biology','An Animal that climbs a Tree and stores nuts is a squirrel.'],
   ['Animal','Forest','Bear','🐻','biology','A Bear is an Animal that lives in the Forest.'],
   ['Animal','Night','Bat (animal)','🦇','biology','An Animal that flies and hunts at Night is a bat.'],
