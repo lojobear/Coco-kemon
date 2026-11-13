@@ -17,6 +17,7 @@ import { MissingSpritesList } from './MissingSpritesList';
 import { spriteVariantKey } from '../lib/spriteVariant';
 import { spriteLabInventoryElements } from '../lib/spriteLabInventory';
 import { discoveryIdentity } from '../lib/unifiedCollection';
+import { SPRITE_ART_STYLES, type SpriteArtStyle } from '../lib/spriteArtStyles';
 import { alphaBounds } from '../lib/miniSpriteStyle';
 
 type LabItem =
@@ -39,6 +40,8 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
     return () => { window.removeEventListener(SAVE_IMPORTED_EVENT, reload); window.removeEventListener(SAVE_CHANGED_EVENT, reload); };
   }, []);
   const [uploading, setUploading] = useState(false);
+  const [artStyle, setArtStyle] = useState<SpriteArtStyle>('classic');
+  const [stylePreview, setStylePreview] = useState<{ target: LabDisplayItem; sprite: string; style: SpriteArtStyle } | null>(null);
   const [artworkStatus, setArtworkStatus] = useState(artworkQueueStatus);
   useEffect(() => {
     const update = () => setArtworkStatus(artworkQueueStatus());
@@ -115,6 +118,7 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
 
   // Show whether the preview is actual saved artwork or just a temporary
   // offline placeholder. The old "LIVE PREVIEW" label was misleading.
+  useEffect(() => { setStylePreview(null); }, [selected?.catalogKey]);
   const [savedPreview, setSavedPreview] = useState(false);
   const [previewChecked, setPreviewChecked] = useState(false);
   useEffect(() => {
@@ -205,6 +209,28 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
     }
   };
 
+  const previewStyle = async (target: LabDisplayItem) => {
+    if (uploading) return;
+    setUploading(true);
+    setStylePreview(null);
+    const style = artStyle;
+    setStatus(`Generating ${SPRITE_ART_STYLES[style].label} preview for ${target.name}…`);
+    try {
+      const variation = `style-${Date.now().toString(36)}-${++rerollNonce.current}`;
+      const sprite = await getElementEmoji(target.name, true, variation, true, false, style, true);
+      setStylePreview({ target, sprite, style });
+      setStatus('Preview ready. Apply it to replace the current artwork, or cancel.');
+    } catch (error) { setStatus(error instanceof Error ? error.message : 'Style generation failed.'); }
+    finally { setUploading(false); }
+  };
+  const applyStyle = async () => {
+    if (!stylePreview || uploading) return;
+    setUploading(true);
+    try { await persistSprite(stylePreview.target, stylePreview.sprite); setStylePreview(null); }
+    catch (error) { setStatus(error instanceof Error ? error.message : 'Could not save the new style.'); }
+    finally { setUploading(false); }
+  };
+
   const retryMissingArt = async (target: LabDisplayItem) => {
     if (uploading) return;
     setUploading(true);
@@ -287,6 +313,13 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
               </p>}
               <div className="boop-sprite-identity"><h2>{selected.name}</h2>{selected.sourceTypes.map(source => <span key={source} className="boop-category-tag">{source === 'craft' ? 'Craft' : source === 'material' ? 'Material' : 'Oddkin'}</span>)}<span className="boop-category-tag">Your collection</span></div>
               <div className="boop-sprite-actions"><button className="boop-primary" disabled={uploading} onClick={() => chooseReplacement(selected)}><Upload size={18} />Replace sprite</button><button className="boop-secondary" disabled={uploading} onClick={() => void reroll(selected)}><RefreshCw size={18} />{uploading ? 'Working…' : 'Reroll sprite'}</button></div>
+              <div className="boop-artwork-settings" style={{display:'grid',gap:8}}>
+                <label htmlFor="boop-art-style">Change art style</label>
+                <select id="boop-art-style" value={artStyle} disabled={uploading} onChange={event => { setArtStyle(event.target.value as SpriteArtStyle); setStylePreview(null); }} className="boop-secondary" style={{width:'100%',minHeight:44}}>{(Object.keys(SPRITE_ART_STYLES) as SpriteArtStyle[]).map(style => <option key={style} value={style}>{SPRITE_ART_STYLES[style].label}</option>)}</select>
+                <small>{SPRITE_ART_STYLES[artStyle].description} · Uses one image generation request.</small>
+                <button type="button" className="boop-primary" disabled={uploading} onClick={() => void previewStyle(selected)}><Sparkles size={16}/>Preview new style</button>
+                {stylePreview?.target.catalogKey === selected.catalogKey && <div style={{display:'grid',gap:8}}><img src={stylePreview.sprite} alt={`${selected.name} in ${SPRITE_ART_STYLES[stylePreview.style].label} style`} style={{width:'100%',height:160,objectFit:'contain'}}/><div className="boop-sprite-actions"><button type="button" className="boop-primary" disabled={uploading} onClick={() => void applyStyle()}>Apply style</button><button type="button" className="boop-secondary" disabled={uploading} onClick={() => {setStylePreview(null);setStatus('Original artwork kept.');}}>Cancel</button></div></div>}
+              </div>
               <input ref={uploadRef} type="file" accept="image/png,image/webp,image/jpeg" className="hidden" onChange={event => void uploadCustom(event.target.files?.[0])} />
               <div className="boop-artwork-settings"><div><span>Sprite quality</span><strong>High</strong></div><div><span>Upload formats</span><strong>PNG · WebP · JPG</strong></div><div><span>Collection storage</span><strong>Saved automatically</strong></div></div>
               <div className="boop-sprite-tools"><button disabled={uploading} onClick={() => void freshPixelSprite(selected, 'upgrade')}><Sparkles size={16} />Upgrade artwork</button><button disabled={uploading} onClick={() => void restoreDefault(selected)}><RotateCcw size={16} />Restore default</button>{selected.type !== 'oddkin' && <button disabled={uploading} onClick={() => void retryMissingArt(selected)}>Retry missing art</button>}</div>

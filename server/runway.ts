@@ -7,6 +7,7 @@
  *
  * Docs: https://docs.dev.runwayml.com/guides/using-the-api/
  */
+import { readPromptArtStyle, styleDirection } from '../src/lib/spriteArtStyles.js';
 import { createHash } from 'node:crypto';
 import { getPersistentCacheBinding } from './cacheBinding.js';
 import type { GeminiImageResult } from './gemini.js';
@@ -78,7 +79,8 @@ async function runSprite(
     // Runway Muse supports one square image; keep prompts below 4,000 chars.
     // A shortened prompt preserves the main concept, distinctive palette and
     // square magenta backdrop to assist our existing sprite postprocessor.
-    const compact = prompt.length>3950 ? prompt.slice(0,3250)+'\nSingle colorful crisp pixel-art item, square magenta background, no text.' : prompt;
+    const style = readPromptArtStyle(prompt);
+    const compact = prompt.length>3950 ? prompt.slice(0,3250)+'\n'+(style === 'classic' ? 'Single colorful crisp pixel-art item' : styleDirection(style)) + ', square magenta background, no text.' : prompt;
     let response:Response;
     try {
       response=await request(RUNWAY_API_URL+'/text_to_image',{method:'POST',headers,

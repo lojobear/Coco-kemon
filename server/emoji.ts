@@ -4,6 +4,7 @@ import { emojiKey } from '../src/lib/emojiGeometry.js';
 import { cachedWork } from './persistentCache.js';
 import { clientId, takeAiBudget } from './rateLimit.js';
 import { BOOP_SPRITE_ART_STYLE, spriteColorDirection, spriteSubjectDirection } from './spriteStyle.js';
+import { isSpriteArtStyle, styleDirection, type SpriteArtStyle } from '../src/lib/spriteArtStyles.js';
 import { BOOP_MINI_REFERENCE_VERSION } from './spriteReference.js';
 
 // New model generations use the locked pixel style. Existing local/owned art remains saved.
@@ -11,9 +12,10 @@ export const SPRITE_ENGINE_VERSION = BOOP_MINI_REFERENCE_VERSION;
 
 type ImageGenerator = (prompt: string) => Promise<GeminiImageResult>;
 
-export function buildSpritePrompt(key: string, variation = '', shiny = false): string {
+export function buildSpritePrompt(key: string, variation = '', shiny = false, style: SpriteArtStyle = 'classic'): string {
   return [
-    `Create one premium pixel-art inventory sprite for this exact subject: ${JSON.stringify(key)}.`,
+    style === 'classic' ? `Create one premium pixel-art inventory sprite for this exact subject: ${JSON.stringify(key)}.` : `Create one premium inventory sprite for this exact subject: ${JSON.stringify(key)}.`,
+    style !== 'classic' ? `ART STYLE ID: ${style}\nART DIRECTION: ${styleDirection(style)}\nThis art direction replaces all default pixel-art styling. One isolated object centered with generous margins on uniform #FF00FF magenta for transparency; no background scene, floor, text, frame or cast shadow.` : '',
     `SUBJECT DESIGN: ${spriteSubjectDirection(key)}`,
     `SUBJECT-BASED PALETTE: ${spriteColorDirection(key)}`,
     shiny
@@ -31,7 +33,7 @@ export function buildSpritePrompt(key: string, variation = '', shiny = false): s
       ? `Generate a fresh standalone depiction, not an edit or reuse of another sprite. Variation token: ${JSON.stringify(variation)}. Preserve this exact named subject while changing pose, orientation, or small details; no previous image is supplied.`
       : '',
     '',
-    BOOP_SPRITE_ART_STYLE,
+    style === 'classic' ? BOOP_SPRITE_ART_STYLE : '',
     '',
     'SUBJECT FIDELITY',
     '- First identify the clearest literal visual interpretation of the name, then draw that.',
@@ -43,7 +45,7 @@ export function buildSpritePrompt(key: string, variation = '', shiny = false): s
     '- Creatures need coherent anatomy and a normal limb count for their implied body plan unless the concept explicitly says otherwise.',
     '',
     'FINAL CHECK',
-    '- Quality gate: a compact recognizable 2:1 isometric silhouette occupying 55–70% of a 112px canvas; 1–2px local-colour outlines, up to 48 clustered pixel shades, one or two crisp identity details, coherent parts, no noise, corrupted fragments, fake smooth gradients or missing limbs.',
+    style !== 'classic' ? '- Quality gate: recognizable coherent subject, clean silhouette, centered isolated icon; follow the selected art direction and uniform magenta background.' : '- Quality gate: a compact recognizable 2:1 isometric silhouette occupying 55–70% of a 112px canvas; 1–2px local-colour outlines, up to 48 clustered pixel shades, one or two crisp identity details, coherent parts, no noise, corrupted fragments, fake smooth gradients or missing limbs.',
     '- No source or previous sprite image is provided. Do not hallucinate or copy any other discovery. The exact requested name and subject anatomy exclusively determine the depicted content.',
     '- Output image only.',
   ].filter(Boolean).join('\n');
@@ -90,11 +92,15 @@ export function registerEmojiRoute(app: Express, generateImage: ImageGenerator =
       const key = emojiKey(req.body.name);
       const regenerate = req.body?.regenerate === true;
       const shiny = req.body?.shiny === true;
+      if (req.body?.style !== undefined && (!regenerate || !isSpriteArtStyle(req.body.style))) {
+        throw new ApiFailure(400, 'Choose a valid art style for an explicit reroll.');
+      }
+      const style: SpriteArtStyle = isSpriteArtStyle(req.body?.style) ? req.body.style : 'classic';
       const variation = typeof req.body?.variation === 'string' ? req.body.variation.trim().slice(0, 64) : '';
       // Different identity at *all* cache layers, so a shiny cannot reuse or
       // overwrite the normal sprite even if both are generated concurrently.
       const cacheKey = `${SPRITE_ENGINE_VERSION}:${shiny ? 'shiny:' : ''}${key}`;
-      const pendingKey = regenerate ? `${cacheKey}:regenerate:${variation || 'fresh'}` : cacheKey;
+      const pendingKey = regenerate ? `${cacheKey}:regenerate:${style}:${variation || 'fresh'}` : cacheKey;
 
       let image = regenerate ? undefined : completed.get(cacheKey);
       if (!image) {
@@ -107,7 +113,7 @@ export function registerEmojiRoute(app: Express, generateImage: ImageGenerator =
           // Explicit rerolls stay fresh by design. Same simultaneous reroll is still deduplicated.
           let job = pending.get(pendingKey);
           if (!job) {
-            job = generate(buildSpritePrompt(key, variation, shiny), client);
+            job = generate(buildSpritePrompt(key, variation, shiny, style), client);
             pending.set(pendingKey, job);
           }
           try {
@@ -138,6 +144,7 @@ export function registerEmojiRoute(app: Express, generateImage: ImageGenerator =
         model: image.model,
         engineVersion: SPRITE_ENGINE_VERSION,
         shiny,
+        style,
       });
     } catch (error) {
       const failure = publicFailure(error);

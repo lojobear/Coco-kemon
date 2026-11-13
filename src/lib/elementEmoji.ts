@@ -1,3 +1,4 @@
+import type { SpriteArtStyle } from './spriteArtStyles';
 import { spriteAssets, trackSpriteSync } from './spriteAssets';
 import { emojiKey } from './emojiGeometry';
 import { spriteVariantKey, spriteProfileKey } from './spriteVariant';
@@ -79,7 +80,7 @@ async function save(key: string, data: string) {
   });
 }
 
-async function normalizeGeneratedImage(imageBase64: string, mimeType: string): Promise<string> {
+async function normalizeGeneratedImage(imageBase64: string, mimeType: string, style: SpriteArtStyle = 'classic'): Promise<string> {
   if (!/^image\/(png|jpeg|jpg|webp)$/i.test(mimeType)) throw new Error('Invalid sprite image type.');
   if (!/^[A-Za-z0-9+/=\r\n]+$/.test(imageBase64) || imageBase64.length > 16_000_000) {
     throw new Error('Invalid sprite image data.');
@@ -106,11 +107,13 @@ async function normalizeGeneratedImage(imageBase64: string, mimeType: string): P
     sourceContext.putImageData(sourcePixels, 0, 0);
   }
 
+  // Smooth styles keep the full-resolution alpha cutout, without pixel quantization.
+  if (style === 'glossy' || style === 'chibi' || style === 'illustrated') return source.toDataURL('image/png');
   // New v19 generated art uses a 112px canvas, ~76px max silhouette,
   // and up to 48 well-separated pixel colours for slightly finer details.
   // Process ONLY freshly generated art; saved/uploads keep their exact bytes.
   // Preserve pixel steps and use alpha-masked nearest-neighbour framing.
-  const logicalSize = MINI_CANVAS_SIZE;
+  const logicalSize = style === 'retro' ? 64 : style === 'hd' ? 192 : MINI_CANVAS_SIZE;
   const pixels = document.createElement('canvas');
   pixels.width = pixels.height = logicalSize;
   const pixelContext = pixels.getContext('2d');
@@ -124,6 +127,7 @@ async function normalizeGeneratedImage(imageBase64: string, mimeType: string): P
       || typeof ImageData === 'undefined') return pixels.toDataURL('image/png');
   const sampled = pixelContext.getImageData(0, 0, logicalSize, logicalSize);
   tidyGeneratedSpritePixels(sampled.data, logicalSize, logicalSize);
+  if (style !== 'classic') { pixelContext.putImageData(sampled, 0, 0); return pixels.toDataURL('image/png'); }
   const composed = composeMiniSpritePixels(sampled.data, logicalSize, logicalSize);
   pixelContext.putImageData(new ImageData(composed, logicalSize, logicalSize), 0, 0);
   return pixels.toDataURL('image/png');
@@ -151,10 +155,10 @@ export async function storeProfileElementSprite(name: string, data: string, shin
   announceSpriteReady(key);
 }
 
-export function getElementEmoji(name: string, upgrade = false, variation = '', generateIfMissing = true, isShiny = false): Promise<string> {
+export function getElementEmoji(name: string, upgrade = false, variation = '', generateIfMissing = true, isShiny = false, style: SpriteArtStyle = 'classic', previewOnly = false): Promise<string> {
   const key = spriteVariantKey(name, isShiny);
   // Collection previews may read cached/local/profile art but cannot trigger AI.
-  const jobKey = upgrade ? `${key}:upgrade:${variation || 'fresh'}` : generateIfMissing ? key : `${key}:cache-only`;
+  const jobKey = upgrade ? `${key}:upgrade:${style}:${previewOnly ? 'preview:' : ''}${variation || 'fresh'}` : generateIfMissing ? key : `${key}:cache-only`;
 
   const inMemory = upgrade ? undefined : recallArtwork(key);
   if (inMemory) return Promise.resolve(inMemory);
@@ -228,14 +232,17 @@ export function getElementEmoji(name: string, upgrade = false, variation = '', g
     }>('/api/element-emoji', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, regenerate: upgrade, variation: upgrade ? variation : undefined, shiny: isShiny }),
+      body: JSON.stringify({ name, regenerate: upgrade, variation: upgrade ? variation : undefined, shiny: isShiny, ...(upgrade ? { style } : {}) }),
     }, 60000);
 
     if (typeof response.imageBase64 !== 'string' || typeof response.mimeType !== 'string') {
       throw new Error('Invalid sprite response.');
     }
 
-    const data = await normalizeGeneratedImage(response.imageBase64, response.mimeType);
+    const data = await normalizeGeneratedImage(response.imageBase64, response.mimeType, style);
+    // Style edits are previews until the existing sprite edit pathway saves them.
+    // Never overwrite the shared default cache or profile art before confirmation.
+    if (upgrade && (previewOnly || style !== 'classic')) return data;
     rememberArtwork(key, data);
     // A successful paid or free image request must remain a success even if
     // IndexedDB quota/permissions prevent a persistent local write.
@@ -280,7 +287,8 @@ export function retryElementEmoji(name: string, shiny = false): Promise<string> 
 }
 
 /** Explicit upgrade/reroll bypasses old art and asks the native image model for a fresh sprite. */
-export async function upgradeElementEmoji(name: string, variation = '') {
+export async function upgradeElementEmoji(name: string, variation = '', style: SpriteArtStyle = 'classic') {
+  if (style !== 'classic') return getElementEmoji(name, true, variation, true, false, style);
   const key = emojiKey(name);
   const pending = jobs.get(key);
   if (pending) await pending.catch(() => undefined);

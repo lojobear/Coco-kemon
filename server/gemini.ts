@@ -3,6 +3,7 @@ import { conceptDNAFor, normalizeDiscoveryCandidates } from './discovery.js';
 import { getWorkersAiBinding } from './workersAi.js';
 import { generateRunwareSprite } from './runware.js';
 import { generateRunwaySprite, RunwayPendingError } from './runway.js';
+import { readPromptArtStyle, styleDirection } from '../src/lib/spriteArtStyles.js';
 import { BOOP_SPRITE_STYLE_COMPACT } from './spriteStyle.js';
 import { ImageBudgetExceeded, safeImageSpendingEnabled, reserveFreeImageNeurons, FLUX2_KLEIN_512_NEURONS, FLUX1_SCHNELL_8STEP_NEURONS } from './imageSpendingGuard.js';
 
@@ -394,8 +395,9 @@ async function normalizeWorkersImagePayload(payload: any): Promise<{ data: strin
  * Only Schnell receives this compact fallback; FLUX.2 and Gemini keep full detail.
  */
 export function compactSchnellImagePrompt(prompt: string): string {
+  const artStyle = readPromptArtStyle(prompt);
   const firstLine = prompt.split('\n', 1)[0]?.trim() || '';
-  const subject = firstLine.startsWith('Create one premium pixel-art inventory sprite for this exact subject:')
+  const subject = (firstLine.startsWith('Create one premium pixel-art inventory sprite for this exact subject:') || firstLine.startsWith('Create one premium inventory sprite for this exact subject:'))
     ? firstLine.slice(0, 400)
     : `Create one pixel-art inventory sprite of: ${JSON.stringify(prompt.slice(0, 180))}.`;
   const rerollToken = prompt.match(/Variation token: ([^\n]+)\./)?.[1]?.slice(0, 100);
@@ -405,11 +407,12 @@ export function compactSchnellImagePrompt(prompt: string): string {
 
   const concise = [
     subject,
+    artStyle !== 'classic' ? `ART DIRECTION: ${styleDirection(artStyle)}. One isolated object centered with generous margins on solid #FF00FF magenta background; no floor, text, scene, frame or cast shadow.` : '',
     subjectDesign ? `RECOGNIZABLE SUBJECT, NOT GEOMETRIC PLACEHOLDER: ${subjectDesign}` : '',
     paletteLine ? `Distinct subject material colours: ${paletteLine}` : '',
     rerollToken ? `Reroll variant ${rerollToken}: change angle, pose or silhouette; preserve subject identity.` : '',
     isShiny ? 'SHINY: change the actual surface pigments to a clearly different colourway while preserving object shape, bold stepped outlines and the identical item silhouette, not merely adding glitter.' : '',
-    BOOP_SPRITE_STYLE_COMPACT,
+    artStyle === 'classic' ? BOOP_SPRITE_STYLE_COMPACT : '',
   ].filter(Boolean).join('\n');
   return concise.slice(0, 2048);
 }
@@ -473,7 +476,7 @@ async function generateWorkersAiImage(prompt: string): Promise<GeminiImageResult
         console.warn('Cloudflare daily image allocation exhausted; pausing Workers AI until 00:00 UTC reset and trying independent fallbacks.');
         break;
       }
-      if (model.includes('flux-2-klein-4b') && /3030|flagged/i.test(message)) {
+      if (readPromptArtStyle(prompt) === 'classic' && model.includes('flux-2-klein-4b') && /3030|flagged/i.test(message)) {
         // A long decorative prompt may trip the image safety filter. Retry with a
         // compact, neutral inventory-art prompt; never attempt to bypass a filter
         // on a genuinely disallowed subject.
