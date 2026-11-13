@@ -1,4 +1,4 @@
-import { isPixelSpriteStyle, type SpriteArtStyle } from './spriteArtStyles';
+import { isPixelSpriteStyle, spriteStyleSize, type SpriteArtStyle } from './spriteArtStyles';
 import { spriteAssets, trackSpriteSync } from './spriteAssets';
 import { emojiKey } from './emojiGeometry';
 import { spriteVariantKey, spriteProfileKey } from './spriteVariant';
@@ -116,7 +116,7 @@ export async function normalizeGeneratedImage(imageBase64: string, mimeType: str
   // and up to 48 well-separated pixel colours for slightly finer details.
   // Process ONLY freshly generated art; saved/uploads keep their exact bytes.
   // Preserve pixel steps and use alpha-masked nearest-neighbour framing.
-  const logicalSize = style === 'retro' ? 64 : style === 'hd' ? 192 : style === 'handheld' ? 96 : style === 'arcade' ? 160 : MINI_CANVAS_SIZE;
+  const logicalSize = style === 'classic' ? MINI_CANVAS_SIZE : spriteStyleSize(style);
   const pixels = document.createElement('canvas');
   pixels.width = pixels.height = logicalSize;
   const pixelContext = pixels.getContext('2d');

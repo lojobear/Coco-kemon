@@ -18,7 +18,7 @@ import { MissingSpritesList } from './MissingSpritesList';
 import { spriteVariantKey } from '../lib/spriteVariant';
 import { spriteLabInventoryElements } from '../lib/spriteLabInventory';
 import { discoveryIdentity } from '../lib/unifiedCollection';
-import { SPRITE_ART_STYLES, type SpriteArtStyle } from '../lib/spriteArtStyles';
+import { SPRITE_ART_STYLES, isPixelSpriteStyle, type SpriteArtStyle } from '../lib/spriteArtStyles';
 import { alphaBounds } from '../lib/miniSpriteStyle';
 
 type LabItem =
@@ -329,7 +329,7 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
               <div className="boop-sprite-actions"><button className="boop-primary" disabled={uploading} onClick={() => chooseReplacement(selected)}><Upload size={18} />Replace sprite</button><button className="boop-secondary" disabled={uploading} onClick={() => void reroll(selected)}><RefreshCw size={18} />{uploading ? 'Working…' : 'Reroll sprite'}</button></div>
               <div className="boop-artwork-settings" style={{display:'grid',gap:8}}>
                 <label htmlFor="boop-art-style">Change art style</label>
-                <select id="boop-art-style" value={artStyle} disabled={uploading} onChange={event => { setArtStyle(event.target.value as SpriteArtStyle); setStylePreview(null); }} className="boop-secondary" style={{width:'100%',minHeight:44}}>{(Object.keys(SPRITE_ART_STYLES) as SpriteArtStyle[]).map(style => <option key={style} value={style}>{SPRITE_ART_STYLES[style].label}</option>)}</select>
+                <select id="boop-art-style" value={artStyle} disabled={uploading} onChange={event => { setArtStyle(event.target.value as SpriteArtStyle); setStylePreview(null); }} className="boop-secondary" style={{width:'100%',minHeight:44}}>{[true,false].map(pixel => <optgroup key={String(pixel)} label={pixel?'Pixel art styles':'Experimental styles'}>{(Object.keys(SPRITE_ART_STYLES) as SpriteArtStyle[]).filter(style=>isPixelSpriteStyle(style)===pixel).map(style => <option key={style} value={style}>{SPRITE_ART_STYLES[style].label}</option>)}</optgroup>)}</select>
                 <small>{SPRITE_ART_STYLES[artStyle].description} · Uses one image generation request.</small>
                 <button type="button" className="boop-primary" disabled={uploading} onClick={() => void previewStyle(selected)}><Sparkles size={16}/>Preview new style</button>
                 <button type="button" className="boop-secondary" disabled={uploading} onClick={()=>void previewMaskRepair(selected)}>Remove magenta mask (free)</button>
