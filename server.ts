@@ -25,6 +25,7 @@ import { CANONICAL_INFINITE_CRAFT_RECIPES, makePairKey, validNewElementName } fr
 import { chooseConcept, normalizeDiscoveryCandidates, applyInheritance, inheritanceFor, type ConceptResult } from './server/discovery.js';
 import { rollRareVariant } from './src/lib/discoveryTrails.js';
 import { ALL_PROCESSES } from './src/lib/starterData.js';
+import { findExpansionRecipe } from './src/lib/processExpansion.js';
 import { cachedWork } from './server/persistentCache.js';
 import { clientId, takeAiBudget } from './server/rateLimit.js';
 
@@ -728,6 +729,15 @@ app.post('/api/synthesize', async (req, res) => {
         material: newMat,
         explanation: matchingRecipe.explanation,
       });
+    }
+
+    // Curated expansion recipes are deterministic and never call paid AI.
+    const expansion = findExpansionRecipe(normProc,[normA,...(normB?[normB]:[])]);
+    if(expansion){
+      const parents=[inputMaterialA,...(inputMaterialB?[inputMaterialB]:[])];
+      const material=conceptMaterial(expansion,parents,process.id);
+      material.lineage.recipeDesc=parents.map(parent=>parent.displayName).join(' + ')+' ('+process.name+')';
+      return res.json({status:'new_material',material,explanation:expansion.explanation});
     }
 
     // 2. Generative synthesis engine (Groq -> Workers AI -> Gemini failover)

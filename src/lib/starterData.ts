@@ -7,6 +7,7 @@ import { Material, Process, Habitat } from '../types';
 import { EXTRA_PROCESSES } from './extraProcesses.js';
 import { EXPANDED_PROCESSES } from './expandedProcesses.js';
 import { FOUNDRY_ACTIONS } from './foundryActions.js';
+import { EXPANSION_PROCESSES } from './processExpansion.js';
 
 export const STARTER_MATERIALS: Material[] = [
   {
@@ -112,6 +113,7 @@ export const ALL_PROCESSES: Process[] = [
   ...EXTRA_PROCESSES,
   ...FOUNDRY_ACTIONS,
   ...EXPANDED_PROCESSES,
+  ...EXPANSION_PROCESSES,
 ];
 
 export const INITIAL_HABITATS: Habitat[] = [

@@ -9,6 +9,7 @@ import { categoryForDiscovery } from '../lib/collectionCategories';
 import { MaterialSprite } from './ElementSprite';
 import { chooseRandomProcess } from '../lib/randomProcess';
 import { availableProcesses as getAvailableProcesses } from '../lib/availableProcesses';
+import { expansionRecipe } from '../lib/processExpansion';
 import { sound } from '../lib/audio';
 import { FoundryFusionOverlay } from './FoundryFusionOverlay';
 
@@ -18,6 +19,7 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
   const [craftItems, setCraftItems] = useState(readCraftElements);
   const [search, setSearch] = useState('');
   const [processQuery, setProcessQuery] = useState('');
+  const [processFamily,setProcessFamily]=useState('all');
   const [category, setCategory] = useState('all');
   const [sort, setSort] = useState<'collection' | 'recent' | 'name'>('collection');
   const [picker, setPicker] = useState<'A' | 'B' | null>(null);
@@ -52,15 +54,19 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
   const process = selectedProcess || availableProcesses.find(p => p.id === 'MIX') || availableProcesses[0];
   const processGroups = useMemo(() => {
     const q = processQuery.trim().toLowerCase();
-    const choices = availableProcesses.filter(p => !q ||
-      `${p.name} ${p.category} ${p.description} ${p.verb}`.toLowerCase().includes(q));
+    const choices = availableProcesses.filter(p => (processFamily==='all'||p.category===processFamily) && (!q ||
+      `${p.name} ${p.category} ${p.description} ${p.verb}`.toLowerCase().includes(q)));
     // Keep the active selection in the dropdown when searching by other terms.
     if (process && !choices.some(p => p.id === process.id)) choices.unshift(process);
     const groups = new Map<string, typeof choices>();
     for (const entry of choices) groups.set(entry.category, [...(groups.get(entry.category) || []),entry]);
     return [...groups].map(([category, entries]) => ({category, entries:entries.sort((a,b)=>a.name.localeCompare(b.name))}))
       .sort((a,b)=>a.category.localeCompare(b.category));
-  }, [availableProcesses, processQuery, process]);
+  }, [availableProcesses, processQuery, processFamily, process]);
+  const processFamilies=useMemo(()=>[...new Set(availableProcesses.map(p=>p.category))].sort(),[availableProcesses]);
+  const example=process?expansionRecipe(process.id):undefined;
+  const exampleMaterials=example?.inputs.map(name=>materials.find(item=>discoveryIdentity(item.displayName)===discoveryIdentity(name)));
+  const filteredProcesses=availableProcesses.filter(p=>(processFamily==='all'||p.category===processFamily)&&(!processQuery.trim()||`${p.name} ${p.category} ${p.description} ${p.verb}`.toLowerCase().includes(processQuery.trim().toLowerCase())));
 
   const categoryOf = (material: Material) => categoryForDiscovery({ name: material.displayName, category: material.category });
   const categories = useMemo(() => [...new Set<string>(materials.map(categoryOf))].sort((a,b) => a.localeCompare(b)), [materials]);
@@ -131,13 +137,15 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
         <div className="process-control"><label htmlFor="foundry-process">Process <small>· {availableProcesses.length} transformations</small></label>
           <input aria-label="Find a Foundry process" placeholder="Search processes…" value={processQuery}
             onChange={event => setProcessQuery(event.target.value)} disabled={isSynthesizing} />
+          <select aria-label="Filter process category" value={processFamily} onChange={e=>setProcessFamily(e.target.value)} disabled={isSynthesizing}><option value="all">All process categories</option>{processFamilies.map(family=><option key={family}>{family}</option>)}</select>
           <select id="foundry-process" value={process?.id || ''} disabled={isSynthesizing} onChange={e => setSelectedProcess(availableProcesses.find(p => p.id === e.target.value) || null)}>
             {processGroups.map(group => <optgroup label={group.category} key={group.category}>
               {group.entries.map(p => <option value={p.id} key={p.id}>{p.symbol} {p.name}</option>)}
             </optgroup>)}
           </select>
           <small>{process?.id === 'MIX' ? 'Same canonical results, first discoveries, rarity odds and sprite pipeline as Craft.' : process?.description}</small>
-          <button className="random-process" disabled={isSynthesizing || !availableProcesses.length} onClick={() => setSelectedProcess(chooseRandomProcess(availableProcesses, process?.id))}><Shuffle size={13} /> Random process</button>
+          {example&&<small className="boop-process-example">Try: {example.inputs.join(' + ')} · Known recipe, no AI needed. {exampleMaterials?.every(Boolean)?<button type="button" disabled={isSynthesizing} onClick={()=>{setSlotA(exampleMaterials[0]!);setSlotB(exampleMaterials[1]||null);}}>Load ingredients</button>:null}</small>}
+          <button className="random-process" disabled={isSynthesizing || !filteredProcesses.length} onClick={() => setSelectedProcess(chooseRandomProcess(filteredProcesses, process?.id))}><Shuffle size={13} /> Random process</button>
         </div>
       </div>
       <div className="recipe-tools"><span>{slotA ? `${slotA.displayName}${slotB ? ` + ${slotB.displayName}` : ''}` : 'Pick an item to begin'}</span><button disabled={isSynthesizing || !slotA || !slotB} aria-label="Swap ingredients" onClick={() => { setSlotA(slotB); setSlotB(slotA); }}><ArrowLeftRight size={16} /></button><button disabled={isSynthesizing || (!slotA && !slotB)} aria-label="Clear ingredients" onClick={() => { clearSlots(); setPicker(null); }}><RotateCcw size={16} /></button></div>
