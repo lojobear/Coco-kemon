@@ -1,3 +1,4 @@
+import { encodePackedLocalSave, decodePackedLocalSave, isPackedLocalSave, PACKED_LOCAL_VERSION } from './packedLocalSave';
 import { emptyEconomy, validEconomy, applySale, type Economy } from './economy';
 import { validCopyCounts } from './elementCopies';
 import type { CollectorVariant } from './collectorData';
@@ -151,7 +152,8 @@ function storedEnvelope(): any {
     lastSeenSavedAt ??= 0;
     return null;
   }
-  const v = JSON.parse(raw);
+  const stored = JSON.parse(raw);
+  const v = isPackedLocalSave(stored) ? decodePackedLocalSave(stored) : stored;
   assertSaveVersion(v.version);
   if (!record(v) || ![2, SAVE_FORMAT_VERSION].includes(v.version) || !validateCraft(v.crafting) || (v.foundry !== null && !validateFoundry(v.foundry))) throw new Error('Invalid saved data');
   if (v.version === 3 && !validEconomy(v.economy)) throw new Error('Invalid wallet data');
@@ -167,7 +169,7 @@ export function readFoundrySave(): string | null {
     if (raw && !validateFoundry(JSON.parse(raw))) throw new Error('Invalid foundry save');
     return raw;
   }
-  catch { recoveryRequired = true; status('Saved data could not be loaded. Your stored copy has been preserved. Import a valid backup to recover.'); return null; }
+  catch (error) { recoveryRequired = true; status(error instanceof NewerSaveError ? error.message : 'Saved data could not be loaded. Your stored copy has been preserved. Import a valid backup to recover.'); return null; }
 }
 export function readCraftElements(): InfiniteElement[] {
   if (craftMemory) return craftMemory;
@@ -183,7 +185,9 @@ function write(foundry: any, crafting: InfiniteElement[], force = false, collect
   // runs before any setItem and before the stale-tab check.
   if (!force) {
     const rawVersion = Number(localStorage.getItem(SAVE_KEY)?.slice(0, 120).match(/"version":(\d+)/)?.[1]);
-    if (Number.isFinite(rawVersion) && rawVersion > SAVE_FORMAT_VERSION) {
+    // The tagged packed local format is understood by this build only.
+    const supportedPacked = rawVersion === PACKED_LOCAL_VERSION && localStorage.getItem(SAVE_KEY)?.slice(0,120).includes('"encoding":"boop-png-dictionary-v1"');
+    if (Number.isFinite(rawVersion) && rawVersion > SAVE_FORMAT_VERSION && !supportedPacked) {
       status(NEWER_SAVE_MESSAGE);
       throw new NewerSaveError();
     }
@@ -195,18 +199,43 @@ function write(foundry: any, crafting: InfiniteElement[], force = false, collect
   }
   // One shared discovery inventory. Foundry's full metadata is retained separately.
   const unifiedCrafting = mergeFoundryIntoCraft(crafting, foundry);
-  craftMemory = unifiedCrafting;
+  if (!validateCraft(unifiedCrafting) || (foundry !== null && !validateFoundry(foundry))) throw new Error('Invalid merged collection');
+  // Do not publish a failed sale or import in memory. Craft callers retain
+  // their pending discoveries independently for backup on quota failure.
   const savedAt = Math.max(Date.now(), (lastSeenSavedAt ?? 0) + 1);
   // One setItem commits both collections atomically. Quota failures leave the old save intact.
   const previousRoom = collectorRoom ?? storedEnvelope()?.collectorRoom;
-  localStorage.setItem(SAVE_KEY, JSON.stringify({ version: SAVE_FORMAT_VERSION, savedAt, foundry, crafting: unifiedCrafting,
+  const envelope = { version: SAVE_FORMAT_VERSION, savedAt, foundry, crafting: unifiedCrafting,
     economy: economy ?? storedEnvelope()?.economy ?? emptyEconomy(),
     collectorRoom: sanitizeTrophyRoom(previousRoom, unifiedCrafting),
-    boardLayout: boardLayout ?? loadBoardLayout(crafting) ?? [] }));
+    boardLayout: boardLayout ?? loadBoardLayout(crafting) ?? [] };
+  const json=JSON.stringify(envelope);
+  try { localStorage.setItem(SAVE_KEY,json); }
+  catch(error) {
+    if(!quotaExceeded(error))throw error;
+    const packed=encodePackedLocalSave(envelope);
+    if(packed.length>=json.length)throw error;
+    // The same atomic key is replaced only if the entire compact save fits.
+    localStorage.setItem(SAVE_KEY,packed);
+  }
+  craftMemory = unifiedCrafting;
   lastSeenSavedAt = savedAt;
   invalidateStoredEnvelope();
   status(null);
   if (typeof window !== 'undefined') window.dispatchEvent(new Event(SAVE_CHANGED_EVENT));
+}
+function quotaExceeded(error:unknown):boolean {
+  const e=error as {name?:string;code?:number}|null;
+  return e?.name==='QuotaExceededError'||e?.name==='NS_ERROR_DOM_QUOTA_REACHED'||e?.code===22||e?.code===1014;
+}
+function reportWriteError(error:unknown):void {
+  if(error instanceof NewerSaveError){status(error.message);return;}
+  if(error instanceof StaleSaveError)return;
+  if(quotaExceeded(error)){status('Progress could not be saved: device storage is full. Export a device backup from Save Management before closing Boop.');return;}
+  if((error as {name?:string}|null)?.name==='SecurityError'){status('Progress could not be saved: local storage is blocked. Export a device backup from Save Management.');return;}
+  if(error instanceof Error&&error.message==='Invalid merged collection'){status('Progress could not be saved: a discovery or Foundry record failed validation. Export a device backup from Save Management.');return;}
+  if(recoveryRequired&&saveError){status('Progress could not be saved: the existing save needs recovery. Your stored copy is preserved. Export a backup before importing or restarting.');return;}
+  status('Progress could not be saved. Keep this page open and export a backup from Save Management.');
 }
 export function saveCraftElements(elements: InfiniteElement[]) {
   // An explicit Sprite Lab/Kitchen update must never be overwritten later
@@ -230,7 +259,7 @@ export function saveCraftElements(elements: InfiniteElement[]) {
     const legacy = envelope ? envelope.foundry : JSON.parse(localStorage.getItem(LEGACY_FOUNDRY) || 'null');
     if (legacy !== null && !validateFoundry(legacy)) throw new Error('Invalid existing save');
     write(legacy, elements);
-  } catch (error) { if (error instanceof NewerSaveError) status(error.message); else if (!(error instanceof StaleSaveError)) status('Progress could not be saved. Keep this page open and export a backup from Save Management.'); }
+  } catch (error) { reportWriteError(error); }
 }
 export function saveFoundry(foundry: any) {
   try {
@@ -240,7 +269,7 @@ export function saveFoundry(foundry: any) {
     if (recoveryRequired) throw new Error('Recovery required');
     write(foundry, crafting);
   }
-  catch (error) { if (error instanceof NewerSaveError) status(error.message); else if (!(error instanceof StaleSaveError)) status('Progress could not be saved. Keep this page open and export a backup from Save Management.'); }
+  catch (error) { reportWriteError(error); }
 }
 /** Room layout lives with the existing version-2 game save, not a separate fragile local preference. */
 export function readCollectorRoom(): TrophyRoom {
