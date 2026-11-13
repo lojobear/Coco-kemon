@@ -2428,7 +2428,9 @@ html.boop-native-shell .boop-app .boop-cloud-dialog {
 /* Tiny ambient particles belong only to active sprites, never every thumbnail.
    They are decorative, pointer-transparent, and don't obscure the shiny mark. */
 .boop-app .element-emoji[data-living-motion]::before {content:none;pointer-events:none;}
-.boop-app [data-living-motion="liquid"] {--boop-life-particle:boop-life-ripple;--boop-life-ink:#59bde6;}
+.boop-app [data-living-motion="liquid"] {--boop-life-particle:boop-life-ripple;--boop-life-ink:#59bde6;
+  --boop-life-left:18%;--boop-life-top:auto;--boop-life-bottom:9%;--boop-life-width:64%;--boop-life-height:16%;
+  --boop-life-bg:transparent;--boop-life-border:1.5px solid var(--boop-life-ink);--boop-life-radius:50%;--boop-life-shadow:none;}
 .boop-app [data-living-motion="flame"] {--boop-life-particle:boop-life-ember;--boop-life-ink:#ff9c3c;}
 .boop-app [data-living-motion="machine"] {--boop-life-particle:boop-life-signal;--boop-life-ink:#37b7dc;}
 .boop-app [data-living-motion="crystal"] {--boop-life-particle:boop-life-signal;--boop-life-ink:#bda5ff;}
@@ -2468,13 +2470,11 @@ html.boop-native-shell .boop-app .boop-cloud-dialog {
   .boop-app :is(.combine-inputs,.boop-album-detail-hero,.boop-sprite-preview)
     .element-emoji:is([data-living-motion="liquid"],[data-living-motion="flame"],[data-living-motion="machine"],[data-living-motion="crystal"],[data-living-motion="orbit"])::before,
   .boop-app .boop-dossier-living:is([data-living-motion="liquid"],[data-living-motion="flame"],[data-living-motion="machine"],[data-living-motion="crystal"],[data-living-motion="orbit"])::before {
-    content:"";position:absolute;z-index:1;left:66%;top:22%;width:4px;height:4px;
-    background:var(--boop-life-ink);box-shadow:3px -4px 0 -1px var(--boop-life-ink);
+    content:"";position:absolute;z-index:1;left:var(--boop-life-left,66%);top:var(--boop-life-top,22%);
+    bottom:var(--boop-life-bottom,auto);width:var(--boop-life-width,4px);height:var(--boop-life-height,4px);
+    background:var(--boop-life-bg,var(--boop-life-ink));border:var(--boop-life-border,0);border-radius:var(--boop-life-radius,0);
+    box-shadow:var(--boop-life-shadow,3px -4px 0 -1px var(--boop-life-ink));
     animation:var(--boop-life-particle) var(--boop-living-duration) ease-out infinite;
-  }
-  .boop-app .element-emoji[data-living-motion="liquid"]::before {
-    left:18%;top:auto;bottom:9%;width:64%;height:16%;background:transparent;
-    border:1.5px solid var(--boop-life-ink);border-radius:50%;box-shadow:none;
   }
   /* Drag pause wins even over desktop hover/focus. No animated hitboxes. */
   .boop-app .boop-board-world:has(> .is-dragging) > .boop-board-item .element-emoji[data-living-motion] > img,
