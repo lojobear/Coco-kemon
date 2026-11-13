@@ -426,7 +426,7 @@ export function nextWorkersAiResetUtc(now = Date.now()): number {
   const date = new Date(now);
   return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate() + 1);
 }
-async function generateWorkersAiImage(prompt: string): Promise<GeminiImageResult | null> {
+async function generateWorkersAiImage(prompt: string, scope?: 'bloop'): Promise<GeminiImageResult | null> {
   const ai = getWorkersAiBinding();
   if (!ai?.run || Date.now() < workersImageQuotaBackoffUntil) return null;
 
@@ -440,7 +440,8 @@ async function generateWorkersAiImage(prompt: string): Promise<GeminiImageResult
     try {
       let response: any;
       if (model.includes('flux-2-klein-4b')) {
-        await reserveFreeImageNeurons(FLUX2_KLEIN_512_NEURONS);
+        if (scope === 'bloop') await reserveFreeImageNeurons(FLUX2_KLEIN_512_NEURONS, Date.now(), 'bloop');
+        else await reserveFreeImageNeurons(FLUX2_KLEIN_512_NEURONS);
         const form = new FormData();
         form.append('prompt', prompt);
         // Text-only art direction: sending the complete soft-serve reference
@@ -457,7 +458,8 @@ async function generateWorkersAiImage(prompt: string): Promise<GeminiImageResult
           },
         });
       } else {
-        await reserveFreeImageNeurons(FLUX1_SCHNELL_8STEP_NEURONS);
+        if (scope === 'bloop') await reserveFreeImageNeurons(FLUX1_SCHNELL_8STEP_NEURONS, Date.now(), 'bloop');
+        else await reserveFreeImageNeurons(FLUX1_SCHNELL_8STEP_NEURONS);
         response = await ai.run(model, { prompt: compactSchnellImagePrompt(prompt), steps: 8 });
       }
 
@@ -488,7 +490,8 @@ async function generateWorkersAiImage(prompt: string): Promise<GeminiImageResult
             form.append('width', '512');
             form.append('height', '512');
             const serialized = new Response(form);
-            await reserveFreeImageNeurons(FLUX2_KLEIN_512_NEURONS);
+            if (scope === 'bloop') await reserveFreeImageNeurons(FLUX2_KLEIN_512_NEURONS, Date.now(), 'bloop');
+        else await reserveFreeImageNeurons(FLUX2_KLEIN_512_NEURONS);
             const retry = await ai.run(model, { multipart: { body: serialized.body, contentType: serialized.headers.get('content-type') } });
             const normalized = await normalizeWorkersImagePayload(retry);
             if (normalized?.data && normalized.data.length >= 100 && normalized.data.length <= 16_000_000) return { ...normalized, model };
@@ -514,6 +517,14 @@ async function generateWorkersAiImage(prompt: string): Promise<GeminiImageResult
  * This is intentionally separate from structured JSON generation because image models do
  * not support structured outputs.
  */
+/** Bloop can ONLY use Workers AI and its atomic sub-budget. Never call external paid providers. */
+export async function generateBloopImage(prompt: string): Promise<GeminiImageResult> {
+  if (!safeImageSpendingEnabled()) throw new ImageBudgetExceeded();
+  const image = await generateWorkersAiImage(prompt, 'bloop');
+  if (!image) throw new ImageBudgetExceeded();
+  return image;
+}
+
 export async function generateGeminiImage(
   prompt: string,
   injectedClient?: Pick<GoogleGenAI, 'models'>

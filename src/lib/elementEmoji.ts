@@ -80,7 +80,7 @@ async function save(key: string, data: string) {
   });
 }
 
-async function normalizeGeneratedImage(imageBase64: string, mimeType: string, style: SpriteArtStyle = 'classic'): Promise<string> {
+export async function normalizeGeneratedImage(imageBase64: string, mimeType: string, style: SpriteArtStyle = 'classic'): Promise<string> {
   if (!/^image\/(png|jpeg|jpg|webp)$/i.test(mimeType)) throw new Error('Invalid sprite image type.');
   if (!/^[A-Za-z0-9+/=\r\n]+$/.test(imageBase64) || imageBase64.length > 16_000_000) {
     throw new Error('Invalid sprite image data.');

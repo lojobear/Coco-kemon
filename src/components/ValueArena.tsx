@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { BloopPanel } from './BloopPanel';
 import { cloud } from '../lib/cloudSave';
 import type { ArenaCard, ArenaView, BotProfile } from '../lib/arena';
 export function ValueArena({ onCloud, onBack }: { onCloud:()=>void; onBack:()=>void }) {
@@ -68,6 +69,7 @@ export function ValueArena({ onCloud, onBack }: { onCloud:()=>void; onBack:()=>v
         <button disabled={busy||!category} onClick={()=>{setChoice('');void update('queue',{category});}}>Quick match</button>
         <button disabled={busy} onClick={()=>void load()}>Refresh cloud collection</button><button onClick={onCloud}>Cloud saves</button>
       </div>}
+      {!view&&<BloopPanel/>}
       {!view&&profiles.length>0&&<section className="boop-bot-roster" aria-label="Autonomous bot collectors">
         <header><h2>Meet the rivals</h2><p>Real bot-owned collections that grow throughout the day. No paid AI crafting.</p></header>
         <div className="boop-bot-grid">{profiles.map(bot=>{

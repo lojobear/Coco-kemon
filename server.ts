@@ -12,6 +12,7 @@ if ((globalThis as unknown as { __dirname?: string }).__dirname === '.') {
 }
 
 import express from 'express';
+import { registerBloopRoutes } from './server/bloop.js';
 import { registerArenaProxy } from './server/arenaProxy.js';
 import { registerKitchenRoute } from './server/kitchen.js';
 import { registerEmojiRoute } from './server/emoji.js';
@@ -48,6 +49,7 @@ registerEmojiRoute(app);
 registerSpriteRecoveryRoutes(app);
 registerKitchenRoute(app);
 registerArenaProxy(app);
+registerBloopRoutes(app);
 
 // Health check
 app.get('/api/health', (req, res) => {

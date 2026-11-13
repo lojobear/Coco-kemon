@@ -15,7 +15,7 @@
   "vars": {
     "BOOP_SAFE_SPENDING": "1"
   },
-  "triggers": { "crons": ["*/10 * * * *"] },
+  "triggers": { "crons": ["*/10 * * * *", "*/15 * * * *"] },
   "ai": {
     "binding": "AI"
   },

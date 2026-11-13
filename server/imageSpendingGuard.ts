@@ -13,6 +13,7 @@ import { getImageBudgetBinding } from './imageBudgetBinding.js';
  * Workers, products, taxes and provider billing are outside this ledger.
  */
 export const BOOP_DAILY_IMAGE_NEURON_LIMIT = 10_000;
+export const BLOOP_DAILY_IMAGE_NEURON_LIMIT = 1_000;
 export const FLUX2_KLEIN_512_NEURONS = 26.05;
 export const FLUX1_SCHNELL_8STEP_NEURONS = 4.8 + 8 * 9.6;
 
@@ -29,7 +30,7 @@ export class ImageBudgetExceeded extends Error {
     this.name = 'ImageBudgetExceeded';
   }
 }
-type Usage = { allowed?: boolean; used?: number; limit?: number };
+type Usage = { allowed?: boolean; used?: number; limit?: number; botUsed?: number };
 function imageLedger() {
   const binding = getImageBudgetBinding();
   if (!binding) throw new ImageBudgetExceeded();
@@ -44,8 +45,8 @@ async function legacyBudgetFloor(day: string): Promise<number> {
   return Math.max(0, Number(record?.neurons) || 0);
 }
 /** Reserve before every image inference call; any ledger failure blocks it. */
-export async function reserveFreeImageNeurons(neurons: number, now = Date.now()): Promise<void> {
-  if (!safeImageSpendingEnabled()) return;
+export async function reserveFreeImageNeurons(neurons: number, now = Date.now(), scope?: 'bloop'): Promise<void> {
+  if (!safeImageSpendingEnabled()) { if (scope === 'bloop') throw new ImageBudgetExceeded(); return; }
   if (!Number.isFinite(neurons) || neurons <= 0 || neurons > BOOP_DAILY_IMAGE_NEURON_LIMIT)
     throw new ImageBudgetExceeded();
   try {
@@ -53,7 +54,7 @@ export async function reserveFreeImageNeurons(neurons: number, now = Date.now())
     const floor = await legacyBudgetFloor(day);
     const response = await imageLedger().fetch(new Request('https://budget.internal/reserve', {
       method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ day, neurons, floor }),
+      body: JSON.stringify({ day, neurons, floor, ...(scope ? {scope} : {}) }),
     }));
     const result = response.ok ? await response.json() as Usage : null;
     if (result?.allowed !== true) throw new ImageBudgetExceeded();
@@ -84,3 +85,14 @@ export async function getImageNeuronsUsed(now = Date.now()): Promise<number> {
 }
 /** Historical test API: no in-memory counter remains to reset. */
 export function resetImageBudgetForTests(): void { /* Durable Object state is external. */ }
+
+/** Read the same atomic ledger as the human/recovery guard. */
+export async function getBloopImageNeuronsUsed(now = Date.now()): Promise<number> {
+  if (!safeImageSpendingEnabled()) throw new ImageBudgetExceeded();
+  try {
+    const response = await imageLedger().fetch(new Request('https://budget.internal/status?day='+utcBudgetDay(now)));
+    const result = response.ok ? await response.json() as Usage : null;
+    if (typeof result?.botUsed !== 'number' || !Number.isFinite(result.botUsed)) throw new Error('Bot counter unavailable');
+    return result.botUsed;
+  } catch { throw new ImageBudgetExceeded(); }
+}

@@ -5,6 +5,7 @@ import { handleAsNodeRequest } from 'cloudflare:node';
 import { app } from './server.js';
 import { setWorkersAiBinding } from './server/workersAi.js';
 import { setPersistentCacheBinding } from './server/cacheBinding.js';
+import { runBloopTick } from './server/bloop.js';
 import { runRecoveryPass } from './server/spriteRecovery.js';
 import { setImageBudgetBinding } from './server/imageBudgetBinding.js';
 export { BoopImageBudgetLedger } from './server/imageBudgetLedger.js';
@@ -26,10 +27,14 @@ export default {
     setImageBudgetBinding(env.BOOP_IMAGE_BUDGET);
     return handleAsNodeRequest(3000, request);
   },
-  scheduled(event: {scheduledTime?:number}, env: { AI?: any; QUARKPOP_CACHE?: any; BOOP_IMAGE_BUDGET?: any } & ArenaEnv, ctx: { waitUntil(p: Promise<unknown>):void }) {
+  scheduled(event: {scheduledTime?:number; cron?:string}, env: { AI?: any; QUARKPOP_CACHE?: any; BOOP_IMAGE_BUDGET?: any } & ArenaEnv, ctx: { waitUntil(p: Promise<unknown>):void }) {
     setWorkersAiBinding(env.AI);
     setPersistentCacheBinding(env.QUARKPOP_CACHE);
     setImageBudgetBinding(env.BOOP_IMAGE_BUDGET);
+    if (event.cron === '*/15 * * * *') {
+      ctx.waitUntil(runBloopTick(event.scheduledTime || Date.now()).then(report => console.info('Bloop tick', report)).catch(error => console.warn('Bloop tick deferred:', String(error).slice(0,160))));
+      return;
+    }
     ctx.waitUntil(env.BOOP_ARENA.getByName(BOT_REGISTRY).tickBots(event.scheduledTime||Date.now())
       .then(report=>console.info('Boop autonomous collectors',report)).catch(error=>console.warn('Bot collector tick failed:',String(error).slice(0,220))));
     ctx.waitUntil(runRecoveryPass().then(report => console.info('Boop scheduled sprite recovery', report))
