@@ -38,10 +38,24 @@ test('real Durable Objects match separate players, hide picks, reject outsiders,
   await Promise.all(simultaneous.map(player=>call('/queue',{category:'Parallel',player})));
   const assigned=await Promise.all(simultaneous.map(player=>call('/queue',{category:'Parallel',player})));
   assert.equal(new Set(assigned.map(view=>view.room)).size,2,'four simultaneous players must form exactly two matches');
-  const solo={...alice,id:'solo',cards:[{...card('fox',100),category:'Unique test category'}]};
-  await call('/queue',{category:'Unique test category',player:solo});await delay(12200);
-  const bot=await call('/queue',{category:'Unique test category',player:solo});assert.equal(bot.phase,'picking');assert.equal(bot.opponent.bot,true);assert.equal(bot.opponent.locked,true);assert.equal(bot.picks,undefined);
+  const profiles=await call('/bots',{});assert.equal(profiles.length,4);assert.ok(profiles.every((p:any)=>p.discoveries>0));
+  const before=profiles.reduce((n:number,p:any)=>n+p.crafts,0);
+  const now=Math.floor(Date.now()/600000/6)*6*600000+6*600000;
+  const tick=await call('/tick',{now});assert.equal(tick.crafted,4);assert.equal(tick.paidAiCalls,0);
+  assert.equal((await call('/tick',{now})).crafted,0,'same cron slot must not craft twice');
+  const after=await call('/bots',{});assert.equal(after.reduce((n:number,p:any)=>n+p.crafts,0),before+4);
+  await stop();await start();assert.deepEqual(await call('/bots',{}),after,'collector inventory persists across restarts');
+  const solo={...alice,id:'solo',cards:[card('fox',100)]};
+  const unsupported={...solo,id:'unsupported',cards:[{...card('fox',100),category:'Unique test category'}]};
+  await call('/queue',{category:'Animals',player:solo});
+  await call('/queue',{category:'Unique test category',player:unsupported});await delay(12200);
+  const noBot=await call('/queue',{category:'Unique test category',player:unsupported});assert.equal(noBot.phase,'waiting');assert.equal(noBot.botUnavailable,true);
+  const bot=await call('/queue',{category:'Animals',player:solo});assert.equal(bot.phase,'picking');assert.equal(bot.opponent.bot,true);assert.equal(bot.opponent.locked,true);assert.equal(bot.picks,undefined);
   const botResult=await call('/pick',{room:bot.room,user:'solo',key:'fox'});assert.equal(botResult.phase,'finished');assert.ok(['win','loss','draw'].includes(botResult.result));
+  const owner=after.find((p:any)=>p.name===bot.opponent.name);assert.ok(owner.cards.some((c:any)=>c.key===botResult.picks.opponent.key&&c.coins===botResult.picks.opponent.coins));
+  const recorded=await call('/bots',{});const scored=recorded.find((p:any)=>p.id===owner.id);assert.equal(scored.wins+scored.losses+scored.draws,1);
+  await call('/view',{room:bot.room,user:'solo'});assert.deepEqual(await call('/bots',{}),recorded,'stats must be idempotent');
+  const challenger={...alice,id:'direct'};const direct=await call('/challenge',{category:'Animals',player:challenger,botId:'bot:pixel-panda'});assert.equal(direct.opponent.name,'Pixel Panda');assert.equal(direct.opponent.difficulty,'Easy');
   const forfeitRoom=`match:${crypto.randomUUID()}`;await call('/setup',{room:forfeitRoom,category:'Animals',players:[alice,bob]});await call('/leave',{room:forfeitRoom,user:'alice'});assert.equal((await call('/view',{room:forfeitRoom,user:'bob'})).result,'win');
   await delay(Math.max(0,45500-(Date.now()-started)));const expired=await call('/view',{room:timeoutRoom,user:'alice'});assert.equal(expired.phase,'finished');assert.equal(expired.result,'draw');assert.equal(expired.picks.you,null);
  }finally{await stop();await rm(state,{recursive:true,force:true});}

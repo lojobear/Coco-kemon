@@ -4,6 +4,7 @@ import type { ArenaPlayer } from '../src/lib/arena';
 import { arenaCards } from '../src/lib/arena';
 import { validateCraft } from '../src/lib/saveData';
 import { BoopArena } from './arenaObjects';
+import { BOT_REGISTRY, botDefinition } from '../src/lib/botCollectors';
 const SUPABASE_URL='https://lrjszbguvqgdsqvvcoqe.supabase.co';
 const KEY='sb_publishable_y7dGWisvgKzLvRVpbzd0zw_BISm05fI';
 const auth=createClient(SUPABASE_URL,KEY,{auth:{persistSession:false,autoRefreshToken:false},global:{fetch:(input,init)=>fetch(input,{...init,signal:AbortSignal.timeout(15_000)})}});
@@ -29,7 +30,8 @@ export async function arenaFetch(request: Request, env: ArenaEnv): Promise<Respo
     const user=data.user.id;
     const body=request.method==='POST'?await smallBody(request):{};
     const action=url.pathname.split('/').pop();
-    if((action==='collection'&&request.method!=='GET')||(action!=='collection'&&request.method!=='POST'))return Response.json({error:'Method not allowed.'},{status:405});
+    if((['collection','bots'].includes(action||'')&&request.method!=='GET')||(!['collection','bots'].includes(action||'')&&request.method!=='POST'))return Response.json({error:'Method not allowed.'},{status:405});
+    if(action==='bots')return Response.json({profiles:await env.BOOP_ARENA.getByName(BOT_REGISTRY).botProfiles()},{headers:{'Cache-Control':'no-store'}});
     if (['pick','match','leave'].includes(action||'')) {
       const room=String(body.room||url.searchParams.get('room')||'');
       if (!/^match:[a-f0-9-]{36}$/.test(room)) throw new Error('Invalid match.');
@@ -38,7 +40,7 @@ export async function arenaFetch(request: Request, env: ArenaEnv): Promise<Respo
       const view=action==='pick'?await stub.pick(user,String(body.key||'').slice(0,200)):await stub.view(user);
       return Response.json({...view,room},{headers:{'Cache-Control':'no-store'}});
     }
-    if (!['queue','collection','cancel'].includes(action||'')) return Response.json({error:'Arena route not found.'},{status:404});
+    if (!['queue','collection','cancel','challenge'].includes(action||'')) return Response.json({error:'Arena route not found.'},{status:404});
     const requestedCategory=String(body.category||'').slice(0,60);
     if(action!=='collection' && !requestedCategory)throw new Error('Choose a category.');
     const lobby=action==='collection'?null:env.BOOP_ARENA.getByName(`queue:${requestedCategory}`);
@@ -58,7 +60,15 @@ export async function arenaFetch(request: Request, env: ArenaEnv): Promise<Respo
     const eligible=cards.filter(card=>card.category===category).sort((a,b)=>b.coins-a.coins);
     if (!eligible.length) throw new Error('No cloud-saved elements in that category. Save your latest progress first.');
     const player: ArenaPlayer={id:user,name:`Player ${user.slice(0,4).toUpperCase()}`,bot:false,cards:eligible.slice(0,500)};
-    return Response.json(await env.BOOP_ARENA.getByName(`queue:${category}`).queue(player,category),{headers:{'Cache-Control':'no-store'}});
+    let opponent:ArenaPlayer|undefined;
+    if(action==='challenge'){
+      const id=String(body.botId||'');
+      if(!botDefinition(id))throw new Error('Choose a known bot collector.');
+      const bot=await env.BOOP_ARENA.getByName(BOT_REGISTRY).selectBot(category,id);
+      if(!bot)throw new Error('This collector does not own an element in your selected category.');
+      opponent=bot;
+    }
+    return Response.json(await env.BOOP_ARENA.getByName(`queue:${category}`).queue(player,category,false,opponent),{headers:{'Cache-Control':'no-store'}});
   } catch (error) {
     return Response.json({error:error instanceof Error?error.message.slice(0,240):'Arena connection failed. Try again.'},{status:400,headers:{'Cache-Control':'no-store'}});
   }

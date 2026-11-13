@@ -19,6 +19,7 @@ try{
   await page.route('**/api/arena/**',async route=>{
    const action=new URL(route.request().url()).pathname.split('/').pop();const body=route.request().postDataJSON()||{};
    if(action==='collection')return route.fulfill({json:{cards}});
+   if(action==='bots')return route.fulfill({json:{profiles:[]}});
    if(action==='cancel'){games++;locked=false;return route.fulfill({json:{ok:true}});}
    if(fail)return route.fulfill({status:503,json:{error:'Arena connection interrupted. Retry shortly.'}});
    const opponent={name:games?'Byte Badger':'Online rival',bot:games>0,locked:games>0};

@@ -1,6 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import { qualifiedConceptName, displayConceptName } from '../src/lib/conceptMeaning';
-import { arenaCards, botCards } from '../src/lib/arena';
+import { arenaCards } from '../src/lib/arena';
+import { BOT_DEFINITIONS, seedBot, botOpponent } from '../src/lib/botCollectors';
 import { validNewElementName, makePairKey } from '../src/lib/infiniteCraftData';
 import { collectionDisplayCategory } from '../src/lib/collectionCategories';
 import { discoveryIdentity } from '../src/lib/unifiedCollection';
@@ -18,5 +19,6 @@ test('legacy meaning labels do not rename saved concepts and Arena scores come f
  const old={id:'old',name:'Smoker',emoji:'✨',explanation:'A barbecue grill for brisket.',craftCount:1};
  assert.equal(displayConceptName(old),'Smoker (barbecue)');assert.equal(old.name,'Smoker');
  const cards=arenaCards([old,{...old,id:'duplicate'}, {id:'other',name:'Smoker (cigarettes)',emoji:'✨'}]);assert.equal(cards.length,2);assert.ok(cards.every(card=>Number.isSafeInteger(card.coins)&&card.coins>0));assert.equal(cards[0].key,'smoker');assert.equal(cards[0].category,'Tools & Objects');
- assert.ok(botCards('Animals').length>0);assert.ok(botCards('Food & Drink').every(card=>card.category==='Food & Drink'));
+ const bot=BOT_DEFINITIONS[0],state=seedBot(bot,1000);
+ assert.ok(botOpponent(bot,state,'Animals')?.cards.length);assert.ok(botOpponent(bot,state,'Food & Drink')?.cards.every(card=>card.category==='Food & Drink'));
 });

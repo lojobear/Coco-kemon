@@ -1,5 +1,6 @@
 import { arenaFetch, type ArenaEnv } from './server/arenaApi.js';
 export { BoopArena } from './server/arenaObjects.js';
+import { BOT_REGISTRY } from './src/lib/botCollectors.js';
 import { handleAsNodeRequest } from 'cloudflare:node';
 import { app } from './server.js';
 import { setWorkersAiBinding } from './server/workersAi.js';
@@ -25,10 +26,12 @@ export default {
     setImageBudgetBinding(env.BOOP_IMAGE_BUDGET);
     return handleAsNodeRequest(3000, request);
   },
-  scheduled(_event: unknown, env: { AI?: any; QUARKPOP_CACHE?: any; BOOP_IMAGE_BUDGET?: any }, ctx: { waitUntil(p: Promise<unknown>):void }) {
+  scheduled(event: {scheduledTime?:number}, env: { AI?: any; QUARKPOP_CACHE?: any; BOOP_IMAGE_BUDGET?: any } & ArenaEnv, ctx: { waitUntil(p: Promise<unknown>):void }) {
     setWorkersAiBinding(env.AI);
     setPersistentCacheBinding(env.QUARKPOP_CACHE);
     setImageBudgetBinding(env.BOOP_IMAGE_BUDGET);
+    ctx.waitUntil(env.BOOP_ARENA.getByName(BOT_REGISTRY).tickBots(event.scheduledTime||Date.now())
+      .then(report=>console.info('Boop autonomous collectors',report)).catch(error=>console.warn('Bot collector tick failed:',String(error).slice(0,220))));
     ctx.waitUntil(runRecoveryPass().then(report => console.info('Boop scheduled sprite recovery', report))
       .catch(error => console.warn('Boop scheduled recovery retry pending:', String(error).slice(0,220))));
   },

@@ -2,6 +2,20 @@ import { makePairKey } from './infiniteCraftData.js';
 
 // Reachable conceptual routes; associations are game logic, not physical chemistry.
 const recipes = [
+  // Reachable shared routes for humans and autonomous collectors.
+  ['Fire','Dust','Spark','✨','science'],
+  ['Cloud','Wind','Cold','❄️','weather'],
+  ['Steam','Fire','Heat','♨️','science'],
+  ['Metal','Lightning','Circuit','🔌','technology'],
+  ['Circuit','Glass','Computer','💻','technology'],
+  ['Computer','Wind','Internet','🌐','technology'],
+  ['Plant','Earth','Farm','🌾','geography'],
+  ['Farm','Plant','Wheat','🌾','food'],
+  ['Wheat','Fire','Bread','🍞','food'],
+  ['Farm','Animal','Milk','🥛','food'],
+  ['Milk','Heat','Cheese','🧀','food'],
+  ['Planet','Wind','Space','🌌','cosmos'],
+  ['Dragon','Human','Wizard','🧙','mythology'],
   ['Water','Spark','Life','🌱','science'],
   ['Life','Earth','Animal','🐾','biology'],
   ['Animal','Water','Fish','🐟','biology'],

@@ -3,10 +3,10 @@ import type { Express } from 'express';
 export function registerArenaProxy(app: Express) {
  app.all('/api/arena/:action',async(req,res)=>{
   const action=req.params.action;
-  if(!['collection','queue','pick','match','leave','cancel'].includes(action))return res.status(404).json({error:'Arena route not found.'});
+  if(!['collection','bots','queue','pick','match','leave','cancel','challenge'].includes(action))return res.status(404).json({error:'Arena route not found.'});
   const authorization=req.get('Authorization');
   if(!authorization?.startsWith('Bearer '))return res.status(401).json({error:'Sign in to enter the public lobby.'});
-  if((action==='collection'&&req.method!=='GET')||(action!=='collection'&&req.method!=='POST'))return res.status(405).json({error:'Method not allowed.'});
+  if((['collection','bots'].includes(action)&&req.method!=='GET')||(!['collection','bots'].includes(action)&&req.method!=='POST'))return res.status(405).json({error:'Method not allowed.'});
   const body=req.method==='POST'?JSON.stringify(req.body||{}):undefined;
   if(body&&body.length>4096)return res.status(413).json({error:'Arena request is too large.'});
   try {

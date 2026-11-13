@@ -25,5 +25,7 @@ jobs:
         run: npm run lint
       - name: Test
         run: npm test
+      - name: Arena Durable Object integration
+        run: ARENA_RUNTIME=1 node --import tsx --test tests/arena-runtime.test.ts
       - name: Build
         run: npm run build
