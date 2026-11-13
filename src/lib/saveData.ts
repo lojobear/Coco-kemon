@@ -155,6 +155,7 @@ let databaseDrain:Promise<void>|null=null;
 let databaseFailure:unknown=null;
 let databaseConflict=false;
 let initialization:Promise<void>|null=null;
+let databaseExclusive:Promise<void>|null=null;
 function validateLocalEnvelope(v:any):void{
  assertSaveVersion(v?.version);
  if(!record(v)||![2,SAVE_FORMAT_VERSION].includes(v.version)||!validateCraft(v.crafting)||(v.foundry!==null&&!validateFoundry(v.foundry)))throw new Error('Invalid saved data');
@@ -207,7 +208,7 @@ export function initializeLocalSave(open:()=>Promise<LocalSaveDatabase>=()=>open
  return initialization;
 }
 export function getLocalSaveBackend(){return localDatabase?'IndexedDB':'localStorage';}
-export function getLocalSavePending(){return !!pendingEnvelope||!!databaseDrain;}
+export function getLocalSavePending(){return !!pendingEnvelope||!!databaseDrain||!!databaseExclusive;}
 function notifySaveStatus(){if(typeof window!=='undefined')window.dispatchEvent(new Event(SAVE_STATUS_EVENT));}
 function drainDatabase(){
  if(!localDatabase||databaseDrain||!pendingEnvelope||databaseConflict)return;
@@ -233,9 +234,35 @@ function drainDatabase(){
 }
 export async function waitForLocalSave():Promise<void>{
  if(!localDatabase)return;
+ flushQueuedCraftSave();
+ if(databaseExclusive)await databaseExclusive;
  if(pendingEnvelope&&!databaseDrain&&!databaseConflict)drainDatabase();
  while(databaseDrain)await databaseDrain;
  if(pendingEnvelope||databaseFailure)throw databaseFailure||new Error('Device save is not confirmed.');
+}
+/** Explicit imports and wallet operations are published only AFTER commit.
+ * Their caller can safely announce success; failed writes leave live data intact. */
+async function commitExclusive(envelope:any,after:()=>void):Promise<void>{
+ if(!localDatabase)throw new Error('Local game database is not initialized.');
+ if(databaseExclusive||databaseDrain||pendingEnvelope||databaseConflict)throw new Error('Save your current progress first.');
+ validateLocalEnvelope(envelope);
+ const db=localDatabase;
+ databaseExclusive=(async()=>{
+  try{
+   const result=await db.commit(structuredClone(envelope),databaseRevision);
+   databaseRevision=result.revision;databaseEnvelope=result.envelope;envelopeMemory=result.envelope;envelopeLoaded=true;
+   craftMemory=result.envelope.crafting;lastSeenSavedAt=result.envelope.savedAt;
+   markDatabaseSave(lastSeenSavedAt!);databaseFailure=null;status(null);
+   after();
+   if(typeof window!=='undefined')window.dispatchEvent(new Event(SAVE_CHANGED_EVENT));
+  }catch(error){
+   if(error instanceof LocalSaveConflict){databaseConflict=true;status(STALE_TAB_MESSAGE);}
+   else status('Device transaction failed. Your last committed collection and wallet are preserved. Export a backup before retrying.');
+   throw error;
+  }
+ })();
+ notifySaveStatus();
+ try{await databaseExclusive;}finally{databaseExclusive=null;notifySaveStatus();}
 }
 export async function keepLocalRecovery(json:string):Promise<void>{
  if(localDatabase){await localDatabase.recovery(json);return;}
@@ -314,6 +341,7 @@ function write(foundry: any, crafting: InfiniteElement[], force = false, collect
     collectorRoom: sanitizeTrophyRoom(previousRoom, unifiedCrafting),
     boardLayout: boardLayout ?? loadBoardLayout(crafting) ?? [] };
   if(localDatabase){
+    if(databaseExclusive)throw new Error('A device save import or sale is being committed.');
     if(databaseConflict)throw new StaleSaveError(STALE_TAB_MESSAGE);
     // Immutable logical snapshot; subsequent React mutations cannot change an
     // in-flight transaction. Coalesce rapid crafting into the newest snapshot.
@@ -442,6 +470,21 @@ export function importCompleteSave(json: string) {
   return parsed.foundry;
 }
 
+/** Browser import confirms durability before replacing React's collections. */
+export async function importCompleteSaveDurably(json:string){
+ if(!localDatabase)return importCompleteSave(json);
+ const parsed=parseSave(json);
+ await waitForLocalSave();
+ const savedAt=Math.max(Date.now(),(lastSeenSavedAt??0)+1);
+ const crafting=mergeFoundryIntoCraft(parsed.crafting,parsed.foundry);
+ const envelope={version:SAVE_FORMAT_VERSION,savedAt,foundry:parsed.foundry,crafting,economy:parsed.economy,collectorRoom:parsed.collectorRoom,boardLayout:parsed.boardLayout??[]};
+ await commitExclusive(envelope,()=>{
+  queuedCraftWrite=null;cancelCraftWriteTimer();recoveryRequired=false;
+  if(parsed.boardLayout!==null)saveBoardLayout(parsed.boardLayout);
+  window.dispatchEvent(new Event(SAVE_IMPORTED_EVENT));
+ });
+ return parsed.foundry;
+}
 /** Wallet data shares the same durable commit as sale receipts and both collections. */
 export function readEconomy(): Economy {
   try { return structuredClone(storedEnvelope()?.economy ?? emptyEconomy()); }
@@ -463,4 +506,17 @@ export function sellElement(name: string, form: CollectorVariant, quantity = 1, 
     throw error;
   }
   return result;
+}
+
+export async function sellElementDurably(name:string,form:CollectorVariant,quantity=1,expectedPrice?:number){
+ if(!localDatabase)return sellElement(name,form,quantity,expectedPrice);
+ await waitForLocalSave();
+ if(recoveryRequired||getSaveError())throw new Error('Save your progress successfully before selling.');
+ const envelope=storedEnvelope(),crafting=readCraftElements();
+ const element=crafting.find(item=>discoveryIdentity(item.name)===discoveryIdentity(name));
+ if(!element)throw new Error('This discovery is not in your collection.');
+ const result=applySale(element,envelope?.economy??emptyEconomy(),form,quantity,crafting);
+ if(expectedPrice!==undefined&&expectedPrice!==result.price)throw new Error('Value changed. Close and reopen this discovery before selling.');
+ await commitExclusive({...envelope,savedAt:Math.max(Date.now(),(lastSeenSavedAt??0)+1),crafting,economy:result.economy},()=>{});
+ return result;
 }

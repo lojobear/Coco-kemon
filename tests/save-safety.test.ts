@@ -132,3 +132,41 @@ test('different discovery names with the same sanitized id never invalidate the 
  assert.notEqual(result.main.id,existing[0].id);
  assert.equal(new Set(result.elements.map(x=>x.id)).size,result.elements.length);
 });
+
+test('IndexedDB migration verifies old collection before replacing only its localStorage pointer',async()=>{
+ store.clear();const legacy=await load('idb-legacy');const items=Array.from({length:4000},(_,i)=>({id:'item_'+i,name:'Item '+i,emoji:'✨',explanation:'A unique collected discovery.',recipe:{first:'Fire',second:'Water'}}));
+ legacy.readCraftElements();legacy.saveCraftElements(items);const old=store.get(legacy.SAVE_KEY)!;
+ const {LocalSaveConflict}=await import('../src/lib/localSaveDatabase');
+ let current:any=null,original:string|undefined,recovery:string|null=null,fail=false;
+ const db={read:async()=>structuredClone(current),commit:async(envelope:any,expected:number,backup?:string)=>{if(fail)throw new Error('test transaction failure');if((current?.revision??0)!==expected)throw new LocalSaveConflict();if(backup!==undefined)original=backup;current={revision:expected+1,envelope:structuredClone(envelope)};return structuredClone(current);},recovery:async(value?:string)=>{if(value!==undefined)recovery=value;return recovery;}};
+ const a=await load('idb-migrate');await a.initializeLocalSave(async()=>db);
+ assert.equal(a.getLocalSaveBackend(),'IndexedDB');assert.equal(original,old);assert.equal(JSON.parse(store.get(a.SAVE_KEY)!).version,6);assert.deepEqual(a.readCraftElements(),items);
+ const localBefore=store.get(a.SAVE_KEY)!;assert.ok(localBefore.length<200);
+ const b=await load('idb-second-tab');await b.initializeLocalSave(async()=>db);
+ const next=[...items,{id:'new',name:'New',emoji:'✨'}];a.saveCraftElements(next);await a.waitForLocalSave();assert.equal(current.envelope.crafting.length,4001);
+ b.saveCraftElements([...items,{id:'stale',name:'Stale',emoji:'✨'}]);await assert.rejects(b.waitForLocalSave(),/another tab/i);assert.equal(current.envelope.crafting.length,4001);assert.ok(JSON.parse(b.exportCompleteSave(emptyFoundry)).crafting.some((x:any)=>x.id==='stale'));
+ const c=await load('idb-reload');await c.initializeLocalSave(async()=>db);assert.deepEqual(c.readCraftElements(),next);
+ fail=true;const pending=[...next,{id:'pending',name:'Pending',emoji:'✨'}];c.saveCraftElements(pending);await assert.rejects(c.waitForLocalSave());assert.equal(current.envelope.crafting.length,4001);assert.equal(c.readCraftElements().length,4002);assert.match(c.getSaveError()||'',/IndexedDB/i);
+ fail=false;await c.waitForLocalSave();assert.equal(current.envelope.crafting.length,4002);assert.equal(c.getSaveError(),null);
+ await c.keepLocalRecovery('backup');assert.equal(await c.readLocalRecovery(),'backup');
+ assert.equal(JSON.parse(c.exportCompleteSave(emptyFoundry)).version,3);
+});
+test('IndexedDB marker never silently falls back to an empty local game',async()=>{
+ store.clear();const session=await load('idb-unavailable');
+ store.set(session.SAVE_KEY,JSON.stringify({version:6,savedAt:1,encoding:'boop-indexeddb-v1'}));
+ await assert.rejects(session.initializeLocalSave(async()=>{throw new Error('blocked');}),/blocked/);
+ assert.equal(JSON.parse(store.get(session.SAVE_KEY)!).version,6);
+});
+test('failed migration leaves original localStorage bytes untouched',async()=>{
+ store.clear();const legacy=await load('idb-failure-legacy');legacy.readCraftElements();legacy.saveCraftElements(legacy.readCraftElements());const raw=store.get(legacy.SAVE_KEY);
+ const session=await load('idb-failure');await assert.rejects(session.initializeLocalSave(async()=>({read:async()=>null,commit:async()=>{throw new Error('disk full');},recovery:async()=>null})),/disk full/);
+ assert.equal(store.get(legacy.SAVE_KEY),raw);
+});
+test('failed durable import never replaces the live collection',async()=>{
+ store.clear();let current:any=null,fail=false;
+ const db={read:async()=>structuredClone(current),commit:async(envelope:any,expected:number)=>{if(fail)throw new Error('disk full');current={revision:expected+1,envelope:structuredClone(envelope)};return structuredClone(current);},recovery:async()=>null};
+ const a=await load('idb-import');await a.initializeLocalSave(async()=>db);const original=a.readCraftElements();
+ const json=JSON.stringify({version:3,crafting:[{id:'replacement',name:'Replacement',emoji:'✨'}],foundry:emptyFoundry,economy:{version:1,coins:0,sold:{}}});
+ fail=true;await assert.rejects(a.importCompleteSaveDurably(json),/disk full/);assert.deepEqual(a.readCraftElements(),original);assert.deepEqual(current.envelope.crafting,original);
+ fail=false;await a.importCompleteSaveDurably(json);assert.equal(a.readCraftElements()[0].id,'replacement');assert.equal(current.envelope.crafting[0].id,'replacement');
+});

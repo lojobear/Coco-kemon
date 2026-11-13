@@ -15,7 +15,7 @@ import { resolveSharedPair, rollSharedPair, applySharedPairDiscovery, type Share
 import { conceptMaterial } from './conceptMaterial';
 import type { InfiniteCraftPairResponse, InfiniteElement } from './infiniteCraftData';
 import { validMaterial, validOddkin } from './validation';
-import { readFoundrySave, saveFoundry, exportCompleteSave, importCompleteSave, readCraftElements, saveCraftElements, SAVE_CHANGED_EVENT, SAVE_IMPORTED_EVENT, waitForLocalSave } from './saveData';
+import { readFoundrySave, saveFoundry, exportCompleteSave, importCompleteSaveDurably, readCraftElements, saveCraftElements, SAVE_CHANGED_EVENT, SAVE_IMPORTED_EVENT, waitForLocalSave } from './saveData';
 import { sound } from './audio';
 import { matchesFoundryRecipe, validSynthesisResult, resolveMaterialDiscovery } from './foundryRecipes';
 import { craftProgressionXp, dailyGoals, discoveryStreak, levelFromXp, nearMissHint, nextStreakMilestone, progressionXp, rollMaterialVariant, setProgress, streakReward } from './progression';
@@ -854,8 +854,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const importSaveData = useCallback(async (jsonStr: string): Promise<boolean> => {
     try {
       if (isSynthesizing) return false;
-      const parsed = importCompleteSave(jsonStr);
-      await waitForLocalSave();
+      const parsed = await importCompleteSaveDurably(jsonStr);
       setMaterials(parsed.materials);
       setOddkinCollection(parsed.oddkinCollection || []);
       setProcesses(mergeProcesses(parsed.processes));

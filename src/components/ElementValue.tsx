@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useEconomy } from '../lib/useEconomy';
 import { availableCopies } from '../lib/economy';
-import { sellElement, waitForLocalSave } from '../lib/saveData';
+import { sellElementDurably } from '../lib/saveData';
 import { Coins } from 'lucide-react';
 import type { InfiniteElement } from '../lib/infiniteCraftData';
 import type { CollectorVariant } from '../lib/collectorData';
@@ -28,9 +28,7 @@ export function ElementValuePanel({ element, variant = 'best', valueBook }: {
   const copies = availableCopies(element, economy, value.variant);
   const sell = async () => {
     try {
-      await waitForLocalSave();
-      const result = sellElement(element.name, value.variant, 1, value.coins);
-      await waitForLocalSave();
+      const result = await sellElementDurably(element.name, value.variant, 1, value.coins);
       setMessage(`Sold 1 ${VALUE_FORM_LABELS[value.variant].toLowerCase()} copy for ${formatElementValue(result.proceeds)} coins.`);
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Sale could not be saved.'); }
   };

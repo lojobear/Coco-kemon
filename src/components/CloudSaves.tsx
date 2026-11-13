@@ -1,11 +1,11 @@
-import { keepLocalRecovery, readLocalRecovery, getLocalSaveBackend, waitForLocalSave } from '../lib/saveData';
+import { keepLocalRecovery, readLocalRecovery, getLocalSaveBackend } from '../lib/saveData';
 import { applySpriteChanges, syncProfileSprites } from '../lib/profileSprites';
 import { getSpriteSyncStatus, SPRITE_SYNC_EVENT, trackSpriteSync } from '../lib/spriteAssets';
 import { useEffect, useRef, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { isAndroidNativeShell, nativeOAuthRedirect, sendToAndroid } from '../lib/nativeShell';
 import { useGame } from '../lib/gameStore';
-import { cloud, readCloudSave, writeCloudSave, validateCloudPayload, cloudPayloadBytes, CLOUD_SAVE_MAX_BYTES, downloadBackup, RECOVERY_KEY, type CloudSave } from '../lib/cloudSave';
+import { cloud, readCloudSave, writeCloudSave, validateCloudPayload, cloudPayloadBytes, CLOUD_SAVE_MAX_BYTES, downloadBackup, type CloudSave } from '../lib/cloudSave';
 import { loadProfileSprites } from '../lib/profileSprites';
 
 export function CloudSaves({ open, onClose }: { open: boolean; onClose: () => void }) {
