@@ -103,3 +103,32 @@ test('packed sprite dictionary round trips every base64 symbol, padding and non-
  const envelope={version:3,savedAt:20,foundry:null,crafting:values.map((v,i)=>({id:String(i),name:'月🪐',emoji:'✨',customSpriteUrl:'data:image/png;base64,'+v})),economy:{},collectorRoom:{},boardLayout:[]};
  assert.deepEqual(decodePackedLocalSave(JSON.parse(encodePackedLocalSave(envelope))),envelope);
 });
+
+test('large metadata collections survive localStorage quota and reload without dropping discoveries',async()=>{
+ store.clear();const session=await load('large-metadata-quota');
+ const items=Array.from({length:3000},(_,i)=>({id:'item_'+i,name:'Discovery '+i,emoji:'✨',category:'Technology',explanation:'A recognizable discovery from two ingredients.',recipe:{first:'Water',second:'Fire'},customSpriteUrl:'sprite://11111111-1111-4111-8111-111111111111/auto/'+(i.toString(16).padStart(64,'0'))+'.png'}));
+ const original=globalThis.localStorage.setItem;
+ globalThis.localStorage.setItem=(key,value)=>{if(value.length>350000)throw new DOMException('Quota full','QuotaExceededError');original(key,value);};
+ try{
+  session.readCraftElements();session.saveCraftElements(items);
+  assert.equal(session.getSaveError(),null);assert.equal(JSON.parse(store.get(session.SAVE_KEY)!).version,5);
+  const reloaded=await load('large-metadata-reload');assert.deepEqual(reloaded.readCraftElements(),items);
+  reloaded.saveCraftElements([...items,{id:'next',name:'Next',emoji:'✨'}]);assert.equal(reloaded.getSaveError(),null);
+  assert.equal((await load('large-metadata-reload2')).readCraftElements().length,3001);
+  assert.equal(JSON.parse(reloaded.exportCompleteSave(emptyFoundry)).version,3);
+ }finally{globalThis.localStorage.setItem=original;}
+});
+test('lossless general compression round trips unicode and dictionary resets',async()=>{
+ const {encodeCompressedLocalSave,decodeCompressedLocalSave}=await import('../src/lib/compressedLocalSave');
+ let seed=12345;const random=Array.from({length:80000},()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return String.fromCharCode(32+(seed>>>16)%90);}).join('');
+ const envelope={version:3,savedAt:44,crafting:[{name:'月🪐',emoji:'✨',random}],foundry:null};
+ const packed=JSON.parse(encodeCompressedLocalSave(envelope));assert.deepEqual(decodeCompressedLocalSave(packed),envelope);
+ assert.throws(()=>decodeCompressedLocalSave({...packed,bytes:1}));
+});
+test('different discovery names with the same sanitized id never invalidate the save',async()=>{
+ const {applySharedPairDiscovery}=await import('../src/lib/sharedCraftingEngine');
+ const existing=[{id:'a_b',name:'A-B',emoji:'✨'}];
+ const result=applySharedPairDiscovery(existing,{result:'A B',emoji:'✨',isNew:false},'Water','Fire',{shiny:false,celestial:false,holo:false,glitch:false,tier:'common'},1);
+ assert.notEqual(result.main.id,existing[0].id);
+ assert.equal(new Set(result.elements.map(x=>x.id)).size,result.elements.length);
+});

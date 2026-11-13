@@ -79,14 +79,16 @@ export function applySharedPairDiscovery(
   const physical = generatePhysicalData(name, emoji, false);
   const shinyPhysical = rolls.shiny ? generatePhysicalData(name, emoji, true) : undefined;
   const copyForm = rolls.glitch ? 'glitch' : rolls.celestial ? 'celestial' : rolls.holo ? 'holo' : rolls.shiny ? 'shiny' : 'normal';
+  const usedIds = new Set(existing.map(item=>item.id.toLowerCase()));
+  const uniqueId=(base:string)=>{let id=base,n=2;while(usedIds.has(id.toLowerCase()))id=base+'_'+n++;usedIds.add(id.toLowerCase());return id;};
   const initial: InfiniteElement = {
     copyCounts: addCraftCopy(undefined, copyForm),
-    id: normalized.replace(/[^a-z0-9]/g, '_') || `discovery_${timestamp}`,
+    id: uniqueId(normalized.replace(/[^a-z0-9]/g, '_') || `discovery_${timestamp}`),
     name, emoji,
     category: categoryForDiscovery({ name, category: outcome.category, connection: outcome.connection, emoji, explanation:outcome.explanation, recipe }),
     discoveredAt: timestamp,
-    isNew, explanation: outcome.explanation,
-    connection: outcome.connection,
+    isNew, explanation: typeof outcome.explanation==='string'?outcome.explanation.slice(0,280):undefined,
+    connection: typeof outcome.connection==='string'?outcome.connection.slice(0,280):undefined,
     recipe,
     isShiny: rolls.shiny,
     unlockedShiny: rolls.shiny,
@@ -112,8 +114,8 @@ export function applySharedPairDiscovery(
     main = {
       ...tracked,
       copyCounts: addCraftCopy(old, copyForm),
-      explanation: old.explanation || outcome.explanation,
-      connection: old.connection || outcome.connection,
+      explanation: old.explanation || initial.explanation,
+      connection: old.connection || initial.connection,
       category: old.category || initial.category,
       recipe: old.recipe || recipe,
       unlockedShiny: rolls.shiny || old.unlockedShiny,
@@ -144,7 +146,7 @@ export function applySharedPairDiscovery(
       !updated.some(item => discoveryIdentity(item.name) === discoveryIdentity(rare.result))) {
     bonus = {
       copyCounts: addCraftCopy(undefined, 'normal'),
-      id: discoveryIdentity(rare.result).replace(/[^a-z0-9]/g, '_') || `bonus_${timestamp}`,
+      id: uniqueId(discoveryIdentity(rare.result).replace(/[^a-z0-9]/g, '_') || `bonus_${timestamp}`),
       name: rare.result, emoji: rare.emoji,
       category: categoryForDiscovery({ name: rare.result, connection: 'rare variant', emoji:rare.emoji, explanation:rare.explanation }),
       variantOf: rare.variantOf,

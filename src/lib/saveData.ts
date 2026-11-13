@@ -1,3 +1,4 @@
+import { encodeCompressedLocalSave, decodeCompressedLocalSave, isCompressedLocalSave, COMPRESSED_LOCAL_VERSION, COMPRESSED_LOCAL_ENCODING } from './compressedLocalSave';
 import { encodePackedLocalSave, decodePackedLocalSave, isPackedLocalSave, PACKED_LOCAL_VERSION } from './packedLocalSave';
 import { emptyEconomy, validEconomy, applySale, type Economy } from './economy';
 import { validCopyCounts } from './elementCopies';
@@ -153,7 +154,7 @@ function storedEnvelope(): any {
     return null;
   }
   const stored = JSON.parse(raw);
-  const v = isPackedLocalSave(stored) ? decodePackedLocalSave(stored) : stored;
+  const v = isCompressedLocalSave(stored) ? decodeCompressedLocalSave(stored) : isPackedLocalSave(stored) ? decodePackedLocalSave(stored) : stored;
   assertSaveVersion(v.version);
   if (!record(v) || ![2, SAVE_FORMAT_VERSION].includes(v.version) || !validateCraft(v.crafting) || (v.foundry !== null && !validateFoundry(v.foundry))) throw new Error('Invalid saved data');
   if (v.version === 3 && !validEconomy(v.economy)) throw new Error('Invalid wallet data');
@@ -187,7 +188,8 @@ function write(foundry: any, crafting: InfiniteElement[], force = false, collect
     const rawVersion = Number(localStorage.getItem(SAVE_KEY)?.slice(0, 120).match(/"version":(\d+)/)?.[1]);
     // The tagged packed local format is understood by this build only.
     const supportedPacked = rawVersion === PACKED_LOCAL_VERSION && localStorage.getItem(SAVE_KEY)?.slice(0,120).includes('"encoding":"boop-png-dictionary-v1"');
-    if (Number.isFinite(rawVersion) && rawVersion > SAVE_FORMAT_VERSION && !supportedPacked) {
+    const supportedCompressed = rawVersion === COMPRESSED_LOCAL_VERSION && localStorage.getItem(SAVE_KEY)?.slice(0,160).includes('"encoding":"'+COMPRESSED_LOCAL_ENCODING+'"');
+    if (Number.isFinite(rawVersion) && rawVersion > SAVE_FORMAT_VERSION && !supportedPacked && !supportedCompressed) {
       status(NEWER_SAVE_MESSAGE);
       throw new NewerSaveError();
     }
@@ -214,9 +216,17 @@ function write(foundry: any, crafting: InfiniteElement[], force = false, collect
   catch(error) {
     if(!quotaExceeded(error))throw error;
     const packed=encodePackedLocalSave(envelope);
-    if(packed.length>=json.length)throw error;
-    // The same atomic key is replaced only if the entire compact save fits.
-    localStorage.setItem(SAVE_KEY,packed);
+    try {
+      if(packed.length>=json.length)throw error;
+      localStorage.setItem(SAVE_KEY,packed);
+    } catch(packedError) {
+      if(!quotaExceeded(packedError))throw packedError;
+      // Large collections also repeat metadata, recipes and sprite paths.
+      // Compress the entire logical envelope, not merely embedded PNGs.
+      const compressed=encodeCompressedLocalSave(envelope);
+      if(compressed.length>=Math.min(json.length,packed.length))throw packedError;
+      localStorage.setItem(SAVE_KEY,compressed);
+    }
   }
   craftMemory = unifiedCrafting;
   lastSeenSavedAt = savedAt;
