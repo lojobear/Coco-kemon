@@ -17,7 +17,7 @@ jobs:
     timeout-minutes: 25
     env:
       BOOP_BUNDLED_WEB: '1'
-      BOOP_VERSION_NAME: '3.1.0-preview'
+      BOOP_VERSION_NAME: '3.2.0-preview'
       BOOP_VERSION_CODE: ${{ github.run_number }}
     steps:
       - uses: actions/checkout@v4

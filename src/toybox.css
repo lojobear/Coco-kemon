@@ -216,3 +216,28 @@
 .boop-arena-cards {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:8px;max-height:45dvh;overflow:auto;margin:12px 0;}
 .boop-arena-cards button {text-align:left;margin:0;}.boop-arena-cards strong,.boop-arena-cards small {display:block;overflow-wrap:anywhere;}
 .boop-arena-reveal {display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:16px 0;}.boop-arena-reveal div {padding:12px;background:#ffea9c;border-radius:15px;min-width:0;}.boop-arena-reveal strong,.boop-arena-reveal b {display:block;overflow-wrap:anywhere;margin-top:8px;}
+/* Board-first Craft: compact header, explicit ingredient slots and one action dock. */
+.boop-toybox.boop-app .toybox-studio {gap:10px;padding:10px 12px;max-width:1120px;overflow-y:auto!important;}
+.boop-toybox .craft-compact-header {display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:4px 12px;padding:0 4px;}
+.boop-toybox .craft-compact-header h1 {font-size:25px;line-height:1.2;letter-spacing:-.6px;margin:0;}
+.boop-toybox .craft-compact-header p {font-size:13px;margin:0;color:#596077;}
+.boop-toybox.boop-app .boop-board-layout {flex:1 0 270px;min-height:270px;border-radius:24px;}
+.boop-toybox.boop-app .boop-board-viewport {margin-top:36px;}
+.boop-toybox .craft-composer {position:relative;flex:none;width:100%;max-width:640px;align-self:center;display:flex;flex-direction:column;gap:8px;}
+.craft-ingredient-slots {display:flex;align-items:center;gap:8px;}
+.craft-ingredient-slot {position:relative;flex:1;min-width:0;}
+.craft-ingredient-slot > button:first-child {display:flex;align-items:center;justify-content:center;gap:6px;width:100%;min-height:60px;padding:8px 9px;border:1px solid #dcd5cc;border-radius:16px;background:#fffdf9;color:#0b1230;font-size:14px;font-weight:750;}
+.craft-ingredient-slot span {min-width:0;overflow-wrap:anywhere;line-height:1.25;}
+.craft-ingredient-slot .craft-emoji {width:24px!important;height:24px!important;flex:none;}
+.craft-slot-plus {font-size:22px;font-weight:700;color:#596077;}
+.craft-slot-clear {position:absolute;right:1px;top:8px;min-width:44px;min-height:44px;border:0;border-radius:50%;background:transparent;color:#596077;display:grid;place-items:center;}
+.boop-toybox .craft-composer .toybox-combine {max-width:none;min-height:48px;align-self:stretch;font-size:18px;border-radius:16px;}
+.boop-toybox .craft-composer .toybox-random {min-height:48px;font-size:16px;border-radius:16px;padding:9px 18px;}
+.craft-procedure-drawer {border-top:1px solid #e6e0d7;}
+.craft-procedure-drawer > summary {min-height:40px;display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;font-size:13px;font-weight:700;list-style:none;color:#0b1230;}
+.craft-procedure-drawer > summary::-webkit-details-marker {display:none;}.craft-procedure-drawer > summary span {color:#073ee6;font-weight:750;}
+.craft-procedure-drawer[open] {max-height:none;overflow:visible;}
+.craft-procedure-drawer .toybox-procedures {padding:4px 2px 12px;}
+@media(min-width:700px){.boop-toybox.boop-app .toybox-studio {padding:16px 24px;}.boop-toybox.boop-app .boop-board-layout {min-height:300px;}}
+.craft-ingredient-slot:has(.craft-slot-clear) > button:first-child {padding-right:44px;}
+.craft-procedure-drawer[open] > .toybox-procedures {position:absolute;bottom:calc(100% + 8px);left:0;right:0;z-index:30;max-height:42dvh;overflow:auto;padding:14px;background:#fffdf9;border:1px solid #e6e0d7;border-radius:20px;box-shadow:0 8px 30px #0b123026;}

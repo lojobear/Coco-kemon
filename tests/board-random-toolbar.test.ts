@@ -6,7 +6,7 @@ const file=(path:string)=>readFileSync(new URL('../'+path,import.meta.url),'utf8
 
 test('Random is on the board, directly to the left of Filter, not beside Combine',()=>{
   const view=file('src/components/InfiniteCraftView.tsx');
-  const primary=view.slice(view.indexOf('className="toybox-primary-actions"'),view.indexOf('className="toybox-board-secondary"'));
+  const primary=view.slice(view.indexOf('className="toybox-primary-actions"'),view.indexOf('className="craft-procedure-drawer"'));
   assert.match(primary,/className="toybox-combine"/);
   assert.doesNotMatch(primary,/className="toybox-random"/);
   const board=view.slice(view.indexOf('className="boop-board-actions boop-board-actions--quiet"'),
@@ -24,7 +24,7 @@ test('The Filter panel still owns random amount, source and category settings',(
   assert.match(view,/aria-label="Random spawn source"/);
   assert.match(view,/aria-label="Random spawn category"/);
   assert.match(view,/aria-label="Random spawn rarity"/);
-  assert.match(view,/className="toybox-board-secondary"/);
+  assert.match(view,/className="craft-composer"/);
   assert.match(view,/Random pair<\/button>/);
   assert.match(view,/className="toybox-combine"/);
 });

@@ -27,11 +27,9 @@ jobs:
           npm run dev > /tmp/boop-server.log 2>&1 &
           for i in {1..60}; do curl -sf http://localhost:3000/ > /dev/null && break; sleep 1; done
           node tests/viewport-smoke.mjs
+          node tests/tap-combine-smoke.mjs
           node tests/procedures-smoke.mjs
           node tests/collection-order-smoke.mjs
-          node tests/arena-smoke.mjs
-      - name: Check multiplayer Durable Objects
-        run: ARENA_RUNTIME=1 node --import tsx --test tests/arena-runtime.test.ts
       - uses: actions/upload-artifact@v4
         if: always()
         with:

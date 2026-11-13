@@ -23,7 +23,7 @@ try{
   await category.selectOption('Vehicles');assert.deepEqual(await names(),['Fire Truck']);
   await category.selectOption('Materials & Minerals');assert.ok((await names()).includes('Biochar'));
   await category.selectOption('Animals');assert.ok(!(await names()).includes('Biochar'));
-  const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('coco_kemon_save_v2')).crafting);assert.equal(saved.find(item=>item.name==='Cat Food').category,'Animals','display correction must not rewrite saved categories or pricing inputs');
+  const saved=await page.evaluate(()=>new Promise((resolve,reject)=>{const opening=indexedDB.open('boop-game-progress',1);opening.onsuccess=()=>{const request=opening.result.transaction('saves').objectStore('saves').get('current');request.onsuccess=()=>{opening.result.close();resolve(request.result.envelope.crafting);};request.onerror=()=>reject(request.error);};opening.onerror=()=>reject(opening.error);}));assert.equal(saved.find(item=>item.name==='Cat Food').category,'Animals','display correction must not rewrite saved categories or pricing inputs');
   assert.deepEqual(errors,[]);console.log(`${width}px: global newest/A–Z/most-crafted, pagination, explicit category grouping, filtered newest and corrected display categories passed`);await page.close();
  }
 }finally{await browser.close();}

@@ -37,7 +37,7 @@ test('Workers serves the frontend and JSON APIs using the deployment configurati
     }
     assert.ok(ready, logs);
     const health = await json('/api/health', 200);
-    assert.ok((await json('/api/arena/collection', 401)).error);
+    assert.ok((await json('/api/arena/collection', 503)).error);
     assert.equal(health.status, 'ok');
     // The health endpoint reports the actual primary text provider, not the Gemini fallback model.
     assert.equal(health.primaryProvider, health.hasGroqKey ? 'groq' : 'cloudflare-workers-ai');

@@ -315,6 +315,11 @@ export function InfiniteCraftView() {
   const [revealBurst, setRevealBurst] = useState<{ id: number; isRare: boolean } | null>(null);
   const burstTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [ingredientSlot, setIngredientSlot] = useState<'first'|'second'|null>(null);
+  const procedureDrawer = useRef<HTMLDetailsElement>(null);
+  const boardTools = useRef<HTMLDetailsElement>(null);
+  const ingredientButtons = useRef<Record<'first'|'second',HTMLButtonElement|null>>({first:null,second:null});
+  const combineButton = useRef<HTMLButtonElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   useEffect(()=>{
     const open=()=>{
@@ -719,8 +724,7 @@ export function InfiniteCraftView() {
     setCanvasItems(prev => [...prev, newItem].slice(0, 300));
     setSpawnToast(`${emoji} ${isShiny ? '✨ ' : ''}${name} added`);
     setTimeout(() => setSpawnToast(null), 1800);
-    // Picking from the library adds a tile; it must not unexpectedly fuse
-    // with a board selection. Players intentionally tap two tiles to combine.
+    return newItem.instanceId;
   };
 
   const spawnFromSidebar = (raw: InfiniteElement) => {
@@ -1010,6 +1014,7 @@ export function InfiniteCraftView() {
   const activeProcedure = procedureCatalog.find(process => process.id === procedureId) || procedureCatalog.find(process => process.id === 'MIX');
   const applyProcedure = async () => {
     if (!activeProcedure || !selectedPieces.length || procedureRequest.current || requestRef.current || foundryBusy) return;
+    if(procedureDrawer.current)procedureDrawer.current.open=false;
     if (activeProcedure.id === 'MIX') {
       if (selectedPieces.length !== 2) return;
       setUsedProcedure({ id: 'MIX', at: Date.now() });
@@ -1049,36 +1054,9 @@ export function InfiniteCraftView() {
   return (
     <CraftSprites.Provider value={customSprites}>
     <div className="boop-craft-studio toybox-studio">
-      <header className="toybox-intro">
-        <h1>Let’s see what<br />happens.<img src="/toybox/curiosity-accent.png" alt="" aria-hidden="true" /></h1>
-        <span className="toybox-eyebrow">CRAFT</span>
-        <p>Pick elements. Mix them or apply a procedure.</p>
+      <header className="toybox-intro craft-compact-header">
+        <h1>Craft</h1><p>{activeProcedure?.id==='MIX'?'Tap two elements, then Combine.':'Tap one or two elements, then Apply.'}</p>
       </header>
-      <div className="toybox-primary-actions">
-      <button type="button" className="toybox-combine" disabled={isSynthesizing || foundryBusy || !selectedPieces.length || (activeProcedure?.id === 'MIX' && selectedPieces.length !== 2)}
-        aria-label={activeProcedure?.id === 'MIX' && selectedPieces.length === 2 ? `Combine ${selectedPieces[0].name} + ${selectedPieces[1].name}` : undefined}
-        onClick={() => void applyProcedure()}>{isSynthesizing ? 'Working…' : activeProcedure?.id === 'MIX'
-          ? selectedPieces.length === 2 ? 'Combine selected' : 'Pick two elements to combine'
-          : selectedPieces.length ? `Apply ${activeProcedure?.name}` : `Select an element to ${activeProcedure?.name.toLowerCase()}`}</button>
-
-      </div>
-      <div className="toybox-board-secondary">
-        <button type="button" onClick={() => setActiveTab('arena')}>🏆 Arena</button>
-        <button type="button" disabled={isSynthesizing || foundryBusy || !spawnPool.length || canvasItems.length > 298}
-          onClick={() => spawnRandomBatch(2, undefined, true)}><Shuffle size={17}/>Random pair</button>
-        <button type="button" disabled={isSynthesizing || foundryBusy || !canvasItems.length} onClick={tidyCanvas}><LayoutGrid size={17}/>Tidy board</button>
-      </div>
-      <BoardProcedures catalog={procedureCatalog} selected={activeProcedure?.id || 'MIX'} busy={isSynthesizing || foundryBusy}
-        used={usedProcedure} onSelect={setProcedureId}/>
-        {lastResult && <div className={`boop-board-result ${lastResult.isNew ? "boop-board-result-new" : "boop-board-result-repeat"} tier-${rarityInfo(lastResult.rarityTier).id}`} key={lastResult.discoveredAt} role="status">
-          <div className="boop-board-roll-odds" title="Independent probabilities per successful combination; recipe discoveries do not have fixed odds">
-            {rollOddsCaption(lastResult.rarityTier, Boolean(lastResult.isShiny), Boolean(lastResult.unlockedCelestial), Boolean(lastResult.unlockedHolo), Boolean(lastResult.unlockedGlitch))}
-          </div>
-          <CraftSprite name={lastResult.name} emoji={lastResult.emoji} isShiny={lastResult.isShiny}/>
-          <div className="boop-result-info"><small>{lastResult.isNew ? '✦ NEW DISCOVERY' : 'CREATED'}</small><strong>{lastResult.name}</strong><RarityBadges item={lastResult} compact showProgress={false}/><ElementValueBadge element={lastResult} valueBook={valueBook}/></div>
-          <button onClick={()=>spawnOnCanvas(lastResult.name,lastResult.emoji,Boolean(lastResult.isShiny))} aria-label="Add another copy to board" title="Add another copy"><Plus size={17}/></button>
-          <button aria-label="Dismiss result" onClick={()=>setLastResult(null)}><X size={16}/></button>
-        </div>}
       <section className="boop-board-layout" aria-label="Discover crafting board">
         <header className="boop-board-toolbar boop-board-toolbar--quiet">
           <div className="boop-board-heading sr-only"><strong>Craft</strong><small>Pick two elements, or drag one onto another.</small></div>
@@ -1087,7 +1065,7 @@ export function InfiniteCraftView() {
               aria-label={`Spawn ${spawnCount} random ${spawnCount === 1 ? 'element' : 'elements'} from ${spawnPool.length} equally likely discoveries`}
               title={`Random adds ${spawnCount} elements. Change the amount and filters in More crafting tools.`}
               onClick={() => spawnRandomBatch(spawnCount)}><Shuffle size={18}/><span>Random</span></button>
-            <details className="boop-board-more" aria-label="More crafting tools">
+            <details ref={boardTools} className="boop-board-more" aria-label="More crafting tools" onToggle={event=>{if(event.currentTarget.open&&procedureDrawer.current)procedureDrawer.current.open=false;}}>
               <summary aria-label="More crafting tools" title="More crafting tools"><SlidersHorizontal size={19}/></summary>
               <div className="boop-board-more-panel">
                 <span className="boop-board-more-label">SMART RANDOMIZER</span>
@@ -1135,10 +1113,12 @@ export function InfiniteCraftView() {
                   <button type="button" onClick={event=>handleDuplicate(selectedPieces[0],event)}><Plus size={16}/>Duplicate selected element</button>
                   <button type="button" onClick={event=>handleRemoveFromCanvas(selectedPieces[0].instanceId,event)}><Trash2 size={16}/>Remove selected element</button>
                 </>}
+                <button type="button" disabled={isSynthesizing||foundryBusy||!spawnPool.length||canvasItems.length>298}
+                  onClick={()=>spawnRandomBatch(2,undefined,true)}><Shuffle size={16}/>Random pair</button>
                 <span className="boop-board-more-label">BOARD TOOLS</span>
                 <div className="boop-board-more-actions">
                   <button type="button" aria-label="Redo board action" disabled={isSynthesizing||!historySize.future} onClick={redoLayout}><Redo2 size={16}/> Redo</button>
-                  <button type="button" onClick={tidyCanvas}><LayoutGrid size={16}/> Tidy</button>
+                  <button type="button" aria-label="Tidy board" onClick={tidyCanvas}><LayoutGrid size={16}/> Tidy</button>
                   <button type="button" onClick={clearCanvas}><Trash2 size={16}/> Clear board</button>
                 </div>
                 <div className="boop-board-more-zoom">
@@ -1176,7 +1156,7 @@ export function InfiniteCraftView() {
         <div className="toybox-mat-tools">
           <button type="button" aria-label="Undo last board action" disabled={isSynthesizing || !historySize.past} onClick={undoLayout}><Undo2 size={19}/>Undo</button>
           <button type="button" disabled={isSynthesizing || !canvasItems.length} onClick={clearCanvas}><Trash2 size={19}/>Clear</button>
-          <button type="button" onClick={()=>setIsSidebarOpen(true)} aria-label="Open element library"><Plus size={20}/>Add</button>
+          <button type="button" onClick={()=>{setIngredientSlot(null);setIsSidebarOpen(true);}} aria-label="Open element library"><Plus size={20}/>Add</button>
         </div>
         {isSidebarOpen && <div className="boop-board-drawer-backdrop" onClick={()=>setIsSidebarOpen(false)} aria-hidden="true"/>}
         <aside id="boop-board-library" className={`boop-board-drawer ${isSidebarOpen ? 'is-open' : ''}`} aria-label="Your element library" aria-hidden={!isSidebarOpen}>
@@ -1184,10 +1164,61 @@ export function InfiniteCraftView() {
           <label className="boop-search"><Search size={17}/><input ref={searchInputRef} tabIndex={isSidebarOpen?0:-1} aria-label="Search ingredients" placeholder="Search elements…" value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} /></label>
           <div className="boop-library-filters"><div className="boop-pills">{(['all','new','shiny'] as const).map(filter=><button key={filter} tabIndex={isSidebarOpen?0:-1} aria-pressed={ingredientFilter===filter} onClick={()=>setIngredientFilter(filter)}>{filter==='all'?'All':filter==='new'?'First finds':'Shiny'}</button>)}</div>
             <select tabIndex={isSidebarOpen?0:-1} aria-label="Sort ingredients" value={sortMode} onChange={e=>setSortMode(e.target.value as typeof sortMode)}><option value="time">Recent</option><option value="alpha">A-Z</option><option value="crafted">Most crafted</option></select></div>
-          <div className="boop-board-ingredient-grid">{isSidebarOpen && ingredientList.map(el=><div key={el.id} className="boop-board-library-item"><button disabled={!isSidebarOpen} onClick={()=>{spawnFromSidebar(el);setIsSidebarOpen(false);}}><CraftSprite name={el.name} emoji={el.emoji} category={el.category} isShiny={el.isShiny}/><span>{el.name}</span><Plus size={15}/></button><button disabled={!isSidebarOpen} aria-label={`Inspect ${el.name}`} onClick={()=>setInspectedElement(el)}><Info size={15}/></button></div>)}</div>
+          <div className="boop-board-ingredient-grid">{isSidebarOpen && ingredientList.map(el=><div key={el.id} className="boop-board-library-item"><button disabled={!isSidebarOpen} onClick={()=>{
+              if(ingredientSlot){
+                const other=ingredientSlot==='first'?secondSelectedCanvasId:selectedCanvasId;
+                const existing=canvasItemsRef.current.find(tile=>tile.instanceId!==other&&discoveryIdentity(tile.name)===discoveryIdentity(el.name)&&Boolean(tile.isShiny)===Boolean(el.isShiny));
+                const id=existing?.instanceId||spawnOnCanvas(el.name,el.emoji,Boolean(el.isShiny));if(!id)return;
+                if(existing){sound.playClick();haptics.lightTap();}
+                if(ingredientSlot==='first')setSelectedCanvasId(id);else setSecondSelectedCanvasId(id);
+                const next=ingredientSlot==='first'?ingredientButtons.current.second:combineButton.current;
+                requestAnimationFrame(()=>next?.focus());
+              }else spawnFromSidebar(el);
+              setIngredientSlot(null);setIsSidebarOpen(false);
+            }}><CraftSprite name={el.name} emoji={el.emoji} category={el.category} isShiny={el.isShiny}/><span>{el.name}</span><Plus size={15}/></button><button disabled={!isSidebarOpen} aria-label={`Inspect ${el.name}`} onClick={()=>setInspectedElement(el)}><Info size={15}/></button></div>)}</div>
           {!ingredientList.length && <div className="boop-empty">No elements match this search.</div>}
           <div className="boop-board-drawer-footer"><span>{collectionStats.totalCrafts.toLocaleString()} crafts</span><span>{collectionStats.totalShinies} shinies</span><button onClick={()=>setActiveTab('profile')}>Profile stats →</button></div>
         </aside>
+      </section>
+        {lastResult && <div className={`boop-board-result ${lastResult.isNew ? "boop-board-result-new" : "boop-board-result-repeat"} tier-${rarityInfo(lastResult.rarityTier).id}`} key={lastResult.discoveredAt} role="status">
+          <div className="boop-board-roll-odds" title="Independent probabilities per successful combination; recipe discoveries do not have fixed odds">
+            {rollOddsCaption(lastResult.rarityTier, Boolean(lastResult.isShiny), Boolean(lastResult.unlockedCelestial), Boolean(lastResult.unlockedHolo), Boolean(lastResult.unlockedGlitch))}
+          </div>
+          <CraftSprite name={lastResult.name} emoji={lastResult.emoji} isShiny={lastResult.isShiny}/>
+          <div className="boop-result-info"><small>{lastResult.isNew ? '✦ NEW DISCOVERY' : 'CREATED'}</small><strong>{lastResult.name}</strong><RarityBadges item={lastResult} compact showProgress={false}/><ElementValueBadge element={lastResult} valueBook={valueBook}/></div>
+          <button onClick={()=>spawnOnCanvas(lastResult.name,lastResult.emoji,Boolean(lastResult.isShiny))} aria-label="Add another copy to board" title="Add another copy"><Plus size={17}/></button>
+          <button aria-label="Dismiss result" onClick={()=>setLastResult(null)}><X size={16}/></button>
+        </div>}
+      <section className="craft-composer" aria-label="Tap to combine">
+        <div className="craft-ingredient-slots">
+          {(['first','second'] as const).map((slot,index)=>{
+            const id=slot==='first'?selectedCanvasId:secondSelectedCanvasId;
+            const piece=canvasItems.find(item=>item.instanceId===id);
+            return <React.Fragment key={slot}>{index===1&&<span className="craft-slot-plus" aria-hidden="true">+</span>}
+              <div className="craft-ingredient-slot">
+                <button type="button" disabled={isSynthesizing||foundryBusy} ref={node=>{ingredientButtons.current[slot]=node;}}
+                  aria-expanded={isSidebarOpen&&ingredientSlot===slot} aria-controls="boop-board-library"
+                  aria-label={`Choose ${slot} element${piece?`: ${meaningLabels.get(discoveryIdentity(piece.name))||piece.name}`:''}`}
+                  onClick={()=>{if(procedureDrawer.current)procedureDrawer.current.open=false;setIngredientSlot(slot);setIsSidebarOpen(true);}}>
+                  {piece?<CraftSprite name={piece.name} emoji={piece.emoji} isShiny={piece.isShiny}/>:<Plus size={22}/>}
+                  <span>{piece?(meaningLabels.get(discoveryIdentity(piece.name))||piece.name):slot==='second'&&activeProcedure?.id!=='MIX'?'Optional second':`Choose ${slot}`}</span>
+                </button>
+                {piece&&<button className="craft-slot-clear" type="button" disabled={isSynthesizing||foundryBusy} aria-label={`Clear ${slot} ingredient`}
+                  onClick={()=>slot==='first'?setSelectedCanvasId(null):setSecondSelectedCanvasId(null)}><X size={14}/></button>}
+              </div>
+            </React.Fragment>;
+          })}
+        </div>
+        <div className="toybox-primary-actions">
+          <button type="button" className="toybox-combine" ref={combineButton} disabled={isSynthesizing||foundryBusy||!selectedPieces.length||(activeProcedure?.id==='MIX'&&selectedPieces.length!==2)}
+            aria-label={activeProcedure?.id==='MIX'&&selectedPieces.length===2?`Combine ${selectedPieces[0].name} + ${selectedPieces[1].name}`:undefined}
+            onClick={()=>void applyProcedure()}>{isSynthesizing?'Working…':activeProcedure?.id==='MIX'?'Combine':`Apply ${activeProcedure?.name}`}</button>
+        </div>
+        <details ref={procedureDrawer} className="craft-procedure-drawer" onToggle={event=>{if(event.currentTarget.open&&boardTools.current)boardTools.current.open=false;}}>
+          <summary aria-label="Open procedures">Procedure: {activeProcedure?.name||'Mix'} <span>Change ▴</span></summary>
+          <BoardProcedures catalog={procedureCatalog} selected={activeProcedure?.id||'MIX'} busy={isSynthesizing||foundryBusy}
+            used={usedProcedure} onSelect={id=>{setProcedureId(id);setCombineError(null);if(procedureDrawer.current)procedureDrawer.current.open=false;requestAnimationFrame(()=>procedureDrawer.current?.querySelector('summary')?.focus());}}/>
+        </details>
       </section>
 
       {firstDiscoveryModal && <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn" onClick={() => setFirstDiscoveryModal(null)}><div onClick={e => e.stopPropagation()} className={`w-full max-w-sm rounded-2xl p-6 border shadow-2xl text-center relative overflow-hidden ${isDarkMode ? 'bg-[#18181b] border-amber-500/40 text-white' : 'bg-white border-amber-400 text-black'}`}><div className="absolute -top-12 -left-12 w-32 h-32 bg-amber-500/20 rounded-full blur-2xl pointer-events-none" /><div className="absolute -bottom-12 -right-12 w-32 h-32 bg-amber-500/20 rounded-full blur-2xl pointer-events-none" /><div className="text-5xl mb-3 animate-bounce"><CraftSprite name={firstDiscoveryModal.name} emoji={firstDiscoveryModal.emoji} isShiny={firstDiscoveryModal.isShiny} /></div><div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40 text-xs font-mono font-bold tracking-widest uppercase mb-2"><Sparkles className="w-3.5 h-3.5" />FIRST DISCOVERY!</div><h3 className="text-2xl font-black tracking-tight mb-1">{firstDiscoveryModal.name}</h3><p className="text-xs text-zinc-400 mb-5 leading-relaxed">You are the very first crafter to unlock this combination in the global matrix!</p>{firstDiscoveryModal.recipe && <div className={`p-3 rounded-xl border text-xs font-mono mb-5 ${isDarkMode ? 'bg-black/30 border-zinc-800 text-zinc-300' : 'bg-zinc-100 border-zinc-200 text-zinc-700'}`}>{firstDiscoveryModal.recipe.first} + {firstDiscoveryModal.recipe.second} = {firstDiscoveryModal.name}</div>}<button onClick={() => { sound.playClick(); setFirstDiscoveryModal(null); }} className="w-full py-2.5 rounded-xl font-bold text-sm bg-gradient-to-r from-amber-500 to-amber-600 text-black hover:brightness-110 shadow-lg transition-all active:scale-95">Continue Crafting</button></div></div>}
