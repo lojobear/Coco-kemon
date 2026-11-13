@@ -41,11 +41,17 @@ export async function runBloopTick(scheduledTime=Date.now()){
     if(item){
       const key=discoveryIdentity(item.name);
       try{
-        const art=await findRecoveryArt(item.name,false)|| (await cachedWork<GeminiImageResult>('element-sprite-v9',serverSpriteKey(item.name,false),()=>generateBloopImage(buildSpritePrompt(item.name)))).value;
-        if(!art?.data||art.data.length<100)throw new Error('No sprite returned');
-        // Explicitly persist to the shared cache, so a ready image survives isolate restarts.
         const kv=getPersistentCacheBinding();if(!kv)throw new Error('Artwork cache unavailable');
-        await kv.put('element-sprite-v9:'+serverSpriteKey(item.name,false),JSON.stringify(art),{expirationTtl:365*86400});
+        const spriteKey=serverSpriteKey(item.name,false),storageKey='element-sprite-v9:'+spriteKey;
+        const generated=await cachedWork<GeminiImageResult>('element-sprite-v9',spriteKey,()=>generateBloopImage(buildSpritePrompt(item.name)));
+        const art=generated.value;
+        if(!art?.data||art.data.length<100)throw new Error('No sprite returned');
+        // cachedWork writes on misses. Never write the same KV key twice in a second.
+        // If its write failed, leave the item pending and retry the cached art later.
+        if(!await kv.get(storageKey,'json')){
+          if(generated.cache==='miss')throw new Error('Artwork cache write not yet confirmed');
+          await kv.put(storageKey,JSON.stringify(art),{expirationTtl:365*86400});
+        }
         state={...state,artwork:{...state.artwork,[key]:'ready'}};
         detail={...detail,artwork:'ready'};
       }catch{detail={...detail,artwork:'pending'};}
@@ -66,6 +72,7 @@ export function registerBloopRoutes(app:Express){
   });
   // Read only public generated cache art; no private account storage or AI calls.
   app.get('/api/bloop/art',async(req,res)=>{
+    res.set('Access-Control-Allow-Origin','*');
     const name=typeof req.query.name==='string'?req.query.name.trim():'';
     if(!name||name.length>160)return res.status(400).json({error:'Invalid name'});
     try{const art=await findRecoveryArt(name,false);if(!art)return res.status(404).json({error:'Artwork pending'});
