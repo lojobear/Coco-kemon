@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { isAndroidNativeShell, nativeOAuthRedirect, sendToAndroid } from '../lib/nativeShell';
 import { useGame } from '../lib/gameStore';
-import { cloud, readCloudSave, writeCloudSave, validateCloudPayload, downloadBackup, RECOVERY_KEY, type CloudSave } from '../lib/cloudSave';
+import { cloud, readCloudSave, writeCloudSave, validateCloudPayload, cloudPayloadBytes, CLOUD_SAVE_MAX_BYTES, downloadBackup, RECOVERY_KEY, type CloudSave } from '../lib/cloudSave';
 import { loadProfileSprites } from '../lib/profileSprites';
 
 export function CloudSaves({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -130,7 +130,7 @@ export function CloudSaves({ open, onClose }: { open: boolean; onClose: () => vo
     </> : <div className="space-y-3">
       <p className="break-all text-sm">Signed in as <strong>{user.email ?? 'Google user'}</strong></p>
       <p className="text-xs boop-cloud-muted">{snapshot === undefined ? 'Cloud info has not loaded yet.' : snapshot === null ? 'No cloud save yet. Save this device’s collection to get started.' : `Cloud save: ${new Date(snapshot.updated_at).toLocaleString()} · revision ${snapshot.revision}`}</p>
-      <p className="text-xs boop-cloud-secondary">Device saves are automatic. Cloud saves are manual: save before switching devices, then load on the other device.</p>
+      <p className="text-xs boop-cloud-secondary">Device saves are automatic. Cloud saves are manual: save before switching devices, then load on the other device. Progress saves independently of sprite uploads.</p>
       <div className="boop-cloud-sprite-library rounded-xl border p-3 space-y-2">
         <h3 className="font-bold text-sm boop-cloud-section-title">Profile sprite library</h3>
         <p className="text-xs boop-cloud-muted">Sprites upload automatically while signed in and become available for matching discoveries on your other devices. Game progress still uses Save to cloud and Load from cloud.</p>
@@ -164,12 +164,20 @@ export function CloudSaves({ open, onClose }: { open: boolean; onClose: () => vo
         <button className={button} disabled={busy || snapshot === undefined || isSynthesizing} onClick={() => run(async current => {
           if (snapshot && !window.confirm(`Replace the cloud collection for ${user.email ?? 'this account'} with this device’s progress?`)) return;
           const local = game.current.exportSaveData();
-          const sprites = await trackSpriteSync(() => syncProfileSprites(user.id, local, 'save'));
+          let json = JSON.stringify(JSON.parse(local));
+          // Game progress must not depend on a full sprite library sync.
+          // Existing private references and inline PNGs are valid save data.
+          // Compact first only when close to the database's JSONB byte ceiling.
+          if (cloudPayloadBytes(JSON.parse(json)) > CLOUD_SAVE_MAX_BYTES - 256 * 1024) {
+            setMessage('Compact save: syncing artwork before saving progress…');
+            const sprites = await trackSpriteSync(() => syncProfileSprites(user.id, local, 'save'));
+            if (!current()) return;
+            json = JSON.stringify(applySpriteChanges(JSON.parse(local), sprites.changes));
+            game.current.applyProfileSpriteChanges(sprites.changes);
+          }
           if (!current()) return;
-          game.current.applyProfileSpriteChanges(sprites.changes);
-          const json = JSON.stringify(applySpriteChanges(JSON.parse(local), sprites.changes));
           const saved = await writeCloudSave(json, snapshot?.revision ?? 0, user.id);
-          if (current()) { setSnapshot(saved); setMessage('Saved to your Google account.'); }
+          if (current()) { setSnapshot(saved); setMessage('Progress saved to your Google account. Sprite sync is separate.'); }
         })}>Save to cloud</button>
         <button className={button} disabled={busy || !snapshot || isSynthesizing} onClick={() => run(async current => {
           const saved = await readCloudSave(user.id);
@@ -197,7 +205,7 @@ export function CloudSaves({ open, onClose }: { open: boolean; onClose: () => vo
       </div>
       <p className="text-xs boop-cloud-secondary">Signing out keeps this device’s collection here. Other people using this browser can see it.</p>
     </div>}
-    <p role="status" aria-live="polite" className="mt-3 text-sm boop-cloud-status">{busy ? 'Working…' : message}</p>
+    <p role="status" aria-live="polite" className="mt-3 text-sm boop-cloud-status">{busy ? (message || 'Working…') : message}</p>
     <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-700 pt-3">
       <button className={button} onClick={() => downloadBackup(game.current.exportSaveData())}>Export device backup</button>
       {hasRecovery && <button className={button} onClick={() => {

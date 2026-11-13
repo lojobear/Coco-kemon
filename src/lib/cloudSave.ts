@@ -21,9 +21,12 @@ async function accountToken(userId: string) {
   return data.session.access_token;
 }
 
+export const CLOUD_SAVE_MAX_BYTES = 8 * 1024 * 1024;
+export const CLOUD_SAVE_TIMEOUT_MS = 60_000;
+export function cloudPayloadBytes(payload: unknown): number { return new TextEncoder().encode(JSON.stringify(payload)).length; }
 export function validateCloudPayload(payload: unknown): string {
   const json = JSON.stringify(payload);
-  if (!json || new TextEncoder().encode(json).length > 8 * 1024 * 1024) {
+  if (!json || new TextEncoder().encode(json).length > CLOUD_SAVE_MAX_BYTES) {
     throw new Error('This save exceeds the cloud limit. Export a JSON backup instead.');
   }
   if (![2, 3].includes((payload as { version: number })?.version)) throw new Error('Unsupported cloud save version.');
@@ -36,12 +39,24 @@ export async function readCloudSave(userId: string): Promise<CloudSave | null> {
   const token = await accountToken(userId);
   const { data, error } = await cloud.from('game_saves')
     .select('payload, revision, updated_at').eq('user_id', userId)
-    .abortSignal(AbortSignal.timeout(20000)).maybeSingle().setHeader('Authorization', `Bearer ${token}`);
+    .abortSignal(AbortSignal.timeout(CLOUD_SAVE_TIMEOUT_MS)).maybeSingle().setHeader('Authorization', `Bearer ${token}`);
   if (error) throw new Error('Could not read your cloud save. Check your connection and try again.');
   if (data) validateCloudPayload(data.payload);
   return data;
 }
 
+/** JSONB reorders object keys, so compare structure rather than serialization. */
+export function sameCloudPayload(a:unknown,b:unknown):boolean {
+  if(a===b)return true;
+  if(!a||!b||typeof a!=='object'||typeof b!=='object')return false;
+  if(Array.isArray(a)||Array.isArray(b))return Array.isArray(a)&&Array.isArray(b)&&a.length===b.length&&a.every((v,i)=>sameCloudPayload(v,b[i]));
+  const x=a as Record<string,unknown>,y=b as Record<string,unknown>;
+  const keys=Object.keys(x);
+  return keys.length===Object.keys(y).length&&keys.every(k=>Object.prototype.hasOwnProperty.call(y,k)&&sameCloudPayload(x[k],y[k]));
+}
+export function confirmedCloudWrite(saved:CloudSave|null, payload:unknown, revision:number):saved is CloudSave {
+  return !!saved&&saved.revision===revision+1&&sameCloudPayload(saved.payload,payload);
+}
 export async function writeCloudSave(json: string, revision: number, userId: string): Promise<CloudSave> {
   if (!cloud) throw new Error('Cloud saves are not configured yet.');
   const payload = JSON.parse(json);
@@ -49,12 +64,20 @@ export async function writeCloudSave(json: string, revision: number, userId: str
   const token = await accountToken(userId);
   const { data, error } = await cloud.rpc('write_game_save', {
     save_payload: payload, expected_revision: revision,
-  }).abortSignal(AbortSignal.timeout(20000)).single().setHeader('Authorization', `Bearer ${token}`);
+  }).abortSignal(AbortSignal.timeout(CLOUD_SAVE_TIMEOUT_MS)).single().setHeader('Authorization', `Bearer ${token}`);
   if (error?.code === '40001') throw new Error('Another device saved newer progress. Refresh cloud info, then load it or explicitly replace it.');
-  if (error) throw new Error('Cloud save failed. Your progress is still on this device. Check your connection and retry.');
+  if (error?.code === '23514') throw new Error('The cloud rejected this save because it exceeds a data or size limit. Export a device backup and retry after syncing sprites.');
+  if (error?.code === '28000' || error?.code === '42501') throw new Error('Your cloud session is no longer authorized. Sign in again without clearing your device data.');
   const saved = data as CloudSave;
-  if (!saved || !Number.isInteger(saved.revision)) throw new Error('Could not confirm the save. Refresh cloud info before retrying.');
-  return saved;
+  if (!error && saved && Number.isInteger(saved.revision)) return saved;
+  // A network timeout can occur AFTER Postgres commits. Confirm the exact
+  // payload and expected next revision before reporting failure or retrying.
+  // Never retry a write automatically or overwrite a newer revision.
+  let latest:CloudSave|null=null;
+  try { latest=await readCloudSave(userId); } catch { /* outcome remains unknown */ }
+  if(confirmedCloudWrite(latest,payload,revision))return latest;
+  if(latest&&latest.revision>revision)throw new Error('Cloud progress changed. Refresh cloud info before saving again; your device progress is unchanged.');
+  throw new Error('Could not confirm the cloud save. Your device progress is unchanged. Refresh cloud info before retrying, or export a device backup.');
 }
 
 export function downloadBackup(json: string, prefix = 'coco-kemon-save') {
