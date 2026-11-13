@@ -92,10 +92,11 @@ interface CanvasItem {
 /** Only the moved/selected board tile should rerender. The other 299 tiles
  * keep their existing PNG decoders and DOM even when a discovery finishes. */
 const CanvasBoardTile = React.memo(function CanvasBoardTile({
-  item, selected, onPointerDown, onClickItem, onDuplicate, onRemove, spawnTileMaxWidth, label,
+  item, selected, onPointerDown, onClickItem, onDuplicate, onRemove, spawnTileMaxWidth, label, category,
 }: {
   item: CanvasItem;
   label?: string;
+  category?: string;
   spawnTileMaxWidth: number;
   selected: boolean;
   onPointerDown: (item: CanvasItem, event: React.PointerEvent<HTMLDivElement>) => void;
@@ -110,7 +111,7 @@ const CanvasBoardTile = React.memo(function CanvasBoardTile({
     style={{ transform: `translate3d(${item.x}px,${item.y}px,0)`, '--spawn-delay': `${item.spawnDelay || 0}ms`, maxWidth: `${spawnTileMaxWidth}px` } as React.CSSProperties}>
     <button type="button" className="boop-tile-select" aria-label={`Select ${label || item.name} to combine`}
       aria-pressed={selected} onClick={event => { event.stopPropagation(); onClickItem(item); }}>
-      <CraftSprite name={item.name} emoji={item.emoji} isShiny={item.isShiny} />
+      <CraftSprite name={item.name} emoji={item.emoji} category={category} isShiny={item.isShiny} />
       <span title={label || item.name}>{label || item.name}</span>
     </button>
     {selected && <CheckCircle2 className="toybox-piece-check" size={28} aria-hidden="true" />}
@@ -994,6 +995,7 @@ export function InfiniteCraftView() {
   const handleIngredientPick = useCallback((item: InfiniteElement) => ingredientPickRef.current(item), []);
   const handleIngredientInspect = useCallback((item: InfiniteElement) => setInspectedElement(item), []);
 
+  const motionCategories = useMemo(() => new Map(sharedElements.map(element => [discoveryIdentity(element.name), element.category])), [sharedElements]);
   const meaningLabels = useMemo(() => new Map(sharedElements.map(element => [discoveryIdentity(element.name), displayConceptName(element)])), [sharedElements]);
 
   const selectedPieces = [selectedCanvasId, secondSelectedCanvasId]
@@ -1152,6 +1154,7 @@ export function InfiniteCraftView() {
             <div className="boop-board-origin-hint" style={{ left:BOARD_START_X - 6, top:BOARD_START_Y - 68 }}>DROP. MIX. DISCOVER.</div>
             {canvasItems.map(item => <CanvasBoardTile key={item.instanceId} item={item}
               label={meaningLabels.get(discoveryIdentity(item.name)) || item.name}
+              category={motionCategories.get(discoveryIdentity(item.name))}
               spawnTileMaxWidth={spawnTileMaxWidth}
               selected={selectedCanvasId === item.instanceId || secondSelectedCanvasId === item.instanceId} onPointerDown={onBoardPointerDown}
               onClickItem={onBoardClick} onDuplicate={onBoardDuplicate} onRemove={onBoardRemove} />)}
@@ -1179,7 +1182,7 @@ export function InfiniteCraftView() {
           <label className="boop-search"><Search size={17}/><input ref={searchInputRef} tabIndex={isSidebarOpen?0:-1} aria-label="Search ingredients" placeholder="Search elements…" value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} /></label>
           <div className="boop-library-filters"><div className="boop-pills">{(['all','new','shiny'] as const).map(filter=><button key={filter} tabIndex={isSidebarOpen?0:-1} aria-pressed={ingredientFilter===filter} onClick={()=>setIngredientFilter(filter)}>{filter==='all'?'All':filter==='new'?'First finds':'Shiny'}</button>)}</div>
             <select tabIndex={isSidebarOpen?0:-1} aria-label="Sort ingredients" value={sortMode} onChange={e=>setSortMode(e.target.value as typeof sortMode)}><option value="time">Recent</option><option value="alpha">A-Z</option><option value="crafted">Most crafted</option></select></div>
-          <div className="boop-board-ingredient-grid">{isSidebarOpen && ingredientList.map(el=><div key={el.id} className="boop-board-library-item"><button disabled={!isSidebarOpen} onClick={()=>{spawnFromSidebar(el);setIsSidebarOpen(false);}}><CraftSprite name={el.name} emoji={el.emoji} isShiny={el.isShiny}/><span>{el.name}</span><Plus size={15}/></button><button disabled={!isSidebarOpen} aria-label={`Inspect ${el.name}`} onClick={()=>setInspectedElement(el)}><Info size={15}/></button></div>)}</div>
+          <div className="boop-board-ingredient-grid">{isSidebarOpen && ingredientList.map(el=><div key={el.id} className="boop-board-library-item"><button disabled={!isSidebarOpen} onClick={()=>{spawnFromSidebar(el);setIsSidebarOpen(false);}}><CraftSprite name={el.name} emoji={el.emoji} category={el.category} isShiny={el.isShiny}/><span>{el.name}</span><Plus size={15}/></button><button disabled={!isSidebarOpen} aria-label={`Inspect ${el.name}`} onClick={()=>setInspectedElement(el)}><Info size={15}/></button></div>)}</div>
           {!ingredientList.length && <div className="boop-empty">No elements match this search.</div>}
           <div className="boop-board-drawer-footer"><span>{collectionStats.totalCrafts.toLocaleString()} crafts</span><span>{collectionStats.totalShinies} shinies</span><button onClick={()=>setActiveTab('profile')}>Profile stats →</button></div>
         </aside>

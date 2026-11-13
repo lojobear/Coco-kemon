@@ -2349,3 +2349,143 @@ html.boop-native-shell .boop-app .boop-cloud-dialog {
     }
   }
 }
+
+/* Subject-specific living sprite motion. Keep the original pixel image and
+   all rarity filters, animate only transform/opacity; no per-frame JS or AI.
+   The previous board cap and drag pause still apply to every motion profile. */
+.boop-app [data-living-motion="creature"] {--boop-living-motion:boop-life-creature;--boop-living-duration:3.6s;}
+.boop-app [data-living-motion="liquid"] {--boop-living-motion:boop-life-liquid;--boop-living-duration:2.8s;}
+.boop-app [data-living-motion="flame"] {--boop-living-motion:boop-life-flame;--boop-living-duration:1.7s;}
+.boop-app [data-living-motion="plant"] {--boop-living-motion:boop-life-plant;--boop-living-duration:4.2s;}
+.boop-app [data-living-motion="machine"] {--boop-living-motion:boop-life-machine;--boop-living-duration:3.2s;}
+.boop-app [data-living-motion="vehicle"] {--boop-living-motion:boop-life-vehicle;--boop-living-duration:3.1s;}
+.boop-app [data-living-motion="orbit"] {--boop-living-motion:boop-life-orbit;--boop-living-duration:6s;}
+.boop-app [data-living-motion="ghost"] {--boop-living-motion:boop-life-ghost;--boop-living-duration:4.4s;}
+.boop-app [data-living-motion="weather"] {--boop-living-motion:boop-life-weather;--boop-living-duration:4.8s;}
+.boop-app [data-living-motion="crystal"] {--boop-living-motion:boop-life-crystal;--boop-living-duration:4s;}
+.boop-app [data-living-motion="object"] {--boop-living-motion:boop-living-hop;--boop-living-duration:4.3s;}
+
+@keyframes boop-life-creature {
+  0%,100% {transform:translateY(0) scale(1);}
+  25% {transform:scale(1.035,1.055);}
+  48% {transform:scale(1,.985);}
+  60% {transform:translateY(1px) scale(1.06,.94);}
+  73% {transform:translateY(-5px) scale(.97,1.035);}
+  86% {transform:scale(1.04,.97);}
+}
+@keyframes boop-life-liquid {
+  0%,100% {transform:translateY(0) scale(1);}
+  27% {transform:translateY(1px) scale(1.10,.91) rotate(-3deg);}
+  55% {transform:translateY(-3px) scale(.96,1.06) rotate(3deg);}
+  78% {transform:scale(1.05,.96);}
+}
+@keyframes boop-life-flame {
+  0%,100% {transform:scale(1);opacity:1;}
+  22% {transform:scale(.94,1.12) rotate(-4deg);opacity:.93;}
+  42% {transform:scale(1.07,.96) rotate(2deg);opacity:1;}
+  66% {transform:scale(.97,1.08) rotate(-2deg);opacity:.91;}
+  82% {transform:scale(1.04,.98) rotate(3deg);opacity:1;}
+}
+@keyframes boop-life-plant {
+  0%,100% {transform:rotate(0) scale(1);}
+  33% {transform:rotate(-7deg) scale(1,1.025);}
+  70% {transform:rotate(6deg) scale(1,1.025);}
+}
+@keyframes boop-life-machine {
+  0%,30%,100% {transform:translate(0,0);}
+  35%,45%,55% {transform:translate(-1px,0) rotate(-2deg);}
+  40%,50%,60% {transform:translate(1px,-1px) rotate(2deg);}
+  75% {transform:translateY(-2px);}
+}
+@keyframes boop-life-vehicle {
+  0%,100% {transform:translate(0,0);}
+  22% {transform:translateX(-3px) rotate(-2deg);}
+  48% {transform:translate(4px,-2px) rotate(3deg);}
+  70% {transform:translate(2px,1px);}
+}
+@keyframes boop-life-orbit {
+  0%,100% {transform:translate(0,0) rotate(-8deg);}
+  25% {transform:translate(2px,-4px) rotate(0);}
+  50% {transform:translate(0,-6px) rotate(8deg);}
+  75% {transform:translate(-2px,-3px) rotate(0);}
+}
+@keyframes boop-life-ghost {
+  0%,100% {transform:translate(0,0) rotate(-3deg);opacity:1;}
+  40% {transform:translate(3px,-7px) rotate(4deg);opacity:.66;}
+  70% {transform:translate(-2px,-3px) rotate(-2deg);opacity:.86;}
+}
+@keyframes boop-life-weather {
+  0%,100% {transform:translate(0,0) scale(1);}
+  35% {transform:translate(5px,-3px) scale(1.04,.98);}
+  70% {transform:translate(-5px,-2px) scale(.98,1.04);}
+}
+@keyframes boop-life-crystal {
+  0%,65%,100% {transform:rotate(0) scale(1);}
+  77% {transform:rotate(-5deg) scale(1.05);}
+  89% {transform:rotate(4deg) scale(1.02);}
+}
+
+/* Tiny ambient particles belong only to active sprites, never every thumbnail.
+   They are decorative, pointer-transparent, and don't obscure the shiny mark. */
+.boop-app .element-emoji[data-living-motion]::before {content:none;pointer-events:none;}
+.boop-app [data-living-motion="liquid"] {--boop-life-particle:boop-life-ripple;--boop-life-ink:#59bde6;}
+.boop-app [data-living-motion="flame"] {--boop-life-particle:boop-life-ember;--boop-life-ink:#ff9c3c;}
+.boop-app [data-living-motion="machine"] {--boop-life-particle:boop-life-signal;--boop-life-ink:#37b7dc;}
+.boop-app [data-living-motion="crystal"] {--boop-life-particle:boop-life-signal;--boop-life-ink:#bda5ff;}
+.boop-app [data-living-motion="orbit"] {--boop-life-particle:boop-life-signal;--boop-life-ink:#e7bf69;}
+
+@keyframes boop-life-ripple {
+  0% {transform:scale(.65);opacity:.75;}
+  80%,100% {transform:scale(1.45);opacity:0;}
+}
+@keyframes boop-life-ember {
+  0%,15% {transform:translateY(3px) scale(.75);opacity:0;}
+  35% {opacity:.9;}
+  90%,100% {transform:translate(3px,-12px) scale(.35);opacity:0;}
+}
+@keyframes boop-life-signal {
+  0%,62%,100% {transform:scale(.6);opacity:0;}
+  74% {transform:scale(1.2);opacity:.9;}
+  87% {transform:scale(.8);opacity:.35;}
+}
+@media (prefers-reduced-motion:no-preference) {
+  .boop-app :is(.combine-inputs,.boop-album-detail-hero,.boop-sprite-preview)
+    .element-emoji[data-living-motion] > img,
+  .boop-app .boop-sprite-preview img.boop-editor-sprite[data-living-motion],
+  .boop-app .boop-dossier-living[data-living-motion] > img {
+    animation:var(--boop-living-motion) var(--boop-living-duration) var(--boop-living-delay,-.7s) ease-in-out infinite;
+    transform-origin:center 75%;
+  }
+  .boop-app .boop-dossier-living.sprite-idle {animation:none;will-change:auto;}
+  .boop-app .combine-dock.is-combining .combine-inputs .element-emoji[data-living-motion] > img {animation:none;}
+  @media (hover:hover) and (pointer:fine) {
+    .boop-app .boop-board-world > .boop-board-item:hover .element-emoji[data-living-motion] > img {
+      animation:var(--boop-living-motion) var(--boop-living-duration) var(--boop-living-delay,-.7s) ease-in-out infinite;
+    }
+  }
+  .boop-app .boop-board-world > .boop-board-item:is(:nth-last-child(-n+12 of .boop-board-item),.is-selected,:focus-within)
+    .element-emoji:is([data-living-motion="liquid"],[data-living-motion="flame"],[data-living-motion="machine"],[data-living-motion="crystal"],[data-living-motion="orbit"])::before,
+  .boop-app :is(.combine-inputs,.boop-album-detail-hero,.boop-sprite-preview)
+    .element-emoji:is([data-living-motion="liquid"],[data-living-motion="flame"],[data-living-motion="machine"],[data-living-motion="crystal"],[data-living-motion="orbit"])::before,
+  .boop-app .boop-dossier-living:is([data-living-motion="liquid"],[data-living-motion="flame"],[data-living-motion="machine"],[data-living-motion="crystal"],[data-living-motion="orbit"])::before {
+    content:"";position:absolute;z-index:1;left:66%;top:22%;width:4px;height:4px;
+    background:var(--boop-life-ink);box-shadow:3px -4px 0 -1px var(--boop-life-ink);
+    animation:var(--boop-life-particle) var(--boop-living-duration) ease-out infinite;
+  }
+  .boop-app .element-emoji[data-living-motion="liquid"]::before {
+    left:18%;top:auto;bottom:9%;width:64%;height:16%;background:transparent;
+    border:1.5px solid var(--boop-life-ink);border-radius:50%;box-shadow:none;
+  }
+  /* Drag pause wins even over desktop hover/focus. No animated hitboxes. */
+  .boop-app .boop-board-world:has(> .is-dragging) > .boop-board-item .element-emoji[data-living-motion] > img,
+  .boop-app .boop-board-world:has(> .is-dragging) > .boop-board-item .element-emoji[data-living-motion]::before,
+  .boop-app .combine-dock.is-combining .combine-inputs .element-emoji[data-living-motion]::before {
+    animation:none;
+  }
+  .boop-app .boop-board-world:has(> .is-dragging) > .boop-board-item .element-emoji[data-living-motion]::before,
+  .boop-app .combine-dock.is-combining .combine-inputs .element-emoji[data-living-motion]::before {content:none;}
+}
+@media (prefers-reduced-motion:reduce) {
+  .boop-app [data-living-motion],.boop-app [data-living-motion] > img,
+  .boop-app [data-living-motion]::before {animation:none!important;}
+}

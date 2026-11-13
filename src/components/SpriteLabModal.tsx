@@ -394,7 +394,7 @@ function LabSprite({ target, className }: { target: LabDisplayItem; className: s
     return <MaterialSprite material={target.item} className={className} alt={target.name} />;
   }
   if (target.type !== 'oddkin') {
-    return <ElementSprite name={target.name} custom={target.sharedSprite} fallback={target.type === 'craft' ? target.item.emoji : undefined} className={className} alt={target.name} />;
+    return <ElementSprite name={target.name} category={target.item.category} custom={target.sharedSprite} fallback={target.type === 'craft' ? target.item.emoji : undefined} className={className} alt={target.name} />;
   }
-  return <SpriteImage src={target.sharedSprite} alt={target.name} className={`${className} object-contain pixelated`} />;
+  return <SpriteImage src={target.sharedSprite} alt={target.name} data-living-motion="creature" className={`${className} object-contain pixelated`} />;
 }

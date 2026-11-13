@@ -20,3 +20,27 @@ test('living sprites use bounded artwork-only motion and respect reduced motion'
   assert.ok(block.includes('.combine-dock.is-combining'));
   assert.doesNotMatch(block, /will-change:\s*transform/);
 });
+
+import { livingSpriteMotion } from '../src/lib/livingSpriteMotion';
+test('semantic animation follows the subject, not its ingredient or name length', () => {
+  const examples = [
+    ['Water','liquid'],['Ocean','liquid'],['Fire','flame'],['Lava','flame'],
+    ['Fire Truck','vehicle'],['Fire Dragon','creature'],['Fox','creature'],
+    ['Robot','machine'],['Engine','machine'],['Computer','machine'],
+    ['Tree','plant'],['Moon','orbit'],['Galaxy','orbit'],['Ghost','ghost'],
+    ['Cloud','weather'],['Steam','weather'],['Diamond','crystal'],['Chair','object'],
+  ] as const;
+  for (const [name,motion] of examples) assert.equal(livingSpriteMotion(name),motion,name);
+  assert.equal(livingSpriteMotion('Ferrum Hopper','Oddkin & Creatures'),'creature');
+  assert.equal(livingSpriteMotion('Python (programming)'),'machine');
+  assert.equal(livingSpriteMotion('Python (snake)'),'creature');
+});
+test('semantic effects preserve art, use CSS transforms and have a reduced-motion stop',()=>{
+  const semantic=css.slice(css.indexOf('/* Subject-specific living sprite motion.'));
+  for(const motion of ['creature','liquid','flame','plant','machine','vehicle','orbit','ghost','weather','crystal'])
+    assert.ok(semantic.includes('@keyframes boop-life-'+motion));
+  assert.match(semantic,/prefers-reduced-motion:reduce/);
+  assert.match(semantic,/:nth-last-child\(-n\+12 of \.boop-board-item\)/);
+  assert.match(semantic,/:has\(> \.is-dragging\)/);
+  assert.doesNotMatch(semantic,/filter:\s*(?:invert|hue-rotate)/);
+});

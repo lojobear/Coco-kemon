@@ -1,4 +1,5 @@
 import { SpriteImage } from './SpriteImage';
+import { livingSpriteMotion } from '../lib/livingSpriteMotion';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { getElementEmoji } from '../lib/elementEmoji';
 import { spriteVariantKey } from '../lib/spriteVariant';
@@ -8,8 +9,8 @@ import { observeSpriteViewport } from '../lib/spriteViewport';
 import type { Material } from '../types';
 
 /** Uploaded/rerolled art always wins. Generated defaults share one durable cache. */
-export function ElementSprite({ name, custom, fallback, className = '', alt = '', idle = true, isShiny = false }: {
-  name: string; custom?: string; fallback?: string; className?: string; alt?: string; idle?: boolean; isShiny?: boolean;
+export function ElementSprite({ name, custom, fallback, className = '', alt = '', idle = true, isShiny = false, category }: {
+  name: string; custom?: string; fallback?: string; className?: string; alt?: string; idle?: boolean; isShiny?: boolean; category?: string;
 }) {
   const [art, setArt] = useState<{ key: string; url: string }>();
   // The first frame is ALWAYS a new hand-drawn pixel sprite, never a generic
@@ -19,6 +20,7 @@ export function ElementSprite({ name, custom, fallback, className = '', alt = ''
   const [temporary, setTemporary] = useState<{ key: string; url: string }>();
   const [retry, setRetry] = useState(0);
   const host = useRef<HTMLSpanElement>(null);
+  const motion = useMemo(() => livingSpriteMotion(name, category), [name, category]);
   const key = spriteVariantKey(name, isShiny);
   const normalKey = spriteVariantKey(name);
   useEffect(() => {
@@ -74,7 +76,7 @@ export function ElementSprite({ name, custom, fallback, className = '', alt = ''
     || (art?.key === key || (isShiny && art?.key === normalKey) ? art?.url : undefined)
     || toyboxDefault
     || (temporary?.key === key ? temporary.url : undefined);
-  return <span ref={host} className={`element-emoji${idle ? ' sprite-idle' : ''}${isShiny ? ' boop-shiny-sprite' : ''}${ownShiny ? ' boop-shiny-authored' : ''} ${className}`} title={error ? `Sprite unavailable: ${error} Retry in Sprites.` : isShiny ? `Shiny variant of ${name}` : undefined}>
+  return <span ref={host} data-living-motion={motion} className={`element-emoji${idle ? ' sprite-idle' : ''}${isShiny ? ' boop-shiny-sprite' : ''}${ownShiny ? ' boop-shiny-authored' : ''} ${className}`} title={error ? `Sprite unavailable: ${error} Retry in Sprites.` : isShiny ? `Shiny variant of ${name}` : undefined}>
     <SpriteImage src={url || ((fallback?.startsWith('data:') || fallback?.startsWith('/')) ? fallback : freshArt)} alt={alt || name} draggable={false} decoding="async" />
     {!url && <span className="boop-preview-cue" title={error ? 'Artwork unavailable. Retry in Sprites.' : 'Preview artwork. Check Sprites for availability.'} aria-label={error ? 'Artwork unavailable' : 'Preview artwork'}>{error ? '!' : '…'}</span>}
   </span>;
@@ -102,5 +104,5 @@ export const MaterialSprite = React.memo(function MaterialSprite({ material, cla
   // Preserve uploaded or remotely saved artwork. A legacy procedurally
   // generated icon may be replaced with the new hand-authored preview.
   const custom = legacyDefault ? undefined : material.customSpriteUrl;
-  return <ElementSprite name={material.displayName} custom={custom} fallback={fresh} className={className} alt={alt} idle={idle} isShiny={isShiny} />;
+  return <ElementSprite name={material.displayName} category={material.category} custom={custom} fallback={fresh} className={className} alt={alt} idle={idle} isShiny={isShiny} />;
 });
