@@ -2231,3 +2231,121 @@ html.boop-native-shell .boop-app .boop-cloud-dialog {
   .boop-collection-sprite-tools{padding:9px;}
   .boop-app .boop-collection-replace{width:100%;}
 }
+
+/* Living sprites: animate artwork, never tile geometry or saved PNG bytes.
+   Recent board pieces and active previews get personality; large lists stay
+   still until interacted with. No extra rendering requests or JS frame loops. */
+.boop-app :is(.boop-board-item,.boop-board-library-item,.discovery-grid,
+  .boop-sprite-picker-grid,.boop-sticker-grid,.boop-archive,.boop-sprite-preview,
+  .combine-inputs) .sprite-idle {
+  animation:none;
+  will-change:auto;
+}
+/* A shiny remains recognizable even when its inventory glint is static. */
+.boop-app :is(.boop-board-item,.boop-board-library-item,.discovery-grid,
+  .boop-sprite-picker-grid,.boop-sticker-grid,.boop-archive) .boop-shiny-sprite::after {
+  animation:none;
+}
+
+@keyframes boop-living-hop {
+  0%, 55%, 100% {transform:translateY(0) scale(1);}
+  62% {transform:translateY(1px) scale(1.08,.92);}
+  74% {transform:translateY(-7px) scale(.96,1.05);}
+  86% {transform:translateY(0) scale(1.07,.93);}
+  93% {transform:translateY(-2px) scale(1);}
+}
+@keyframes boop-living-sway {
+  0%, 50%, 100% {transform:translateY(0) rotate(0);}
+  64% {transform:translateY(-3px) rotate(-7deg);}
+  81% {transform:translateY(-4px) rotate(7deg);}
+}
+@keyframes boop-living-breathe {
+  0%, 100% {transform:translateY(0) scale(1);}
+  40% {transform:translateY(-5px) scale(1.03,1.06);}
+  75% {transform:translateY(-1px) scale(1.04,.97);}
+}
+@keyframes boop-living-react {
+  0%, 100% {transform:translateY(0) scale(1);}
+  28% {transform:translateY(-6px) scale(1.09);}
+  58% {transform:translateY(0) scale(1.08,.93);}
+  80% {transform:translateY(-2px) scale(1);}
+}
+
+@media (prefers-reduced-motion:no-preference) {
+  /* At most twelve recent tiles plus selected/hovered tiles move at once.
+     The filtered sibling selector ignores the board hint and fusion overlay. */
+  .boop-app .boop-board-world > .boop-board-item {
+    --boop-living-motion:boop-living-hop;
+    --boop-living-duration:3.2s;
+    --boop-living-delay:-.3s;
+  }
+  .boop-app .boop-board-world > .boop-board-item:nth-child(3n) {
+    --boop-living-motion:boop-living-sway;
+    --boop-living-duration:4.1s;
+    --boop-living-delay:-1.7s;
+  }
+  .boop-app .boop-board-world > .boop-board-item:nth-child(3n+1) {
+    --boop-living-motion:boop-living-breathe;
+    --boop-living-duration:3.8s;
+    --boop-living-delay:-2.4s;
+  }
+  .boop-app .boop-board-world > .boop-board-item:is(
+    :nth-last-child(-n+12 of .boop-board-item),.is-selected,:focus-within)
+    .element-emoji > img {
+    animation:var(--boop-living-motion) var(--boop-living-duration) var(--boop-living-delay) ease-in-out infinite;
+    transform-origin:center 75%;
+  }
+  .boop-app .boop-board-world > .boop-board-item:is(
+    :nth-last-child(-n+12 of .boop-board-item),.is-selected,:focus-within)
+    .boop-shiny-sprite::after {
+    animation:boop-shiny-glint 2.6s ease-in-out infinite;
+    animation-delay:var(--boop-living-delay);
+  }
+  .boop-app .boop-board-world > .boop-board-item .boop-tile-select:active
+    .element-emoji > img {
+    animation:boop-living-react 420ms ease-out both;
+    transform-origin:center 75%;
+  }
+  /* Stop even the glint during drag; outer tile transforms remain untouched. */
+  .boop-app .boop-board-world:has(> .is-dragging) > .boop-board-item .element-emoji > img,
+  .boop-app .boop-board-world:has(> .is-dragging) > .boop-board-item .boop-shiny-sprite::after {
+    animation:none;
+  }
+
+  /* Focused Foundry ingredients, collection details and the single Sprite Lab
+     preview can move freely, without animating hundreds of thumbnail layers. */
+  .boop-app :is(.combine-inputs,.boop-album-detail-hero,.boop-sprite-preview)
+    .element-emoji > img,
+  .boop-app .boop-sprite-preview img.boop-editor-sprite {
+    animation:boop-living-breathe 3.4s ease-in-out infinite;
+    transform-origin:center 75%;
+  }
+  .boop-app .combine-inputs .ingredient:last-of-type .element-emoji > img {
+    animation:boop-living-sway 3.8s -1.3s ease-in-out infinite;
+  }
+  .boop-app .combine-dock.is-combining .combine-inputs .element-emoji > img {
+    animation:none;
+  }
+  .boop-app :is(.boop-sticker-card,.boop-trophy-pick,.discovery-pick,
+    .boop-board-library-item > button,.boop-sprite-card):is(:active,:focus-visible)
+    .element-emoji > img,
+  .boop-app .boop-sprite-card:is(:active,:focus-visible) img.boop-picker-sprite {
+    animation:boop-living-react 420ms ease-out both;
+    transform-origin:center 75%;
+  }
+  @media (hover:hover) and (pointer:fine) {
+    .boop-app .boop-board-world > .boop-board-item:hover .element-emoji > img {
+      animation:boop-living-hop 2.6s ease-in-out infinite;
+      transform-origin:center 75%;
+    }
+    .boop-app .boop-board-world:has(> .is-dragging) > .boop-board-item:hover .element-emoji > img {
+      animation:none;
+    }
+    .boop-app :is(.boop-sticker-card,.boop-trophy-pick,.discovery-pick,
+      .boop-board-library-item > button,.boop-sprite-card):hover .element-emoji > img,
+    .boop-app .boop-sprite-card:hover img.boop-picker-sprite {
+      animation:boop-living-react 420ms ease-out both;
+      transform-origin:center 75%;
+    }
+  }
+}
