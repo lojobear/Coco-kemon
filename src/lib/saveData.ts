@@ -226,7 +226,7 @@ function write(foundry: any, crafting: InfiniteElement[], force = false, collect
 }
 function quotaExceeded(error:unknown):boolean {
   const e=error as {name?:string;code?:number}|null;
-  return e?.name==='QuotaExceededError'||e?.name==='NS_ERROR_DOM_QUOTA_REACHED'||e?.code===22||e?.code===1014;
+  return e?.name==='QuotaExceededError'||e?.name==='NS_ERROR_DOM_QUOTA_REACHED'||e?.code===22||e?.code===1014||(error instanceof Error&&error.message==='QuotaExceeded');
 }
 function reportWriteError(error:unknown):void {
   if(error instanceof NewerSaveError){status(error.message);return;}
@@ -258,7 +258,9 @@ export function saveCraftElements(elements: InfiniteElement[]) {
     const envelope = storedEnvelope();
     const legacy = envelope ? envelope.foundry : JSON.parse(localStorage.getItem(LEGACY_FOUNDRY) || 'null');
     if (legacy !== null && !validateFoundry(legacy)) throw new Error('Invalid existing save');
-    write(legacy, elements);
+    // Keep the complete pending inventory exportable even if both writes fail.
+    craftMemory=mergeFoundryIntoCraft(elements,legacy);
+    write(legacy, craftMemory);
   } catch (error) { reportWriteError(error); }
 }
 export function saveFoundry(foundry: any) {
@@ -267,6 +269,7 @@ export function saveFoundry(foundry: any) {
     storedEnvelope();
     const crafting = readCraftElements();
     if (recoveryRequired) throw new Error('Recovery required');
+    if(validateFoundry(foundry))craftMemory=mergeFoundryIntoCraft(crafting,foundry);
     write(foundry, crafting);
   }
   catch (error) { reportWriteError(error); }
