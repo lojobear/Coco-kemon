@@ -1,4 +1,5 @@
 import { fileToSprite, persistSpriteEdit } from '../lib/customSpriteUpload';
+import { resolveSpriteSource } from '../lib/spriteAssets';
 import { PROFILE_SPRITES_UPDATED } from '../lib/profileSprites';
 import { SpriteImage } from './SpriteImage';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -11,7 +12,7 @@ import { InfiniteElement } from '../lib/infiniteCraftData';
 import { sound } from '../lib/audio';
 import { ElementSprite, MaterialSprite, isProceduralDefault } from './ElementSprite';
 import { buildSpriteCatalog, type SpriteSourceType } from '../lib/spriteCatalog';
-import { getElementEmoji, retryElementEmoji, upgradeElementEmoji } from '../lib/elementEmoji';
+import { getElementEmoji, retryElementEmoji, upgradeElementEmoji, cleanSavedSpriteMask } from '../lib/elementEmoji';
 import { ARTWORK_QUEUE_EVENT, artworkQueueEntries, artworkQueueStatus, queueMissingArtwork, retryPendingArtwork } from '../lib/artworkQueue';
 import { MissingSpritesList } from './MissingSpritesList';
 import { spriteVariantKey } from '../lib/spriteVariant';
@@ -223,6 +224,19 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
     } catch (error) { setStatus(error instanceof Error ? error.message : 'Style generation failed.'); }
     finally { setUploading(false); }
   };
+  const previewMaskRepair = async (target: LabDisplayItem) => {
+    if(uploading)return;
+    setUploading(true);setStylePreview(null);setStatus('Removing magenta mask locally…');
+    try {
+      const source=await resolveSpriteSource(target.sharedSprite||target.sprite)
+        || await getElementEmoji(target.name,false,'',false);
+      if(!source)throw new Error('No saved sprite is available to repair.');
+      const sprite=await cleanSavedSpriteMask(source);
+      setStylePreview({target,sprite,style:artStyle});
+      setStatus('Transparent repair ready. Apply to save, or cancel to keep the original. No AI credits used.');
+    } catch(error){setStatus(error instanceof Error?error.message:'Mask repair failed.');}
+    finally{setUploading(false);}
+  };
   const applyStyle = async () => {
     if (!stylePreview || uploading) return;
     setUploading(true);
@@ -318,6 +332,7 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
                 <select id="boop-art-style" value={artStyle} disabled={uploading} onChange={event => { setArtStyle(event.target.value as SpriteArtStyle); setStylePreview(null); }} className="boop-secondary" style={{width:'100%',minHeight:44}}>{(Object.keys(SPRITE_ART_STYLES) as SpriteArtStyle[]).map(style => <option key={style} value={style}>{SPRITE_ART_STYLES[style].label}</option>)}</select>
                 <small>{SPRITE_ART_STYLES[artStyle].description} · Uses one image generation request.</small>
                 <button type="button" className="boop-primary" disabled={uploading} onClick={() => void previewStyle(selected)}><Sparkles size={16}/>Preview new style</button>
+                <button type="button" className="boop-secondary" disabled={uploading} onClick={()=>void previewMaskRepair(selected)}>Remove magenta mask (free)</button>
                 {stylePreview?.target.catalogKey === selected.catalogKey && <div style={{display:'grid',gap:8}}><img src={stylePreview.sprite} alt={`${selected.name} in ${SPRITE_ART_STYLES[stylePreview.style].label} style`} style={{width:'100%',height:160,objectFit:'contain'}}/><div className="boop-sprite-actions"><button type="button" className="boop-primary" disabled={uploading} onClick={() => void applyStyle()}>Apply style</button><button type="button" className="boop-secondary" disabled={uploading} onClick={() => {setStylePreview(null);setStatus('Original artwork kept.');}}>Cancel</button></div></div>}
               </div>
               <input ref={uploadRef} type="file" accept="image/png,image/webp,image/jpeg" className="hidden" onChange={event => void uploadCustom(event.target.files?.[0])} />

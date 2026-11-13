@@ -1,9 +1,9 @@
-import type { SpriteArtStyle } from './spriteArtStyles';
+import { isPixelSpriteStyle, type SpriteArtStyle } from './spriteArtStyles';
 import { spriteAssets, trackSpriteSync } from './spriteAssets';
 import { emojiKey } from './emojiGeometry';
 import { spriteVariantKey, spriteProfileKey } from './spriteVariant';
 import { requestJson } from './api';
-import { removeEdgeConnectedBackground, tidyGeneratedSpritePixels } from './spritePixelCleanup';
+import { removeEdgeConnectedBackground, tidyGeneratedSpritePixels, removeMagentaMask, assertTransparentSprite } from './spritePixelCleanup';
 import { composeMiniSpritePixels, MINI_CANVAS_SIZE } from './miniSpriteStyle';
 
 const ELEMENT_SPRITE_CACHE_PREFIX = 'pixelimage-v9-2p5d:';
@@ -103,17 +103,20 @@ export async function normalizeGeneratedImage(imageBase64: string, mimeType: str
   sourceContext.drawImage(image, 0, 0, sourceSize, sourceSize);
   if (typeof sourceContext.getImageData === 'function' && typeof sourceContext.putImageData === 'function') {
     const sourcePixels = sourceContext.getImageData(0, 0, sourceSize, sourceSize);
+    removeMagentaMask(sourcePixels.data, sourceSize, sourceSize);
     removeEdgeConnectedBackground(sourcePixels.data, sourceSize, sourceSize);
+    removeMagentaMask(sourcePixels.data, sourceSize, sourceSize);
+    assertTransparentSprite(sourcePixels.data, sourceSize, sourceSize);
     sourceContext.putImageData(sourcePixels, 0, 0);
   }
 
   // Smooth styles keep the full-resolution alpha cutout, without pixel quantization.
-  if (style === 'glossy' || style === 'chibi' || style === 'illustrated') return source.toDataURL('image/png');
+  if (!isPixelSpriteStyle(style)) return source.toDataURL('image/png');
   // New v19 generated art uses a 112px canvas, ~76px max silhouette,
   // and up to 48 well-separated pixel colours for slightly finer details.
   // Process ONLY freshly generated art; saved/uploads keep their exact bytes.
   // Preserve pixel steps and use alpha-masked nearest-neighbour framing.
-  const logicalSize = style === 'retro' ? 64 : style === 'hd' ? 192 : MINI_CANVAS_SIZE;
+  const logicalSize = style === 'retro' ? 64 : style === 'hd' ? 192 : style === 'handheld' ? 96 : style === 'arcade' ? 160 : MINI_CANVAS_SIZE;
   const pixels = document.createElement('canvas');
   pixels.width = pixels.height = logicalSize;
   const pixelContext = pixels.getContext('2d');
@@ -126,9 +129,14 @@ export async function normalizeGeneratedImage(imageBase64: string, mimeType: str
   if (typeof pixelContext.getImageData !== 'function' || typeof pixelContext.putImageData !== 'function'
       || typeof ImageData === 'undefined') return pixels.toDataURL('image/png');
   const sampled = pixelContext.getImageData(0, 0, logicalSize, logicalSize);
+  removeMagentaMask(sampled.data, logicalSize, logicalSize);
   tidyGeneratedSpritePixels(sampled.data, logicalSize, logicalSize);
+  removeMagentaMask(sampled.data, logicalSize, logicalSize);
+  assertTransparentSprite(sampled.data, logicalSize, logicalSize);
   if (style !== 'classic') { pixelContext.putImageData(sampled, 0, 0); return pixels.toDataURL('image/png'); }
   const composed = composeMiniSpritePixels(sampled.data, logicalSize, logicalSize);
+  removeMagentaMask(composed, logicalSize, logicalSize);
+  assertTransparentSprite(composed, logicalSize, logicalSize);
   pixelContext.putImageData(new ImageData(composed, logicalSize, logicalSize), 0, 0);
   return pixels.toDataURL('image/png');
 }
@@ -300,4 +308,20 @@ export async function upgradeElementEmoji(name: string, variation = '', style: S
   const art = await getElementEmoji(name, true, variation);
   if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('oddkin-emoji-retry', { detail: key }));
   return art;
+}
+
+/** Explicit, free repair of saved artwork. Keep original resolution and colours;
+ * only commit after the player previews and applies the cleaned result. */
+export async function cleanSavedSpriteMask(dataUrl:string):Promise<string> {
+  if(!/^data:image\/(png|jpeg|jpg|webp);base64,/i.test(dataUrl))throw new Error('Choose saved raster artwork first.');
+  const image=new Image();image.src=dataUrl;await image.decode();
+  if(image.width<2||image.height<2||image.width>2048||image.height>2048)throw new Error('Sprite dimensions are unsupported.');
+  const canvas=document.createElement('canvas');canvas.width=image.width;canvas.height=image.height;
+  const ctx=canvas.getContext('2d');if(!ctx)throw new Error('Canvas is unavailable.');
+  ctx.drawImage(image,0,0);
+  const pixels=ctx.getImageData(0,0,canvas.width,canvas.height);
+  if(!removeMagentaMask(pixels.data,canvas.width,canvas.height))throw new Error('No removable magenta background was found.');
+  assertTransparentSprite(pixels.data,canvas.width,canvas.height);
+  ctx.putImageData(pixels,0,0);
+  return canvas.toDataURL('image/png');
 }

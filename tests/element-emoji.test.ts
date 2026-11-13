@@ -101,7 +101,7 @@ test('endpoint generates once for simultaneous and repeated canonical names', as
 test('future generated sprites use the classic pixel canvas without changing saved artwork', async () => {
   const { readFileSync } = await import('node:fs');
   const code = readFileSync(new URL('../src/lib/elementEmoji.ts', import.meta.url), 'utf8');
-  assert.match(code, /const logicalSize = style === 'retro' \? 64 : style === 'hd' \? 192 : MINI_CANVAS_SIZE/);
+  assert.match(code, /const logicalSize = style === 'retro' \? 64 : style === 'hd' \? 192 : style === 'handheld' \? 96 : style === 'arcade' \? 160 : MINI_CANVAS_SIZE/);
   assert.match(code, /pixelContext\.imageSmoothingEnabled = false/);
   assert.match(code, /removeEdgeConnectedBackground\(sourcePixels.data, sourceSize, sourceSize\)/);
   assert.match(code, /tidyGeneratedSpritePixels\(sampled.data, logicalSize, logicalSize\)/);

@@ -20,6 +20,7 @@ test('explicit styles keep subject and survive compact fallback', () => {
 test('default generation stays classic and unknown styles are rejected', () => {
   assert.equal(buildSpritePrompt('Water'), buildSpritePrompt('Water', '', false, 'classic'));
   assert.equal(isSpriteArtStyle('glossy'), true);
+  assert.equal(Object.keys(SPRITE_ART_STYLES).length,18);
   assert.equal(isSpriteArtStyle('__proto__'), false);
   assert.equal(isSpriteArtStyle('arbitrary prompt'), false);
 });

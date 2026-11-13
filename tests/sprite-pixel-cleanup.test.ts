@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { removeEdgeConnectedBackground, tidyGeneratedSpritePixels } from '../src/lib/spritePixelCleanup';
+import { removeEdgeConnectedBackground, tidyGeneratedSpritePixels, removeMagentaMask, assertTransparentSprite } from '../src/lib/spritePixelCleanup';
 
 function image(w: number, h: number, color: [number, number, number, number]) {
   const pixels = new Uint8ClampedArray(w * h * 4);
@@ -71,7 +71,31 @@ test('client removes chroma at high resolution before shrinking onto the pixel g
   const resample = source.indexOf('pixelContext.drawImage(source, 0, 0, logicalSize, logicalSize)');
   const cleanup = source.indexOf('tidyGeneratedSpritePixels(sampled.data, logicalSize, logicalSize)');
   assert.ok(remove > 0 && resample > remove && cleanup > resample);
-  assert.match(source, /const logicalSize = style === 'retro' \? 64 : style === 'hd' \? 192 : MINI_CANVAS_SIZE/);
+  assert.match(source, /const logicalSize = style === 'retro' \? 64 : style === 'hd' \? 192 : style === 'handheld' \? 96 : style === 'arcade' \? 160 : MINI_CANVAS_SIZE/);
   assert.match(source, /composeMiniSpritePixels\(sampled.data, logicalSize, logicalSize\)/);
   assert.match(source, /pixelContext.imageSmoothingEnabled = false/);
+});
+
+test('magenta mask is removed despite inconsistent corners and shaded key colours',()=>{
+  const im=image(16,16,[255,0,255,255]);
+  im.set(0,0,[25,25,25,255]); im.set(15,0,[185,60,205,255]);
+  for(let y=4;y<12;y++)for(let x=4;x<12;x++)im.set(x,y,[40,130,190,255]);
+  for(let y=3;y<13;y++)im.set(3,y,[205,80,210,255]);
+  im.set(7,7,[255,0,255,255]); // intentional enclosed pink
+  assert.equal(removeMagentaMask(im.pixels,16,16),true);
+  assert.equal(im.alpha(3,7),0);assert.equal(im.alpha(15,0),0);
+  assert.equal(im.alpha(7,7),255);assert.equal(im.alpha(5,5),255);
+  assertTransparentSprite(im.pixels,16,16);
+});
+test('already transparent artwork preserves enclosed pink and removes edge chroma',()=>{
+  const im=image(12,12,[0,0,0,0]);
+  for(let y=3;y<9;y++)for(let x=3;x<9;x++)im.set(x,y,[40,130,190,255]);
+  im.set(2,5,[255,0,255,255]);im.set(5,5,[255,0,255,255]);
+  removeMagentaMask(im.pixels,12,12);
+  assert.equal(im.alpha(2,5),0);assert.equal(im.alpha(5,5),255);
+  assertTransparentSprite(im.pixels,12,12);
+});
+test('reject completely opaque and completely erased output',()=>{
+  assert.throws(()=>assertTransparentSprite(image(12,12,[255,0,255,255]).pixels,12,12));
+  assert.throws(()=>assertTransparentSprite(image(12,12,[0,0,0,0]).pixels,12,12));
 });

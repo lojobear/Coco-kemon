@@ -115,3 +115,80 @@ export function tidyGeneratedSpritePixels(
     rgba[offset + 3] = 255;
   }
 }
+
+/** Remove the actual chroma key even when the model paints inconsistent corners,
+ * including near-key shadows and antialiased fringe. Flood only from outside
+ * or existing alpha: enclosed pink subject details are not background.
+ * Returns true when visible pixels were changed. */
+export function removeMagentaMask(rgba: Uint8ClampedArray, width: number, height: number): boolean {
+  if (width < 2 || height < 2 || rgba.length !== width * height * 4) return false;
+  const total = width * height;
+  const nearKey = (i: number) => {
+    const p = i * 4, r = rgba[p], g = rgba[p+1], b = rgba[p+2];
+    return r >= 155 && b >= 155 && g <= 125 && Math.min(r,b)-g >= 65 && Math.abs(r-b) <= 85;
+  };
+  const strongKey = (i: number) => {
+    const p=i*4; return rgba[p]>=220 && rgba[p+2]>=220 && rgba[p+1]<=55 && Math.abs(rgba[p]-rgba[p+2])<=35;
+  };
+  const border:number[]=[];
+  for(let x=0;x<width;x++){border.push(x,(height-1)*width+x);}
+  for(let y=1;y<height-1;y++){border.push(y*width,y*width+width-1);}
+  // Require evidence of the deliberate mask, not a pink subject on transparency.
+  const hasMask=border.some(i=>rgba[i*4+3]>=24&&strongKey(i));
+  const hasAlpha=border.some(i=>rgba[i*4+3]<24);
+  if(!hasMask&&!hasAlpha)return false;
+  const visited=new Uint8Array(total), queue:number[]=[];
+  const add=(i:number)=>{
+    if(visited[i])return;
+    visited[i]=1;
+    if(rgba[i*4+3]<24 || (hasMask?nearKey(i):strongKey(i)))queue.push(i);
+  };
+  for(const i of border)add(i);
+  let changed=false;
+  for(let cursor=0;cursor<queue.length;cursor++){
+    const i=queue[cursor],p=i*4,x=i%width,y=Math.floor(i/width);
+    if(rgba[p+3])changed=true;
+    rgba[p]=rgba[p+1]=rgba[p+2]=rgba[p+3]=0;
+    if(x>0)add(i-1);if(x+1<width)add(i+1);
+    if(y>0)add(i-width);if(y+1<height)add(i+width);
+  }
+  // Remove saturated key residue along a transparent boundary, and neutralize
+  // mixed magenta spill in partially transparent edge pixels without touching
+  // opaque subject colours. Iterate only a narrow fringe, not the whole image.
+  if(hasMask||changed){
+    for(let pass=0;pass<3;pass++){
+      const edge:number[]=[];
+      for(let i=0;i<total;i++){
+        const p=i*4;if(!rgba[p+3])continue;
+        const x=i%width,y=Math.floor(i/width);
+        const adjacent=(x>0&&rgba[(i-1)*4+3]<24)||(x+1<width&&rgba[(i+1)*4+3]<24)||(y>0&&rgba[(i-width)*4+3]<24)||(y+1<height&&rgba[(i+width)*4+3]<24);
+        if(!adjacent)continue;
+        if(nearKey(i))edge.push(i);
+        else if(rgba[p+3]<245 && Math.min(rgba[p],rgba[p+2])-rgba[p+1]>35){
+          // Match red/blue spill to green in the translucent fringe.
+          const spill=Math.min(rgba[p],rgba[p+2])-rgba[p+1]-35;
+          rgba[p]-=spill;rgba[p+2]-=spill;changed=true;
+        }
+      }
+      if(!edge.length)break;
+      for(const i of edge){rgba.fill(0,i*4,i*4+4);changed=true;}
+    }
+  }
+  return changed;
+}
+
+/** A final inventory sprite needs a visible subject and transparent perimeter.
+ * Reject broken generations instead of saving a solid chroma rectangle. */
+export function assertTransparentSprite(rgba: Uint8ClampedArray,width:number,height:number):void {
+  let visible=0, transparent=0, borderOpaque=0, borderCount=0, borderKey=0;
+  for(let y=0;y<height;y++)for(let x=0;x<width;x++){
+    const p=(y*width+x)*4,a=rgba[p+3];
+    if(a>=100)visible++;if(a<24)transparent++;
+    if(x===0||y===0||x===width-1||y===height-1){
+      borderCount++;if(a>=24)borderOpaque++;
+      if(a>=24&&rgba[p]>=200&&rgba[p+2]>=200&&rgba[p+1]<=90)borderKey++;
+    }
+  }
+  if(visible<4||transparent<Math.max(4,width*height*.02)||borderOpaque>borderCount*.1||borderKey>0)
+    throw new Error('Sprite background could not be cleaned safely. Your existing artwork is unchanged; try another preview.');
+}
