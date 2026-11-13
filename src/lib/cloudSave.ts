@@ -54,7 +54,7 @@ export function sameCloudPayload(a:unknown,b:unknown):boolean {
   const keys=Object.keys(x);
   return keys.length===Object.keys(y).length&&keys.every(k=>Object.prototype.hasOwnProperty.call(y,k)&&sameCloudPayload(x[k],y[k]));
 }
-export function confirmedCloudWrite(saved:CloudSave|null, payload:unknown, revision:number):saved is CloudSave {
+export function confirmedCloudWrite(saved:CloudSave|null, payload:unknown, revision:number):boolean {
   return !!saved&&saved.revision===revision+1&&sameCloudPayload(saved.payload,payload);
 }
 export async function writeCloudSave(json: string, revision: number, userId: string): Promise<CloudSave> {
@@ -75,7 +75,7 @@ export async function writeCloudSave(json: string, revision: number, userId: str
   // Never retry a write automatically or overwrite a newer revision.
   let latest:CloudSave|null=null;
   try { latest=await readCloudSave(userId); } catch { /* outcome remains unknown */ }
-  if(confirmedCloudWrite(latest,payload,revision))return latest;
+  if(latest&&confirmedCloudWrite(latest,payload,revision))return latest;
   if(latest&&latest.revision>revision)throw new Error('Cloud progress changed. Refresh cloud info before saving again; your device progress is unchanged.');
   throw new Error('Could not confirm the cloud save. Your device progress is unchanged. Refresh cloud info before retrying, or export a device backup.');
 }
