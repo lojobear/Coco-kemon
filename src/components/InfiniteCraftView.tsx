@@ -24,7 +24,7 @@ import {
 import { resolveSharedPair, rollSharedPair, applySharedPairDiscovery } from '../lib/sharedCraftingEngine';
 import { enqueueArtwork } from '../lib/artworkQueue';
 import { beginBoardHistory, recordBoardHistory, undoBoard, redoBoard, clampBoardZoom } from '../lib/boardHistory';
-import { CANONICAL_INFINITE_CRAFT_RECIPES } from '../lib/infiniteCraftData';
+import { BUILT_IN_PAIR_RECIPES } from '../lib/builtInPairs';
 import { findCraftDropTarget } from '../lib/craftCollision';
 import { BOARD_WIDTH, BOARD_HEIGHT, BOARD_START_X, BOARD_START_Y, clampBoardTile } from '../lib/boardGeometry';
 import { loadBoardLayout, saveBoardLayout } from '../lib/boardLayout';
@@ -1113,7 +1113,7 @@ export function InfiniteCraftView() {
                     aria-label={`Select ${count} elements per spawn`} onClick={()=>setSpawnCount(count)}>{count}</button>)}
                 </div>
                 <button type="button" className="boop-suggest-pair" disabled={spawnPool.length === 0 || canvasItems.length > 298} onClick={() => {
-                  const pair = chooseUndiscoveredPair(spawnPool, CANONICAL_INFINITE_CRAFT_RECIPES);
+                  const pair = chooseUndiscoveredPair(spawnPool, BUILT_IN_PAIR_RECIPES);
                   if (pair) spawnRandomBatch(2, pair);
                   else { spawnRandomBatch(2); setSpawnToast('No known undiscovered pair yet — added two random items.'); }
                 }}><Sparkles size={16}/> Suggest a discovery <small>Two items from your collection</small></button>

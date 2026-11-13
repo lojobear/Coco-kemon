@@ -40,6 +40,7 @@ export interface ConceptDNA {
 export interface ConceptResult {
   result: string;
   emoji: string;
+  category?: string;
   explanation?: string;
   connection?: string;
   dna?: ConceptDNA;
@@ -468,6 +469,15 @@ export function normalizeDiscoveryCandidates(raw: unknown, first: string, second
   return normalized.length ? { candidates: normalized } : undefined;
 }
 
+const PLAYFUL_CONNECTIONS = new Set<ConceptConnection>(['wordplay','comedy','character','brand','pop-culture','mythology']);
+export function groundedPlayfulnessBonus(candidate: {result:string;explanation:string;connection:string;inputFit?:number;coherence?:number},first:string,second:string):number {
+  if(!PLAYFUL_CONNECTIONS.has(candidate.connection as ConceptConnection)||
+    !hasIngredientReference(candidate.explanation,first)||!hasIngredientReference(candidate.explanation,second)||
+    lowValueConceptReason(candidate.result,first,second)||
+    (candidate.inputFit!==undefined&&candidate.inputFit<3)||(candidate.coherence!==undefined&&candidate.coherence<3))return 0;
+  return 8+(!lexicalOverlap(candidate.result,first)&&!lexicalOverlap(candidate.result,second)?3:0);
+}
+
 function scoreCandidate(candidate: Candidate, first: string, second: string, routeFrequency: Map<string, number>): { score: number; dna: ConceptDNA } {
   const dna = inferDNA(candidate, first, second);
   const mentionsFirst = hasIngredientReference(candidate.explanation, first);
@@ -503,6 +513,10 @@ function scoreCandidate(candidate: Candidate, first: string, second: string, rou
   else if (resultWords.length > 6) score -= 10;
   score += dna.chainPotential * 6;
   score += Math.min(10, dna.domains.length * 2 + dna.functions.length + dna.properties.length);
+
+  // A modest creative preference, not permission to ignore a parent. A
+  // grounded cultural punchline can beat an equally good literal result.
+  score += groundedPlayfulnessBonus(candidate, first, second);
 
   // Prefer candidates that explore a distinct relationship route.
   if ((routeFrequency.get(candidate.connection) || 0) === 1) score += 4;

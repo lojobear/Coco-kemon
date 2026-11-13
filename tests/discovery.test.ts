@@ -81,6 +81,10 @@ test('new trail and process recipes work through API without Gemini', async () =
         assert.equal(r.status, 200); assert.equal((await r.json()).result, step.result);
       }
     }
+    for (const [first,second,result] of [['Bread','Dog','Hot Dog'],['Robot','Plant','WALL-E'],['Cat','Box',"Schrödinger's Cat"]]) {
+      const r=await fetch(`${base}/api/pair`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({first,second})});
+      assert.equal(r.status,200);assert.equal((await r.json()).result,result);
+    }
     for (const [id, input, name] of [['FOSSILIZE','PLANT','Fern Fossil'],['ENCHANT','STONE','Wardstone'],['MINIATURIZE','METAL','Microgear'],['MOONLIGHT','WATER','Moon Dew']]) {
       const r = await fetch(`${base}/api/synthesize`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ inputMaterialA: STARTER_MATERIALS.find(m => m.canonicalName === input), process: ALL_PROCESSES.find(p => p.id === id) }) });
       const data = await r.json(); assert.equal(r.status, 200); assert.equal(data.material.displayName, name); assert.ok(validMaterial(data.material));

@@ -48,6 +48,7 @@ export interface InfiniteCraftPairResponse {
   result: string;
   emoji: string;
   isNew: boolean;
+  category?: string;
   isShiny?: boolean;
   explanation?: string;
   connection?: string;

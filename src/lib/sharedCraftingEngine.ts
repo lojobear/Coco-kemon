@@ -8,6 +8,8 @@ import { addCraftCopy } from './elementCopies';
  */
 import { requestJson } from './api';
 import { CANONICAL_INFINITE_CRAFT_RECIPES, makePairKey, validNewElementName, type InfiniteCraftPairResponse, type InfiniteElement } from './infiniteCraftData';
+import { PLAYFUL_RECIPES } from './playfulRecipes';
+import { BUILT_IN_PAIR_RECIPES } from './builtInPairs';
 import { discoveryIdentity } from './unifiedCollection';
 import { categoryForDiscovery } from './collectionCategories';
 import { generatePhysicalData, rollIsShiny } from './physicalDataEngine';
@@ -20,7 +22,10 @@ export const SHARED_PAIR_ENGINE = '/api/infinite-craft/pair';
 export async function resolveSharedPair(
   first: string, second: string, options: { signal?: AbortSignal } = {},
 ): Promise<InfiniteCraftPairResponse> {
-  const local = CANONICAL_INFINITE_CRAFT_RECIPES[makePairKey(first, second)];
+  const key = makePairKey(first, second);
+  // New curated discoveries are instant/offline; the same table is used by
+  // the server and bots. Existing trail/culture routes keep their API behavior.
+  const local = CANONICAL_INFINITE_CRAFT_RECIPES[key] || (PLAYFUL_RECIPES[key] && BUILT_IN_PAIR_RECIPES[key]);
   const result: InfiniteCraftPairResponse = local
     ? { ...local, isNew: false }
     : await requestJson<InfiniteCraftPairResponse>(

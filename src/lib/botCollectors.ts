@@ -1,7 +1,7 @@
 import { arenaCards, type ArenaCard, type ArenaPlayer, type BotDifficulty, type BotProfile } from './arena';
-import { CANONICAL_INFINITE_CRAFT_RECIPES, STARTER_ELEMENTS, makePairKey, validNewElementName, type InfiniteElement, type InfiniteCraftPairResponse } from './infiniteCraftData';
-import { CULTURE_RECIPES } from './cultureRecipes';
-import { TRAIL_RECIPES, rollRareVariant } from './discoveryTrails';
+import { STARTER_ELEMENTS, makePairKey, validNewElementName, type InfiniteElement, type InfiniteCraftPairResponse } from './infiniteCraftData';
+import { BUILT_IN_PAIR_RECIPES } from './builtInPairs';
+import { rollRareVariant } from './discoveryTrails';
 import { applySharedPairDiscovery, rollSharedPair, type SharedPairRolls } from './sharedCraftingEngine';
 import { collectionDisplayCategory } from './collectionCategories';
 import { qualifiedConceptName } from './conceptMeaning';
@@ -27,7 +27,7 @@ export interface BotRecipe {first:string; second:string; outcome:InfiniteCraftPa
 type Draw = (max:number)=>number;
 type KnownResult = Omit<InfiniteCraftPairResponse,'isNew'>;
 // Same precedence as the shared Craft/Foundry pair endpoint. No network or AI.
-const KNOWN:Record<string,KnownResult> = {...CULTURE_RECIPES,...TRAIL_RECIPES,...CANONICAL_INFINITE_CRAFT_RECIPES};
+const KNOWN:Record<string,KnownResult> = BUILT_IN_PAIR_RECIPES;
 const BASE_PATH = [
   ['Water','Fire'],['Water','Earth'],['Fire','Earth'],['Lava','Water'],['Mud','Water'],
   ['Plant','Water'],['Swamp','Fire'],['Earth','Wind'],['Fire','Dust'],['Water','Spark'],
@@ -50,7 +50,7 @@ export function eligibleBotRecipes(state:BotState):BotRecipe[] {
   });
 }
 function preference(def:BotDefinition,recipe:BotRecipe){
-  const category=collectionDisplayCategory({name:recipe.outcome.result,connection:recipe.outcome.connection});
+  const category=collectionDisplayCategory({name:recipe.outcome.result,category:recipe.outcome.category,connection:recipe.outcome.connection});
   return (def.categories as readonly string[]).includes(category);
 }
 export function selectKnownBotRecipe(def:BotDefinition,state:BotState,draw:Draw=uniformRandomIndex):BotRecipe|undefined {

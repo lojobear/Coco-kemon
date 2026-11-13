@@ -1,6 +1,6 @@
 import { qualifiedConceptName } from './src/lib/conceptMeaning.js';
 import { conceptMaterial } from './src/lib/conceptMaterial.js';
-import { CULTURE_RECIPES } from './src/lib/cultureRecipes.js';
+import { BUILT_IN_PAIR_RECIPES } from './src/lib/builtInPairs.js';
 /**
  * ODDKIN FOUNDRY - Server Engine
  * Express + Vite with Gemini AI Structured Synthesis Pipeline
@@ -23,7 +23,7 @@ import { validMaterial, validOddkin, validSprite, record, text, strings, color, 
 import { CANONICAL_INFINITE_CRAFT_RECIPES, makePairKey, validNewElementName } from './src/lib/infiniteCraftData.js';
 
 import { chooseConcept, normalizeDiscoveryCandidates, applyInheritance, inheritanceFor, type ConceptResult } from './server/discovery.js';
-import { TRAIL_RECIPES, rollRareVariant } from './src/lib/discoveryTrails.js';
+import { rollRareVariant } from './src/lib/discoveryTrails.js';
 import { ALL_PROCESSES } from './src/lib/starterData.js';
 import { cachedWork } from './server/persistentCache.js';
 import { clientId, takeAiBudget } from './server/rateLimit.js';
@@ -99,8 +99,8 @@ async function resolveInfiniteCraftPair(
   const legacyMix = CANONICAL_FOUNDRY_RECIPES.find(recipe => recipe.process === 'MIX' && recipe.inputs.length === 2 && makePairKey(...recipe.inputs as [string, string]) === key);
   const legacyConcept = legacyMix ? { result: legacyMix.resultName, emoji: '✨', explanation: legacyMix.explanation, connection: 'science' } : undefined;
   // Built-in recipes remain available without an AI call.
-  if (CANONICAL_INFINITE_CRAFT_RECIPES[key] || TRAIL_RECIPES[key] || CULTURE_RECIPES[key] || legacyConcept) {
-    const match = CANONICAL_INFINITE_CRAFT_RECIPES[key] || TRAIL_RECIPES[key] || CULTURE_RECIPES[key] || legacyConcept;
+  if (BUILT_IN_PAIR_RECIPES[key] || legacyConcept) {
+    const match = BUILT_IN_PAIR_RECIPES[key] || legacyConcept;
     dynamicInfiniteCraftCache.set(key, match);
     return { ...match, result: qualifiedConceptName(match.result, `${'explanation' in match ? match.explanation : ''} ${first} ${second}`), isNew: false };
   }
@@ -116,6 +116,14 @@ place, invention, scientific phenomenon, mythology, character, idiom or witty re
 Find real causal, functional, biological, cultural, historical, material or linguistic
 bridges, not a word collage.
 
+BOOP PERSONALITY: This is a playful collectible game, not a chemistry exam.
+When the ingredients naturally suggest a joke, visual gag, meme, famous character,
+food, brand, fictional object, myth, idiom or unexpected real-world connection,
+include that option. Aim for the satisfying "of course!" moment. A good joke has
+an identifiable punchline grounded in BOTH ingredients; do not force humor onto
+basic elemental transformations. Real science is still welcome. Do not invent
+fake facts about actual people or brands; fictional and pun routes are game logic.
+
 METHOD (deliberate internally; do NOT print hidden reasoning):
 1. Understand BOTH full phrases first—not just their individual words. Identify
    each input's physical traits, purpose, associations, and cultural context.
@@ -126,7 +134,11 @@ METHOD (deliberate internally; do NOT print hidden reasoning):
    were removed? Discard shallow results.
 4. Rank by both-parent causality, recognizability, and delightful surprise.
    Only then write two or three different candidates and short explanations.
-   Prefer established names over made-up terms or decorative combinations.
+   If a strong playful bridge exists, include it alongside a practical or literal
+   candidate. Prefer a recognizable named discovery over a generic category.
+   Examples: Bread + Dog -> Hot Dog; Cat + Box -> Schrödinger's Cat;
+   Robot + Plant -> WALL-E; Ghost + Pirate -> Flying Dutchman.
+   Avoid running the same pop-culture gag into the ground.
 
 HARD NEGATIVES:
 - Never relabel one parent: BBQ + Anything -> Grill is just a thesaurus entry.
@@ -173,7 +185,7 @@ Both ingredients matter more than novelty. Avoid any private reasoning.`;
       const attemptResolve = async (usePrompt: string, useSystem: string): Promise<ConceptResult | undefined> => {
         // Provider-level failures (quota, auth, timeout) throw and propagate;
         // only validation/parse failures are eligible for the retry below.
-        const rawJson = await callGeminiStructured(usePrompt, useSystem, 0.4);
+        const rawJson = await callGeminiStructured(usePrompt, useSystem, 0.55);
         if (!rawJson) return undefined;
         let parsed: unknown;
         try {
