@@ -54,7 +54,7 @@ export function mergeFoundryIntoCraft(
     const isStarter = mat.discoveredAt === LEGACY_STARTER_DATE && mat.lineage?.depth === 0;
     insert(mat.displayName, iconFor(mat.category), {
       ...(isStarter ? { isStarter: true, craftCount: 0 } : {}),
-      category: categoryForDiscovery({ name: mat.displayName, category: mat.category }),
+      category: mat.category || categoryForDiscovery({ name: mat.displayName }),
       explanation: (mat.discoveryExplanation || mat.description || '').slice(0, 280),
       connection: (mat.category || 'Foundry').slice(0, 280),
       discoveredAt: isStarter ? 0 : typeof mat.discoveredAt === 'number' && Number.isFinite(mat.discoveredAt)

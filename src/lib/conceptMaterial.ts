@@ -4,14 +4,14 @@ import { spriteDescriptorForConcept } from './pixelRenderer.js';
 import { categoryForDiscovery } from './collectionCategories.js';
 
 /** Keep the legacy save shape while allowing any named discovery as an input. */
-export function conceptMaterial(concept: { result: string; emoji: string; explanation?: string; connection?: string }, parents: Material[] = [], processId = 'MIX'): Material {
+export function conceptMaterial(concept: { result: string; emoji: string; explanation?: string; connection?: string; category?:string }, parents: Material[] = [], processId = 'MIX'): Material {
   const template = STARTER_MATERIALS[0];
   return {
     ...template,
     id: `concept_${encodeURIComponent(concept.result.trim().toLowerCase())}`,
     canonicalName: concept.result.trim().toUpperCase(), displayName: concept.result.trim(),
     description: concept.explanation || `A discovered concept: ${concept.result}.`,
-    category: categoryForDiscovery({ name: concept.result, connection: concept.connection }),
+    category: categoryForDiscovery({ name: concept.result, category:concept.category, connection: concept.connection, emoji:concept.emoji, explanation:concept.explanation }),
     subcategory: concept.connection || 'Concept', stateOfMatter: 'amorphous', temperatureClass: 'ambient',
     properties: Object.fromEntries(Object.keys(template.properties).map(key => [key, false])) as unknown as Material['properties'],
     semanticTags: [concept.result, concept.connection || 'concept', concept.emoji],

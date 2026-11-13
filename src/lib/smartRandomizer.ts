@@ -3,7 +3,7 @@
  * Sampling always stays uniform within the chosen, disclosed pool.
  */
 import { spawnSourcePool, type SpawnSource } from './randomSpawn';
-import { categoryForDiscovery } from './collectionCategories';
+import { buildCollectionCategoryIndex, indexedCategory, collectionCategoryCounts, type CollectionCategoryIndex } from './collectionCategories';
 import { rarityRank, type RarityTier, uniformRandomIndex } from './rarity';
 import { makePairKey, type InfiniteElement } from './infiniteCraftData';
 
@@ -13,10 +13,14 @@ export interface SmartSpawnFilters {
   category:string;
   rarity:SmartRarity;
 }
-export function smartSpawnPool(items:readonly InfiniteElement[],filters:SmartSpawnFilters):InfiniteElement[] {
+export function smartSpawnPool(items:readonly InfiniteElement[],filters:SmartSpawnFilters,index:CollectionCategoryIndex=buildCollectionCategoryIndex(items)):InfiniteElement[] {
   return spawnSourcePool(items,filters.source).filter(item=>
-    (filters.category==='all'||categoryForDiscovery(item)===filters.category) &&
+    (filters.category==='all'||indexedCategory(item,index)===filters.category) &&
     (filters.rarity==='all'||rarityRank(item.rarityTier as RarityTier)>=rarityRank(filters.rarity)));
+}
+/** Counts reflect source and rarity, while grouping uses the entire inventory. */
+export function smartSpawnCategories(items:readonly InfiniteElement[],filters:Omit<SmartSpawnFilters,'category'>,index:CollectionCategoryIndex=buildCollectionCategoryIndex(items)){
+  return collectionCategoryCounts(smartSpawnPool(items,{...filters,category:'all'},index),index);
 }
 
 /** Only suggest pairs not present in the player's known local recipe history.

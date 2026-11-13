@@ -6,7 +6,7 @@ import { planAdvancedFusion, applyAdvancedFusion } from '../src/lib/advancedFusi
 import { validateCraft } from '../src/lib/saveData';
 import { buildCollectionPassport, passportTotals } from '../src/lib/collectionPassport';
 import { buildDiscoveryFamily } from '../src/lib/discoveryFamily';
-import { smartSpawnPool, chooseUntriedPair } from '../src/lib/smartRandomizer';
+import { smartSpawnPool, smartSpawnCategories, chooseUntriedPair } from '../src/lib/smartRandomizer';
 
 const file=(name:string)=>readFileSync(new URL('../'+name,import.meta.url),'utf8');
 const el=(name:string,extras:Partial<InfiniteElement>={}):InfiniteElement=>({
@@ -138,4 +138,12 @@ test('New feature UI is reachable from Craft, Foundry, and Collection',()=>{
   assert.match(album,/boop-family-tree/);
   assert.match(album,/boop-passport-medal/);
   assert.match(file('src/boop.css'),/\.boop-feature-modal/);
+});
+
+test('Randomizer uses the same promoted shelves and counts even with rarity and source filters',()=>{
+ const items=[el('Ferrum Hopper',{rarityTier:'rare'}),el('Luminous Hopper',{rarityTier:'common'}),el('Blue Hopper',{rarityTier:'common'}),el('Cat Food',{category:'Animals',rarityTier:'rare'}),el('Fox',{rarityTier:'common'})];
+ const categories=smartSpawnCategories(items,{source:'all',rarity:'rare'});
+ assert.deepEqual(categories,[{name:'Food & Drink',count:1},{name:'Hoppers',count:1}]);
+ assert.deepEqual(smartSpawnPool(items,{source:'all',rarity:'rare',category:'Hoppers'}).map(x=>x.name),['Ferrum Hopper']);
+ assert.deepEqual(smartSpawnPool(items,{source:'all',rarity:'all',category:'Food & Drink'}).map(x=>x.name),['Cat Food']);
 });

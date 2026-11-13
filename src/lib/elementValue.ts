@@ -1,6 +1,6 @@
 import type { InfiniteElement } from './infiniteCraftData';
 import { CANONICAL_INFINITE_CRAFT_RECIPES, STARTER_ELEMENTS } from './infiniteCraftData';
-import { categoryForDiscovery, COLLECTION_CATEGORY_ORDER } from './collectionCategories';
+import { legacyValueCategory, COLLECTION_CATEGORY_ORDER } from './collectionCategories';
 import { availableVariants, type CollectorVariant } from './collectorData';
 import { rarityInfo, type RarityTier } from './rarity';
 import { discoveryIdentity } from './unifiedCollection';
@@ -61,7 +61,7 @@ export function elementValueCriteria(name:string):ValueCriteria {
   const key=discoveryIdentity(name);
   const words=Math.min(3,key.match(/[\p{L}\p{N}]+(?:['’][\p{L}\p{N}]+)*/gu)?.length||1);
   const nameLength=Math.min(48,[...key].length);
-  const category=categoryForDiscovery({name:key});
+  const category=legacyValueCategory({name:key});
   const index=COLLECTION_CATEGORY_ORDER.indexOf(category as typeof COLLECTION_CATEGORY_ORDER[number]);
   const categoryBonus=index>=0 ? 7+index*9 : 0;
   const canonicalSteps=DEPTHS.get(key)??null;

@@ -29,8 +29,8 @@ import { findCraftDropTarget } from '../lib/craftCollision';
 import { BOARD_WIDTH, BOARD_HEIGHT, BOARD_START_X, BOARD_START_Y, clampBoardTile } from '../lib/boardGeometry';
 import { loadBoardLayout, saveBoardLayout } from '../lib/boardLayout';
 import { chooseSpawnElements, chooseUndiscoveredPair, spawnPositions, spreadSpawnPositions, SPAWN_COUNTS, type SpawnCount, type SpawnSource, type SpawnViewport } from '../lib/randomSpawn';
-import { smartSpawnPool, chooseUntriedPair, type SmartRarity } from '../lib/smartRandomizer';
-import { categoryForDiscovery } from '../lib/collectionCategories';
+import { smartSpawnPool, smartSpawnCategories, chooseUntriedPair, type SmartRarity } from '../lib/smartRandomizer';
+import { buildCollectionCategoryIndex } from '../lib/collectionCategories';
 import { planAdvancedFusion, applyAdvancedFusion, type FusionPlan } from '../lib/advancedFusion';
 import { AdvancedFusionModal } from './AdvancedFusionModal';
 import { queueCraftElementsSave, flushQueuedCraftSave, readCraftElements, SAVE_IMPORTED_EVENT, SAVE_CHANGED_EVENT } from '../lib/saveData';
@@ -928,10 +928,12 @@ export function InfiniteCraftView() {
 
   // Smart randomizer: filter the player's existing discoveries only.
   // Uniform draw within that pool, with no unlocks or AI requests.
-  const spawnCategories = useMemo(() => [...new Set(sharedElements.map(item=>categoryForDiscovery(item)))].sort(),[sharedElements]);
+  const spawnCategoryIndex=useMemo(()=>buildCollectionCategoryIndex(sharedElements),[sharedElements]);
+  const spawnCategories=useMemo(()=>smartSpawnCategories(sharedElements,{source:spawnSource,rarity:spawnRarity},spawnCategoryIndex),[sharedElements,spawnSource,spawnRarity,spawnCategoryIndex]);
+  useEffect(()=>{if(spawnCategory!=='all'&&!spawnCategories.some(entry=>entry.name===spawnCategory))setSpawnCategory('all');},[spawnCategory,spawnCategories]);
   const spawnPool = useMemo(() => smartSpawnPool(sharedElements,
-    {source:spawnSource,category:spawnCategory,rarity:spawnRarity}),
-    [sharedElements,spawnSource,spawnCategory,spawnRarity]);
+    {source:spawnSource,category:spawnCategory,rarity:spawnRarity},spawnCategoryIndex),
+    [sharedElements,spawnSource,spawnCategory,spawnRarity,spawnCategoryIndex]);
 
   const spawnRandomBatch = (count: SpawnCount, suggestion?: InfiniteElement[], selectPair = false) => {
     if (!selectPair) setSpawnCount(count);
@@ -1097,7 +1099,7 @@ export function InfiniteCraftView() {
                 </label>
                 <label className="boop-smart-field">Category
                   <select aria-label="Random spawn category" value={spawnCategory} onChange={e=>setSpawnCategory(e.target.value)}>
-                    <option value="all">All categories</option>{spawnCategories.map(category=><option key={category} value={category}>{category}</option>)}
+                    <option value="all">All categories ({spawnCategories.reduce((sum,entry)=>sum+entry.count,0)})</option>{spawnCategories.map(entry=><option key={entry.name} value={entry.name}>{entry.name} ({entry.count})</option>)}
                   </select>
                 </label>
                 <label className="boop-smart-field">Minimum rarity

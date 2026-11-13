@@ -3,7 +3,8 @@ import { ElementValueBadge, ElementValuePanel, WalletBalance } from './ElementVa
 import { elementValue, buildCollectionValueBook, type CollectionValueBook } from '../lib/elementValue';
 import React, { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { discoveryIdentity } from '../lib/unifiedCollection';
-import { categoryForDiscovery, collectionDisplayCategory, collectionCategoryCounts } from '../lib/collectionCategories';
+import { buildCollectionCategoryIndex, indexedCategory, collectionCategoryCounts } from '../lib/collectionCategories';
+import { mergeSharedDiscoveries } from '../lib/sharedDiscoveries';
 import { isProceduralDefault } from './ElementSprite';
 import { BookOpen, Search, Sparkles, GalleryVerticalEnd, LayoutGrid, ChevronRight, ArrowLeft, X, Lock, Plus, Trash2, Share2, Check, Star, GitBranch, Trophy, Shuffle, Upload } from 'lucide-react';
 import type { InfiniteElement } from '../lib/infiniteCraftData';
@@ -77,7 +78,7 @@ export function CollectionAlbum({
   const [spriteUploadStatus,setSpriteUploadStatus]=useState('');
   const spriteUploadRef=useRef<HTMLInputElement>(null);
   const pendingSpriteTarget=useRef<{id:string;name:string}|null>(null);
-  const {setActiveTab, materials, exportSaveData, importSaveData}=useGame();
+  const {setActiveTab, materials, oddkinCollection, exportSaveData, importSaveData}=useGame();
   // Recover real Foundry art for an older Craft discovery lacking a sprite.
   // This is a read-only projection: no recipe, uploaded image or save changes.
   const materialArtwork = useMemo(() => {
@@ -88,9 +89,7 @@ export function CollectionAlbum({
     }
     return byName;
   }, [materials]);
-  const foundryCategories = useMemo(() => new Map(materials.map(m => [
-    discoveryIdentity(m.displayName), categoryForDiscovery({ name: m.displayName, category: m.category })
-  ] as const)), [materials]);
+  const shared=useMemo(()=>mergeSharedDiscoveries(elements,materials,oddkinCollection),[elements,materials,oddkinCollection]);
 
   useEffect(()=>setQuery(initialSearch),[initialSearch]);
   useEffect(()=>{
@@ -112,19 +111,16 @@ export function CollectionAlbum({
   },[]);
   const catalog=useMemo<InfiniteElement[]>(()=>{
     const seen=new Set<string>();
-    return elements.filter(el=>{
+    return shared.filter(el=>{
       const key=el?.name ? discoveryIdentity(el.name) : undefined;
       if(!key||seen.has(key))return false;
       seen.add(key);return true;
     }).map(item => {
       const linked = !item.customSpriteUrl ? materialArtwork.get(discoveryIdentity(item.name)) : undefined;
-      const category = collectionDisplayCategory({
-        name: item.name, category: item.category || foundryCategories.get(discoveryIdentity(item.name)),
-        connection: item.connection, emoji: item.emoji,
-      });
-      return normalizeElementStats({ ...item, category, ...(linked ? { customSpriteUrl: linked } : {}) });
+      return normalizeElementStats({ ...item, ...(linked ? { customSpriteUrl: linked } : {}) });
     });
-  },[elements,materialArtwork,foundryCategories]);
+  },[shared,materialArtwork]);
+  const categoryIndex=useMemo(()=>buildCollectionCategoryIndex(catalog),[catalog]);
   const valueBook=useMemo(()=>buildCollectionValueBook(elements),[elements]);
   const byName=useMemo(()=>new Map<string,InfiniteElement>(catalog.map(e=>[discoveryIdentity(e.name),e] as [string,InfiniteElement])),[catalog]);
   const passport=useMemo(()=>buildCollectionPassport(catalog),[catalog]);
@@ -135,7 +131,7 @@ export function CollectionAlbum({
   const shown=useMemo<InfiniteElement[]>(()=>{
     const q=query.toLowerCase().trim();
     const list=catalog.filter(e=>(!q||displayConceptName(e).toLowerCase().includes(q)||
-      e.connection?.toLowerCase().includes(q)||e.category?.toLowerCase().includes(q)) && (categoryFilter==='all' || categoryForDiscovery(e)===categoryFilter) && (filter==='all'||
+      e.connection?.toLowerCase().includes(q)||indexedCategory(e,categoryIndex).toLowerCase().includes(q)) && (categoryFilter==='all' || indexedCategory(e,categoryIndex)===categoryFilter) && (filter==='all'||
       (filter==='shiny'&&availableVariants(e).includes('shiny'))||
       (filter==='celestial'&&Boolean(e.unlockedCelestial))||
       (filter==='holo'&&Boolean(e.unlockedHolo))||
@@ -147,20 +143,20 @@ export function CollectionAlbum({
     else if(sort==='crafted')list.sort((a,b)=>(b.craftCount||0)-(a.craftCount||0));
     else list.sort((a,b)=>(b.discoveredAt||0)-(a.discoveredAt||0));
     return list;
-  },[catalog,query,sort,filter,categoryFilter,valueBook]);
-  const categoryCounts=useMemo(()=>collectionCategoryCounts(catalog),[catalog]);
+  },[catalog,query,sort,filter,categoryFilter,valueBook,categoryIndex]);
+  const categoryCounts=useMemo(()=>collectionCategoryCounts(catalog,categoryIndex),[catalog,categoryIndex]);
   const visibleGroups=useMemo(()=>{
     if (sort !== 'category') return [{ name: sort === 'recent' ? 'Newest discoveries' : sort === 'az' ? 'Name A–Z' : sort === 'crafted' ? 'Most crafted' : 'By guide value', count: shown.length, items: shown.slice(0, visible) }];
     const grouped=new Map<string,InfiniteElement[]>();
     for(const item of shown.slice(0,visible)){
-      const category=categoryForDiscovery(item);
+      const category=indexedCategory(item,categoryIndex);
       const group=grouped.get(category);
       if(group)group.push(item); else grouped.set(category,[item]);
     }
     return categoryCounts.filter(entry=>grouped.has(entry.name)).map(entry=>({
-      ...entry, count:shown.filter(item=>categoryForDiscovery(item)===entry.name).length, items:grouped.get(entry.name)!,
+      ...entry, count:shown.filter(item=>indexedCategory(item,categoryIndex)===entry.name).length, items:grouped.get(entry.name)!,
     }));
-  },[shown,visible,categoryCounts,sort]);
+  },[shown,visible,categoryCounts,sort,categoryIndex]);
   useEffect(()=>setVisible(72),[query,sort,filter,categoryFilter]);
   useEffect(()=>{
     if(categoryFilter!=='all' && !categoryCounts.some(entry=>entry.name===categoryFilter))setCategoryFilter('all');
@@ -298,7 +294,7 @@ export function CollectionAlbum({
               {categoryCounts.map(entry=><option key={entry.name} value={entry.name}>{entry.name} ({entry.count})</option>)}
             </select>
           </label>
-          <small>{categoryCounts.length} discovered categories · Search by name or category</small>
+          <small>{categoryCounts.length} discovered categories · New families unlock with 3 related discoveries</small>
             </div>
         <details className="boop-album-refine">
           <summary>Filters & collection tools{filter !== 'all' || categoryFilter !== 'all' ? ' · Active filters' : ''}</summary>
@@ -415,7 +411,7 @@ export function CollectionAlbum({
         <ElementValuePanel element={selected} variant={viewVariant} valueBook={valueBook}/>
         <div className="boop-album-detail-metadata">
           <span><b>Discovered</b>{selected.discoveredAt?new Date(selected.discoveredAt).toLocaleDateString():'Starter'}</span>
-          <span><b>Category</b>{categoryForDiscovery(selected)}</span>
+          <span><b>Category</b>{indexedCategory(selected,categoryIndex)}</span>
           <span><b>Crafted</b>{normalizeElementStats(selected).craftCount||0} times</span>
           <span><b>Recipes</b>{latestRecipes(selected).length}</span>
           <span><b>Finishes</b>{availableVariants(selected).length}/5</span>

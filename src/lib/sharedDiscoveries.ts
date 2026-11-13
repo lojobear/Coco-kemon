@@ -17,15 +17,25 @@ import { categoryForDiscovery } from './collectionCategories';
  */
 export function mergeSharedDiscoveries(craft: InfiniteElement[], materials: readonly Material[], oddkinCollection: readonly Oddkin[] = []): InfiniteElement[] {
   const names = new Set(craft.map(item => discoveryIdentity(item.name)));
+  const byName=new Map(materials.map(material=>[discoveryIdentity(material.displayName),material]));
+  // Reuse Foundry metadata only when the Craft record has none; both views
+  // consume this exact read-only projection rather than inventing shelves.
+  let enriched=craft;
+  for(let i=0;i<craft.length;i++){
+    const item=craft[i],material=byName.get(discoveryIdentity(item.name));
+    if(!material||item.category)continue;
+    if(enriched===craft)enriched=[...craft];
+    enriched[i]={...item,category:material.category};
+  }
   // Preserve identity on no-op merges so mounted Craft galleries do not rerender.
-  let shared = craft;
+  let shared = enriched;
   for (const material of materials) {
     const key = discoveryIdentity(material.displayName);
     if (!key || names.has(key)) continue;
     names.add(key);
-    if (shared === craft) shared = [...craft];
+    if (shared === enriched) shared = [...enriched];
     shared.push({ id: `foundry_${material.id}`, name: material.displayName, emoji: '✨',
-      category: categoryForDiscovery({ name: material.displayName, category: material.category }),
+      category: material.category || categoryForDiscovery({ name: material.displayName }),
       customSpriteUrl: material.customSpriteUrl, discoveredAt: material.discoveredAt,
       explanation: material.discoveryExplanation || undefined });
   }

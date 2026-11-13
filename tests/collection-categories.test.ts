@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { categoryForDiscovery, collectionCategoryCounts, canonicalCollectionCategory, collectionDisplayCategory } from '../src/lib/collectionCategories';
+import { categoryForDiscovery, collectionCategoryCounts, canonicalCollectionCategory, collectionDisplayCategory, buildCollectionCategoryIndex, indexedCategory, FALLBACK_CATEGORY } from '../src/lib/collectionCategories';
 import { mergeFoundryIntoCraft } from '../src/lib/unifiedCollection';
 import { mergeSharedDiscoveries } from '../src/lib/sharedDiscoveries';
 import { conceptMaterial } from '../src/lib/conceptMaterial';
@@ -22,7 +22,7 @@ test('collection display corrects stale standard categories using the subject wi
     ['Robot', 'Animals', 'Technology'],
     ['Golden Fox', 'Materials & Minerals', 'Animals'],
     ['Wind', 'Elements & Energy', 'Elements & Energy'],
-    ['Golden Fox', 'Custom Creatures', 'Custom Creatures'],
+    ['Golden Fox', 'Custom Creatures', 'Animals'],
   ]) {
     const item = { name, category };
     assert.equal(collectionDisplayCategory(item), expected, name);
@@ -32,7 +32,7 @@ test('collection display corrects stale standard categories using the subject wi
 
 test('biology metadata does not imply an animal', () => {
   assert.equal(collectionDisplayCategory({ name: 'Biochar', connection: 'biology' }), 'Materials & Minerals');
-  assert.equal(categoryForDiscovery({ name: 'Biochar', category: 'Biological' }), 'Science & Medicine');
+  assert.equal(categoryForDiscovery({ name: 'Biochar', category: 'Biological' }), 'Materials & Minerals');
   assert.equal(collectionDisplayCategory({ name: 'Biochar', category: 'Biological' }), 'Materials & Minerals');
   assert.equal(categoryForDiscovery({ name: 'Unidentified specimen', connection: 'biology' }), 'Science & Medicine');
   assert.equal(categoryForDiscovery({ name: 'Fox', connection: 'biology' }), 'Animals');
@@ -46,16 +46,16 @@ test('collection categories put discoveries in meaningful reusable shelves',()=>
   assert.equal(categoryForDiscovery({name:'Water'}),'Elements & Energy');
   assert.equal(categoryForDiscovery({name:'Glass'}),'Materials & Minerals');
   assert.equal(categoryForDiscovery({name:'Dragon',connection:'mythology'}),'Fantasy & Mythology');
-  assert.equal(categoryForDiscovery({name:'Ferrum Hopper',connection:'function'}),'Hoppers');
-  assert.equal(categoryForDiscovery({name:'Luminous Hopper',connection:'appearance'}),'Hoppers');
-  assert.equal(categoryForDiscovery({name:'Zorblax'}),'Zorblax Family');
+  assert.equal(categoryForDiscovery({name:'Ferrum Hopper',connection:'function'}),FALLBACK_CATEGORY);
+  assert.equal(categoryForDiscovery({name:'Luminous Hopper',connection:'appearance'}),FALLBACK_CATEGORY);
+  assert.equal(categoryForDiscovery({name:'Zorblax'}),FALLBACK_CATEGORY);
 });
 
-test('unrecognized meaningful Foundry categories become new named categories, not misc',()=>{
-  assert.equal(categoryForDiscovery({name:'Ferrum Hopper',category:'Invented Machinery'}),'Invented Machinery');
+test('unrecognized Foundry categories remain grouped until there is a real family',()=>{
+  assert.equal(categoryForDiscovery({name:'Ferrum Hopper',category:'Invented Machinery'}),FALLBACK_CATEGORY);
   assert.equal(categoryForDiscovery({name:'Pebble',category:'Mineral'}),'Materials & Minerals');
   assert.equal(categoryForDiscovery({name:'Spark',category:'Energy'}),'Elements & Energy');
-  assert.equal(categoryForDiscovery({name:'Fancy Name',category:'Miscellaneous'}),'Names');
+  assert.equal(categoryForDiscovery({name:'Fancy Name',category:'Miscellaneous'}),FALLBACK_CATEGORY);
   assert.equal(canonicalCollectionCategory('too many words for an arbitrary paragraph'),undefined);
   assert.equal(canonicalCollectionCategory('  made-up   artifacts '),'Made-Up Artifacts');
   assert.equal(categoryForDiscovery({name:'Luminous Hopper',category:'Invented Machinery'}),'Invented Machinery');
@@ -66,17 +66,17 @@ test('category list is derived automatically without a separate mutable registry
   const original=JSON.stringify(owned);
   const cats=collectionCategoryCounts(owned);
   assert.deepEqual(cats.map(x=>[x.name,x.count]),[
-    ['Animals',1],['Food & Drink',1],['Hoppers',2],['Zorblax Family',1],
+    ['Animals',1],['Food & Drink',1],[FALLBACK_CATEGORY,3],
   ]);
   assert.equal(JSON.stringify(owned),original);
 });
 
-test('collection view repairs automatic family shelves while preserving explicit shelves and saves',()=>{
+test('collection view repairs automatic and incorrect old shelves without touching saves',()=>{
   const old = {name:'Golden Fox',category:'Foxes'};
   const before = JSON.stringify(old);
   assert.equal(collectionDisplayCategory(old),'Animals');
-  assert.equal(collectionDisplayCategory({name:'Golden Fox',category:'Custom Creatures'}),'Custom Creatures');
-  assert.equal(collectionDisplayCategory({name:'Ferrum Hopper',category:'Hoppers'}),'Hoppers');
+  assert.equal(collectionDisplayCategory({name:'Golden Fox',category:'Custom Creatures'}),'Animals');
+  assert.equal(collectionDisplayCategory({name:'Ferrum Hopper',category:'Hoppers'}),FALLBACK_CATEGORY);
   assert.equal(collectionDisplayCategory({name:'Moon Cake',category:'Cakes'}),'Food & Drink');
   assert.equal(JSON.stringify(old),before);
 });
@@ -89,12 +89,12 @@ test('save validation accepts a category without changing legacy saves or artwor
 
 test('Foundry and Kitchen discoveries are automatically classified and safely projected into Craft',()=>{
   const material=conceptMaterial({result:'Luminous Hopper',emoji:'✨',connection:'function'});
-  assert.equal(material.category,'Hoppers');
+  assert.equal(material.category,FALLBACK_CATEGORY);
   const projected=mergeFoundryIntoCraft([craft('Water')],{materials:[material]});
   assert.equal(projected.length,2);
-  assert.equal(projected[1].category,'Hoppers');
+  assert.equal(projected[1].category,FALLBACK_CATEGORY);
   assert.equal(projected[0].name,'Water');
-  assert.equal(mergeSharedDiscoveries([craft('Water')],[material])[1].category,'Hoppers');
+  assert.equal(mergeSharedDiscoveries([craft('Water')],[material])[1].category,FALLBACK_CATEGORY);
   const kitchen=collectKitchenStep([craft('Water')],{
     outputName:'Toaster Strudel',outputEmoji:'🥐',category:'Food',inputs:['Water'],
     toolName:'mix',explanation:'A pastry', 
@@ -118,4 +118,41 @@ test('all three discovery flows and the collection UI preserve category metadata
   assert.match(album,/boop-album-category-section/);
   assert.match(album,/visibleGroups\.map/);
   assert.match(album,/\{categoryCounts.length\} discovered categories/);
+});
+
+test('new families appear only with three distinct unknown concepts; duplicates and filtering cannot manufacture categories',()=>{
+ const items=[craft('Ferrum Hopper','Hoppers'),craft('Luminous Hopper','Hopper Family'),craft('Zorblax'),craft('Blue Hopper','Hoppers'),craft('Golden Fox','Foxes'),craft('Cat Food','Animals')];
+ const before=JSON.stringify(items);
+ const index=buildCollectionCategoryIndex(items);
+ assert.equal(indexedCategory(items[0],index),'Hoppers');
+ assert.equal(indexedCategory(items[1],index),'Hoppers');
+ assert.equal(indexedCategory(items[2],index),FALLBACK_CATEGORY);
+ assert.deepEqual(collectionCategoryCounts(items,index).map(x=>[x.name,x.count]),[['Animals',1],['Food & Drink',1],['Hoppers',3],[FALLBACK_CATEGORY,1]]);
+ assert.deepEqual(collectionCategoryCounts([items[0]],index),[{name:'Hoppers',count:1}]);
+ assert.equal(indexedCategory(items[0],buildCollectionCategoryIndex([items[0],items[0],items[1]])),FALLBACK_CATEGORY);
+ assert.deepEqual([...buildCollectionCategoryIndex([...items].reverse()).entries()].sort(),[...index.entries()].sort());
+ assert.equal(JSON.stringify(items),before);
+ const singletons=Array.from({length:100},(_,i)=>craft('Unknown '+i,'Category '+i));
+ assert.deepEqual(collectionCategoryCounts(singletons),[{name:FALLBACK_CATEGORY,count:100}]);
+});
+test('recognized names and subject nouns beat stale or misleading labels',()=>{
+ const examples=[
+  ['Fire Truck','Elements & Energy','Vehicles'],['Cat Food','Animals','Food & Drink'],
+  ['Hot Dog','Animals','Food & Drink'],['Moon Cake','Space & Cosmos','Food & Drink'],
+  ['Cloud Server','Weather & Climate','Technology'],['Gold Dragon','Materials & Minerals','Fantasy & Mythology'],
+  ['Tim Hortons','Food & Drink','Brands'],['Minecraft','Materials & Minerals','Games & Toys'],
+  ['Winnie the Pooh','Animals','Characters'],['WALL-E','Technology','Characters'],
+  ['Ghost Ship','Vehicles','Fantasy & Mythology'],['Snow Globe','Weather & Climate','Tools & Objects'],
+  ['Doctor','Science & Medicine','People & Professions'],['Hockey Puck','Materials & Minerals','Sports & Recreation'],
+  ['Running Shoes','Vehicles','Clothing & Accessories'],['Plastic Figurine','Materials & Minerals','Games & Toys'],
+  ['Prism','Materials & Minerals','Science & Medicine'],['Clock','Technology','Tools & Objects'],
+  ['Black Hole','Science & Medicine','Space & Cosmos'],['Water','Weather & Climate','Elements & Energy'],
+  ['Mouse (computer)','Animals','Technology'],['Python (snake)','Technology','Animals'],
+ ];
+ for(const [name,category,expected] of examples)assert.equal(categoryForDiscovery({name,category}),expected,name);
+});
+test('legacy meaningful custom shelves also need three unrelated-to-standard subjects',()=>{
+ const items=['Zorblax','Quivox','Marnix'].map(name=>craft(name,'Invented Wonders'));
+ assert.deepEqual(collectionCategoryCounts(items),[{name:'Invented Wonders',count:3}]);
+ assert.deepEqual(collectionCategoryCounts(items.slice(0,2)),[{name:FALLBACK_CATEGORY,count:2}]);
 });

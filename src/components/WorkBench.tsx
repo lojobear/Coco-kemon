@@ -5,7 +5,8 @@ import type { Material } from '../types';
 import { readCraftElements, SAVE_IMPORTED_EVENT, SAVE_CHANGED_EVENT } from '../lib/saveData';
 import { conceptMaterial } from '../lib/conceptMaterial';
 import { discoveryIdentity } from '../lib/unifiedCollection';
-import { categoryForDiscovery } from '../lib/collectionCategories';
+import { buildCollectionCategoryIndex, indexedCategory, collectionCategoryCounts } from '../lib/collectionCategories';
+import { mergeSharedDiscoveries } from '../lib/sharedDiscoveries';
 import { MaterialSprite } from './ElementSprite';
 import { chooseRandomProcess } from '../lib/randomProcess';
 import { availableProcesses as getAvailableProcesses } from '../lib/availableProcesses';
@@ -14,7 +15,7 @@ import { sound } from '../lib/audio';
 import { FoundryFusionOverlay } from './FoundryFusionOverlay';
 
 export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Material) => void }) {
-  const { materials: foundryMaterials, processes, slotA, slotB, selectedProcess, setSlotA, setSlotB,
+  const { materials: foundryMaterials, oddkinCollection, processes, slotA, slotB, selectedProcess, setSlotA, setSlotB,
     setSelectedProcess, runSynthesis, isSynthesizing, synthesisStage, synthesisError, setActiveTab, clearSlots, progression } = useGame();
   const [craftItems, setCraftItems] = useState(readCraftElements);
   const [search, setSearch] = useState('');
@@ -34,6 +35,8 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
     window.addEventListener(SAVE_CHANGED_EVENT, reload);
     return () => { window.removeEventListener(SAVE_IMPORTED_EVENT, reload); window.removeEventListener(SAVE_CHANGED_EVENT, reload); };
   }, []);
+  const shared=useMemo(()=>mergeSharedDiscoveries(craftItems,foundryMaterials,oddkinCollection),[craftItems,foundryMaterials,oddkinCollection]);
+  const categoryIndex=useMemo(()=>buildCollectionCategoryIndex(shared),[shared]);
   const materials = useMemo(() => {
     // Do not delete legacy records: display one representative per canonical
     // concept while preserving all underlying Foundry lineage in the save.
@@ -44,11 +47,11 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
       seen.add(name);
       return true;
     });
-    return [...uniqueFoundry, ...craftItems.filter(item => !seen.has(discoveryIdentity(item.name))).map(item => {
-      const material = conceptMaterial({ result: item.name, emoji: item.emoji, explanation: item.explanation, connection: item.connection });
+    return [...uniqueFoundry, ...shared.filter(item => !seen.has(discoveryIdentity(item.name))).map(item => {
+      const material = conceptMaterial({ result: item.name, emoji: item.emoji, explanation: item.explanation, connection: item.connection, category: item.category });
       return { ...material, discoveredAt: item.discoveredAt || 0, customSpriteUrl: item.customSpriteUrl };
     })];
-  }, [foundryMaterials, craftItems]);
+  }, [foundryMaterials, shared]);
   const availableProcesses = useMemo(() => getAvailableProcesses(processes), [processes]);
   // Mix is the useful default; all unlocked transformations remain available.
   const process = selectedProcess || availableProcesses.find(p => p.id === 'MIX') || availableProcesses[0];
@@ -68,15 +71,18 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
   const exampleMaterials=example?.inputs.map(name=>materials.find(item=>discoveryIdentity(item.displayName)===discoveryIdentity(name)));
   const filteredProcesses=availableProcesses.filter(p=>(processFamily==='all'||p.category===processFamily)&&(!processQuery.trim()||`${p.name} ${p.category} ${p.description} ${p.verb}`.toLowerCase().includes(processQuery.trim().toLowerCase())));
 
-  const categoryOf = (material: Material) => categoryForDiscovery({ name: material.displayName, category: material.category });
-  const categories = useMemo(() => [...new Set<string>(materials.map(categoryOf))].sort((a,b) => a.localeCompare(b)), [materials]);
+  const categories = useMemo(() => collectionCategoryCounts(shared,categoryIndex),[shared,categoryIndex]);
+  useEffect(()=>{if(category!=='all'&&!categories.some(entry=>entry.name===category))setCategory('all');},[category,categories]);
   const filtered = useMemo(() => {
     const query = deferredSearch.trim().toLowerCase();
-    const result = materials.filter(m => (category === 'all' || categoryOf(m) === category) && `${m.displayName} ${m.category} ${m.semanticTags.join(' ')}`.toLowerCase().includes(query));
+    const result = materials.filter(m => {
+      const shelf=indexedCategory({name:m.displayName,category:m.category},categoryIndex);
+      return (category==='all'||shelf===category)&&`${m.displayName} ${shelf} ${m.semanticTags.join(' ')}`.toLowerCase().includes(query);
+    });
     if (sort === 'recent') result.sort((a,b) => b.discoveredAt - a.discoveredAt);
     if (sort === 'name') result.sort((a,b) => a.displayName.localeCompare(b.displayName));
     return result;
-  }, [materials, category, deferredSearch, sort]);
+  }, [materials, category, deferredSearch, sort, categoryIndex]);
   useEffect(() => setVisibleCount(FOUNDRY_PAGE_SIZE), [deferredSearch, category, sort]);
   const visibleMaterials = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount]);
   const selectItem = (item: Material) => {
@@ -162,7 +168,7 @@ export function WorkBench({ onInspectMaterial }: { onInspectMaterial: (m: Materi
     </div>
     {picker && <div className="picker-prompt" role="status">Choose item {picker}. You can use the same item twice.<button onClick={() => setPicker(null)} aria-label="Cancel choosing item"><X size={16} /></button></div>}
     <div className="collection-filters">
-      <label><span className="sr-only">Discovery category</span><select aria-label="Discovery category" value={category} onChange={e => setCategory(e.target.value)}><option value="all">All categories</option>{categories.map(c => <option key={c}>{c}</option>)}</select></label>
+      <label><span className="sr-only">Discovery category</span><select aria-label="Discovery category" value={category} onChange={e => setCategory(e.target.value)}><option value="all">All categories ({shared.length})</option>{categories.map(c => <option key={c.name} value={c.name}>{c.name} ({c.count})</option>)}</select></label>
       <label><span className="sr-only">Sort discoveries</span><select aria-label="Sort discoveries" value={sort} onChange={e => setSort(e.target.value as typeof sort)}><option value="collection">Collection order</option><option value="recent">Newest first</option><option value="name">Name A–Z</option></select></label>
       <span aria-live="polite">{visibleMaterials.length} of {filtered.length} items</span>
     </div>
