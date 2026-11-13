@@ -5,13 +5,14 @@ import { handleAsNodeRequest } from 'cloudflare:node';
 import { app } from './server.js';
 import { setWorkersAiBinding } from './server/workersAi.js';
 import { setPersistentCacheBinding } from './server/cacheBinding.js';
-import { runBloopTick } from './server/bloop.js';
+import { registerBloopRoutes, runBloopTick } from './server/bloop.js';
 import { runRecoveryPass } from './server/spriteRecovery.js';
 import { setImageBudgetBinding } from './server/imageBudgetBinding.js';
 export { BoopImageBudgetLedger } from './server/imageBudgetLedger.js';
 
 // nodejs_compat populates process.env from text/secret bindings at this compatibility date.
 // Workers AI is an object binding, so expose it to the shared Express server explicitly.
+registerBloopRoutes(app);
 app.use('/api', (_req, res) => res.status(404).json({ error: 'API route not found.' }));
 app.use((error: any, _req: any, res: any, _next: any) => {
   const status = error?.status === 413 ? 413 : error?.status === 400 ? 400 : 500;

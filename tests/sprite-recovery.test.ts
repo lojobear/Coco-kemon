@@ -68,7 +68,7 @@ test('scheduled recovery keeps existing spending safeguards and front-end auto s
   const client=readFileSync(new URL('../src/lib/spriteRecoveryClient.ts',import.meta.url),'utf8');
   assert.match(worker,/scheduled\(/);
   assert.match(worker,/runRecoveryPass\(/);
-  assert.match(wrangler,/"crons": \["\*\/10 \* \* \* \*"\]/);
+  assert.ok(JSON.parse(wrangler).triggers.crons.includes('*/10 * * * *'));
   assert.match(wrangler,/"BOOP_SAFE_SPENDING": "1"/);
   assert.match(app,/startSpriteRecovery/);
   assert.match(client,/SAVE_IMPORTED_EVENT/);
