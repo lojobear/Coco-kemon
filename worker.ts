@@ -1,4 +1,4 @@
-import { arenaFetch, type ArenaEnv } from './server/arenaApi.js';
+import type { ArenaEnv } from './server/arenaApi.js';
 export { BoopArena } from './server/arenaObjects.js';
 import { BOT_REGISTRY } from './src/lib/botCollectors.js';
 import { handleAsNodeRequest } from 'cloudflare:node';
@@ -22,7 +22,7 @@ app.listen(3000);
 
 export default {
   fetch(request: Request, env: { AI?: any; QUARKPOP_CACHE?: any; BOOP_IMAGE_BUDGET?: any } & ArenaEnv) {
-    if (new URL(request.url).pathname.startsWith('/api/arena/')) return arenaFetch(request, env);
+    if (new URL(request.url).pathname.startsWith('/api/arena/')) return Response.json({error:'Arena is paused for now.'},{status:503,headers:{'Cache-Control':'no-store'}});
     setWorkersAiBinding(env.AI);
     setPersistentCacheBinding(env.QUARKPOP_CACHE);
     setImageBudgetBinding(env.BOOP_IMAGE_BUDGET);

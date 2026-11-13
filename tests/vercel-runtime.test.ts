@@ -33,7 +33,7 @@ test('compiled Vercel entrypoint serves health and combinations in plain Node ES
         const health = await fetch(base + '/api/health');
         assert.equal(health.status, 200);
         assert.equal((await health.json()).status, 'ok');
-        assert.equal((await fetch(base + '/api/arena/collection')).status, 401);
+        assert.equal((await fetch(base + '/api/arena/collection')).status, 503);
         for (const route of ['/api/pair', '/api/infinite-craft/pair']) {
           const pair = await fetch(base + route, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },

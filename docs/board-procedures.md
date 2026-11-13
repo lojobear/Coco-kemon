@@ -1,5 +1,7 @@
 # Board procedures
 
+Craft now starts with the board and a compact two-slot composer. Tap two board pieces, or tap each ingredient slot to choose from the library, then press Combine. A matching board piece is reused when available; choosing the same discovery twice uses distinct pieces. Keyboard selection works through the same buttons. The procedure controls open in a drawer above the composer and close after choosing or applying a procedure. Random stays on the board beside More tools.
+
 Select one or two pieces, choose a procedure, then press Apply. Mix needs two pieces and uses the normal Craft engine. Other procedures use the existing Foundry synthesis engine directly; a successful result replaces the selected pieces on the board and joins the shared collection. Failed and no-reaction attempts keep the pieces. Undo restores board placement without removing earned discoveries.
 
 The full procedure picker supports search and category filtering. Star a procedure to pin it; the first six favorites and six recent actions are shown near the board. All favorites remain accessible through the picker. Preferences are saved locally on the device under `boop-procedure-preferences-v1`.

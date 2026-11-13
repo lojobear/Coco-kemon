@@ -24,7 +24,7 @@ try{
    for(const l of labels){assert.ok(l.scrollWidth<=l.width+1,`${width}/${fontSize}: horizontal name clipping: ${l.text}`);assert.ok(l.scrollHeight<=l.height+1,`${width}/${fontSize}: vertical name clipping`);assert.ok(l.left>=l.button.left-1&&l.right<=l.button.right+1,`${width}/${fontSize}: name exceeds button`);assert.ok(l.top>=l.button.top-1&&l.bottom<=l.button.bottom+1,`${width}/${fontSize}: name exceeds button height`);}
    const sprite=await page.locator('.boop-board-item .craft-emoji').first().boundingBox();assert.ok(sprite.width<=52&&sprite.height<=52);
    await page.getByRole('button',{name:`Select ${names[0]} to combine`,exact:true}).tap();await page.getByRole('button',{name:`Select ${names[1]} to combine`,exact:true}).tap();
-   const combine=page.getByRole('button',{name:`Combine ${names[0]} + ${names[1]}`,exact:true});assert.equal(await combine.innerText(),'Combine selected');assert.ok(await combine.isEnabled());
+   const combine=page.getByRole('button',{name:`Combine ${names[0]} + ${names[1]}`,exact:true});assert.equal(await combine.innerText(),'Combine');assert.ok(await combine.isEnabled());
    assert.ok(await page.locator('.boop-tile-action').evaluateAll(es=>es.every(e=>getComputedStyle(e).opacity==='0')),'touch selection must not cover the names with sticky hover controls');
    await page.locator('.boop-board-more > summary').tap();assert.ok(await page.getByRole('button',{name:'Duplicate selected element',exact:true}).isVisible());await page.locator('.boop-board-more > summary').tap();
    assert.deepEqual(errors,[]);await page.screenshot({path:`${output}/compact-${width}-text-${fontSize}.png`});console.log(`${width}px, ${fontSize}px labels: sprites compact, full names contained, selection works`);await page.close();

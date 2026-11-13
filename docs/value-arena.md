@@ -1,5 +1,7 @@
 # Value Arena
 
+Arena is currently paused: it is removed from app navigation and public Arena endpoints return 503. Its implementation and storage binding are retained for a possible future return.
+
 Arena is a casual public 1-vs-1 category match. Sign in, save a collection through Cloud saves, open Arena from Craft, select a category and press Quick match. Players are paired randomly within that category. If no human joins within 12 seconds, a clearly labeled bot joins. Each match allows 45 seconds to lock one discovery. Picks stay hidden until both players submit, time expires, or someone forfeits. Highest snapshotted guide value wins; equal values draw. There is no wager, coin prize, inventory transfer or consumption.
 
 The server verifies the Supabase session and reads only that account's cloud save with the user's bearer token and existing RLS. A match freezes eligible names, available forms and calculated guide prices at entry; the client submits only a selection key. This verifies membership in the submitted cloud collection and prevents arbitrary score submission. Cloud saves remain editable/importable in the existing offline game, so this is not an audited anti-cheat inventory or a ranked economy.
