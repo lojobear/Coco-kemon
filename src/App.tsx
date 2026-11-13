@@ -31,7 +31,7 @@ const SeedsModal = lazy(() => loadSeedsModal().then(module => ({ default: module
 const VoiceLabModal = lazy(() => loadVoiceLabModal().then(module => ({ default: module.VoiceLabModal })));
 const ValueArena = lazy(() => import('./components/ValueArena').then(module => ({ default: module.ValueArena })));
 const PlayerProfile = lazy(() => import('./components/PlayerProfile').then(module => ({ default: module.PlayerProfile })));
-import { SAVE_STATUS_EVENT, getSaveError } from './lib/saveData';
+import { SAVE_STATUS_EVENT, getSaveError, getLocalSavePending } from './lib/saveData';
 import { sound } from './lib/audio';
 import { isAndroidNativeShell, usesNativeAndroidChrome, isNativeTab, sendToAndroid } from './lib/nativeShell';
 
@@ -89,8 +89,9 @@ function GameContent() {
     return () => globalThis.clearTimeout(timeout);
   }, []);
   const [saveError, setSaveError] = useState(getSaveError);
+  const [savePending,setSavePending]=useState(getLocalSavePending);
   useEffect(() => {
-    const update = () => setSaveError(getSaveError());
+    const update = () => {setSaveError(getSaveError());setSavePending(getLocalSavePending());};
     update();
     window.addEventListener(SAVE_STATUS_EVENT, update);
     return () => window.removeEventListener(SAVE_STATUS_EVENT, update);
@@ -157,6 +158,7 @@ function GameContent() {
       {/* Main Viewport Content */}
       <main className={`boop-main flex-1 w-full min-h-0 flex flex-col ${(activeTab === 'infinite-craft') ? 'overflow-hidden' : 'overflow-y-auto'}`}>
         {saveError && <div role="alert" className="boop-save-alert">{saveError}</div>}
+        {!saveError&&savePending&&<div role="status" style={{fontSize:11,padding:'3px 12px',color:'#66756e'}}>Saving device progress…</div>}
         {kitchenOpened && <div hidden={activeTab !== 'kitchen'}><Suspense fallback={<div className="view-loading-card">Opening Kitchen…</div>}><KitchenView visible={activeTab === 'kitchen'} /></Suspense></div>}
 
         {activeTab === 'arena' && <Suspense fallback={<div className="view-loading-card">Opening Arena…</div>}><ValueArena onCloud={() => setShowCloud(true)} onBack={() => setActiveTab('infinite-craft')}/></Suspense>}

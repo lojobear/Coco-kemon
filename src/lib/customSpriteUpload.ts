@@ -4,7 +4,7 @@
  * storage. Does not call image-generation endpoints or modify crafting metadata.
  */
 import { spriteAssets, trackSpriteSync } from './spriteAssets';
-import { readCraftElements, saveCraftElements, getSaveError, MAX_SPRITE_CHARS } from './saveData';
+import { readCraftElements, saveCraftElements, getSaveError, MAX_SPRITE_CHARS, waitForLocalSave } from './saveData';
 import { withUnifiedDiscoveryArtwork } from './spriteCatalog';
 import { MATERIAL_SPRITE_RENDERER_VERSION } from './pixelRenderer';
 import { discoveryIdentity } from './unifiedCollection';
@@ -14,7 +14,7 @@ export type SpriteEditTarget = { type: 'craft'|'material'|'oddkin'; id:string; n
 export type SpriteEditContext = {
   materials: readonly Material[];
   exportSaveData:()=>string;
-  importSaveData:(json:string)=>boolean;
+  importSaveData:(json:string)=>boolean|Promise<boolean>;
 };
 
 export async function fileToSprite(file: File): Promise<string> {
@@ -98,14 +98,15 @@ export async function persistSpriteEdit(
       const changed = current.map(item => discoveryIdentity(item.name) === discoveryIdentity(target.name)
         ? {...item,customSpriteUrl:sprite} : item);
       saveCraftElements(changed);
+      await waitForLocalSave();
       if (getSaveError()) throw new Error(getSaveError()!);
-    } else if (!context.importSaveData(JSON.stringify(updated))) {
+    } else if (!await context.importSaveData(JSON.stringify(updated))) {
       throw new Error('The linked artwork could not be saved. Try again after Craft or Foundry finishes.');
     }
   } else {
     const saved = payload?.foundry?.oddkinCollection?.find((item:Oddkin) => item.speciesId === target.id);
     if (!saved) throw new Error('Oddkin could not be found in the save.');
     saved.customSpriteUrl = sprite;
-    if (!context.importSaveData(JSON.stringify(payload))) throw new Error('The updated sprite could not be saved.');
+    if (!await context.importSaveData(JSON.stringify(payload))) throw new Error('The updated sprite could not be saved.');
   }
 }

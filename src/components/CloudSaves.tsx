@@ -1,3 +1,4 @@
+import { keepLocalRecovery, readLocalRecovery, getLocalSaveBackend, waitForLocalSave } from '../lib/saveData';
 import { applySpriteChanges, syncProfileSprites } from '../lib/profileSprites';
 import { getSpriteSyncStatus, SPRITE_SYNC_EVENT, trackSpriteSync } from '../lib/spriteAssets';
 import { useEffect, useRef, useState } from 'react';
@@ -32,7 +33,7 @@ export function CloudSaves({ open, onClose }: { open: boolean; onClose: () => vo
   useEffect(() => {
     if (open && !dialog.current?.open) dialog.current?.showModal();
     if (!open) dialog.current?.close();
-    try { setHasRecovery(Boolean(localStorage.getItem(RECOVERY_KEY))); } catch { /* storage may be blocked */ }
+    void readLocalRecovery().then(value=>setHasRecovery(Boolean(value))).catch(()=>{});
   }, [open]);
 
   useEffect(() => {
@@ -130,7 +131,7 @@ export function CloudSaves({ open, onClose }: { open: boolean; onClose: () => vo
     </> : <div className="space-y-3">
       <p className="break-all text-sm">Signed in as <strong>{user.email ?? 'Google user'}</strong></p>
       <p className="text-xs boop-cloud-muted">{snapshot === undefined ? 'Cloud info has not loaded yet.' : snapshot === null ? 'No cloud save yet. Save this device’s collection to get started.' : `Cloud save: ${new Date(snapshot.updated_at).toLocaleString()} · revision ${snapshot.revision}`}</p>
-      <p className="text-xs boop-cloud-secondary">Device saves are automatic. Cloud saves are manual: save before switching devices, then load on the other device. Progress saves independently of sprite uploads.</p>
+      <p className="text-xs boop-cloud-secondary">Device saves are automatic ({getLocalSaveBackend()}). Cloud saves are manual: save before switching devices, then load on the other device. Progress saves independently of sprite uploads.</p>
       <div className="boop-cloud-sprite-library rounded-xl border p-3 space-y-2">
         <h3 className="font-bold text-sm boop-cloud-section-title">Profile sprite library</h3>
         <p className="text-xs boop-cloud-muted">Sprites upload automatically while signed in and become available for matching discoveries on your other devices. Game progress still uses Save to cloud and Load from cloud.</p>
@@ -147,10 +148,10 @@ export function CloudSaves({ open, onClose }: { open: boolean; onClose: () => vo
             if (!restored.count) { setSpriteStatus('No matching discovered sprites to restore on this device.'); return; }
             if (!window.confirm(`Restore ${restored.count} saved profile sprites onto your device? A local recovery backup will be kept.`)) return;
             if (game.current.isSynthesizing) throw new Error('Finish crafting first.');
-            try { localStorage.setItem(RECOVERY_KEY, currentJson); }
+            try { await keepLocalRecovery(currentJson); }
             catch { throw new Error('Not enough local space for a recovery backup. Export your collection first.'); }
             setHasRecovery(true);
-            if (!game.current.importSaveData(restored.json)) throw new Error('Could not restore sprites. Your recovery backup is preserved.');
+            if (!await game.current.importSaveData(restored.json)) throw new Error('Could not restore sprites. Your recovery backup is preserved.');
             setSpriteStatus(`Restored ${restored.count} sprites from your profile.`);
           })}>Restore sprites</button>
         </div>
@@ -186,10 +187,10 @@ export function CloudSaves({ open, onClose }: { open: boolean; onClose: () => vo
           const json = validateCloudPayload(saved.payload);
           if (!window.confirm('Load the cloud collection onto this device? A recovery copy of your current progress will be kept.')) return;
           if (game.current.isSynthesizing) throw new Error('Finish the current synthesis before loading.');
-          try { localStorage.setItem(RECOVERY_KEY, game.current.exportSaveData()); }
+          try { await keepLocalRecovery(game.current.exportSaveData()); }
           catch { throw new Error('There is not enough device storage for a recovery copy. Export a backup and free space before loading.'); }
           setHasRecovery(true);
-          if (!game.current.importSaveData(json)) throw new Error('Could not load the save. Your previous collection and recovery backup are preserved.');
+          if (!await game.current.importSaveData(json)) throw new Error('Could not load the save. Your previous collection and recovery backup are preserved.');
           setSnapshot(saved); setMessage('Cloud collection loaded on this device.');
         })}>Load from cloud</button>
       </div>
@@ -208,8 +209,8 @@ export function CloudSaves({ open, onClose }: { open: boolean; onClose: () => vo
     <p role="status" aria-live="polite" className="mt-3 text-sm boop-cloud-status">{busy ? (message || 'Working…') : message}</p>
     <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-700 pt-3">
       <button className={button} onClick={() => downloadBackup(game.current.exportSaveData())}>Export device backup</button>
-      {hasRecovery && <button className={button} onClick={() => {
-        try { const json = localStorage.getItem(RECOVERY_KEY); if (json) downloadBackup(json, 'coco-kemon-before-cloud-load'); }
+      {hasRecovery && <button className={button} onClick={async () => {
+        try { const json = await readLocalRecovery(); if (json) downloadBackup(json, 'coco-kemon-before-cloud-load'); }
         catch { setMessage('Recovery storage is unavailable.'); }
       }}>Export recovery copy</button>}
     </div>

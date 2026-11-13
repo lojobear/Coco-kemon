@@ -1,3 +1,4 @@
+import { openLocalSaveDatabase, LocalSaveConflict, LOCAL_DATABASE_MARKER_VERSION, LOCAL_DATABASE_ENCODING, type LocalSaveDatabase } from './localSaveDatabase';
 import { encodeCompressedLocalSave, decodeCompressedLocalSave, isCompressedLocalSave, COMPRESSED_LOCAL_VERSION, COMPRESSED_LOCAL_ENCODING } from './compressedLocalSave';
 import { encodePackedLocalSave, decodePackedLocalSave, isPackedLocalSave, PACKED_LOCAL_VERSION } from './packedLocalSave';
 import { emptyEconomy, validEconomy, applySale, type Economy } from './economy';
@@ -144,7 +145,108 @@ export function validateFoundry(v: unknown): boolean {
     Array.isArray(v.experiments) && v.experiments.every((e: unknown) => record(e) && text(e.id) && finite(e.timestamp) && strings(e.inputNames) && text(e.processName) && typeof e.success === 'boolean' && typeof e.observation === 'string') &&
     Array.isArray(v.habitats) && v.habitats.every((h: unknown) => record(h) && text(h.id) && text(h.name) && text(h.type) && typeof h.description === 'string' && strings(h.residentOddkinIds) && finite(h.lastHarvestTimestamp) && record(h.themePalette) && ['sky','ground','accent','foliage'].every(k => color(h.themePalette[k])));
 }
+// Browser boot hydrates this synchronous game view before any React state is
+// created. Only IndexedDB transactions establish durability after migration.
+let localDatabase:LocalSaveDatabase|null=null;
+let databaseRevision=0;
+let databaseEnvelope:any=null;
+let pendingEnvelope:any=null;
+let databaseDrain:Promise<void>|null=null;
+let databaseFailure:unknown=null;
+let databaseConflict=false;
+let initialization:Promise<void>|null=null;
+function validateLocalEnvelope(v:any):void{
+ assertSaveVersion(v?.version);
+ if(!record(v)||![2,SAVE_FORMAT_VERSION].includes(v.version)||!validateCraft(v.crafting)||(v.foundry!==null&&!validateFoundry(v.foundry)))throw new Error('Invalid saved data');
+ if(v.version===3&&!validEconomy(v.economy))throw new Error('Invalid wallet data');
+}
+function markDatabaseSave(savedAt:number){
+ try{localStorage.setItem(SAVE_KEY,JSON.stringify({version:LOCAL_DATABASE_MARKER_VERSION,savedAt,encoding:LOCAL_DATABASE_ENCODING}));}catch{/* Database is authoritative even if localStorage is blocked. */}
+}
+export function initializeLocalSave(open:()=>Promise<LocalSaveDatabase>=()=>openLocalSaveDatabase()):Promise<void>{
+ if(initialization)return initialization;
+ initialization=(async()=>{
+  const raw=localStorage.getItem(SAVE_KEY);
+  const marker=raw?JSON.parse(raw):null;
+  const migrated=marker?.version===LOCAL_DATABASE_MARKER_VERSION&&marker?.encoding===LOCAL_DATABASE_ENCODING;
+  let db:LocalSaveDatabase;
+  try{db=await open();}catch(error){if(migrated)throw error;return;}// Legacy fallback only before migration.
+  let saved=await db.read();
+  if(saved){
+   validateLocalEnvelope(saved.envelope);
+   if(!Number.isSafeInteger(saved.revision)||saved.revision<1)throw new Error('Invalid device save revision.');
+   if(!migrated&&marker&&Number(marker.savedAt)>Number(saved.envelope.savedAt))throw new Error('An older app version saved newer progress. Export that save before continuing.');
+  }else if(migrated){
+   throw new Error('The IndexedDB save is missing. Your legacy marker has been preserved. Restore from a cloud or exported backup instead of starting over.');
+  }else{
+   // Decode all supported legacy formats through the existing validator.
+   const previous=storedEnvelope();
+   if(previous){
+    validateLocalEnvelope(previous);
+    const envelope={...previous,version:3,economy:previous.economy??emptyEconomy()};
+    saved=await db.commit(envelope,0,raw??undefined);
+    const verified=await db.read();
+    if(!verified||verified.revision!==saved.revision||JSON.stringify(verified.envelope)!==JSON.stringify(envelope))throw new Error('Device migration could not be verified.');
+    saved=verified;
+   }else{
+    const craft=readCraftElements();
+    const foundryRaw=localStorage.getItem(LEGACY_FOUNDRY);
+    const foundry=foundryRaw?JSON.parse(foundryRaw):null;
+    if(recoveryRequired)throw new Error('Existing device save needs recovery.');
+    const envelope={version:3,savedAt:Date.now(),crafting:mergeFoundryIntoCraft(craft,foundry),foundry,economy:emptyEconomy(),collectorRoom:sanitizeTrophyRoom(null,craft),boardLayout:loadBoardLayout(craft)??[]};
+    validateLocalEnvelope(envelope);
+    saved=await db.commit(envelope,0,JSON.stringify({craft:localStorage.getItem(LEGACY_CRAFT),foundry:foundryRaw}));
+    const verified=await db.read();if(!verified||verified.revision!==saved.revision||JSON.stringify(verified.envelope)!==JSON.stringify(envelope))throw new Error('Device migration could not be verified.');saved=verified;
+   }
+  }
+  localDatabase=db;databaseRevision=saved.revision;databaseEnvelope=saved.envelope;
+  envelopeMemory=databaseEnvelope;envelopeLoaded=true;craftMemory=undefined;lastSeenSavedAt=databaseEnvelope.savedAt;
+  markDatabaseSave(databaseEnvelope.savedAt);
+  try{void navigator.storage?.persist?.().catch(()=>{});}catch{/* Optional eviction protection. */}
+ })();
+ return initialization;
+}
+export function getLocalSaveBackend(){return localDatabase?'IndexedDB':'localStorage';}
+export function getLocalSavePending(){return !!pendingEnvelope||!!databaseDrain;}
+function notifySaveStatus(){if(typeof window!=='undefined')window.dispatchEvent(new Event(SAVE_STATUS_EVENT));}
+function drainDatabase(){
+ if(!localDatabase||databaseDrain||!pendingEnvelope||databaseConflict)return;
+ const db=localDatabase;
+ databaseDrain=(async()=>{
+  while(pendingEnvelope){
+   const candidate=pendingEnvelope;
+   try{
+    const committed=await db.commit(candidate,databaseRevision);
+    databaseRevision=committed.revision;
+    if(pendingEnvelope===candidate)pendingEnvelope=null;
+    databaseFailure=null;markDatabaseSave(candidate.savedAt);
+    status(null);
+   }catch(error){
+    databaseFailure=error;
+    if(error instanceof LocalSaveConflict){databaseConflict=true;status(STALE_TAB_MESSAGE);}
+    else status('Progress could not be saved to IndexedDB. Your last saved copy is intact. Export a device backup or retry saving.');
+    break;
+   }
+  }
+ })().finally(()=>{databaseDrain=null;notifySaveStatus();});
+ notifySaveStatus();
+}
+export async function waitForLocalSave():Promise<void>{
+ if(!localDatabase)return;
+ if(pendingEnvelope&&!databaseDrain&&!databaseConflict)drainDatabase();
+ while(databaseDrain)await databaseDrain;
+ if(pendingEnvelope||databaseFailure)throw databaseFailure||new Error('Device save is not confirmed.');
+}
+export async function keepLocalRecovery(json:string):Promise<void>{
+ if(localDatabase){await localDatabase.recovery(json);return;}
+ localStorage.setItem('coco_kemon_before_cloud_load',json);
+}
+export async function readLocalRecovery():Promise<string|null>{
+ if(localDatabase){const value=await localDatabase.recovery();if(value)return value;}
+ return localStorage.getItem('coco_kemon_before_cloud_load');
+}
 function storedEnvelope(): any {
+  if(localDatabase)return databaseEnvelope;
   if (envelopeLoaded) return envelopeMemory;
   const raw = localStorage.getItem(SAVE_KEY);
   if (!raw) {
@@ -184,7 +286,7 @@ function write(foundry: any, crafting: InfiniteElement[], force = false, collect
   // Deployment guard first: never let an older build overwrite a save written
   // by a newer one, even if the envelope is otherwise unreadable here. This
   // runs before any setItem and before the stale-tab check.
-  if (!force) {
+  if (!force && !localDatabase) {
     const rawVersion = Number(localStorage.getItem(SAVE_KEY)?.slice(0, 120).match(/"version":(\d+)/)?.[1]);
     // The tagged packed local format is understood by this build only.
     const supportedPacked = rawVersion === PACKED_LOCAL_VERSION && localStorage.getItem(SAVE_KEY)?.slice(0,120).includes('"encoding":"boop-png-dictionary-v1"');
@@ -195,7 +297,7 @@ function write(foundry: any, crafting: InfiniteElement[], force = false, collect
     }
   }
   // Refuse to overwrite a save that another tab wrote after this tab last read it.
-  if (!force && lastSeenSavedAt !== undefined && storedSavedAt() > lastSeenSavedAt) {
+  if (!localDatabase && !force && lastSeenSavedAt !== undefined && storedSavedAt() > lastSeenSavedAt) {
     status(STALE_TAB_MESSAGE);
     throw new StaleSaveError(STALE_TAB_MESSAGE);
   }
@@ -211,6 +313,17 @@ function write(foundry: any, crafting: InfiniteElement[], force = false, collect
     economy: economy ?? storedEnvelope()?.economy ?? emptyEconomy(),
     collectorRoom: sanitizeTrophyRoom(previousRoom, unifiedCrafting),
     boardLayout: boardLayout ?? loadBoardLayout(crafting) ?? [] };
+  if(localDatabase){
+    if(databaseConflict)throw new StaleSaveError(STALE_TAB_MESSAGE);
+    // Immutable logical snapshot; subsequent React mutations cannot change an
+    // in-flight transaction. Coalesce rapid crafting into the newest snapshot.
+    const snapshot=structuredClone(envelope);
+    databaseEnvelope=snapshot;envelopeMemory=snapshot;envelopeLoaded=true;
+    craftMemory=unifiedCrafting;lastSeenSavedAt=savedAt;
+    pendingEnvelope=snapshot;drainDatabase();
+    if(typeof window!=='undefined')window.dispatchEvent(new Event(SAVE_CHANGED_EVENT));
+    return;
+  }
   const json=JSON.stringify(envelope);
   try { localStorage.setItem(SAVE_KEY,json); }
   catch(error) {
@@ -336,7 +449,7 @@ export function readEconomy(): Economy {
 }
 export function sellElement(name: string, form: CollectorVariant, quantity = 1, expectedPrice?: number) {
   flushQueuedCraftSave();
-  if (recoveryRequired || getSaveError()) throw new Error('Save your progress successfully before selling.');
+  if (recoveryRequired || getSaveError() || getLocalSavePending()) throw new Error('Save your progress successfully before selling.');
   const envelope = storedEnvelope();
   const crafting = readCraftElements();
   const element = crafting.find(item => discoveryIdentity(item.name) === discoveryIdentity(name));

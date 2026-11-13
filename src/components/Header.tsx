@@ -198,9 +198,9 @@ export function Header({
                       const file = e.target.files?.[0];
                       if (!file) return;
                       const reader = new FileReader();
-                      reader.onload = (event) => {
+                      reader.onload = async (event) => {
                         const content = event.target?.result as string;
-                        if (content && importSaveData(content)) {
+                        if (content && await importSaveData(content)) {
                           sound.playDiscoveryChime('RARE');
                           haptics.discovery();
                           setShowSettings(false);
