@@ -69,3 +69,28 @@ test('board layout restoration preserves positions but cannot leak forgotten ite
   assert.deepEqual(parsed?.[0],{instanceId:'good',name:'Ice',emoji:'🧊',x:1400,y:800,isShiny:true});
   assert.equal(parseBoardLayout(null,collection),null);
 });
+
+test('profile collection breakdowns, milestones and value exclude starters and stay consistent',()=>{
+  const now = new Date(2026,10,15,12).getTime();
+  const input:InfiniteElement[]=[
+    {id:'water',name:'Water',emoji:'💧'},
+    {id:'biochar',name:'Biochar',emoji:'▪',category:'Animals',craftCount:5,rarityTier:'rare',discoveredAt:now-86400000},
+    {id:'cat',name:'Cat',emoji:'🐈',craftCount:100,unlockedShiny:true,rarityTier:'epic',discoveredAt:now-2*86400000,lastCraftedAt:now},
+    {id:'tea',name:'Tea',emoji:'🍵',craftCount:2,discoveredAt:now},
+  ];
+  const stats=playerCraftStats(input,now);
+  assert.equal(stats.categories.reduce((n,c)=>n+c.count,0),3);
+  assert.equal(stats.categories.find(c=>c.name==='Animals')?.count,1);
+  assert.equal(stats.rarities.find(r=>r.name==='Rare')?.count,1);
+  assert.equal(stats.rarities.find(r=>r.name==='Epic')?.count,1);
+  assert.equal(stats.unlockedForms,1);
+  assert.equal(stats.milestones.find(m=>m.name==='Busy workshop')?.unlocked,true);
+  assert.equal(stats.milestones.find(m=>m.name==='Century collection')?.unlocked,false);
+  assert.equal(stats.recent[0].name,'Tea','recent discoveries must not be reordered by repeat crafts');
+  assert.equal(stats.activity.reduce((n,d)=>n+d.count,0),3);
+  assert.equal(stats.collectionGuideValue,stats.mostValuable.reduce((n,e)=>n+e.coins,0));
+  assert.equal(playerCraftStats([...input].reverse(),now).collectionGuideValue,stats.collectionGuideValue);
+  const empty=playerCraftStats([input[0]],now);
+  assert.equal(empty.collectionGuideValue,0);assert.equal(empty.categories.length,0);
+  assert.ok(empty.milestones.every(m=>!m.unlocked));
+});
