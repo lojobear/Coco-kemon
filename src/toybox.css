@@ -241,3 +241,31 @@
 @media(min-width:700px){.boop-toybox.boop-app .toybox-studio {padding:16px 24px;}.boop-toybox.boop-app .boop-board-layout {min-height:300px;}}
 .craft-ingredient-slot:has(.craft-slot-clear) > button:first-child {padding-right:44px;}
 .craft-procedure-drawer[open] > .toybox-procedures {position:absolute;bottom:calc(100% + 8px);left:0;right:0;z-index:30;max-height:42dvh;overflow:auto;padding:14px;background:#fffdf9;border:1px solid #e6e0d7;border-radius:20px;box-shadow:0 8px 30px #0b123026;}
+
+/* Craft controls use the whole toolbar; filters open in a readable modal. */
+.boop-toybox.boop-app .boop-board-toolbar--quiet {left:12px;right:12px;z-index:6;}
+.boop-toybox.boop-app .boop-board-actions--quiet {width:100%;margin-left:0;justify-content:space-between;}
+.boop-toybox.boop-app .craft-tools-trigger {display:flex;align-items:center;gap:6px;min-height:40px;padding:8px 10px;border:1px solid #a28c4938;border-radius:12px;background:#fff9df!important;color:#594920;}
+.boop-toybox.boop-app .craft-tools-trigger span {display:inline!important;font-size:12px;font-weight:750;}
+.craft-tools-dialog {position:fixed;inset:0;margin:auto;width:min(600px,calc(100% - 24px));max-width:none;max-height:calc(100dvh - 48px);padding:0;border:1px solid #e0ddd5;border-radius:22px;background:#fffdf9;color:#0b1230;overflow-y:auto;overscroll-behavior:contain;box-shadow:0 24px 80px #0b123033;}
+.craft-tools-dialog::backdrop {background:#17203966;backdrop-filter:blur(3px);}
+.craft-tools-header {display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:20px 18px 12px;}
+.craft-tools-header h2 {font-size:21px;margin:0;}
+.craft-tools-header p {font-size:12px;color:#657085;line-height:1.5;margin:5px 0 0;}
+.craft-tools-header button {display:grid;place-items:center;flex-shrink:0;width:44px;min-height:44px;border-radius:12px;border:1px solid #e3e4e8;background:#fff;color:#0b1230;}
+.craft-tools-tabs {display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:0 18px 16px;}
+.craft-tools-tabs button {min-height:44px;padding:10px;border:1px solid #e3e4e8;border-radius:12px;background:#fff;color:#46516a;font-size:13px;font-weight:750;}
+.craft-tools-tabs button[aria-pressed=true] {background:#073ee6;color:#fff;border-color:#073ee6;}
+.boop-toybox.boop-app .craft-tools-dialog .boop-board-more-panel {position:static;width:auto;max-height:none;overflow:visible;padding:0 18px 20px;border:0;border-radius:0;box-shadow:none;background:transparent;}
+.craft-tools-section {display:flex;flex-direction:column;gap:16px;}
+.craft-tools-section[hidden] {display:none;}
+.craft-filter-grid {display:grid;gap:14px;grid-template-columns:repeat(2,minmax(0,1fr));}
+.craft-filter-grid .boop-smart-field:first-child {grid-column:1/-1;}
+.craft-tools-dialog .boop-smart-field {font-size:12px;gap:7px;}
+.craft-tools-dialog .boop-smart-field select {width:100%;min-width:0;min-height:44px;font-size:13px;padding:10px;border-radius:11px;}
+.craft-tools-dialog .boop-board-more-label {font-size:11px;color:#596477;}
+.craft-tools-section >button {min-height:44px;border:1px solid #e0e4eb;border-radius:12px;padding:10px;display:flex;align-items:center;justify-content:center;gap:8px;background:#fff;color:#263653;}
+.craft-tools-dialog .boop-board-more-actions button,.craft-tools-dialog .boop-board-more-zoom button,.craft-tools-dialog .boop-board-more-counts button {min-height:44px;}
+.craft-tools-dialog .boop-smart-odds {padding:10px 12px;background:#f5f1e7;border-radius:10px;margin:0;}
+.craft-tools-dialog .craft-reset-filters {font-size:12px;color:#596477;background:transparent;}
+@media(max-width:359px){.craft-filter-grid {grid-template-columns:1fr;}.craft-tools-header {padding:16px 14px 10px;}.craft-tools-tabs {padding-inline:14px;}.boop-toybox.boop-app .craft-tools-dialog .boop-board-more-panel {padding-inline:14px;}}

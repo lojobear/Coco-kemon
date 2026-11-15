@@ -13,3 +13,7 @@ Random pair adds two discoveries from the current random filters, selects them, 
 Tidy uses rendered tile dimensions, including wrapped names, to lay out rows in the current viewport. It reduces zoom down to the existing 60% minimum when that allows the board to fit. Larger boards continue in reachable vertical rows, with a message to pan down; no pieces are discarded. The world grows vertically when needed.
 
 Validation: `npm test`, `npm run lint`, `npm run build`, and `node tests/procedures-smoke.mjs` with a running app on port 3000. The browser test uses deterministic mocked synthesis responses and covers cached results, copy accounting, failure/no-reaction retries, favorites/recent persistence, Random pair, and Tidy at 320/412/1440px. Set `BOOP_BASE_URL`, `CHROMIUM_PATH` or `BOOP_AUDIT_OUTPUT` when needed.
+
+Filters & tools opens a centered, scrollable dialog rather than a narrow corner menu. Random filters contains source, category, minimum rarity, batch size and pair suggestions; Board tools contains layout actions, zoom and Advanced Fusion. Random stays on the board toolbar.
+
+Device preferences under `boop-craft-preferences-v1` remember random source/category/rarity/count, ingredient filter/sort and selected procedure across pages and reloads. An empty pool retains the chosen category and displays zero matches. Reset random filters restores only randomizer defaults. Storage failures do not prevent crafting. Escape, the close button, backdrop clicks and Android Back close the dialog.
