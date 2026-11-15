@@ -26,7 +26,7 @@ try{
    await page.getByRole('button',{name:`Select ${names[0]} to combine`,exact:true}).tap();await page.getByRole('button',{name:`Select ${names[1]} to combine`,exact:true}).tap();
    const combine=page.getByRole('button',{name:`Combine ${names[0]} + ${names[1]}`,exact:true});assert.equal(await combine.innerText(),'Combine');assert.ok(await combine.isEnabled());
    assert.ok(await page.locator('.boop-tile-action').evaluateAll(es=>es.every(e=>getComputedStyle(e).opacity==='0')),'touch selection must not cover the names with sticky hover controls');
-   await page.locator('.boop-board-more > summary').tap();assert.ok(await page.getByRole('button',{name:'Duplicate selected element',exact:true}).isVisible());await page.locator('.boop-board-more > summary').tap();
+   await page.getByRole('button',{name:'Filters & tools',exact:true}).tap();await page.getByRole('button',{name:'Board tools',exact:true}).tap();assert.ok(await page.getByRole('button',{name:'Duplicate selected element',exact:true}).isVisible());await page.getByRole('button',{name:'Close filters and tools',exact:true}).tap();
    assert.deepEqual(errors,[]);await page.screenshot({path:`${output}/compact-${width}-text-${fontSize}.png`});console.log(`${width}px, ${fontSize}px labels: sprites compact, full names contained, selection works`);await page.close();
   }
  }

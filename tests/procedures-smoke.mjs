@@ -19,7 +19,7 @@ try {
   const procedures=page.locator('.toybox-procedures');
   const openProcedures=async()=>{if(await page.locator('.craft-procedure-drawer').getAttribute('open')===null)await page.getByLabel('Open procedures',{exact:true}).click();};
   const selectProcedure=async(name)=>{await openProcedures();await procedures.getByRole('button',{name,exact:true}).click();};
-  const more=page.locator('.boop-board-more > summary');
+  const more={click:async()=>{const dialog=page.getByRole('dialog',{name:'Filters & tools',exact:true});if(await dialog.isVisible())await page.getByRole('button',{name:'Close filters and tools',exact:true}).click();else await page.getByRole('button',{name:'Filters & tools',exact:true}).click();}};
   await openProcedures();
   const originalCount=await page.locator('.boop-board-item').count();
   await procedures.getByRole('button',{name:'Random procedure',exact:true}).click();
@@ -42,7 +42,7 @@ try {
   const count=await page.evaluate(()=>new Promise((resolve,reject)=>{const opening=indexedDB.open('boop-game-progress',1);opening.onsuccess=()=>{const request=opening.result.transaction('saves').objectStore('saves').get('current');request.onsuccess=()=>{opening.result.close();resolve(request.result.envelope.crafting.find(e=>e.name==='Molten Water').craftCount);};request.onerror=()=>reject(request.error);};opening.onerror=()=>reject(opening.error);}));assert.equal(count,2,'repeat procedures must earn another copy');
   const before=await page.locator('.boop-board-item').count();await more.click();await page.getByRole('button',{name:'Random pair',exact:true}).click();await more.click();await page.waitForFunction(n=>document.querySelectorAll('.boop-board-item').length===n+2,before);
   assert.equal(await page.locator('.boop-board-item.is-selected').count(),2);assert.equal(await page.locator('.toybox-combine').innerText(),'Combine');assert.equal(requests,1);
-  await more.click();await page.getByRole('button',{name:'Tidy board',exact:true}).click();await more.click();await page.waitForTimeout(150);
+  await more.click();await page.getByRole('button',{name:'Board tools',exact:true}).click();await page.getByRole('button',{name:'Tidy board',exact:true}).click();await more.click();await page.waitForTimeout(150);
   const rects=await page.locator('.boop-board-item').evaluateAll(nodes=>nodes.map(node=>{const r=node.getBoundingClientRect();return{x:r.x,y:r.y,w:r.width,h:r.height}}));
   const viewport=await page.locator('.boop-board-viewport').boundingBox();
   for(const [i,r] of rects.entries()){

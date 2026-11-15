@@ -30,11 +30,12 @@ try {
       try { await page.locator('.boop-board-result-new').waitFor({state:'visible',timeout:10000}); }
       catch (error) { await page.screenshot({path:'/tmp/boop-viewport/desktop-reveal-failure.png'}); throw error; }
       await page.screenshot({path:'/tmp/boop-viewport/desktop-new-discovery.png'});
-      await page.locator('.boop-board-more > summary').click();
+      await page.getByRole('button',{name:'Filters & tools',exact:true}).click();
       const before = await page.locator('.boop-board-item').count();
       await page.getByRole('button',{name:/Suggest a discovery/}).click();
       await page.waitForFunction(n => document.querySelectorAll('.boop-board-item').length === n + 2, before);
       assert.match(await page.locator('.boop-board-toast').innerText(),/Try |No known undiscovered pair/);
+      await page.getByRole('button',{name:'Close filters and tools',exact:true}).click();
     }
     await page.getByRole('button',{name:'Collection',exact:true}).click();
     await page.waitForTimeout(500);

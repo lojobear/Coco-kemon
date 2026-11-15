@@ -1,3 +1,4 @@
+import { readCraftPreferences, saveCraftPreferences } from '../lib/craftPreferences';
 import { displayConceptName } from '../lib/conceptMeaning';
 import { ElementValueBadge } from './ElementValue';
 import { buildCollectionValueBook } from '../lib/elementValue';
@@ -186,12 +187,13 @@ export function sanitizeElements(list: InfiniteElement[]): InfiniteElement[] {
 export function InfiniteCraftView() {
   const { setActiveTab, materials: foundryMaterials, oddkinCollection: foundryOddkin,
     processes, runSynthesis, isSynthesizing: foundryBusy } = useGame();
-  const [procedureId, setProcedureId] = useState('MIX');
+  const [preferences] = useState(readCraftPreferences);
+  const [procedureId, setProcedureId] = useState(preferences.procedureId);
   const [usedProcedure, setUsedProcedure] = useState<{ id: string; at: number } | null>(null);
   const procedureRequest = useRef(false);
   const showFreeform = true;
   const procedureCatalog = useMemo(() => availableProcesses(processes), [processes]);
-  const [ingredientFilter, setIngredientFilter] = useState<'all' | 'new' | 'shiny'>('all');
+  const [ingredientFilter, setIngredientFilter] = useState<'all' | 'new' | 'shiny'>(preferences.ingredientFilter);
   const [lastResult, setLastResult] = useState<InfiniteElement | null>(null);
   const [elements, setElements] = useState<InfiniteElement[]>(() => {
     try {
@@ -293,7 +295,7 @@ export function InfiniteCraftView() {
   zoomRef.current=boardZoom;
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortMode, setSortMode] = useState<'time' | 'alpha' | 'discoveries' | 'shinies' | 'crafted'>('time');
+  const [sortMode, setSortMode] = useState<'time' | 'alpha' | 'discoveries' | 'shinies' | 'crafted'>(preferences.sortMode);
   const isDarkMode = false;
   const [selectedCanvasId, setSelectedCanvasId] = useState<string | null>(null);
   const [secondSelectedCanvasId, setSecondSelectedCanvasId] = useState<string | null>(null);
@@ -302,10 +304,13 @@ export function InfiniteCraftView() {
 
   const [crucibleSlotA, setCrucibleSlotA] = useState<CrucibleSlotItem | null>(null);
   const [crucibleSlotB, setCrucibleSlotB] = useState<CrucibleSlotItem | null>(null);
-  const [spawnCount, setSpawnCount] = useState<SpawnCount>(2);
-  const [spawnSource, setSpawnSource] = useState<SpawnSource>('all');
-  const [spawnCategory, setSpawnCategory] = useState('all');
-  const [spawnRarity, setSpawnRarity] = useState<SmartRarity>('all');
+  const [spawnCount, setSpawnCount] = useState<SpawnCount>(preferences.spawnCount);
+  const [spawnSource, setSpawnSource] = useState<SpawnSource>(preferences.spawnSource);
+  const [spawnCategory, setSpawnCategory] = useState(preferences.spawnCategory);
+  const [spawnRarity, setSpawnRarity] = useState<SmartRarity>(preferences.spawnRarity);
+  useEffect(() => saveCraftPreferences({spawnCount,spawnSource,spawnCategory,spawnRarity,ingredientFilter,sortMode,procedureId}),
+    [spawnCount,spawnSource,spawnCategory,spawnRarity,ingredientFilter,sortMode,procedureId]);
+  const [toolsTab, setToolsTab] = useState<'random'|'board'>('random');
   const [advancedFusionOpen, setAdvancedFusionOpen] = useState(false);
   const spawnSequenceRef = useRef(0);
   const crucibleRef = useRef<HTMLDivElement | null>(null);
@@ -317,7 +322,12 @@ export function InfiniteCraftView() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [ingredientSlot, setIngredientSlot] = useState<'first'|'second'|null>(null);
   const procedureDrawer = useRef<HTMLDetailsElement>(null);
-  const boardTools = useRef<HTMLDetailsElement>(null);
+  const boardTools = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const closeTools = () => boardTools.current?.close();
+    window.addEventListener('boop-native-back',closeTools);
+    return () => window.removeEventListener('boop-native-back',closeTools);
+  }, []);
   const ingredientButtons = useRef<Record<'first'|'second',HTMLButtonElement|null>>({first:null,second:null});
   const combineButton = useRef<HTMLButtonElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -945,7 +955,6 @@ export function InfiniteCraftView() {
   // Uniform draw within that pool, with no unlocks or AI requests.
   const spawnCategoryIndex=useMemo(()=>buildCollectionCategoryIndex(sharedElements),[sharedElements]);
   const spawnCategories=useMemo(()=>smartSpawnCategories(sharedElements,{source:spawnSource,rarity:spawnRarity},spawnCategoryIndex),[sharedElements,spawnSource,spawnRarity,spawnCategoryIndex]);
-  useEffect(()=>{if(spawnCategory!=='all'&&!spawnCategories.some(entry=>entry.name===spawnCategory))setSpawnCategory('all');},[spawnCategory,spawnCategories]);
   const spawnPool = useMemo(() => smartSpawnPool(sharedElements,
     {source:spawnSource,category:spawnCategory,rarity:spawnRarity},spawnCategoryIndex),
     [sharedElements,spawnSource,spawnCategory,spawnRarity,spawnCategoryIndex]);
@@ -1072,12 +1081,19 @@ export function InfiniteCraftView() {
           <div className="boop-board-actions boop-board-actions--quiet">
             <button type="button" className="toybox-random" disabled={isSynthesizing || foundryBusy || !spawnPool.length || canvasItems.length >= 300}
               aria-label={`Spawn ${spawnCount} random ${spawnCount === 1 ? 'element' : 'elements'} from ${spawnPool.length} equally likely discoveries`}
-              title={`Random adds ${spawnCount} elements. Change the amount and filters in More crafting tools.`}
+              title={`Random adds ${spawnCount} elements. Change the amount and filters in Filters & tools.`}
               onClick={() => spawnRandomBatch(spawnCount)}><Shuffle size={18}/><span>Random</span></button>
-            <details ref={boardTools} className="boop-board-more" aria-label="More crafting tools" onToggle={event=>{if(event.currentTarget.open&&procedureDrawer.current)procedureDrawer.current.open=false;}}>
-              <summary aria-label="More crafting tools" title="More crafting tools"><SlidersHorizontal size={19}/></summary>
+            <div className="boop-board-more">
+              <button type="button" className="craft-tools-trigger" aria-haspopup="dialog" onClick={()=>{if(procedureDrawer.current)procedureDrawer.current.open=false;boardTools.current?.showModal();}}><SlidersHorizontal size={18}/><span>Filters & tools</span></button>
+              <dialog ref={boardTools} className="craft-tools-dialog" aria-labelledby="craft-tools-title" onClick={event=>{if(event.target===event.currentTarget){const r=event.currentTarget.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)event.currentTarget.close();}}}>
+                <header className="craft-tools-header"><div><h2 id="craft-tools-title">Filters & tools</h2><p>Your choices are remembered on this device.</p></div><button type="button" autoFocus aria-label="Close filters and tools" onClick={()=>boardTools.current?.close()}><X size={20}/></button></header>
+                <div className="craft-tools-tabs" role="group" aria-label="Craft tool sections">
+                  <button type="button" aria-pressed={toolsTab==='random'} onClick={()=>setToolsTab('random')}>Random filters</button>
+                  <button type="button" aria-pressed={toolsTab==='board'} onClick={()=>setToolsTab('board')}>Board tools</button>
+                </div>
               <div className="boop-board-more-panel">
-                <span className="boop-board-more-label">SMART RANDOMIZER</span>
+                <section hidden={toolsTab!=='random'} className="craft-tools-section" aria-label="Random filters">
+                <div className="craft-filter-grid">
                 <label className="boop-smart-field">Pick from
                   <select aria-label="Random spawn source" value={spawnSource} onChange={e=>setSpawnSource(e.target.value as SpawnSource)}>
                     <option value="all">All discoveries</option><option value="recent">Recent 40</option>
@@ -1086,6 +1102,7 @@ export function InfiniteCraftView() {
                 </label>
                 <label className="boop-smart-field">Category
                   <select aria-label="Random spawn category" value={spawnCategory} onChange={e=>setSpawnCategory(e.target.value)}>
+                    {spawnCategory!=='all'&&!spawnCategories.some(entry=>entry.name===spawnCategory)&&<option value={spawnCategory}>{spawnCategory} (0)</option>}
                     <option value="all">All categories ({spawnCategories.reduce((sum,entry)=>sum+entry.count,0)})</option>{spawnCategories.map(entry=><option key={entry.name} value={entry.name}>{entry.name} ({entry.count})</option>)}
                   </select>
                 </label>
@@ -1095,6 +1112,7 @@ export function InfiniteCraftView() {
                     <option value="epic">Epic+</option><option value="legendary">Legendary+</option>
                   </select>
                 </label>
+                </div>
                 <p className="boop-smart-odds" role="status">{spawnPool.length} eligible discoveries · {spawnPool.length?`1/${spawnPool.length} per first pick`:'No items match; adjust filters'}</p>
                 <span className="boop-board-more-label">SPAWN AMOUNT</span>
                 <div className="boop-board-more-counts" role="group" aria-label="Random spawn count">
@@ -1112,8 +1130,13 @@ export function InfiniteCraftView() {
                     if(pair)spawnRandomBatch(2,pair);
                     else setSpawnToast('No untried pair found in this filtered collection.');
                   }}><Sparkles size={16}/> Try an untried pair <small>Uses only owned elements; no AI call until you combine</small></button>
+                <button type="button" disabled={isSynthesizing||foundryBusy||!spawnPool.length||canvasItems.length>298}
+                  onClick={()=>spawnRandomBatch(2,undefined,true)}><Shuffle size={16}/>Random pair</button>
+                <button type="button" className="craft-reset-filters" onClick={()=>{setSpawnSource('all');setSpawnCategory('all');setSpawnRarity('all');setSpawnCount(2);}}>Reset random filters</button>
+                </section>
+                <section hidden={toolsTab!=='board'} className="craft-tools-section" aria-label="Board tools">
                 <span className="boop-board-more-label">ADVANCED CRAFTING</span>
-                <button type="button" className="boop-suggest-pair" onClick={()=>setAdvancedFusionOpen(true)}>
+                <button type="button" className="boop-suggest-pair" onClick={()=>{boardTools.current?.close();setAdvancedFusionOpen(true);}}>
                   <Sparkles size={16}/> Advanced Fusion <small>3–4 items · known recipes · no AI cost</small>
                 </button>
                 {selectedPieces.length > 0 && <>
@@ -1122,8 +1145,6 @@ export function InfiniteCraftView() {
                   <button type="button" onClick={event=>handleDuplicate(selectedPieces[0],event)}><Plus size={16}/>Duplicate selected element</button>
                   <button type="button" onClick={event=>handleRemoveFromCanvas(selectedPieces[0].instanceId,event)}><Trash2 size={16}/>Remove selected element</button>
                 </>}
-                <button type="button" disabled={isSynthesizing||foundryBusy||!spawnPool.length||canvasItems.length>298}
-                  onClick={()=>spawnRandomBatch(2,undefined,true)}><Shuffle size={16}/>Random pair</button>
                 <span className="boop-board-more-label">BOARD TOOLS</span>
                 <div className="boop-board-more-actions">
                   <button type="button" aria-label="Redo board action" disabled={isSynthesizing||!historySize.future} onClick={redoLayout}><Redo2 size={16}/> Redo</button>
@@ -1136,8 +1157,10 @@ export function InfiniteCraftView() {
                   <strong>{Math.round(boardZoom*100)}%</strong>
                   <button type="button" aria-label="Zoom in" disabled={boardZoom>=1.5} onClick={()=>setZoomPreservingCenter(boardZoom+.15)}><ZoomIn size={17}/></button>
                 </div>
+                </section>
               </div>
-            </details>
+              </dialog>
+            </div>
           </div>
         </header>
         <div className="boop-board-viewport" ref={viewportRef} aria-label="Pan and drag crafting board" onPointerDown={startPan} onPointerMove={movePan} onPointerUp={endPan} onPointerCancel={endPan}>
@@ -1223,7 +1246,7 @@ export function InfiniteCraftView() {
             aria-label={activeProcedure?.id==='MIX'&&selectedPieces.length===2?`Combine ${selectedPieces[0].name} + ${selectedPieces[1].name}`:undefined}
             onClick={()=>void applyProcedure()}>{isSynthesizing?'Working…':activeProcedure?.id==='MIX'?'Combine':`Apply ${activeProcedure?.name}`}</button>
         </div>
-        <details ref={procedureDrawer} className="craft-procedure-drawer" onToggle={event=>{if(event.currentTarget.open&&boardTools.current)boardTools.current.open=false;}}>
+        <details ref={procedureDrawer} className="craft-procedure-drawer" onToggle={event=>{if(event.currentTarget.open&&boardTools.current)boardTools.current.close();}}>
           <summary aria-label="Open procedures">Procedure: {activeProcedure?.name||'Mix'} <span>Change ▴</span></summary>
           <BoardProcedures catalog={procedureCatalog} selected={activeProcedure?.id||'MIX'} busy={isSynthesizing||foundryBusy}
             used={usedProcedure} onSelect={id=>{setProcedureId(id);setCombineError(null);if(procedureDrawer.current)procedureDrawer.current.open=false;requestAnimationFrame(()=>procedureDrawer.current?.querySelector('summary')?.focus());}}/>
