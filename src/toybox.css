@@ -243,7 +243,7 @@
 .craft-procedure-drawer[open] > .toybox-procedures {position:absolute;bottom:calc(100% + 8px);left:0;right:0;z-index:30;max-height:42dvh;overflow:auto;padding:14px;background:#fffdf9;border:1px solid #e6e0d7;border-radius:20px;box-shadow:0 8px 30px #0b123026;}
 
 /* Craft controls use the whole toolbar; filters open in a readable modal. */
-.boop-toybox.boop-app .boop-board-toolbar--quiet {left:12px;right:12px;}
+.boop-toybox.boop-app .boop-board-toolbar--quiet {left:12px;right:12px;z-index:6;}
 .boop-toybox.boop-app .boop-board-actions--quiet {width:100%;margin-left:0;justify-content:space-between;}
 .boop-toybox.boop-app .craft-tools-trigger {display:flex;align-items:center;gap:6px;min-height:40px;padding:8px 10px;border:1px solid #a28c4938;border-radius:12px;background:#fff9df!important;color:#594920;}
 .boop-toybox.boop-app .craft-tools-trigger span {display:inline!important;font-size:12px;font-weight:750;}
