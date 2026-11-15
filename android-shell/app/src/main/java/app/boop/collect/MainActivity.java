@@ -30,6 +30,8 @@ import android.webkit.WebResourceResponse;
 import android.webkit.MimeTypeMap;
 import androidx.webkit.WebViewAssetLoader;
 import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.io.IOException;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
@@ -80,11 +82,14 @@ public final class MainActivity extends Activity {
     private String selectedTab = "infinite-craft";
     private ValueCallback<Uri[]> fileUploadCallback;
     private static final int FILE_CHOOSE_CODE = 4312;
+    private static final int PROFILE_EXPORT_CODE = 4313;
+    private String pendingProfileReport;
     private String pendingOAuthCode;
     private long lastBackMillis = 0L;
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
+        if (state != null) pendingProfileReport = state.getString("pendingProfileReport");
         loadBrandTypefaces();
         getWindow().setStatusBarColor(Color.WHITE);
         getWindow().setNavigationBarColor(Color.rgb(255, 255, 255));
@@ -254,7 +259,7 @@ public final class MainActivity extends Activity {
         settings.setAllowContentAccess(false);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
         settings.setMediaPlaybackRequiresUserGesture(false);
-        settings.setUserAgentString(settings.getUserAgentString() + " BoopAndroid/2");
+        settings.setUserAgentString(settings.getUserAgentString() + " BoopAndroid/3");
         CookieManager.getInstance().setAcceptCookie(true);
         CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true);
 
@@ -265,7 +270,7 @@ public final class MainActivity extends Activity {
                 Collections.singleton(ORIGIN), (view, message, sourceOrigin, isMainFrame, replyProxy) -> {
                     if (!isMainFrame || !ORIGIN.equals(sourceOrigin.toString())) return;
                     String raw = message.getData();
-                    if (raw == null || raw.length() > 4096) return;
+                    if (raw == null || raw.length() > 32768) return;
                     runOnUiThread(() -> handleWebMessage(raw));
                 });
         }
@@ -356,6 +361,20 @@ public final class MainActivity extends Activity {
             if ("tab".equals(type)) {
                 String tab = data.optString("tab");
                 if (isAllowedTab(tab)) selectTabVisual(tab);
+            } else if ("exportProfileStats".equals(type)) {
+                String text = data.optString("text", "");
+                if (pendingProfileReport != null || text.isEmpty() || text.length() > 30000) return;
+                new JSONObject(text); // Accept a bounded JSON report, never a URL or arbitrary filename.
+                Intent save = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+                save.addCategory(Intent.CATEGORY_OPENABLE);
+                save.setType("application/json");
+                save.putExtra(Intent.EXTRA_TITLE, "boop-profile-stats.json");
+                pendingProfileReport = text;
+                try { startActivityForResult(save, PROFILE_EXPORT_CODE); }
+                catch (Exception error) {
+                    pendingProfileReport = null;
+                    Toast.makeText(this, "Could not open the save-file picker", Toast.LENGTH_LONG).show();
+                }
             } else if ("oauth".equals(type)) {
                 Uri url = Uri.parse(data.optString("url", ""));
                 // Supabase project's own OAuth initiation endpoint only.
@@ -418,8 +437,27 @@ public final class MainActivity extends Activity {
         }
     }
 
+    @Override protected void onSaveInstanceState(Bundle state) {
+        super.onSaveInstanceState(state);
+        if (pendingProfileReport != null) state.putString("pendingProfileReport", pendingProfileReport);
+    }
+
     @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == PROFILE_EXPORT_CODE) {
+            String report = pendingProfileReport;
+            pendingProfileReport = null;
+            if (resultCode == RESULT_OK && data != null && data.getData() != null && report != null) {
+                try (OutputStream output = getContentResolver().openOutputStream(data.getData(), "wt")) {
+                    if (output == null) throw new IOException("No output stream");
+                    output.write(report.getBytes(StandardCharsets.UTF_8));
+                    Toast.makeText(this, "Profile report saved", Toast.LENGTH_SHORT).show();
+                } catch (Exception error) {
+                    Toast.makeText(this, "Could not save the report. Please try again.", Toast.LENGTH_LONG).show();
+                }
+            }
+            return;
+        }
         if (requestCode == FILE_CHOOSE_CODE && fileUploadCallback != null) {
             fileUploadCallback.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(resultCode, data));
             fileUploadCallback = null;

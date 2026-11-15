@@ -216,7 +216,7 @@ export function InfiniteCraftView() {
       setSelectedCanvasId(null);
       setSecondSelectedCanvasId(null);
       setCombineError(null);
-      lastPairRef.current = null;
+      lastProcedureRef.current = null;
     };
     window.addEventListener(SAVE_IMPORTED_EVENT, reload);
     return () => window.removeEventListener(SAVE_IMPORTED_EVENT, reload);
@@ -570,20 +570,31 @@ export function InfiniteCraftView() {
   }, [sharedElements, searchQuery, sortMode]);
 
   const [combineError, setCombineError] = useState<string | null>(null);
-  const lastPairRef = useRef<Parameters<typeof handleCombine> | null>(null);
+  const lastProcedureRef = useRef<(() => void) | null>(null);
   const requestRef = useRef<AbortController | null>(null);
   useEffect(() => () => {
     requestRef.current?.abort();
   }, []);
 
-  const handleCombine = async (
+  function handleCombine(
+    itemA: { name: string; emoji?: string; x: number; y: number; idA?: string },
+    itemB: { name: string; emoji?: string; x: number; y: number; idB?: string }
+  ) {
+    // Resolve the current procedure when the gesture ends, rather than the
+    // selection slots (which may contain unrelated ingredients).
+    return applyProcedure([
+      { ...canvasItems.find(tile => tile.instanceId === itemA.idA), ...itemA, emoji: itemA.emoji || '✨', instanceId: itemA.idA || 'drag-a' },
+      { ...canvasItems.find(tile => tile.instanceId === itemB.idB), ...itemB, emoji: itemB.emoji || '✨', instanceId: itemB.idB || 'drag-b' },
+    ]);
+  }
+
+  const handleMix = async (
     itemA: { name: string; emoji?: string; x: number; y: number; idA?: string },
     itemB: { name: string; emoji?: string; x: number; y: number; idB?: string }
   ) => {
     if (requestRef.current || procedureRequest.current || foundryBusy) return;
     const controller = new AbortController();
     requestRef.current = controller;
-    lastPairRef.current = [itemA, itemB];
     setCombineError(null);
     setIsSynthesizing(true);
     sound.playCombineChime();
@@ -1006,23 +1017,21 @@ export function InfiniteCraftView() {
 
   const selectedPieces = [selectedCanvasId, secondSelectedCanvasId]
     .flatMap(id => { const item = canvasItems.find(tile => tile.instanceId === id); return item ? [item] : []; });
-  const combineSelected = () => {
-    if (selectedPieces.length !== 2 || requestRef.current) return;
-    const [first, second] = selectedPieces;
-    void handleCombine({ ...first, idA: first.instanceId }, { ...second, idB: second.instanceId });
-  };
   const activeProcedure = procedureCatalog.find(process => process.id === procedureId) || procedureCatalog.find(process => process.id === 'MIX');
-  const applyProcedure = async () => {
-    if (!activeProcedure || !selectedPieces.length || procedureRequest.current || requestRef.current || foundryBusy) return;
+  const applyProcedure = async (pieces: CanvasItem[] = selectedPieces) => {
+    if (!activeProcedure || !pieces.length || procedureRequest.current || requestRef.current || foundryBusy) return;
     if(procedureDrawer.current)procedureDrawer.current.open=false;
     if (activeProcedure.id === 'MIX') {
-      if (selectedPieces.length !== 2) return;
+      if (pieces.length !== 2) return;
+      lastProcedureRef.current = () => { void handleMix({ ...pieces[0], idA: pieces[0].instanceId }, { ...pieces[1], idB: pieces[1].instanceId }); };
       setUsedProcedure({ id: 'MIX', at: Date.now() });
-      combineSelected(); return;
+      const [first, second] = pieces;
+      void handleMix({ ...first, idA: first.instanceId }, { ...second, idB: second.instanceId }); return;
     }
+    lastProcedureRef.current = () => { void applyProcedure(pieces); };
     procedureRequest.current = true;
     setIsSynthesizing(true); setCombineError(null);
-    const selected = [...selectedPieces];
+    const selected = [...pieces];
     const inputs = selected.map(piece => foundryMaterials.find(material =>
       discoveryIdentity(material.displayName) === discoveryIdentity(piece.name)) || {
         ...conceptMaterial({ result: piece.name, emoji: piece.emoji }),
@@ -1133,7 +1142,7 @@ export function InfiniteCraftView() {
         </header>
         <div className="boop-board-viewport" ref={viewportRef} aria-label="Pan and drag crafting board" onPointerDown={startPan} onPointerMove={movePan} onPointerUp={endPan} onPointerCancel={endPan}>
           <div ref={canvasRef} className="boop-board-world" style={{ width:BOARD_WIDTH, height:Math.max(BOARD_HEIGHT, ...canvasItems.map(item => item.y + 320)), zoom:boardZoom }}>
-            <div className="boop-board-origin-hint" style={{ left:BOARD_START_X - 6, top:BOARD_START_Y - 68 }}>DROP. MIX. DISCOVER.</div>
+            <div className="boop-board-origin-hint" style={{ left:BOARD_START_X - 6, top:BOARD_START_Y - 68 }}>DROP. APPLY. DISCOVER.</div>
             {canvasItems.map(item => <CanvasBoardTile key={item.instanceId} item={item}
               label={meaningLabels.get(discoveryIdentity(item.name)) || item.name}
               category={motionCategories.get(discoveryIdentity(item.name))}
@@ -1148,7 +1157,7 @@ export function InfiniteCraftView() {
           </div>
         </div>
         {activeCombination && <div className="boop-board-status" role="status"><span className="boop-inline-spinner"/>Combining {activeCombination.nameA} + {activeCombination.nameB}… <small>Keep moving tiles</small></div>}
-        {combineError && <div className="boop-board-alert" role="alert">{combineError}<button onClick={()=>{if(activeProcedure?.id !== 'MIX')void applyProcedure();else if(lastPairRef.current)void handleCombine(lastPairRef.current[0],lastPairRef.current[1]);}}>Retry</button><button onClick={()=>setCombineError(null)}>Dismiss</button></div>}
+        {combineError && <div className="boop-board-alert" role="alert">{combineError}<button onClick={()=>{lastProcedureRef.current?.();}}>Retry</button><button onClick={()=>setCombineError(null)}>Dismiss</button></div>}
         <p className="sr-only" role="status">{activeProcedure?.id !== 'MIX'
           ? selectedPieces.length ? `${selectedPieces.map(piece => piece.name).join(' and ')} selected. Ready to ${activeProcedure?.name.toLowerCase()}.` : 'Select one or two elements for this procedure.'
           : selectedPieces.length === 2 ? `${selectedPieces[0].name} and ${selectedPieces[1].name} selected. Ready to combine.` : selectedPieces.length === 1 ? `${selectedPieces[0].name} selected. Pick one more element.` : 'Pick two elements to combine.'}</p>

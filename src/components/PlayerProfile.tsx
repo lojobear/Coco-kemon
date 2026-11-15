@@ -3,6 +3,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useGame } from '../lib/gameStore';
 import { cloud } from '../lib/cloudSave';
 import { SAVE_CHANGED_EVENT, SAVE_IMPORTED_EVENT, readCraftElements } from '../lib/saveData';
+import { sendToAndroid } from '../lib/nativeShell';
+import { discoveryIdentity } from '../lib/unifiedCollection';
 import { playerCraftStats } from '../lib/playerStats';
 import { CraftSprite, CraftSprites } from './CraftSprite';
 import type { User } from '@supabase/supabase-js';
@@ -17,6 +19,9 @@ export function PlayerProfile({ onOpenCloud }: { onOpenCloud: () => void }) {
   const [draft, setDraft] = useState('');
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
+  const [featuredName, setFeaturedName] = useState(() => {
+    try { return localStorage.getItem('boop-profile-featured-discovery') || ''; } catch { return ''; }
+  });
   useEffect(() => {
     const refresh = () => setElements([...readCraftElements()]);
     window.addEventListener(SAVE_CHANGED_EVENT, refresh);
@@ -31,6 +36,33 @@ export function PlayerProfile({ onOpenCloud }: { onOpenCloud: () => void }) {
     return () => { active = false; subscription.unsubscribe(); };
   }, []);
   const stats = useMemo(() => playerCraftStats(elements), [elements]);
+  const featured = stats.discoveries.find(e => discoveryIdentity(e.name) === featuredName);
+  const featureDiscovery = (name: string) => {
+    try {
+      localStorage.setItem('boop-profile-featured-discovery', name);
+      setFeaturedName(name);
+      setMessage(name ? 'Featured discovery saved on this device.' : 'Featured discovery cleared.');
+    } catch { setMessage('Could not save your featured discovery on this device.'); }
+  };
+  const exportStats = () => {
+    const report = { exportedAt: new Date().toISOString(), displayName: nickname,
+      level: progression.level, discoveries: stats.uniqueDiscoveries, crafts: stats.totalCrafts,
+      uniqueRecipes: stats.uniqueRecipes, shinyVariants: stats.shinyVariants,
+      unlockedSpecialForms: stats.unlockedForms, masteredElements: stats.masteredElements,
+      collectionGuideValue: stats.collectionGuideValue,
+      valueNote: 'One best unlocked form per discovery in Boop Coins. This is not wallet balance or saleable inventory.',
+      categories: stats.categories, rarities: stats.rarities, milestones: stats.milestones,
+      featuredDiscovery: featured?.name || null };
+    const json = JSON.stringify(report,null,2);
+    if (/BoopAndroid\/([3-9]|[1-9]\d+)/i.test(navigator.userAgent) && sendToAndroid({type:'exportProfileStats',text:json})) {
+      setMessage('Choose where to save your profile report. It is not a game-save backup.');
+      return;
+    }
+    const url = URL.createObjectURL(new Blob([json], { type:'application/json' }));
+    const link = document.createElement('a'); link.href=url; link.download='boop-profile-stats.json';
+    document.body.appendChild(link); link.click(); link.remove(); setTimeout(()=>URL.revokeObjectURL(url),1000);
+    setMessage('Profile report downloaded. This report is not a game-save backup.');
+  };
   const nickname = (user?.user_metadata?.display_name as string | undefined)?.trim()
     || user?.email?.split('@')[0] || guestName;
   const spriteOverrides = useMemo(() => new Map(elements.flatMap(e => e.customSpriteUrl
@@ -63,6 +95,9 @@ export function PlayerProfile({ onOpenCloud }: { onOpenCloud: () => void }) {
     { label:'Unique recipes',value:stats.uniqueRecipes,icon:'♾' },
     { label:'First finds',value:stats.firstFinds,icon:'★' },
     { label:'Mastered items',value:stats.masteredElements,icon:'🏆' },
+    { label:'Categories explored',value:stats.categories.length,icon:'🗂' },
+    { label:'Special forms',value:stats.unlockedForms,icon:'◈' },
+    { label:'Finds this week',value:stats.activity.reduce((sum,day)=>sum+day.count,0),icon:'📅' },
   ];
   const maxActivity = Math.max(1, ...stats.activity.map(x => x.count));
   return <CraftSprites.Provider value={spriteOverrides}>
@@ -93,7 +128,40 @@ export function PlayerProfile({ onOpenCloud }: { onOpenCloud: () => void }) {
         <div role="progressbar" aria-label="Progress to next level" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progression.levelRequired ? progression.levelCurrent / progression.levelRequired * 100 : 100)} className="boop-profile-progress-track"><i style={{width:`${Math.max(0,Math.min(100,progression.levelRequired?progression.levelCurrent / progression.levelRequired*100:100))}%`}}/></div>
       </div>
       <div className="boop-profile-stat-grid">{cards.map(card=><div key={card.label} className="boop-profile-stat-card"><span>{card.icon}</span><strong>{card.value.toLocaleString()}</strong><small>{card.label}</small></div>)}</div>
+      <div className="boop-profile-panel boop-profile-featured">
+        <h2><Sparkles size={20}/> Featured discovery</h2>
+        <p>Choose a discovery to show on your profile. This choice stays on this device.</p>
+        {featured && <div className="boop-profile-feature"><CraftSprite name={featured.name} emoji={featured.emoji} isShiny={featured.isShiny}/><strong>{featured.name}</strong></div>}
+        <label htmlFor="profile-featured">Your featured discovery</label>
+        <select id="profile-featured" value={featured?.name ? discoveryIdentity(featured.name) : ''} onChange={e=>featureDiscovery(e.target.value)}>
+          <option value="">No featured discovery</option>
+          {[...stats.discoveries].sort((a,b)=>a.name.localeCompare(b.name)).map(e=><option key={e.id} value={discoveryIdentity(e.name)}>{e.name}</option>)}
+        </select>
+        {!stats.discoveries.length && <p>Craft your first discovery to feature it here.</p>}
+      </div>
       <div className="boop-profile-columns">
+        <div className="boop-profile-panel">
+          <h2><Medal size={20}/> Milestones</h2>
+          <div className="boop-profile-milestones">{stats.milestones.map(m=><div key={m.name}>
+            <strong>{m.unlocked?'✓ ':''}{m.name}</strong><span>{m.unlocked?'Unlocked':`${Math.min(m.current,m.target)} / ${m.target} ${m.unit}`}</span>
+            <progress aria-label={m.name} value={Math.min(m.current,m.target)} max={m.target}/>
+          </div>)}</div>
+        </div>
+        <div className="boop-profile-panel">
+          <h2><Layers size={20}/> Categories explored</h2>
+          {stats.categories.length ? <div className="boop-profile-facts">{stats.categories.map(c=><span key={c.name}>{c.name}<b>{c.count}</b></span>)}</div> : <p>Discover elements to start exploring categories.</p>}
+        </div>
+        <div className="boop-profile-panel">
+          <h2><Sparkles size={20}/> Rarity collection</h2>
+          <div className="boop-profile-facts">{stats.rarities.map(r=><span key={r.name}>{r.name}<b>{r.count}</b></span>)}</div>
+          <p>Counts distinct discoveries at their best recorded rarity.</p>
+        </div>
+        <div className="boop-profile-panel">
+          <h2><Trophy size={20}/> Collection guide value</h2>
+          <strong className="boop-profile-guide-value">{stats.collectionGuideValue.toLocaleString()} coins</strong>
+          <p>One best unlocked form per discovery. Guide value, separate from your wallet and saleable copies.</p>
+          {stats.mostValuable.length ? <div className="boop-profile-top-list">{stats.mostValuable.map(({element,coins})=><div key={element.id}><CraftSprite name={element.name} emoji={element.emoji} isShiny={element.isShiny}/><span>{element.name}</span><strong>{coins.toLocaleString()}</strong></div>)}</div> : <p>Your most valuable discoveries will appear here.</p>}
+        </div>
         <div className="boop-profile-panel">
           <h2><History size={20}/> Discoveries over 7 days</h2>
           <p>New elements unlocked each day, based on saved discovery dates.</p>
@@ -114,6 +182,7 @@ export function PlayerProfile({ onOpenCloud }: { onOpenCloud: () => void }) {
       </div>
       <div className="boop-profile-account"><Trophy size={20}/><div><strong>Your trophy room</strong><p>Curate twelve favourite discoveries, choose frames, and export your personal collectible gallery.</p></div>
         <button onClick={() => { sessionStorage.setItem('boop-open-trophy-room','1'); setActiveTab('archive'); window.dispatchEvent(new Event('boop-open-trophy-room')); }}>Open room</button></div>
+      <div className="boop-profile-account"><History size={20}/><div><strong>Your explorer report</strong><p>{stats.firstAt ? `First discovery: ${new Date(stats.firstAt).toLocaleDateString()}. ` : ''}Download your stats and milestones. Export a game save in Settings to back up progress.</p></div><button onClick={exportStats}>Download stats</button></div>
       <div className="boop-profile-account"><Cloud size={20}/><div><strong>{user ? 'Cloud account connected' : 'Connect your profile'}</strong><p>{user ? 'Stats reflect this device’s current collection. Use cloud saves to move progress between devices.' : 'Sign in with Google to save a profile nickname and back up discoveries.'}</p></div><button onClick={onOpenCloud}>{user?'Cloud saves':'Sign in'}</button></div>
     </section>
   </CraftSprites.Provider>;

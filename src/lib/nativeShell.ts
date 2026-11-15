@@ -18,7 +18,7 @@ export function isNativeTab(value: string): value is NativeTab {
   return (NATIVE_TABS as readonly string[]).includes(value);
 }
 
-export function sendToAndroid(message: { type: string; tab?: NativeTab; url?: string }): boolean {
+export function sendToAndroid(message: { type: string; tab?: NativeTab; url?: string; text?: string }): boolean {
   if (!isAndroidNativeShell()) return false;
   const port = (window as NativeWindow).BoopNative;
   if (!port || typeof port.postMessage !== 'function') return false;
