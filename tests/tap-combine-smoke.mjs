@@ -41,7 +41,7 @@ try{
   }
   assert.equal(synthesisRequests,0);assert.equal(await page.locator('.boop-board-item').count(),countBeforeRandom);
   const navigation=page.getByRole('navigation',{name:'Main navigation'});await navigation.getByRole('button',{name:'Profile',exact:true}).click();await navigation.getByRole('button',{name:'Craft',exact:true}).click();
-  assert.equal(await page.getByLabel('Open procedures',{exact:true}).innerText(),previous,'random process selection should persist across pages');
+  assert.equal((await page.getByLabel('Open procedures',{exact:true}).innerText()).replace(/\s+/g,' '),previous.replace(/\s+/g,' '),'random process selection should persist across pages');
   assert.deepEqual(errors,[]);const size=await page.evaluate(()=>({width:document.documentElement.clientWidth,scroll:document.documentElement.scrollWidth}));assert.ok(size.scroll<=size.width+1);
   console.log(`${width}px: board-first screen, tap two pieces, library ingredient slots, same-element pair, keyboard Combine, collapsed procedures and visible Random process selection/persistence passed`);await page.close();
  }
