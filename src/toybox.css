@@ -269,3 +269,12 @@
 .craft-tools-dialog .boop-smart-odds {padding:10px 12px;background:#f5f1e7;border-radius:10px;margin:0;}
 .craft-tools-dialog .craft-reset-filters {font-size:12px;color:#596477;background:transparent;}
 @media(max-width:359px){.craft-filter-grid {grid-template-columns:1fr;}.craft-tools-header {padding:16px 14px 10px;}.craft-tools-tabs {padding-inline:14px;}.boop-toybox.boop-app .craft-tools-dialog .boop-board-more-panel {padding-inline:14px;}}
+
+/* Keep process randomization visible beside the current procedure, below the board. */
+.craft-procedure-controls {display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px;border-top:1px solid #e6e0d7;padding-top:6px;}
+.craft-procedure-controls .craft-procedure-drawer {min-width:0;border-top:0;}
+.craft-procedure-controls .craft-procedure-drawer > summary {min-height:44px;overflow-wrap:anywhere;gap:6px;}
+.craft-procedure-controls .craft-procedure-drawer > summary span {flex-shrink:0;}
+.boop-toybox.boop-app .craft-random-process {display:flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:10px;border:1px solid #d9d3c8;border-radius:12px;background:#fffdf9;color:#073ee6;font-size:12px;font-weight:750;}
+.craft-random-process svg {flex-shrink:0;}
+.craft-random-process:disabled {opacity:.5;}

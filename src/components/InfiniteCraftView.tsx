@@ -1,3 +1,4 @@
+import { chooseRandomProcess } from '../lib/randomProcess';
 import { readCraftPreferences, saveCraftPreferences } from '../lib/craftPreferences';
 import { displayConceptName } from '../lib/conceptMeaning';
 import { ElementValueBadge } from './ElementValue';
@@ -1246,11 +1247,21 @@ export function InfiniteCraftView() {
             aria-label={activeProcedure?.id==='MIX'&&selectedPieces.length===2?`Combine ${selectedPieces[0].name} + ${selectedPieces[1].name}`:undefined}
             onClick={()=>void applyProcedure()}>{isSynthesizing?'Working…':activeProcedure?.id==='MIX'?'Combine':`Apply ${activeProcedure?.name}`}</button>
         </div>
+        <div className="craft-procedure-controls">
         <details ref={procedureDrawer} className="craft-procedure-drawer" onToggle={event=>{if(event.currentTarget.open&&boardTools.current)boardTools.current.close();}}>
           <summary aria-label="Open procedures">Procedure: {activeProcedure?.name||'Mix'} <span>Change ▴</span></summary>
           <BoardProcedures catalog={procedureCatalog} selected={activeProcedure?.id||'MIX'} busy={isSynthesizing||foundryBusy}
             used={usedProcedure} onSelect={id=>{setProcedureId(id);setCombineError(null);if(procedureDrawer.current)procedureDrawer.current.open=false;requestAnimationFrame(()=>procedureDrawer.current?.querySelector('summary')?.focus());}}/>
         </details>
+        <button type="button" className="craft-random-process" disabled={isSynthesizing||foundryBusy||!procedureCatalog.some(process=>process.unlocked)}
+          onClick={()=>{
+            const process=chooseRandomProcess(procedureCatalog,procedureId);
+            if(!process)return;
+            setProcedureId(process.id);setCombineError(null);
+            if(procedureDrawer.current)procedureDrawer.current.open=false;
+            setSpawnToast(`Procedure: ${process.name}. Tap Apply or drag elements together to use it.`);
+          }}><Shuffle size={18}/><span>Random process</span></button>
+        </div>
       </section>
 
       {firstDiscoveryModal && <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn" onClick={() => setFirstDiscoveryModal(null)}><div onClick={e => e.stopPropagation()} className={`w-full max-w-sm rounded-2xl p-6 border shadow-2xl text-center relative overflow-hidden ${isDarkMode ? 'bg-[#18181b] border-amber-500/40 text-white' : 'bg-white border-amber-400 text-black'}`}><div className="absolute -top-12 -left-12 w-32 h-32 bg-amber-500/20 rounded-full blur-2xl pointer-events-none" /><div className="absolute -bottom-12 -right-12 w-32 h-32 bg-amber-500/20 rounded-full blur-2xl pointer-events-none" /><div className="text-5xl mb-3 animate-bounce"><CraftSprite name={firstDiscoveryModal.name} emoji={firstDiscoveryModal.emoji} isShiny={firstDiscoveryModal.isShiny} /></div><div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40 text-xs font-mono font-bold tracking-widest uppercase mb-2"><Sparkles className="w-3.5 h-3.5" />FIRST DISCOVERY!</div><h3 className="text-2xl font-black tracking-tight mb-1">{firstDiscoveryModal.name}</h3><p className="text-xs text-zinc-400 mb-5 leading-relaxed">You are the very first crafter to unlock this combination in the global matrix!</p>{firstDiscoveryModal.recipe && <div className={`p-3 rounded-xl border text-xs font-mono mb-5 ${isDarkMode ? 'bg-black/30 border-zinc-800 text-zinc-300' : 'bg-zinc-100 border-zinc-200 text-zinc-700'}`}>{firstDiscoveryModal.recipe.first} + {firstDiscoveryModal.recipe.second} = {firstDiscoveryModal.name}</div>}<button onClick={() => { sound.playClick(); setFirstDiscoveryModal(null); }} className="w-full py-2.5 rounded-xl font-bold text-sm bg-gradient-to-r from-amber-500 to-amber-600 text-black hover:brightness-110 shadow-lg transition-all active:scale-95">Continue Crafting</button></div></div>}
