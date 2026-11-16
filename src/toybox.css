@@ -278,3 +278,15 @@
 .boop-toybox.boop-app .craft-random-process {display:flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:10px;border:1px solid #d9d3c8;border-radius:12px;background:#fffdf9;color:#073ee6;font-size:12px;font-weight:750;}
 .craft-random-process svg {flex-shrink:0;}
 .craft-random-process:disabled {opacity:.5;}
+
+/* The wordmark stays still while owned discoveries rotate in a fixed logo slot. */
+.boop-toybox.boop-app .collection-brand-name {display:flex;flex-direction:column;align-items:flex-start;gap:0;padding:0;min-height:44px;background:transparent!important;border:0;text-align:left;}
+.boop-live-logo {position:relative;flex-shrink:0;width:48px;height:48px;}
+.boop-toybox.boop-app .boop-live-logo-button {display:grid;place-items:center;width:48px;min-width:44px;height:48px;min-height:44px;padding:0;background:transparent!important;border:0;border-radius:12px;}
+.boop-live-logo-art {display:grid;place-items:center;width:48px;height:48px;animation:boop-logo-fade 450ms ease-out;}
+.boop-toybox.boop-app .boop-live-logo-art .element-emoji,.boop-toybox.boop-app .boop-live-logo-art img {width:48px!important;height:48px!important;max-width:48px;max-height:48px;object-fit:contain;}
+.boop-live-logo-art .boop-preview-cue {display:none;}
+.boop-logo-name {position:absolute;top:calc(100% + 8px);left:0;width:max-content;max-width:min(260px,calc(100vw - 40px));padding:9px 12px;border:1px solid #e1dbd0;border-radius:12px;background:#fffdf9;color:#0b1230;box-shadow:0 6px 18px #0b123025;font-size:13px;font-weight:750;overflow-wrap:anywhere;z-index:60;}
+@keyframes boop-logo-fade {from{opacity:.2;}to{opacity:1;}}
+@media(prefers-reduced-motion:reduce){.boop-live-logo-art {animation:none;}}
+@media(max-width:359px){.boop-live-logo,.boop-live-logo-art {width:44px;height:44px;}.boop-toybox.boop-app .boop-live-logo-button {width:44px;height:44px;}.boop-toybox.boop-app .boop-live-logo-art .element-emoji,.boop-toybox.boop-app .boop-live-logo-art img {width:40px!important;height:40px!important;}}
