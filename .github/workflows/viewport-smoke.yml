@@ -32,6 +32,7 @@ jobs:
           node tests/process-profile-smoke.mjs
           node tests/craft-filter-smoke.mjs
           node tests/live-logo-smoke.mjs
+          node tests/pinned-board-smoke.mjs
           node tests/collection-order-smoke.mjs
       - uses: actions/upload-artifact@v4
         if: always()

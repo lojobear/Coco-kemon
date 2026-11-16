@@ -290,3 +290,14 @@
 @keyframes boop-logo-fade {from{opacity:.2;}to{opacity:1;}}
 @media(prefers-reduced-motion:reduce){.boop-live-logo-art {animation:none;}}
 @media(max-width:359px){.boop-live-logo,.boop-live-logo-art {width:44px;height:44px;}.boop-toybox.boop-app .boop-live-logo-button {width:44px;height:44px;}.boop-toybox.boop-app .boop-live-logo-art .element-emoji,.boop-toybox.boop-app .boop-live-logo-art img {width:40px!important;height:40px!important;}}
+
+.boop-toybox.boop-app .boop-board-layout .boop-board-item .boop-tile-action.boop-tile-pin {top:-8px;left:-6px;right:auto;bottom:auto;width:44px;height:44px;opacity:1;pointer-events:auto;display:grid;place-items:center;background:#fffdf9;border:1px solid #dcd5c6;z-index:4;}
+.boop-toybox.boop-app .boop-board-layout .boop-board-item.is-pinned .boop-tile-action.boop-tile-pin {background:#073ee6;color:white;border-color:#073ee6;}
+.boop-toybox .boop-board-item.is-pinned .boop-tile-select {cursor:default;}
+
+.boop-live-logo-art {position:relative;animation:none;}
+.boop-live-logo-art >img {position:absolute;inset:0;}
+.boop-logo-previous {z-index:0;}
+.boop-logo-ready {z-index:1;animation:boop-logo-ready 450ms ease-out;}
+@keyframes boop-logo-ready {from{opacity:0;}to{opacity:1;}}
+@media(prefers-reduced-motion:reduce){.boop-logo-ready {animation:none;}}

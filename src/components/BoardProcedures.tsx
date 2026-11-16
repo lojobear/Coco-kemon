@@ -3,8 +3,8 @@ import type { Process } from '../types';
 import { chooseRandomProcess } from '../lib/randomProcess';
 import { parseProcedurePreferences, PROCEDURE_PREFERENCES_KEY, rememberProcedure } from '../lib/procedurePreferences';
 
-export function BoardProcedures({ catalog, selected, busy, used, onSelect }: {
-  catalog: Process[]; selected: string; busy: boolean; used: { id: string; at: number } | null;
+export function BoardProcedures({ catalog, totalCatalog=catalog, selected, busy, used, onSelect }: {
+  catalog: Process[]; totalCatalog?: Process[]; selected: string; busy: boolean; used: { id: string; at: number } | null;
   onSelect: (id: string) => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
@@ -31,7 +31,7 @@ export function BoardProcedures({ catalog, selected, busy, used, onSelect }: {
       }}>All favorites</button>}
     </div>;
   };
-  const choices = catalog.filter(process => (!favoritesOnly || preferences.favorites.includes(process.id)) &&
+  const choices = totalCatalog.filter(process => (!favoritesOnly || preferences.favorites.includes(process.id)) &&
     (category === 'all' || process.category === category) &&
     `${process.name} ${process.description} ${process.category}`.toLowerCase().includes(query.trim().toLowerCase()));
   return <section className="toybox-procedures" aria-label="Board procedures">
@@ -39,7 +39,7 @@ export function BoardProcedures({ catalog, selected, busy, used, onSelect }: {
     <div className="toybox-procedure-buttons">
       {['MIX', 'MELT', 'HEAT', 'FREEZE', 'CRUSH'].map(id => byId.get(id)).filter(Boolean).map(process => <button type="button"
         key={process!.id} aria-pressed={selected === process!.id} disabled={busy} onClick={() => choose(process!.id)}>{process!.name}</button>)}
-      <button type="button" disabled={busy} onClick={() => dialog.current?.showModal()}>All {catalog.length} procedures →</button>
+      <button type="button" disabled={busy} onClick={() => dialog.current?.showModal()}>All {totalCatalog.length} procedures →</button>
       <button type="button" disabled={busy || !catalog.length} onClick={() => {
         const process = chooseRandomProcess(catalog, selected);
         if (process) choose(process.id);
@@ -55,8 +55,8 @@ export function BoardProcedures({ catalog, selected, busy, used, onSelect }: {
       </select></label><button type="button" aria-pressed={favoritesOnly} onClick={() => setFavoritesOnly(value => !value)}>Favorites only</button></div>
       <p role="status">{choices.length} procedures</p>
       <div className="boop-procedure-list">{choices.map(process => <div key={process.id}>
-        <button type="button" disabled={busy} aria-pressed={selected === process.id} onClick={() => choose(process.id)}>
-          <strong>{process.name}</strong><small>{process.category} · {process.description}</small>
+        <button type="button" disabled={busy||!process.unlocked} aria-pressed={selected === process.id} onClick={() => choose(process.id)}>
+          <strong>{process.name}</strong><small>{process.category} · {process.description}{!process.unlocked?' · Unlock in Foundry':''}</small>
         </button><button type="button" aria-label={`Favorite ${process.name}`} aria-pressed={preferences.favorites.includes(process.id)}
           onClick={() => setPreferences(previous => ({ ...previous, favorites: previous.favorites.includes(process.id)
             ? previous.favorites.filter(id => id !== process.id) : [...previous.favorites, process.id] }))}>★</button>
