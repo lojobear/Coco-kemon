@@ -8,6 +8,7 @@ export interface SavedBoardTile {
   x: number;
   y: number;
   isShiny?: boolean;
+  pinned?: boolean;
 }
 export const BOARD_LAYOUT_KEY = 'boop-craft-board-v1';
 const MAX_BOARD_TILES = 300;
@@ -27,7 +28,7 @@ export function parseBoardLayout(value: unknown, collection: readonly InfiniteEl
     if (!found) continue; // Never reintroduce items cleared by a cloud save import.
     ids.add(v.instanceId);
     result.push({instanceId:v.instanceId,name:found.name,emoji:found.emoji,
-      ...clampBoardTile(v.x!,v.y!),isShiny:Boolean(v.isShiny && (found.unlockedShiny || found.isShiny))});
+      ...clampBoardTile(v.x!,v.y!),isShiny:Boolean(v.isShiny && (found.unlockedShiny || found.isShiny)),...(v.pinned===true?{pinned:true}:{})});
   }
   return result;
 }

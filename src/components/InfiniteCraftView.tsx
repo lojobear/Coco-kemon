@@ -1,3 +1,4 @@
+import { withoutUnpinnedInputs, pinnedResultPosition } from '../lib/boardPins';
 import { chooseRandomProcess } from '../lib/randomProcess';
 import { readCraftPreferences, saveCraftPreferences } from '../lib/craftPreferences';
 import { displayConceptName } from '../lib/conceptMeaning';
@@ -7,7 +8,7 @@ import { useGame } from '../lib/gameStore';
 import { BoardProcedures } from './BoardProcedures';
 import { tidyBoard } from '../lib/tidyBoard';
 import { conceptMaterial } from '../lib/conceptMaterial';
-import { availableProcesses } from '../lib/availableProcesses';
+import { availableProcesses, processCatalog } from '../lib/availableProcesses';
 import { DiscoveryCard } from './DiscoveryCard';
 import { PROFILE_SPRITES_UPDATED } from '../lib/profileSprites';
 import { CraftSprite, CraftSprites } from './CraftSprite';
@@ -77,7 +78,7 @@ import {
   ZoomIn,
   CheckCircle2,
   Trophy,
-  SlidersHorizontal,
+  SlidersHorizontal, Pin, PinOff,
 } from 'lucide-react';
 
 interface CanvasItem {
@@ -89,12 +90,13 @@ interface CanvasItem {
   isNew?: boolean;
   isShiny?: boolean;
   spawnDelay?: number;
+  pinned?: boolean;
 }
 
 /** Only the moved/selected board tile should rerender. The other 299 tiles
  * keep their existing PNG decoders and DOM even when a discovery finishes. */
 const CanvasBoardTile = React.memo(function CanvasBoardTile({
-  item, selected, onPointerDown, onClickItem, onDuplicate, onRemove, spawnTileMaxWidth, label, category,
+  item, selected, onPointerDown, onClickItem, onDuplicate, onRemove, onPin, pinDisabled, spawnTileMaxWidth, label, category,
 }: {
   item: CanvasItem;
   label?: string;
@@ -105,20 +107,23 @@ const CanvasBoardTile = React.memo(function CanvasBoardTile({
   onClickItem: (item: CanvasItem) => void;
   onDuplicate: (item: CanvasItem, event: React.MouseEvent) => void;
   onRemove: (id: string, event: React.MouseEvent) => void;
+  onPin: (id: string, event: React.MouseEvent) => void;
+  pinDisabled: boolean;
 }) {
   return <div data-craft-instance={item.instanceId}
-    className={`boop-board-item ${selected ? 'is-selected' : ''} ${item.instanceId.startsWith('fusion-') ? 'is-fusion-result' : ''} ${item.instanceId.startsWith('spawn-') ? 'is-random-spawn' : ''}`}
+    className={`boop-board-item ${selected ? 'is-selected' : ''} ${item.pinned ? 'is-pinned' : ''} ${item.instanceId.startsWith('fusion-') ? 'is-fusion-result' : ''} ${item.instanceId.startsWith('spawn-') ? 'is-random-spawn' : ''}`}
     onPointerDown={event => onPointerDown(item, event)}
-    onDoubleClick={event => onDuplicate(item, event)}
+    onDoubleClick={event => {if(!(event.target as HTMLElement).closest('.boop-tile-action'))onDuplicate(item,event);}}
     style={{ transform: `translate3d(${item.x}px,${item.y}px,0)`, '--spawn-delay': `${item.spawnDelay || 0}ms`, maxWidth: `${spawnTileMaxWidth}px` } as React.CSSProperties}>
     <button type="button" className="boop-tile-select" aria-label={`Select ${label || item.name} to combine`}
       aria-pressed={selected} onClick={event => { event.stopPropagation(); onClickItem(item); }}>
       <CraftSprite name={item.name} emoji={item.emoji} category={category} isShiny={item.isShiny} />
       <span title={label || item.name}>{label || item.name}</span>
     </button>
+    {(selected||item.pinned)&&<button type="button" className="boop-tile-action boop-tile-pin" disabled={pinDisabled} aria-label={`${item.pinned?'Unpin':'Pin'} ${item.name}`} aria-pressed={Boolean(item.pinned)} title={item.pinned?'Unpin to move or remove':'Keep this element on the board'} onClick={event=>onPin(item.instanceId,event)}>{item.pinned?<PinOff size={16}/>:<Pin size={16}/>}</button>}
     {selected && <CheckCircle2 className="toybox-piece-check" size={28} aria-hidden="true" />}
     <button aria-label={`Duplicate ${item.name}`} title="Duplicate" className="boop-tile-action boop-tile-duplicate" onClick={event => onDuplicate(item, event)}><Plus size={12} /></button>
-    <button aria-label={`Remove ${item.name} from board`} title="Remove" className="boop-tile-action" onClick={event => onRemove(item.instanceId, event)}><X size={12} /></button>
+    <button disabled={item.pinned} aria-label={`Remove ${item.name} from board`} title="Remove" className="boop-tile-action" onClick={event => onRemove(item.instanceId, event)}><X size={12} /></button>
   </div>;
 });
 
@@ -193,6 +198,7 @@ export function InfiniteCraftView() {
   const [usedProcedure, setUsedProcedure] = useState<{ id: string; at: number } | null>(null);
   const procedureRequest = useRef(false);
   const showFreeform = true;
+  const totalProcedureCatalog = useMemo(()=>processCatalog(processes),[processes]);
   const procedureCatalog = useMemo(() => availableProcesses(processes), [processes]);
   const [ingredientFilter, setIngredientFilter] = useState<'all' | 'new' | 'shiny'>(preferences.ingredientFilter);
   const [lastResult, setLastResult] = useState<InfiniteElement | null>(null);
@@ -678,8 +684,8 @@ export function InfiniteCraftView() {
       }
 
       setCanvasItems(prev => {
-        const filtered = prev.filter(it => it.instanceId !== itemA.idA && it.instanceId !== itemB.idB);
-        return [...filtered, { instanceId: `fusion-${Date.now()}-${Math.random()}`, name: cleanName, emoji: emoji || '✨', ...clampBoardTile(targetX, targetY), isNew, isShiny: isShinyEncounter }];
+        const filtered = withoutUnpinnedInputs(prev,[itemA.idA,itemB.idB].filter((id):id is string=>Boolean(id)));
+        return [...filtered, { instanceId: `fusion-${Date.now()}-${Math.random()}`, name: cleanName, emoji: emoji || '✨', ...pinnedResultPosition({x:targetX,y:targetY},filtered), isNew, isShiny: isShinyEncounter }];
       });
       setCrucibleSlotA(null);
       setCrucibleSlotB(null);
@@ -726,11 +732,18 @@ export function InfiniteCraftView() {
 
   const handleDuplicate = (item: CanvasItem, e: React.MouseEvent) => {
     e.stopPropagation(); sound.playClick(); haptics.mediumTap();
-    setCanvasItems(prev => [...prev, { ...item, instanceId: `dup-${Date.now()}-${Math.random()}`, x: item.x + 25, y: item.y + 25 }]);
+    setCanvasItems(prev => [...prev, { ...item, pinned:false, instanceId: `dup-${Date.now()}-${Math.random()}`, x: item.x + 25, y: item.y + 25 }]);
   };
 
+  const togglePin = (instanceId:string,event:React.MouseEvent) => {
+    event.stopPropagation();
+    if(requestRef.current||procedureRequest.current||foundryBusy)return;
+    autoFrameStarters.current=false;
+    setCanvasItems(previous=>previous.map(item=>item.instanceId===instanceId?{...item,pinned:!item.pinned}:item));
+    sound.playClick();
+  };
   const handleRemoveFromCanvas = (instanceId: string, e: React.MouseEvent) => {
-    e.stopPropagation(); sound.playClick(); setCanvasItems(prev => prev.filter(it => it.instanceId !== instanceId)); if (selectedCanvasId === instanceId) setSelectedCanvasId(null);
+    e.stopPropagation(); sound.playClick(); setCanvasItems(prev => prev.filter(it => it.pinned || it.instanceId !== instanceId)); if (selectedCanvasId === instanceId) setSelectedCanvasId(null);
   };
 
   const spawnOnCanvas = (name: string, emoji: string, isShiny = false) => {
@@ -766,7 +779,7 @@ export function InfiniteCraftView() {
       const rect = node.getBoundingClientRect();
       sizes.set(node.dataset.craftInstance!, { width: rect.width / zoomRef.current, height: rect.height / zoomRef.current });
     });
-    const layout = tidyBoard(canvasItems.map(item => ({ instanceId: item.instanceId,
+    const layout = tidyBoard(canvasItems.map(item => ({ instanceId: item.instanceId, pinned:item.pinned,x:item.x,y:item.y,
       ...(sizes.get(item.instanceId) || { width: 136, height: 120 }) })), {
       width: viewport.clientWidth, height: viewport.clientHeight,
       left: viewport.scrollLeft / zoomRef.current, top: viewport.scrollTop / zoomRef.current,
@@ -783,6 +796,7 @@ export function InfiniteCraftView() {
   const handlePointerDown = (item: CanvasItem, e: React.PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0 || (e.target as HTMLElement).closest('.boop-tile-action')) return;
     e.stopPropagation();
+    if(item.pinned)return;
     autoFrameStarters.current = false;
     sound.unlock();
     suppressCanvasClickRef.current = false;
@@ -800,11 +814,12 @@ export function InfiniteCraftView() {
 
   // Stable event delegates let React.memo skip every unchanged canvas tile,
   // while the handlers still see the latest combination and selection state.
-  const boardActions = useRef({ handlePointerDown, handleCanvasItemClick, handleDuplicate, handleRemoveFromCanvas });
-  boardActions.current = { handlePointerDown, handleCanvasItemClick, handleDuplicate, handleRemoveFromCanvas };
+  const boardActions = useRef({ handlePointerDown, handleCanvasItemClick, handleDuplicate, handleRemoveFromCanvas, togglePin });
+  boardActions.current = { handlePointerDown, handleCanvasItemClick, handleDuplicate, handleRemoveFromCanvas, togglePin };
   const onBoardPointerDown = useCallback((item: CanvasItem, event: React.PointerEvent<HTMLDivElement>) => boardActions.current.handlePointerDown(item, event), []);
   const onBoardClick = useCallback((item: CanvasItem) => boardActions.current.handleCanvasItemClick(item), []);
   const onBoardDuplicate = useCallback((item: CanvasItem, event: React.MouseEvent) => boardActions.current.handleDuplicate(item, event), []);
+  const onBoardPin = useCallback((id:string,event:React.MouseEvent)=>boardActions.current.togglePin(id,event),[]);
   const onBoardRemove = useCallback((id: string, event: React.MouseEvent) => boardActions.current.handleRemoveFromCanvas(id, event), []);
 
   const interactions = useRef({ dropIntoCrucible, handleCombine });
@@ -918,7 +933,7 @@ export function InfiniteCraftView() {
     };
   }, []);
 
-  const clearCanvas = () => { if (procedureRequest.current || requestRef.current || foundryBusy) return; sound.playClick(); haptics.heavyTap(); setCanvasItems([]); setSelectedCanvasId(null); setSecondSelectedCanvasId(null); };
+  const clearCanvas = () => { if (procedureRequest.current || requestRef.current || foundryBusy) return; sound.playClick(); haptics.heavyTap(); setCanvasItems(previous=>previous.filter(item=>item.pinned)); setSelectedCanvasId(null); setSecondSelectedCanvasId(null); };
   const lastCustomSprites = useRef<ReadonlyMap<string, string>>(new Map());
   const customSprites = useMemo(() => {
     const next = new Map<string, string>();
@@ -1030,6 +1045,7 @@ export function InfiniteCraftView() {
   const activeProcedure = procedureCatalog.find(process => process.id === procedureId) || procedureCatalog.find(process => process.id === 'MIX');
   const applyProcedure = async (pieces: CanvasItem[] = selectedPieces) => {
     if (!activeProcedure || !pieces.length || procedureRequest.current || requestRef.current || foundryBusy) return;
+    if(canvasItems.length>=300&&pieces.every(piece=>piece.pinned)){setSpawnToast('Board is full. Remove an unpinned tile before crafting.');return;}
     if(procedureDrawer.current)procedureDrawer.current.open=false;
     if (activeProcedure.id === 'MIX') {
       if (pieces.length !== 2) return;
@@ -1059,10 +1075,11 @@ export function InfiniteCraftView() {
       const item = result.craftResult || saved;
       const emoji = item?.emoji || '✨';
       if (item) setLastResult({ ...item, isNew: result.isNew });
-      setCanvasItems(previous => [...previous.filter(tile => !selected.some(input => input.instanceId === tile.instanceId)), {
-        instanceId: `procedure-${Date.now()}`, name, emoji, isShiny: item?.isShiny,
-        x: selected[0].x, y: selected[0].y,
-      }]);
+      setCanvasItems(previous => {
+        const remaining=withoutUnpinnedInputs(previous,selected.map(input=>input.instanceId));
+        return [...remaining,{instanceId:`procedure-${Date.now()}`,name,emoji,isShiny:item?.isShiny,
+          ...pinnedResultPosition(selected[0],remaining)}];
+      });
       setSelectedCanvasId(null); setSecondSelectedCanvasId(null);
       setSpawnToast(`${activeProcedure.name}: ${name}. ${result.explanation}`);
     } catch (error) {
@@ -1143,8 +1160,9 @@ export function InfiniteCraftView() {
                 {selectedPieces.length > 0 && <>
                   <span className="boop-board-more-label">SELECTED ELEMENT</span>
                   <small style={{overflowWrap:'anywhere'}}>{selectedPieces[0].name}</small>
+                  <button type="button" disabled={isSynthesizing||foundryBusy} onClick={event=>togglePin(selectedPieces[0].instanceId,event)}><Pin size={16}/>{selectedPieces[0].pinned?'Unpin selected element':'Pin selected element'}</button>
                   <button type="button" onClick={event=>handleDuplicate(selectedPieces[0],event)}><Plus size={16}/>Duplicate selected element</button>
-                  <button type="button" onClick={event=>handleRemoveFromCanvas(selectedPieces[0].instanceId,event)}><Trash2 size={16}/>Remove selected element</button>
+                  <button type="button" disabled={selectedPieces[0].pinned} onClick={event=>handleRemoveFromCanvas(selectedPieces[0].instanceId,event)}><Trash2 size={16}/>Remove selected element</button>
                 </>}
                 <span className="boop-board-more-label">BOARD TOOLS</span>
                 <div className="boop-board-more-actions">
@@ -1172,7 +1190,7 @@ export function InfiniteCraftView() {
               category={motionCategories.get(discoveryIdentity(item.name))}
               spawnTileMaxWidth={spawnTileMaxWidth}
               selected={selectedCanvasId === item.instanceId || secondSelectedCanvasId === item.instanceId} onPointerDown={onBoardPointerDown}
-              onClickItem={onBoardClick} onDuplicate={onBoardDuplicate} onRemove={onBoardRemove} />)}
+              onClickItem={onBoardClick} onDuplicate={onBoardDuplicate} onRemove={onBoardRemove} onPin={onBoardPin} pinDisabled={isSynthesizing||foundryBusy} />)}
             {mergeFx && <div key={mergeFx.id} className="boop-board-fusion" style={{left:mergeFx.x,top:mergeFx.y}} aria-hidden="true">
               <span className="boop-merge-piece boop-merge-a" style={{'--from-x':`${mergeFx.dxA}px`,'--from-y':`${mergeFx.dyA}px`} as React.CSSProperties}>{mergeFx.a}</span>
               <span className="boop-merge-piece boop-merge-b" style={{'--from-x':`${mergeFx.dxB}px`,'--from-y':`${mergeFx.dyB}px`} as React.CSSProperties}>{mergeFx.b}</span>
@@ -1188,7 +1206,7 @@ export function InfiniteCraftView() {
         {spawnToast && <div className="boop-board-toast" role="status">{spawnToast}</div>}
         <div className="toybox-mat-tools">
           <button type="button" aria-label="Undo last board action" disabled={isSynthesizing || !historySize.past} onClick={undoLayout}><Undo2 size={19}/>Undo</button>
-          <button type="button" disabled={isSynthesizing || !canvasItems.length} onClick={clearCanvas}><Trash2 size={19}/>Clear</button>
+          <button type="button" aria-label="Clear unpinned elements" disabled={isSynthesizing || !canvasItems.some(item=>!item.pinned)} onClick={clearCanvas}><Trash2 size={19}/>Clear</button>
           <button type="button" onClick={()=>{setIngredientSlot(null);setIsSidebarOpen(true);}} aria-label="Open element library"><Plus size={20}/>Add</button>
         </div>
         {isSidebarOpen && <div className="boop-board-drawer-backdrop" onClick={()=>setIsSidebarOpen(false)} aria-hidden="true"/>}
@@ -1250,7 +1268,7 @@ export function InfiniteCraftView() {
         <div className="craft-procedure-controls">
         <details ref={procedureDrawer} className="craft-procedure-drawer" onToggle={event=>{if(event.currentTarget.open&&boardTools.current)boardTools.current.close();}}>
           <summary aria-label="Open procedures">Procedure: {activeProcedure?.name||'Mix'} <span>Change ▴</span></summary>
-          <BoardProcedures catalog={procedureCatalog} selected={activeProcedure?.id||'MIX'} busy={isSynthesizing||foundryBusy}
+          <BoardProcedures totalCatalog={totalProcedureCatalog} catalog={procedureCatalog} selected={activeProcedure?.id||'MIX'} busy={isSynthesizing||foundryBusy}
             used={usedProcedure} onSelect={id=>{setProcedureId(id);setCombineError(null);if(procedureDrawer.current)procedureDrawer.current.open=false;requestAnimationFrame(()=>procedureDrawer.current?.querySelector('summary')?.focus());}}/>
         </details>
         <button type="button" className="craft-random-process" disabled={isSynthesizing||foundryBusy||!procedureCatalog.some(process=>process.unlocked)}

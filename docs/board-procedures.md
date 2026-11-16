@@ -17,3 +17,7 @@ Validation: `npm test`, `npm run lint`, `npm run build`, and `node tests/procedu
 Filters & tools opens a centered, scrollable dialog rather than a narrow corner menu. Random filters contains source, category, minimum rarity, batch size and pair suggestions; Board tools contains layout actions, zoom and Advanced Fusion. Random stays on the board toolbar.
 
 Device preferences under `boop-craft-preferences-v1` remember random source/category/rarity/count, ingredient filter/sort and selected procedure across pages and reloads. An empty pool retains the chosen category and displays zero matches. Reset random filters restores only randomizer defaults. Storage failures do not prevent crafting. Escape, the close button, backdrop clicks and Android Back close the dialog.
+
+Pin a selected tile with its pin button, or use Pin selected element in Board tools. A pinned tile cannot be dragged or removed, remains after Clear, and can be reused in Mix or another procedure without disappearing. Tidy places other tiles around anchors. Unpin restores ordinary movement and removal; Undo also records pin changes. Pins are included in board layout saves and backups.
+
+The built-in catalog contains 500 distinct procedures. The full picker includes the existing locked Foundry actions (marked Unlock in Foundry); all 41 new procedures are available immediately and each has an exact-input curated example.

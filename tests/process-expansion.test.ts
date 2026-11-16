@@ -7,14 +7,16 @@ import { availableProcesses } from '../src/lib/availableProcesses';
 import { validNewElementName } from '../src/lib/infiniteCraftData';
 import { validMaterial } from '../src/lib/validation';
 
-test('200 new unique actions are merged into the seven categories without changing existing locks',()=>{
- assert.equal(EXPANSION_PROCESSES.length,200);
- assert.equal(new Set(ALL_PROCESSES.map(p=>p.id)).size,ALL_PROCESSES.length);
- assert.equal(new Set(EXPANSION_PROCESSES.map(p=>p.name)).size,200);
+test('241 expanded actions are merged into the seven categories without changing existing locks',()=>{
+ assert.equal(EXPANSION_PROCESSES.length,241);
+ assert.equal(ALL_PROCESSES.length,500);
+ assert.equal(new Set(ALL_PROCESSES.map(p=>p.id)).size,500);
+ assert.equal(new Set(ALL_PROCESSES.map(p=>p.name.toLowerCase())).size,500);
+ assert.equal(new Set(EXPANSION_PROCESSES.map(p=>p.name)).size,241);
  assert.equal(new Set(EXPANSION_PROCESSES.map(p=>p.category)).size,7);
  const old=ALL_PROCESSES.filter(p=>!EXPANSION_PROCESSES.some(x=>x.id===p.id));
  const merged=mergeProcesses(old.map(p=>p.id==='POLISH'?{...p,unlocked:true}:p));
- assert.equal(merged.length,old.length+200);
+ assert.equal(merged.length,old.length+241);
  assert.equal(merged.find(p=>p.id==='POLISH')?.unlocked,true);
  assert.equal(merged.find(p=>p.id==='MAGNETIZE')?.unlocked,false);
  assert.ok(EXPANSION_PROCESSES.every(p=>availableProcesses(old).some(x=>x.id===p.id)));
