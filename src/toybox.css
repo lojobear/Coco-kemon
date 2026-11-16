@@ -303,7 +303,7 @@
 @media(prefers-reduced-motion:reduce){.boop-logo-ready {animation:none;}}
 
 .craft-compact-header {flex-wrap:wrap;gap:6px 12px;}
-.craft-compact-header >p {flex-basis:100%;}
+.craft-compact-header >p {flex-basis:auto;}
 .boop-toybox.boop-app .craft-boards-trigger {min-height:44px;max-width:65%;margin-left:auto;padding:8px 12px;border:1px solid #e2dbcf;border-radius:12px;background:#fffdf9;color:#263653;font-size:12px;font-weight:750;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .saved-boards-dialog {position:fixed;inset:0;margin:auto;width:min(560px,calc(100% - 24px));max-width:none;max-height:calc(100dvh - 36px);padding:20px;border:1px solid #e3ddd2;border-radius:22px;background:#fffdf9;color:#0b1230;overflow-y:auto;overscroll-behavior:contain;}
 .saved-boards-dialog::backdrop {background:#17203966;backdrop-filter:blur(3px);}
@@ -327,3 +327,5 @@
 .saved-boards-dialog [role=alert] {color:#9b2727;}
 .saved-boards-footer {margin-bottom:0;}
 @media(max-width:359px){.saved-board-list {grid-template-columns:1fr;}.saved-boards-dialog {padding:16px;}}
+
+@media(max-width:699px){.craft-compact-header >p {position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;}}
