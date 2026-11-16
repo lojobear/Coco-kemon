@@ -1,3 +1,4 @@
+import { initialSavedBoards, parseSavedBoards, type SavedBoards } from './savedBoards';
 import { openLocalSaveDatabase, LocalSaveConflict, LOCAL_DATABASE_MARKER_VERSION, LOCAL_DATABASE_ENCODING, type LocalSaveDatabase } from './localSaveDatabase';
 import { encodeCompressedLocalSave, decodeCompressedLocalSave, isCompressedLocalSave, COMPRESSED_LOCAL_VERSION, COMPRESSED_LOCAL_ENCODING } from './compressedLocalSave';
 import { encodePackedLocalSave, decodePackedLocalSave, isPackedLocalSave, PACKED_LOCAL_VERSION } from './packedLocalSave';
@@ -160,6 +161,7 @@ function validateLocalEnvelope(v:any):void{
  assertSaveVersion(v?.version);
  if(!record(v)||![2,SAVE_FORMAT_VERSION].includes(v.version)||!validateCraft(v.crafting)||(v.foundry!==null&&!validateFoundry(v.foundry)))throw new Error('Invalid saved data');
  if(v.version===3&&!validEconomy(v.economy))throw new Error('Invalid wallet data');
+ if('savedBoards' in v&&!parseSavedBoards(v.savedBoards,v.crafting))throw new Error('Invalid saved boards');
 }
 function markDatabaseSave(savedAt:number){
  try{localStorage.setItem(SAVE_KEY,JSON.stringify({version:LOCAL_DATABASE_MARKER_VERSION,savedAt,encoding:LOCAL_DATABASE_ENCODING}));}catch{/* Database is authoritative even if localStorage is blocked. */}
@@ -309,7 +311,7 @@ export function readCraftElements(): InfiniteElement[] {
     return craftMemory = mergeFoundryIntoCraft(v, storedEnvelope()?.foundry);
   } catch (error) { recoveryRequired = true; status(error instanceof NewerSaveError ? error.message : 'Crafting save could not be loaded. Import a valid backup to recover.'); return STARTER_ELEMENTS; }
 }
-function write(foundry: any, crafting: InfiniteElement[], force = false, collectorRoom?: TrophyRoom, boardLayout?: SavedBoardTile[] | null, economy?: Economy) {
+function write(foundry: any, crafting: InfiniteElement[], force = false, collectorRoom?: TrophyRoom, boardLayout?: SavedBoardTile[] | null, economy?: Economy, savedBoards?: SavedBoards, notify = true) {
   // Deployment guard first: never let an older build overwrite a save written
   // by a newer one, even if the envelope is otherwise unreadable here. This
   // runs before any setItem and before the stale-tab check.
@@ -339,7 +341,8 @@ function write(foundry: any, crafting: InfiniteElement[], force = false, collect
   const envelope = { version: SAVE_FORMAT_VERSION, savedAt, foundry, crafting: unifiedCrafting,
     economy: economy ?? storedEnvelope()?.economy ?? emptyEconomy(),
     collectorRoom: sanitizeTrophyRoom(previousRoom, unifiedCrafting),
-    boardLayout: boardLayout ?? loadBoardLayout(crafting) ?? [] };
+    boardLayout: boardLayout ?? loadBoardLayout(crafting) ?? [],
+    ...(savedBoards||storedEnvelope()?.savedBoards?{savedBoards:parseSavedBoards(savedBoards??storedEnvelope()?.savedBoards,unifiedCrafting)}:{}) };
   if(localDatabase){
     if(databaseExclusive)throw new Error('A device save import or sale is being committed.');
     if(databaseConflict)throw new StaleSaveError(STALE_TAB_MESSAGE);
@@ -349,7 +352,7 @@ function write(foundry: any, crafting: InfiniteElement[], force = false, collect
     databaseEnvelope=snapshot;envelopeMemory=snapshot;envelopeLoaded=true;
     craftMemory=unifiedCrafting;lastSeenSavedAt=savedAt;
     pendingEnvelope=snapshot;drainDatabase();
-    if(typeof window!=='undefined')window.dispatchEvent(new Event(SAVE_CHANGED_EVENT));
+    if(notify&&typeof window!=='undefined')window.dispatchEvent(new Event(SAVE_CHANGED_EVENT));
     return;
   }
   const json=JSON.stringify(envelope);
@@ -373,7 +376,7 @@ function write(foundry: any, crafting: InfiniteElement[], force = false, collect
   lastSeenSavedAt = savedAt;
   invalidateStoredEnvelope();
   status(null);
-  if (typeof window !== 'undefined') window.dispatchEvent(new Event(SAVE_CHANGED_EVENT));
+  if (notify&&typeof window !== 'undefined') window.dispatchEvent(new Event(SAVE_CHANGED_EVENT));
 }
 function quotaExceeded(error:unknown):boolean {
   const e=error as {name?:string;code?:number}|null;
@@ -443,7 +446,8 @@ export function saveCollectorRoom(room: TrophyRoom): void {
 export function exportCompleteSave(foundry: any): string {
   return JSON.stringify({ version: SAVE_FORMAT_VERSION, economy: readEconomy(), exportedAt: new Date().toISOString(), foundry,
     crafting: readCraftElements(), collectorRoom: readCollectorRoom(),
-    boardLayout: loadBoardLayout(readCraftElements()) ?? [] }, null, 2);
+    boardLayout: loadBoardLayout(readCraftElements()) ?? [],
+    ...(readSavedBoards()?{savedBoards:readSavedBoards()}:{}) }, null, 2);
 }
 export function parseSave(json: string) {
   const v = JSON.parse(json);
@@ -453,16 +457,18 @@ export function parseSave(json: string) {
   const crafting = v.version >= 2 ? v.crafting : readCraftElements();
   if (!validateFoundry(foundry) || !validateCraft(crafting)) throw new Error('Invalid backup');
   if (v.version === 3 && !validEconomy(v.economy)) throw new Error('Invalid wallet data');
-  return { foundry, crafting, economy: v.version === 3 ? v.economy as Economy : v.version === 1 ? readEconomy() : emptyEconomy(),
+  const savedBoards='savedBoards' in v?parseSavedBoards(v.savedBoards,crafting):null;
+  if('savedBoards' in v&&!savedBoards)throw new Error('Invalid saved boards');
+  return { savedBoards, foundry, crafting, economy: v.version === 3 ? v.economy as Economy : v.version === 1 ? readEconomy() : emptyEconomy(),
     collectorRoom: sanitizeTrophyRoom(v.version >= 2 ? v.collectorRoom : null, crafting),
-    boardLayout: v.version >= 2 && 'boardLayout' in v
+    boardLayout: savedBoards?savedBoards.boards.find(b=>b.id===savedBoards.activeId)!.tiles:v.version >= 2 && 'boardLayout' in v
       ? parseBoardLayout(v.boardLayout, crafting) : null };
 }
 export function importCompleteSave(json: string) {
   const parsed = parseSave(json);
   queuedCraftWrite = null;
   cancelCraftWriteTimer();
-  write(parsed.foundry, parsed.crafting, true, parsed.collectorRoom, parsed.boardLayout, parsed.economy);
+  write(parsed.foundry, parsed.crafting, true, parsed.collectorRoom, parsed.boardLayout, parsed.economy,parsed.savedBoards??initialSavedBoards(parsed.boardLayout??[]));
   if (parsed.boardLayout !== null) saveBoardLayout(parsed.boardLayout);
   recoveryRequired = false;
   craftMemory = mergeFoundryIntoCraft(parsed.crafting, parsed.foundry);
@@ -477,7 +483,7 @@ export async function importCompleteSaveDurably(json:string){
  await waitForLocalSave();
  const savedAt=Math.max(Date.now(),(lastSeenSavedAt??0)+1);
  const crafting=mergeFoundryIntoCraft(parsed.crafting,parsed.foundry);
- const envelope={version:SAVE_FORMAT_VERSION,savedAt,foundry:parsed.foundry,crafting,economy:parsed.economy,collectorRoom:parsed.collectorRoom,boardLayout:parsed.boardLayout??[]};
+ const envelope={version:SAVE_FORMAT_VERSION,savedAt,foundry:parsed.foundry,crafting,economy:parsed.economy,collectorRoom:parsed.collectorRoom,boardLayout:parsed.boardLayout??[],savedBoards:parsed.savedBoards??initialSavedBoards(parsed.boardLayout??[])};
  await commitExclusive(envelope,()=>{
   queuedCraftWrite=null;cancelCraftWriteTimer();recoveryRequired=false;
   if(parsed.boardLayout!==null)saveBoardLayout(parsed.boardLayout);
@@ -519,4 +525,25 @@ export async function sellElementDurably(name:string,form:CollectorVariant,quant
  if(expectedPrice!==undefined&&expectedPrice!==result.price)throw new Error('Value changed. Close and reopen this discovery before selling.');
  await commitExclusive({...envelope,savedAt:Math.max(Date.now(),(lastSeenSavedAt??0)+1),crafting,economy:result.economy},()=>{});
  return result;
+}
+
+/** Saved workspaces share the device database, export and cloud-save payload. */
+export function readSavedBoards():SavedBoards|null {
+  return parseSavedBoards(storedEnvelope()?.savedBoards,readCraftElements());
+}
+export function saveSavedBoards(boards:SavedBoards):void {
+  flushQueuedCraftSave();
+  const crafting=readCraftElements();const parsed=parseSavedBoards(boards,crafting);
+  if(!parsed)throw new Error('The saved boards are invalid.');
+  const active=parsed.boards.find(b=>b.id===parsed.activeId)!;
+  write(storedEnvelope()?.foundry??null,crafting,false,undefined,active.tiles,undefined,parsed,false);
+}
+export async function commitSavedBoards(boards:SavedBoards):Promise<void>{
+  await waitForLocalSave();
+  const crafting=readCraftElements();const parsed=parseSavedBoards(boards,crafting);
+  if(!parsed)throw new Error('The saved boards are invalid.');
+  const active=parsed.boards.find(b=>b.id===parsed.activeId)!;
+  if(!localDatabase){saveSavedBoards(parsed);saveBoardLayout(active.tiles);return;}
+  const envelope={...storedEnvelope(),savedAt:Math.max(Date.now(),(lastSeenSavedAt??0)+1),savedBoards:parsed,boardLayout:active.tiles};
+  await commitExclusive(envelope,()=>{saveBoardLayout(active.tiles);});
 }

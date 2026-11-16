@@ -1,3 +1,6 @@
+import { SavedBoardsDialog } from './SavedBoardsDialog';
+import { initialSavedBoards, type SavedBoards } from '../lib/savedBoards';
+import { readSavedBoards, saveSavedBoards, commitSavedBoards, waitForLocalSave } from '../lib/saveData';
 import { withoutUnpinnedInputs, pinnedResultPosition } from '../lib/boardPins';
 import { chooseRandomProcess } from '../lib/randomProcess';
 import { readCraftPreferences, saveCraftPreferences } from '../lib/craftPreferences';
@@ -218,7 +221,12 @@ export function InfiniteCraftView() {
       setElements(sanitizeElements(readCraftElements()));
       // Restore saved board positions from the cloud/imported backup.
       // An old-format backup without a board layout safely starts blank.
-      setCanvasItems(loadBoardLayout(readCraftElements()) ?? []);
+      const restored=readSavedBoards()??initialSavedBoards(loadBoardLayout(readCraftElements())??[]);
+      boardsRef.current=restored;setBoards(restored);boardsInitialized.current=true;
+      const board=restored.boards.find(b=>b.id===restored.activeId)!;
+      historyRef.current=beginBoardHistory(board.tiles);skipHistoryRef.current=true;
+      autoFrameStarters.current=false;hasFramedBoard.current=false;
+      setCanvasItems(board.tiles);setBoardZoom(board.zoom);zoomRef.current=board.zoom;
       setLastResult(null);
       setCrucibleSlotA(null);
       setCrucibleSlotB(null);
@@ -263,7 +271,8 @@ export function InfiniteCraftView() {
     return () => window.removeEventListener(PROFILE_SPRITES_UPDATED, update);
   }, []);
 
-  const [savedBoardLayout] = useState(() => loadBoardLayout(readCraftElements()));
+  const [initialBoards] = useState(readSavedBoards);
+  const [savedBoardLayout] = useState(() => initialBoards?initialBoards.boards.find(b=>b.id===initialBoards.activeId)!.tiles:loadBoardLayout(readCraftElements()));
   const autoFrameStarters = useRef(savedBoardLayout === null);
   const [canvasItems, setCanvasItems] = useState<CanvasItem[]>(() => savedBoardLayout ?? [
     { instanceId: 'init-1', name: 'Water', emoji: '💧', x: BOARD_START_X, y: BOARD_START_Y },
@@ -295,9 +304,14 @@ export function InfiniteCraftView() {
     historyRef.current=next;skipHistoryRef.current=true;setCanvasItems(next.present);setSelectedCanvasId(null);setSecondSelectedCanvasId(null);haptics.lightTap();
   };
   const [boardZoom,setBoardZoom] = useState(()=>{
+    if(initialBoards)return initialBoards.boards.find(b=>b.id===initialBoards.activeId)!.zoom;
     try {return clampBoardZoom(Number(localStorage.getItem('boop-board-zoom')||'1')); }
     catch {return 1;}
   });
+  const [boards,setBoards]=useState(()=>initialBoards??initialSavedBoards(canvasItems,boardZoom));
+  const boardsRef=useRef(boards);boardsRef.current=boards;
+  const boardsInitialized=useRef(Boolean(initialBoards));
+  const [showBoards,setShowBoards]=useState(false);
   const zoomRef=useRef(boardZoom);
   zoomRef.current=boardZoom;
 
@@ -453,8 +467,8 @@ export function InfiniteCraftView() {
       viewport.scrollLeft = BOARD_START_X * boardZoom - Math.max(12, (viewport.clientWidth - groupWidth * boardZoom) / 2);
       viewport.scrollTop = BOARD_START_Y * boardZoom - topInset * boardZoom;
     } else if (!hasFramedBoard.current) {
-      viewport.scrollLeft = BOARD_START_X * boardZoom - Math.min(220, viewport.clientWidth / 4);
-      viewport.scrollTop = BOARD_START_Y * boardZoom - Math.min(160, viewport.clientHeight / 3);
+      viewport.scrollLeft = (canvasItemsRef.current[0]?.x??BOARD_START_X) * boardZoom - Math.min(220, viewport.clientWidth / 4);
+      viewport.scrollTop = (canvasItemsRef.current[0]?.y??BOARD_START_Y) * boardZoom - Math.min(160, viewport.clientHeight / 3);
     }
     hasFramedBoard.current = true;
   }, [viewportPixelWidth, viewportPixelHeight, boardZoom]);
@@ -517,6 +531,14 @@ export function InfiniteCraftView() {
     catch (e) { console.error('Failed to queue infinite craft save', e); }
   }, [elements]);
 
+  useEffect(()=>{
+    const previous=boardsRef.current;
+    const active=previous.boards.find(b=>b.id===previous.activeId)!;
+    if(boardsInitialized.current&&JSON.stringify(active.tiles)===JSON.stringify(canvasItems)&&active.zoom===boardZoom)return;
+    const next={...previous,boards:previous.boards.map(b=>b.id===previous.activeId?{...b,tiles:canvasItems,zoom:boardZoom}:b)};
+    try{saveSavedBoards(next);boardsRef.current=next;setBoards(next);boardsInitialized.current=true;}
+    catch{setSpawnToast('Board changes could not be saved. Keep this page open and export a backup.');}
+  },[canvasItems,boardZoom]);
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (document.querySelector('dialog[open]')) return;
@@ -1087,11 +1109,27 @@ export function InfiniteCraftView() {
     } finally { procedureRequest.current = false; setIsSynthesizing(false); }
   };
 
+  const changeBoards=async(next:SavedBoards)=>{
+    if(requestRef.current||procedureRequest.current||foundryBusy)throw new Error('Wait for crafting to finish before switching boards.');
+    await waitForLocalSave();
+    await commitSavedBoards(next);
+    const switched=next.activeId!==boardsRef.current.activeId;
+    boardsRef.current=next;setBoards(next);boardsInitialized.current=true;
+    if(!switched)return;
+    const board=next.boards.find(b=>b.id===next.activeId)!;
+    autoFrameStarters.current=false;hasFramedBoard.current=false;
+    historyRef.current=beginBoardHistory(board.tiles);skipHistoryRef.current=true;setHistorySize({past:0,future:0});
+    setSelectedCanvasId(null);setSecondSelectedCanvasId(null);setCrucibleSlotA(null);setCrucibleSlotB(null);setLastResult(null);setCombineError(null);lastProcedureRef.current=null;
+    setCanvasItems(board.tiles);zoomRef.current=board.zoom;setBoardZoom(board.zoom);
+    try{localStorage.setItem('boop-board-zoom',String(board.zoom));}catch{/* Optional legacy mirror. */}
+    requestAnimationFrame(()=>{if(viewportRef.current){viewportRef.current.scrollLeft=(board.tiles[0]?.x??BOARD_START_X)*board.zoom-16;viewportRef.current.scrollTop=(board.tiles[0]?.y??BOARD_START_Y)*board.zoom-24;}});
+  };
+
   return (
     <CraftSprites.Provider value={customSprites}>
     <div className="boop-craft-studio toybox-studio">
       <header className="toybox-intro craft-compact-header">
-        <h1>Craft</h1><p>{activeProcedure?.id==='MIX'?'Tap two elements, then Combine.':'Tap one or two elements, then Apply.'}</p>
+        <h1>Craft</h1><button type="button" className="craft-boards-trigger" disabled={isSynthesizing||foundryBusy} onClick={()=>setShowBoards(true)} aria-label="Manage saved boards">Boards: {boards.boards.find(b=>b.id===boards.activeId)?.name}</button><p>{activeProcedure?.id==='MIX'?'Tap two elements, then Combine.':'Tap one or two elements, then Apply.'}</p>
       </header>
       <section className="boop-board-layout" aria-label="Discover crafting board">
         <header className="boop-board-toolbar boop-board-toolbar--quiet">
@@ -1284,6 +1322,7 @@ export function InfiniteCraftView() {
 
       {firstDiscoveryModal && <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn" onClick={() => setFirstDiscoveryModal(null)}><div onClick={e => e.stopPropagation()} className={`w-full max-w-sm rounded-2xl p-6 border shadow-2xl text-center relative overflow-hidden ${isDarkMode ? 'bg-[#18181b] border-amber-500/40 text-white' : 'bg-white border-amber-400 text-black'}`}><div className="absolute -top-12 -left-12 w-32 h-32 bg-amber-500/20 rounded-full blur-2xl pointer-events-none" /><div className="absolute -bottom-12 -right-12 w-32 h-32 bg-amber-500/20 rounded-full blur-2xl pointer-events-none" /><div className="text-5xl mb-3 animate-bounce"><CraftSprite name={firstDiscoveryModal.name} emoji={firstDiscoveryModal.emoji} isShiny={firstDiscoveryModal.isShiny} /></div><div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40 text-xs font-mono font-bold tracking-widest uppercase mb-2"><Sparkles className="w-3.5 h-3.5" />FIRST DISCOVERY!</div><h3 className="text-2xl font-black tracking-tight mb-1">{firstDiscoveryModal.name}</h3><p className="text-xs text-zinc-400 mb-5 leading-relaxed">You are the very first crafter to unlock this combination in the global matrix!</p>{firstDiscoveryModal.recipe && <div className={`p-3 rounded-xl border text-xs font-mono mb-5 ${isDarkMode ? 'bg-black/30 border-zinc-800 text-zinc-300' : 'bg-zinc-100 border-zinc-200 text-zinc-700'}`}>{firstDiscoveryModal.recipe.first} + {firstDiscoveryModal.recipe.second} = {firstDiscoveryModal.name}</div>}<button onClick={() => { sound.playClick(); setFirstDiscoveryModal(null); }} className="w-full py-2.5 rounded-xl font-bold text-sm bg-gradient-to-r from-amber-500 to-amber-600 text-black hover:brightness-110 shadow-lg transition-all active:scale-95">Continue Crafting</button></div></div>}
 
+      {showBoards&&<SavedBoardsDialog value={boards} onChange={changeBoards} onClose={()=>setShowBoards(false)}/>}
       {advancedFusionOpen&&<AdvancedFusionModal elements={sharedElements} busy={isSynthesizing||Boolean(requestRef.current)}
         onClose={()=>setAdvancedFusionOpen(false)} onFuse={fuseAdvanced}/>}
       {inspectedElement && <ElementDossierModal element={normalizeElementStats(inspectedElement)} valueBook={valueBook} onClose={() => setInspectedElement(null)} onSpawnOnCanvas={(name, emoji, isShiny) => spawnOnCanvas(name, emoji, isShiny)} isDarkMode={isDarkMode} />}
