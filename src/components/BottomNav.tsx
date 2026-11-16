@@ -28,7 +28,7 @@ function BottomNavInner({
   }, [activeTab]);
 
   const selectTab = useCallback((tab: BottomTab) => {
-    if (tab === activeTab) return;
+    if (tab === visualTab) return;
 
     // Give immediate audible and tactile feedback on the original tap.
     // Deferring navigation to requestAnimationFrame made the app feel sluggish.
@@ -37,7 +37,7 @@ function BottomNavInner({
     sound.playClick();
     setVisualTab(tab);
     startTransition(() => setActiveTab(tab));
-  }, [activeTab, setActiveTab]);
+  }, [visualTab, setActiveTab]);
 
   return (
     <nav className="collection-nav boop-navigation" aria-label="Main navigation">

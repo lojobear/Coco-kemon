@@ -27,6 +27,7 @@ try{for(const width of [320,412,1440]){
   const library=page.getByRole('complementary',{name:'Your element library'});
   await library.getByRole('button',{name:'Shiny',exact:true}).click();await page.getByLabel('Sort ingredients',{exact:true}).selectOption('alpha');
   await page.getByRole('button',{name:'Close ingredients',exact:true}).click();
+  await page.route('**/*CollectionAlbum*',async route=>{await new Promise(resolve=>setTimeout(resolve,350));await route.continue();});
   await nav.getByRole('button',{name:'Collection',exact:true}).click();await nav.getByRole('button',{name:'Craft',exact:true}).click();
   await page.getByRole('button',{name:'Open element library',exact:true}).click();
   assert.equal(await page.getByLabel('Sort ingredients',{exact:true}).inputValue(),'alpha');assert.equal(await library.getByRole('button',{name:'Shiny',exact:true}).getAttribute('aria-pressed'),'true');
