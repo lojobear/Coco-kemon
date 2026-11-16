@@ -32,6 +32,7 @@ test('complete backup round trip retains both collections and recipe history', (
   assert.deepEqual(parseSave(JSON.stringify(exported)), {
     foundry, crafting: mergeFoundryIntoCraft(crafting, foundry), collectorRoom: { theme: 'gallery', slots: Array(12).fill(null) },
     boardLayout: [], economy: {version:1,coins:0,sold:{}},
+    savedBoards:{version:1,activeId:'main',boards:[{id:'main',name:'Main board',tiles:[],zoom:1}]},
   });
 });
 
