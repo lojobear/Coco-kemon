@@ -17,9 +17,10 @@ test('board changes commit durably, survive crafting and exports, and roll back 
  const {pathToFileURL}=await import('node:url');const path=await import('node:path');
  const session=await import(pathToFileURL(path.resolve('src/lib/saveData.ts')).href+'?saved-boards-durable');
  const foundry={materials:[],oddkinCollection:[],processes:[],experiments:[],habitats:[]};
- let saved:any={revision:1,envelope:{version:3,savedAt:1,foundry,crafting:collection,economy:{version:1,coins:0,sold:{}}}};let fail=false;
+ let saved:any={revision:1,envelope:{version:3,savedAt:1,foundry,crafting:collection,economy:{version:1,coins:0,sold:{}},boardLayout:[{instanceId:'old-pin',name:'Water',emoji:'💧',x:1100,y:850,pinned:true}]}};let fail=false;
  const db={read:async()=>structuredClone(saved),commit:async(envelope:any,expected:number)=>{assert.equal(expected,saved.revision);if(fail)throw new Error('Disk full');saved={revision:expected+1,envelope:structuredClone(envelope)};return structuredClone(saved);},close(){}};
  await session.initializeLocalSave(async()=>db);
+ assert.equal(session.readSavedBoards()?.boards[0].tiles[0].pinned,true);assert.equal(session.readSavedBoards()?.boards[0].tiles[0].x,1100);
  const boards=initialSavedBoards([{instanceId:'water',name:'Water',emoji:'💧',x:980,y:700,pinned:true}]);boards.boards.push({id:'cooking',name:'Cooking',zoom:.8,tiles:[]});boards.activeId='cooking';
  await session.commitSavedBoards(boards);assert.equal(saved.envelope.savedBoards.boards.length,2);
  session.saveCraftElements([...collection,{id:'tea',name:'Tea',emoji:'🍵',discoveredAt:2}]);await session.waitForLocalSave();assert.equal(session.readSavedBoards()?.boards[0].tiles[0].pinned,true);

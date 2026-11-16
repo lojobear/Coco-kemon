@@ -529,7 +529,15 @@ export async function sellElementDurably(name:string,form:CollectorVariant,quant
 
 /** Saved workspaces share the device database, export and cloud-save payload. */
 export function readSavedBoards():SavedBoards|null {
-  return parseSavedBoards(storedEnvelope()?.savedBoards,readCraftElements());
+  const envelope=storedEnvelope(),crafting=readCraftElements();
+  const saved=parseSavedBoards(envelope?.savedBoards,crafting);
+  if(saved)return saved;
+  // Recover older database-only layouts when their optional local mirror is missing.
+  if(loadBoardLayout(crafting)===null&&Array.isArray(envelope?.boardLayout)&&envelope.boardLayout.length){
+    let zoom=1;try{zoom=Number(localStorage.getItem('boop-board-zoom')||'1');}catch{/* optional mirror */}
+    return initialSavedBoards(parseBoardLayout(envelope.boardLayout,crafting)??[],Number.isFinite(zoom)?zoom:1);
+  }
+  return null;
 }
 export function saveSavedBoards(boards:SavedBoards):void {
   flushQueuedCraftSave();
