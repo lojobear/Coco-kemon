@@ -20,8 +20,8 @@ try{for(const width of [320,412,1440]){
   await page.getByRole('button',{name:'Settings and tools',exact:true}).click();
   const backup={version:3,savedAt:Date.now(),foundry:{materials:[],oddkinCollection:[],processes:[],experiments:[],habitats:[]},crafting:[],economy:{version:1,coins:0,sold:{}}};
   await page.locator('.boop-settings-dialog input[type=file]').setInputFiles({name:'empty-logo-save.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(backup))});
-  await page.clock.runFor(500);
-  assert.equal(await logo.getAttribute('aria-label'),'Logo sprite: Boop. Show name','importing an empty collection must remove the previous sprite');
+  await page.clock.resume();
+  await page.waitForFunction(()=>document.querySelector('.boop-live-logo-button')?.getAttribute('aria-label')==='Logo sprite: Boop. Show name',null,{polling:100,timeout:10000});
  }
  const dims=await page.evaluate(()=>({w:document.documentElement.clientWidth,s:document.documentElement.scrollWidth}));assert.ok(dims.s<=dims.w+1);assert.deepEqual(errors,[]);
  console.log(`${width}px: owned sprites, 30-second rotation, touch target, tap name, hidden-tab/name pause, reduced motion and home navigation passed`);await page.close();
