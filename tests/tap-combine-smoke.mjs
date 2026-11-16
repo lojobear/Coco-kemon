@@ -29,7 +29,20 @@ try{
   await page.getByLabel('Open procedures',{exact:true}).click();await page.getByRole('region',{name:'Board procedures'}).getByRole('button',{name:'Melt',exact:true}).click();assert.equal(await page.locator('.craft-procedure-drawer').getAttribute('open'),null);
   await page.getByRole('button',{name:'Select Earth to combine',exact:true}).click();assert.ok(await page.getByRole('button',{name:'Apply Melt',exact:true}).isEnabled());
   await page.getByRole('button',{name:'Clear first ingredient',exact:true}).click();assert.ok(await page.getByRole('button',{name:'Apply Melt',exact:true}).isDisabled());
+  const randomProcess=page.getByRole('button',{name:'Random process',exact:true});
+  assert.ok(await randomProcess.isVisible());const randomBounds=await randomProcess.boundingBox();assert.ok(randomBounds.height>=44);assert.ok(randomBounds.y+randomBounds.height<(width===1440?900:867),'random process should fit beside the board controls');
+  const countBeforeRandom=await page.locator('.boop-board-item').count();let synthesisRequests=0;
+  await page.route('**/api/synthesize',async route=>{synthesisRequests++;await route.abort();});
+  let previous=await page.getByLabel('Open procedures',{exact:true}).innerText();
+  for(let i=0;i<3;i++){
+   if(width<700)await randomProcess.tap();else await randomProcess.click();
+   const current=await page.getByLabel('Open procedures',{exact:true}).innerText();assert.notEqual(current,previous);previous=current;
+   assert.equal(await page.locator('.craft-procedure-drawer').getAttribute('open'),null);
+  }
+  assert.equal(synthesisRequests,0);assert.equal(await page.locator('.boop-board-item').count(),countBeforeRandom);
+  const navigation=page.getByRole('navigation',{name:'Main navigation'});await navigation.getByRole('button',{name:'Profile',exact:true}).click();await navigation.getByRole('button',{name:'Craft',exact:true}).click();
+  assert.equal((await page.getByLabel('Open procedures',{exact:true}).innerText()).replace(/\s+/g,' '),previous.replace(/\s+/g,' '),'random process selection should persist across pages');
   assert.deepEqual(errors,[]);const size=await page.evaluate(()=>({width:document.documentElement.clientWidth,scroll:document.documentElement.scrollWidth}));assert.ok(size.scroll<=size.width+1);
-  console.log(`${width}px: board-first screen, tap two pieces, library ingredient slots, same-element pair, keyboard Combine and collapsed procedures passed`);await page.close();
+  console.log(`${width}px: board-first screen, tap two pieces, library ingredient slots, same-element pair, keyboard Combine, collapsed procedures and visible Random process selection/persistence passed`);await page.close();
  }
 }finally{await browser.close();}
