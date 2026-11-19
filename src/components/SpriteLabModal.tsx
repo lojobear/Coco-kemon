@@ -18,7 +18,7 @@ import { MissingSpritesList } from './MissingSpritesList';
 import { spriteVariantKey } from '../lib/spriteVariant';
 import { spriteLabInventoryElements } from '../lib/spriteLabInventory';
 import { discoveryIdentity } from '../lib/unifiedCollection';
-import { SPRITE_ART_STYLES, isPixelSpriteStyle, type SpriteArtStyle } from '../lib/spriteArtStyles';
+import { DEFAULT_SPRITE_ART_STYLE, SPRITE_ART_STYLES, isPixelSpriteStyle, type SpriteArtStyle } from '../lib/spriteArtStyles';
 import { alphaBounds } from '../lib/miniSpriteStyle';
 
 type LabItem =
@@ -41,7 +41,7 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
     return () => { window.removeEventListener(SAVE_IMPORTED_EVENT, reload); window.removeEventListener(SAVE_CHANGED_EVENT, reload); };
   }, []);
   const [uploading, setUploading] = useState(false);
-  const [artStyle, setArtStyle] = useState<SpriteArtStyle>('classic');
+  const [artStyle, setArtStyle] = useState<SpriteArtStyle>(DEFAULT_SPRITE_ART_STYLE);
   const [stylePreview, setStylePreview] = useState<{ target: LabDisplayItem; sprite: string; style: SpriteArtStyle } | null>(null);
   const [artworkStatus, setArtworkStatus] = useState(artworkQueueStatus);
   useEffect(() => {

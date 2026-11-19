@@ -13,11 +13,11 @@ test('approved pixel-art reference remains intact but is never sent as model inp
   assert.equal(bytes.readUInt32BE(16),112);
   assert.equal(bytes.readUInt32BE(20),154);
   assert.equal((await miniSpriteReferenceBlob().arrayBuffer()).byteLength,bytes.length);
-  assert.equal(SPRITE_ENGINE_VERSION,BOOP_MINI_REFERENCE_VERSION);
+  assert.equal(SPRITE_ENGINE_VERSION,BOOP_MINI_REFERENCE_VERSION+':tactics');
 });
 
-test('new default, shiny and reroll prompts use compact isometric furni pixel art across image providers',()=>{
-  const full=buildSpritePrompt('Grandfather Clock');
+test('Classic Boop remains available with its compact reference prompt',()=>{
+  const full=buildSpritePrompt('Grandfather Clock','',false,'classic');
   assert.match(full,/112x112/);
   assert.match(full,/55–70%/);
   assert.match(full,/20–48 flat pixel colours/);

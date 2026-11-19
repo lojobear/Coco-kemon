@@ -59,7 +59,8 @@ test('endpoint generates once for simultaneous and repeated canonical names', as
   const app = express();
   app.use(express.json());
   let calls = 0;
-  registerEmojiRoute(app, async () => {
+  registerEmojiRoute(app, async prompt => {
+    assert.match(prompt,/ART STYLE ID: tactics/);
     calls++;
     await new Promise(r => setTimeout(r, 20));
     return fakeImage;
@@ -79,7 +80,7 @@ test('endpoint generates once for simultaneous and repeated canonical names', as
     const firstReply = await replies[0].json() as any;
     const secondReply = await replies[1].json() as any;
     assert.deepEqual(firstReply, secondReply);
-    assert.equal(firstReply.engineVersion, 'v19-crisp-isometric-furni');
+    assert.equal(firstReply.engineVersion, 'v19-crisp-isometric-furni:tactics');
     assert.equal(firstReply.provenance, 'gemini-native-image-pixel-art');
     assert.equal(firstReply.mimeType, 'image/png');
     assert.equal(firstReply.imageBase64, fakeImage.data);

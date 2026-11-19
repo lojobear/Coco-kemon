@@ -36,7 +36,7 @@ test('Subject-specific art direction avoids global brown cast and repeated gener
   assert.match(bread, /brown/i);
   assert.notEqual(lake, leaf);
   assert.notEqual(lake, battery);
-  const prompt = buildSpritePrompt('Ice Lake');
+  const prompt = buildSpritePrompt('Ice Lake','',false,'classic');
   assert.match(prompt, /BOOP v19 COMPACT ISOMETRIC FURNI PIXEL ART/);
   assert.match(prompt, /112x112/);
   assert.match(prompt, /55–70%/);

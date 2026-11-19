@@ -1,4 +1,4 @@
-/** Shared allowlist for explicit style edits; automatic generation stays classic. */
+/** Shared style choices for generation and explicit edits. */
 export const SPRITE_ART_STYLES = {
   classic: { label: 'Classic Boop', description: 'Compact isometric furni pixel art', prompt: '' },
   retro: { label: 'Retro 16-bit', description: 'Chunky pixels, classic RPG palette', prompt: 'Classic 16-bit RPG inventory pixel art; chunky square pixel clusters, limited 16–24 color palette, strong silhouette, stepped shadows, crisp hard edges. No gradients.' },
@@ -21,6 +21,7 @@ export const SPRITE_ART_STYLES = {
   glass: { label: 'Art Glass', description: 'Translucent sculpted glass collectible', prompt: 'Miniature sculpted art-glass collectible, richly coloured glass with controlled refraction, bright specular highlights and recognizable solid silhouette, no external glow or pedestal.' },
 } as const;
 export type SpriteArtStyle = keyof typeof SPRITE_ART_STYLES;
+export const DEFAULT_SPRITE_ART_STYLE: SpriteArtStyle = 'tactics';
 export function isSpriteArtStyle(value: unknown): value is SpriteArtStyle {
   return typeof value === 'string' && Object.prototype.hasOwnProperty.call(SPRITE_ART_STYLES, value);
 }
