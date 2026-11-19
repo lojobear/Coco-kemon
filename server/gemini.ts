@@ -1,3 +1,4 @@
+import { acceptProcessResponse } from './processSemantics.js';
 import { GoogleGenAI } from '@google/genai';
 import { conceptDNAFor, normalizeDiscoveryCandidates } from './discovery.js';
 import { getWorkersAiBinding } from './workersAi.js';
@@ -205,7 +206,8 @@ function compactFoundryContext(prompt: string): string {
   const process = prompt.match(/APPLIED PROCESS:[^\n]*/)?.[0] || '';
   const depth = prompt.match(/CURRENT RECIPE DEPTH:[^\n]*/)?.[0] || '';
   const existing = prompt.match(/EXISTING DISCOVERED MATERIALS:[^\n]*/)?.[0] || '';
-  return [inputA, inputB, process, depth, existing].filter(Boolean).join('\n');
+  const contract = prompt.match(/PROCESS CONTRACT DATA:[\s\S]*?(?=\nCURRENT RECIPE DEPTH:|$)/)?.[0] || '';
+  return [inputA, inputB, process, contract, depth, existing].filter(Boolean).join('\n');
 }
 
 async function searchFoundryIdeas(
@@ -241,7 +243,7 @@ async function searchFoundryIdeas(
       scoreFoundryIdea(b, existingNames, overusedRoots) - scoreFoundryIdea(a, existingNames, overusedRoots)
     );
     const winner = ideas[0];
-    if (!winner || winner.inputFit < 3 || winner.processFit < 3) return null;
+    if (!winner || winner.inputFit < 4 || winner.processFit < 4) return null;
     return winner;
   } catch (error) {
     const terminal = terminalGeminiFailure(error);
@@ -942,9 +944,11 @@ export async function callGeminiStructured(
   const overallDeadline = Date.now() + (drawingOptions ? Math.min(55000, drawingOptions.timeoutMs) : 27000);
   const discoveryRequest = isDiscoveryInstruction(systemInstruction);
   const foundryRequest = isFoundryPrompt(prompt);
-  const acceptDiscovery = discoveryRequest && typeof prompt === 'string'
+  const acceptResponse = discoveryRequest && typeof prompt === 'string'
     ? (raw: string) => acceptDiscoveryProviderJson(raw, prompt)
-    : undefined;
+    : foundryRequest && typeof prompt === 'string'
+      ? (raw: string) => acceptProcessResponse(raw, prompt)
+      : undefined;
   const effectiveSystemInstruction = discoveryRequest && systemInstruction
     ? enhanceDiscoveryInstruction(systemInstruction)
     : systemInstruction;
@@ -972,7 +976,7 @@ export async function callGeminiStructured(
       providerTemperature,
       providerSchema,
       overallDeadline,
-      acceptDiscovery,
+      acceptResponse,
     );
     if (groqResult) return groqResult;
 
@@ -983,7 +987,7 @@ export async function callGeminiStructured(
       providerTemperature,
       providerSchema,
       overallDeadline,
-      acceptDiscovery,
+      acceptResponse,
     );
     if (workersResult) return workersResult;
 
@@ -1053,7 +1057,7 @@ export async function callGeminiStructured(
       if (!raw) throw new Error('AI returned an empty response');
       const parsed = JSON.parse(raw);
       if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('Invalid JSON object');
-      const accepted = acceptDiscovery ? acceptDiscovery(raw) : raw;
+      const accepted = acceptResponse ? acceptResponse(raw) : raw;
       if (!accepted) throw new Error('Gemini returned no usable discovery candidates.');
       return accepted;
     } catch (error: any) {

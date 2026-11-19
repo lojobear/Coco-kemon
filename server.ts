@@ -25,6 +25,8 @@ import { CANONICAL_INFINITE_CRAFT_RECIPES, makePairKey, validNewElementName } fr
 import { chooseConcept, normalizeDiscoveryCandidates, applyInheritance, inheritanceFor, type ConceptResult } from './server/discovery.js';
 import { rollRareVariant } from './src/lib/discoveryTrails.js';
 import { ALL_PROCESSES } from './src/lib/starterData.js';
+import { findProcessRecipe } from './src/lib/processRecipes.js';
+import { processContract, acceptProcessResponse } from './server/processSemantics.js';
 import { findExpansionRecipe } from './src/lib/processExpansion.js';
 import { cachedWork } from './server/persistentCache.js';
 import { clientId, takeAiBudget } from './server/rateLimit.js';
@@ -740,6 +742,14 @@ app.post('/api/synthesize', async (req, res) => {
       return res.json({status:'new_material',material,explanation:expansion.explanation});
     }
 
+    // Existing canonical/expansion recipes win; new contrasts only fill unexplored recipes.
+    const processRecipe = findProcessRecipe(normProc, [normA, ...(normB ? [normB] : [])]);
+    if (processRecipe) {
+      const material = conceptMaterial(processRecipe, [inputMaterialA, ...(inputMaterialB ? [inputMaterialB] : [])], process.id);
+      material.lineage.recipeDesc = [inputMaterialA.displayName, ...(inputMaterialB ? [inputMaterialB.displayName] : [])].join(' + ') + ' (' + process.name + ')';
+      return res.json({status: 'new_material', material, explanation: processRecipe.explanation});
+    }
+
     // 2. Generative synthesis engine (Groq -> Workers AI -> Gemini failover)
     const prompt = `You are the synthesis engine for ODDKIN FOUNDRY, a playful conceptual crafting game with the same open discovery space as Infinite Craft. Everything has lineage, but discoveries are NOT limited to substances.
 DISCOVER ANIMALS, FOOD, BRANDS, CHARACTERS, PLACES, GAMES, TECHNOLOGY AND IDEAS.
@@ -759,6 +769,7 @@ ${inputMaterialB ? `INPUT B:
 - Lineage: ${inputMaterialB.lineage?.recipeDesc || 'None'}` : 'INPUT B: None'}
 
 APPLIED PROCESS: ${process.name} (${process.verb})
+${processContract(process, [inputMaterialA.displayName, ...(inputMaterialB ? [inputMaterialB.displayName] : [])])}
 CURRENT RECIPE DEPTH: ${currentDepth}
 LIFE POTENTIAL CONTEXT: ${combinedLifePotential}
 EXISTING DISCOVERED MATERIALS: ${(existingMaterialNames || []).slice(-25).join(', ')}
@@ -860,10 +871,11 @@ Format your response as a strict JSON object with this structure:
 }`;
 
     const foundryCacheKey = foundryContextKey(inputMaterialA, inputMaterialB, normProc, existingMaterialNames, knownOddkinNames, shouldEmergeOddkin);
-    const resolved = await cachedWork<any>('foundry-result-v2', foundryCacheKey, async () => {
+    const resolved = await cachedWork<any>('foundry-result-v3-process', foundryCacheKey, async () => {
       takeAiBudget(clientId(req), 2); // Gemini path makes a concept-search call plus the generation call.
       const rawResponse = await callGeminiStructured(prompt);
       if (!rawResponse) throw new ApiFailure(502, 'AI returned an incomplete material. Please retry.');
+      if (!acceptProcessResponse(rawResponse, prompt)) throw new ApiFailure(502, 'This experiment returned an unclear transformation. Please retry.');
       const parsed = JSON.parse(rawResponse);
       const validNoReaction = parsed?.status === 'no_reaction' && text(parsed.explanation);
       const validLife = parsed?.status === 'life_emergence' && parsed?.oddkin && shouldEmergeOddkin;
