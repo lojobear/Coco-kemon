@@ -719,7 +719,7 @@ async function callGroqStructured(
         // Keep Groq's TPM request comfortably below the 8k/min free-tier ceiling.
         // Reserve output for JSON rather than verbose reasoning or prose.
         temperature: Math.max(0.01, Math.min(0.55, temperature)),
-        max_completion_tokens: schema && isDiscoveryInstruction(systemInstruction) ? 2200 : schema ? 1800 : 1200,
+        max_completion_tokens: isFoundryPrompt(prompt) ? 2200 : schema && isDiscoveryInstruction(systemInstruction) ? 2200 : schema ? 1800 : 1200,
         stream: false,
         // Groq's strict JSON-schema validator can reject otherwise valid generations
         // for QuarkPop's larger nested discovery schemas. JSON mode is much more reliable
@@ -874,7 +874,7 @@ async function callWorkersAiStructured(
           messages: recoveryMessages,
           stream: false,
           temperature: recovery ? Math.min(0.55, temperature) : Math.min(1, Math.max(0, temperature)),
-          max_tokens: 1400,
+          max_tokens: isFoundryPrompt(prompt) ? 2200 : 1400,
         };
         if (!recovery) {
           // These Workers AI text models do not reliably support JSON Schema (5025).
