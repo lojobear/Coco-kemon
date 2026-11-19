@@ -60,10 +60,10 @@ public final class MainActivity extends Activity {
     private static final String START_URL = ORIGIN + "/?boop_android=1" + (BuildConfig.BUNDLED_WEB ? "&boop_web_chrome=1" : "");
     private static final String AUTH_SCHEME = "boop";
     private static final String AUTH_HOST = "oauth-callback";
-    private static final int FOREST = Color.rgb(42, 48, 56);
-    private static final int INK = Color.rgb(30, 35, 42);
-    private static final int MUTED = Color.rgb(112, 120, 129);
-    private static final int PALE = Color.rgb(249, 250, 252);
+    private static final int FOREST = Color.rgb(165, 186, 255);
+    private static final int INK = Color.rgb(240, 241, 245);
+    private static final int MUTED = Color.rgb(176, 183, 197);
+    private static final int PALE = Color.rgb(41, 46, 55);
     private static final String[][] TABS = {
         {"kitchen", "Kitchen", "♨"},
         {"infinite-craft", "Craft", "⚗"},
@@ -91,15 +91,15 @@ public final class MainActivity extends Activity {
         super.onCreate(state);
         if (state != null) pendingProfileReport = state.getString("pendingProfileReport");
         loadBrandTypefaces();
-        getWindow().setStatusBarColor(Color.WHITE);
-        getWindow().setNavigationBarColor(Color.rgb(255, 255, 255));
-        getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
+        getWindow().setStatusBarColor(Color.rgb(21, 23, 27));
+        getWindow().setNavigationBarColor(Color.rgb(21, 23, 27));
+        getWindow().getDecorView().setSystemUiVisibility(0);
         Uri incoming = getIntent() == null ? null : getIntent().getData();
         if (isOAuthCallback(incoming)) pendingOAuthCode = incoming.getQueryParameter("code");
 
         LinearLayout screen = new LinearLayout(this);
         screen.setOrientation(LinearLayout.VERTICAL);
-        screen.setBackgroundColor(Color.WHITE);
+        screen.setBackgroundColor(Color.rgb(21, 23, 27));
         setContentView(screen);
 
         // Android 15 enforces edge-to-edge for target SDK 35: native controls
@@ -142,7 +142,7 @@ public final class MainActivity extends Activity {
         LinearLayout toolbar = new LinearLayout(this);
         toolbar.setGravity(Gravity.CENTER_VERTICAL);
         toolbar.setPadding(dp(16), 0, dp(12), 0);
-        toolbar.setBackgroundColor(Color.WHITE);
+        toolbar.setBackgroundColor(Color.rgb(21, 23, 27));
 
         ImageView icon = new ImageView(this);
         icon.setImageResource(R.drawable.ic_boop_planet);
@@ -188,7 +188,7 @@ public final class MainActivity extends Activity {
         button.setContentDescription(contentDescription);
         button.setClickable(true);
         button.setFocusable(true);
-        button.setBackground(roundRect(Color.rgb(246, 247, 249), 13, 0));
+        button.setBackground(roundRect(Color.rgb(41, 46, 55), 13, 0));
         return button;
     }
 
@@ -197,7 +197,7 @@ public final class MainActivity extends Activity {
         bar.setOrientation(LinearLayout.HORIZONTAL);
         bar.setGravity(Gravity.CENTER);
         bar.setPadding(dp(5), dp(7), dp(5), dp(6));
-        bar.setBackgroundColor(Color.WHITE);
+        bar.setBackgroundColor(Color.rgb(21, 23, 27));
         bar.setElevation(dp(9));
         tabViews = new TextView[TABS.length];
         for (int i = 0; i < TABS.length; i++) {
@@ -243,7 +243,7 @@ public final class MainActivity extends Activity {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             webView.setForceDarkAllowed(false);
         }
-        webView.setBackgroundColor(Color.WHITE);
+        webView.setBackgroundColor(Color.rgb(21, 23, 27));
         webView.setOverScrollMode(View.OVER_SCROLL_NEVER);
         webView.setVerticalScrollBarEnabled(false);
         webView.setHorizontalScrollBarEnabled(false);
