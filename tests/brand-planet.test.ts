@@ -73,6 +73,6 @@ test('all PWA/Apple PNG icon sizes are regenerated on every build',()=>{
     assert.ok(script.includes(name));
   }
   const vite=file('vite.config.ts');
-  assert.match(vite,/theme_color: '#ffffff'/);
-  assert.match(vite,/background_color: '#ffffff'/);
+  assert.match(vite,/theme_color: '#15171b'/);
+  assert.match(vite,/background_color: '#15171b'/);
 });

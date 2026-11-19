@@ -144,7 +144,7 @@ function GameContent() {
   }, [nativeShell, activeTab]);
 
   return (
-    <div data-theme="quark-light" className="boop-app boop-toybox h-[100dvh] max-h-[100dvh] w-full collection-app bg-white text-neutral-900 flex flex-col justify-between overflow-hidden selection:bg-neutral-900 selection:text-white">
+    <div id="boop-app" data-palette="charcoal" data-theme="quark-light" className="boop-app boop-toybox h-[100dvh] max-h-[100dvh] w-full collection-app bg-white text-neutral-900 flex flex-col justify-between overflow-hidden selection:bg-neutral-900 selection:text-white">
       {/* Top Header */}
       {!nativeChrome && <Header
         onOpenProfile={() => setShowCloud(true)}

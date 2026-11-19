@@ -60,15 +60,14 @@ test("Discover Spawn is immediate while count selection lives inside More tools"
   assert.match(component,/setTimeout\(\(\) => setSpawnToast\(null\), 2400\)/);
 });
 
-test('Boop uses white canvas with legible dark controls in web and native Android',()=>{
-  const css=readFileSync(new URL('../src/boop.css',import.meta.url),'utf8');
+test('Boop shares the authored charcoal canvas with native Android',()=>{
+  const css=readFileSync(new URL('../src/charcoal.css',import.meta.url),'utf8');
   const java=readFileSync(new URL('../android-shell/app/src/main/java/app/boop/collect/MainActivity.java',import.meta.url),'utf8');
-  assert.match(css,/--boop-canvas: #ffffff;/);
-  assert.match(css,/\.boop-app \.boop-board-world\s*\{\s*background-color:#fff!important;/);
-  assert.match(css,/\.boop-app \.boop-board-layout \.boop-board-item\s*\{\s*background:#fff;/);
-  assert.match(css,/\.boop-board-more-counts button\[aria-pressed=true\]/);
-  assert.match(java,/setStatusBarColor\(Color\.WHITE\)/);
-  assert.match(java,/toolbar\.setBackgroundColor\(Color\.WHITE\)/);
+  assert.match(css,/--boop-canvas:#15171b/);
+  assert.match(css,/--dark-board:#1b1e24/);
+  assert.match(java,/setStatusBarColor\(Color.rgb\(21, 23, 27\)\)/);
+  assert.match(java,/toolbar\.setBackgroundColor\(Color.rgb\(21, 23, 27\)\)/);
+  assert.match(java,/setSystemUiVisibility\(0\)/);
 });
 
 test('repeat batches avoid overlapping the same positions and retain owned item count',()=>{
