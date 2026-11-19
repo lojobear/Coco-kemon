@@ -32,7 +32,11 @@ try{for(const width of [320,412,1440]){
    window.logoHold=true;
   });
   const stable=await name();const oldSource=await logo.locator('img').last().getAttribute('src');
-  await page.clock.fastForward(30000);await page.clock.runFor(100);
+  // Navigation may leave an earlier decode in flight. Let its completion settle
+  // before expecting the next interval to start a held preload.
+  for(let attempt=0;attempt<3&&!await page.evaluate(()=>window.logoPending.length);attempt++){
+   await page.clock.fastForward(30000);await page.clock.runFor(500);
+  }
   assert.equal(await name(),stable);assert.equal(await logo.locator('img').last().getAttribute('src'),oldSource);
   assert.ok(await page.evaluate(()=>window.logoPending.length>0));assert.equal(await logo.locator('.boop-sprite-placeholder').count(),0);
   await page.evaluate(()=>{window.logoHold=false;window.logoPending.splice(0).forEach(load=>load());});await page.clock.runFor(700);assert.notEqual(await name(),stable);
