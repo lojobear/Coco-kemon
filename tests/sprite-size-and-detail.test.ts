@@ -16,13 +16,13 @@ test('sprite artwork is ~8.9% bigger without changing layout and touch-target ge
   assert.match(sizeBlock, /padding: 1%;/);
   assert.ok(98/90>1.08 && 98/90<1.10);
 });
-test('future AI art stays 112px with slightly larger silhouette and more crisp details', () => {
+test('Classic artwork stays 112px with its established silhouette and crisp details', () => {
   assert.equal(MINI_CANVAS_SIZE,112);
   assert.equal(MINI_FOOTPRINT_WIDTH,76);
   assert.equal(MINI_FOOTPRINT_HEIGHT,76);
   assert.equal(MINI_MAX_OPAQUE_COLORS,48);
   assert.match(BOOP_MINI_REFERENCE_VERSION,/^v19-/);
-  const premium=buildSpritePrompt('Fire Truck');
+  const premium=buildSpritePrompt('Fire Truck','',false,'classic');
   const compact=compactSchnellImagePrompt(premium);
   assert.match(premium,/112x112/);
   assert.match(premium,/55–70%/);

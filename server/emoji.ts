@@ -4,15 +4,15 @@ import { emojiKey } from '../src/lib/emojiGeometry.js';
 import { cachedWork } from './persistentCache.js';
 import { clientId, takeAiBudget } from './rateLimit.js';
 import { BOOP_SPRITE_ART_STYLE, spriteColorDirection, spriteSubjectDirection } from './spriteStyle.js';
-import { isSpriteArtStyle, styleDirection, type SpriteArtStyle } from '../src/lib/spriteArtStyles.js';
+import { DEFAULT_SPRITE_ART_STYLE, isSpriteArtStyle, styleDirection, type SpriteArtStyle } from '../src/lib/spriteArtStyles.js';
 import { BOOP_MINI_REFERENCE_VERSION } from './spriteReference.js';
 
 // New model generations use the locked pixel style. Existing local/owned art remains saved.
-export const SPRITE_ENGINE_VERSION = BOOP_MINI_REFERENCE_VERSION;
+export const SPRITE_ENGINE_VERSION = `${BOOP_MINI_REFERENCE_VERSION}:${DEFAULT_SPRITE_ART_STYLE}`;
 
 type ImageGenerator = (prompt: string) => Promise<GeminiImageResult>;
 
-export function buildSpritePrompt(key: string, variation = '', shiny = false, style: SpriteArtStyle = 'classic'): string {
+export function buildSpritePrompt(key: string, variation = '', shiny = false, style: SpriteArtStyle = DEFAULT_SPRITE_ART_STYLE): string {
   return [
     style === 'classic' ? `Create one premium pixel-art inventory sprite for this exact subject: ${JSON.stringify(key)}.` : `Create one premium inventory sprite for this exact subject: ${JSON.stringify(key)}.`,
     style !== 'classic' ? `ART STYLE ID: ${style}\nART DIRECTION: ${styleDirection(style)}\nThis art direction replaces all default pixel-art styling. One isolated object centered with generous margins on uniform #FF00FF magenta for transparency; no background scene, floor, text, frame or cast shadow.` : '',
@@ -95,7 +95,7 @@ export function registerEmojiRoute(app: Express, generateImage: ImageGenerator =
       if (req.body?.style !== undefined && (!regenerate || !isSpriteArtStyle(req.body.style))) {
         throw new ApiFailure(400, 'Choose a valid art style for an explicit reroll.');
       }
-      const style: SpriteArtStyle = isSpriteArtStyle(req.body?.style) ? req.body.style : 'classic';
+      const style: SpriteArtStyle = isSpriteArtStyle(req.body?.style) ? req.body.style : DEFAULT_SPRITE_ART_STYLE;
       const variation = typeof req.body?.variation === 'string' ? req.body.variation.trim().slice(0, 64) : '';
       // Different identity at *all* cache layers, so a shiny cannot reuse or
       // overwrite the normal sprite even if both are generated concurrently.

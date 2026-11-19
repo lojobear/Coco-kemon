@@ -1,4 +1,4 @@
-import { isPixelSpriteStyle, spriteStyleSize, type SpriteArtStyle } from './spriteArtStyles';
+import { DEFAULT_SPRITE_ART_STYLE, isPixelSpriteStyle, spriteStyleSize, type SpriteArtStyle } from './spriteArtStyles';
 import { spriteAssets, trackSpriteSync } from './spriteAssets';
 import { emojiKey } from './emojiGeometry';
 import { spriteVariantKey, spriteProfileKey } from './spriteVariant';
@@ -80,7 +80,7 @@ async function save(key: string, data: string) {
   });
 }
 
-export async function normalizeGeneratedImage(imageBase64: string, mimeType: string, style: SpriteArtStyle = 'classic'): Promise<string> {
+export async function normalizeGeneratedImage(imageBase64: string, mimeType: string, style: SpriteArtStyle = DEFAULT_SPRITE_ART_STYLE): Promise<string> {
   if (!/^image\/(png|jpeg|jpg|webp)$/i.test(mimeType)) throw new Error('Invalid sprite image type.');
   if (!/^[A-Za-z0-9+/=\r\n]+$/.test(imageBase64) || imageBase64.length > 16_000_000) {
     throw new Error('Invalid sprite image data.');
@@ -163,7 +163,7 @@ export async function storeProfileElementSprite(name: string, data: string, shin
   announceSpriteReady(key);
 }
 
-export function getElementEmoji(name: string, upgrade = false, variation = '', generateIfMissing = true, isShiny = false, style: SpriteArtStyle = 'classic', previewOnly = false): Promise<string> {
+export function getElementEmoji(name: string, upgrade = false, variation = '', generateIfMissing = true, isShiny = false, style: SpriteArtStyle = DEFAULT_SPRITE_ART_STYLE, previewOnly = false): Promise<string> {
   const key = spriteVariantKey(name, isShiny);
   // Collection previews may read cached/local/profile art but cannot trigger AI.
   const jobKey = upgrade ? `${key}:upgrade:${style}:${previewOnly ? 'preview:' : ''}${variation || 'fresh'}` : generateIfMissing ? key : `${key}:cache-only`;
@@ -295,7 +295,7 @@ export function retryElementEmoji(name: string, shiny = false): Promise<string> 
 }
 
 /** Explicit upgrade/reroll bypasses old art and asks the native image model for a fresh sprite. */
-export async function upgradeElementEmoji(name: string, variation = '', style: SpriteArtStyle = 'classic') {
+export async function upgradeElementEmoji(name: string, variation = '', style: SpriteArtStyle = DEFAULT_SPRITE_ART_STYLE) {
   if (style !== 'classic') return getElementEmoji(name, true, variation, true, false, style);
   const key = emojiKey(name);
   const pending = jobs.get(key);
@@ -305,7 +305,7 @@ export async function upgradeElementEmoji(name: string, variation = '', style: S
   jobs.delete(key);
   for (const jobKey of [...jobs.keys()]) if (jobKey.startsWith(`${key}:upgrade:`)) jobs.delete(jobKey);
 
-  const art = await getElementEmoji(name, true, variation);
+  const art = await getElementEmoji(name, true, variation, true, false, style);
   if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('oddkin-emoji-retry', { detail: key }));
   return art;
 }

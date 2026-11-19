@@ -18,7 +18,7 @@ import { MissingSpritesList } from './MissingSpritesList';
 import { spriteVariantKey } from '../lib/spriteVariant';
 import { spriteLabInventoryElements } from '../lib/spriteLabInventory';
 import { discoveryIdentity } from '../lib/unifiedCollection';
-import { SPRITE_ART_STYLES, isPixelSpriteStyle, type SpriteArtStyle } from '../lib/spriteArtStyles';
+import { DEFAULT_SPRITE_ART_STYLE, SPRITE_ART_STYLES, isPixelSpriteStyle, type SpriteArtStyle } from '../lib/spriteArtStyles';
 import { alphaBounds } from '../lib/miniSpriteStyle';
 
 type LabItem =
@@ -41,7 +41,7 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
     return () => { window.removeEventListener(SAVE_IMPORTED_EVENT, reload); window.removeEventListener(SAVE_CHANGED_EVENT, reload); };
   }, []);
   const [uploading, setUploading] = useState(false);
-  const [artStyle, setArtStyle] = useState<SpriteArtStyle>('classic');
+  const [artStyle, setArtStyle] = useState<SpriteArtStyle>(DEFAULT_SPRITE_ART_STYLE);
   const [stylePreview, setStylePreview] = useState<{ target: LabDisplayItem; sprite: string; style: SpriteArtStyle } | null>(null);
   const [artworkStatus, setArtworkStatus] = useState(artworkQueueStatus);
   useEffect(() => {
@@ -125,7 +125,7 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
   useEffect(() => {
     let disposed = false;
     const refresh = () => {
-      if (selected?.type === 'oddkin' || selected?.sharedSprite) {
+      if (!selected || selected.type === 'oddkin' || selected.sharedSprite) {
         setSavedPreview(false);
         setPreviewChecked(true);
         return;
@@ -139,7 +139,7 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
     refresh();
     const onSprite = (event: Event) => {
       const key = (event as CustomEvent<string>).detail;
-      if (selected?.type !== 'oddkin' && key === spriteVariantKey(selected.name)) refresh();
+      if (selected && selected.type !== 'oddkin' && key === spriteVariantKey(selected.name)) refresh();
     };
     window.addEventListener('oddkin-emoji-retry', onSprite);
     window.addEventListener(PROFILE_SPRITES_UPDATED, refresh);
@@ -150,8 +150,8 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
     };
   }, [selected?.catalogKey, selected?.name, selected?.type, selected?.sharedSprite]);
 
-  const previewQueued = selected?.type !== 'oddkin' && artworkQueueEntries()
-    .some(item => !item.shiny && item.name.toLowerCase() === selected.name.toLowerCase());
+  const previewQueued = Boolean(selected && selected.type !== 'oddkin' && artworkQueueEntries()
+    .some(item => !item.shiny && item.name.toLowerCase() === selected.name.toLowerCase()));
   const previewLabel = selected?.sharedSprite
     ? 'SAVED SPRITE'
     : selected?.type === 'oddkin'
@@ -341,7 +341,7 @@ export function SpriteLabModal({ onClose, embedded = false }: { onClose?: () => 
               <p className="boop-library-caption">Uploads and rerolls save as you go. Open your profile to manage cloud backups.</p>
               {status && <div className="boop-notice" role="status" aria-live="polite">{status}</div>}
               {embedded && <button className="boop-primary boop-explore" onClick={() => setActiveTab('archive')}>View collection →</button>}
-            </> : <div className="boop-empty"><ImagePlus size={36} /><h2>Your art starts here.</h2><p>Craft a discovery, then give it your own sprite.</p></div>}
+            </> : <div className="boop-empty"><ImagePlus size={36} /><h2>{catalog.length?'No matching sprite':'Your art starts here.'}</h2><p>{catalog.length?'Try another search or filter. Your collection is unchanged.':'Craft a discovery, then give it your own sprite.'}</p></div>}
           </aside>
           <div className="boop-sprite-picker">
             <div className="boop-section-heading"><h2>Choose a discovery</h2><small>{items.length} unique discoveries · {catalog.length} total</small></div>

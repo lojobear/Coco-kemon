@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildSpritePrompt } from '../server/emoji.js';
 import { compactSchnellImagePrompt } from '../server/gemini.js';
-import { SPRITE_ART_STYLES, isSpriteArtStyle, isPixelSpriteStyle, spriteStyleSize, readPromptArtStyle, type SpriteArtStyle } from '../src/lib/spriteArtStyles.js';
+import { SPRITE_ART_STYLES, DEFAULT_SPRITE_ART_STYLE, isSpriteArtStyle, isPixelSpriteStyle, spriteStyleSize, readPromptArtStyle, type SpriteArtStyle } from '../src/lib/spriteArtStyles.js';
 test('explicit styles keep subject and survive compact fallback', () => {
   for (const style of Object.keys(SPRITE_ART_STYLES) as SpriteArtStyle[]) {
     const prompt = buildSpritePrompt('Treasure Chest', 'style-test', false, style);
@@ -17,8 +17,13 @@ test('explicit styles keep subject and survive compact fallback', () => {
     }
   }
 });
-test('default generation stays classic and unknown styles are rejected', () => {
-  assert.equal(buildSpritePrompt('Water'), buildSpritePrompt('Water', '', false, 'classic'));
+test('default generation uses Tactical Isometric and unknown styles are rejected', () => {
+  assert.equal(DEFAULT_SPRITE_ART_STYLE,'tactics');
+  assert.equal(buildSpritePrompt('Water'), buildSpritePrompt('Water', '', false, 'tactics'));
+  assert.equal(readPromptArtStyle(buildSpritePrompt('Water')),'tactics');
+  assert.equal(readPromptArtStyle(buildSpritePrompt('Water','',true)),'tactics');
+  assert.ok(compactSchnellImagePrompt(buildSpritePrompt('Water')).includes(SPRITE_ART_STYLES.tactics.prompt));
+  assert.equal(spriteStyleSize(DEFAULT_SPRITE_ART_STYLE),128);
   assert.equal(isSpriteArtStyle('glossy'), false);
   assert.equal(isSpriteArtStyle('porcelain'), true);
   assert.equal(Object.keys(SPRITE_ART_STYLES).length,19);
