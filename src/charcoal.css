@@ -66,3 +66,4 @@ html,body,#root {background:#15171b;color:#f0f1f5;}
 #boop-app[data-palette="charcoal"] .boop-profile-progress-track i {background:#8de4b9!important;}
 #boop-app[data-palette="charcoal"] :is(.boop-collected-count,.kitchen-view span,.kitchen-empty) {color:var(--boop-muted)!important;}
 #boop-app[data-palette="charcoal"] .boop-missing-stats span {color:var(--boop-muted)!important;}
+#boop-app[data-palette="charcoal"] .boop-board-more-label {color:var(--boop-muted)!important;}
