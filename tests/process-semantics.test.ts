@@ -87,3 +87,22 @@ test('Gemini rejects a weak process response and uses the existing fallback with
     if(fallback===undefined)delete process.env.GEMINI_FALLBACK_MODEL;else process.env.GEMINI_FALLBACK_MODEL=fallback;
   }
 });
+
+test('primary synthesis has room for a complete material and its ingredient check', async () => {
+  const previousFetch=globalThis.fetch, previousKey=process.env.GROQ_API_KEY;
+  process.env.GROQ_API_KEY='test-only';let calls=0;
+  globalThis.fetch=async (_url:any,options:any)=>{
+    calls++;const body=JSON.parse(options.body);
+    assert.equal(body.max_completion_tokens,2200);
+    assert.ok(body.messages.some((m:any)=>m.content.includes('PROCESS CONTRACT DATA:')));
+    return new Response(JSON.stringify({choices:[{message:{content:JSON.stringify(response())}}]}),{status:200});
+  };
+  try {
+    const raw=await callGeminiStructured(prompt);
+    assert.equal(JSON.parse(raw).material.displayName,'Chocolate Ice Cream');
+    assert.equal(calls,1);
+  } finally {
+    globalThis.fetch=previousFetch;
+    if(previousKey===undefined)delete process.env.GROQ_API_KEY;else process.env.GROQ_API_KEY=previousKey;
+  }
+});
