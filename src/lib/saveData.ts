@@ -1,3 +1,5 @@
+import { emptyPersonalRooms, validPersonalRooms, sanitizePersonalRooms, type PersonalRooms } from './personalRoom';
+import { emptyOrderProgress, orderReputation } from './orderProgress';
 import { applyOrderDelivery, applyBoardDecoration } from './boopOrders';
 import type { Decoration } from './orderProgress';
 import { initialSavedBoards, parseSavedBoards, type SavedBoards } from './savedBoards';
@@ -164,6 +166,7 @@ function validateLocalEnvelope(v:any):void{
  if(!record(v)||![2,SAVE_FORMAT_VERSION].includes(v.version)||!validateCraft(v.crafting)||(v.foundry!==null&&!validateFoundry(v.foundry)))throw new Error('Invalid saved data');
  if(v.version===3&&!validEconomy(v.economy))throw new Error('Invalid wallet data');
  if('savedBoards' in v&&!parseSavedBoards(v.savedBoards,v.crafting))throw new Error('Invalid saved boards');
+ if('personalRooms' in v&&!validPersonalRooms(v.personalRooms))throw new Error('Invalid personal rooms');
 }
 function markDatabaseSave(savedAt:number){
  try{localStorage.setItem(SAVE_KEY,JSON.stringify({version:LOCAL_DATABASE_MARKER_VERSION,savedAt,encoding:LOCAL_DATABASE_ENCODING}));}catch{/* Database is authoritative even if localStorage is blocked. */}
@@ -313,7 +316,7 @@ export function readCraftElements(): InfiniteElement[] {
     return craftMemory = mergeFoundryIntoCraft(v, storedEnvelope()?.foundry);
   } catch (error) { recoveryRequired = true; status(error instanceof NewerSaveError ? error.message : 'Crafting save could not be loaded. Import a valid backup to recover.'); return STARTER_ELEMENTS; }
 }
-function write(foundry: any, crafting: InfiniteElement[], force = false, collectorRoom?: TrophyRoom, boardLayout?: SavedBoardTile[] | null, economy?: Economy, savedBoards?: SavedBoards, notify = true) {
+function write(foundry: any, crafting: InfiniteElement[], force = false, collectorRoom?: TrophyRoom, boardLayout?: SavedBoardTile[] | null, economy?: Economy, savedBoards?: SavedBoards, notify = true, personalRooms?: PersonalRooms) {
   // Deployment guard first: never let an older build overwrite a save written
   // by a newer one, even if the envelope is otherwise unreadable here. This
   // runs before any setItem and before the stale-tab check.
@@ -344,6 +347,7 @@ function write(foundry: any, crafting: InfiniteElement[], force = false, collect
     economy: economy ?? storedEnvelope()?.economy ?? emptyEconomy(),
     collectorRoom: sanitizeTrophyRoom(previousRoom, unifiedCrafting),
     boardLayout: boardLayout ?? loadBoardLayout(crafting) ?? [],
+    personalRooms: sanitizePersonalRooms(personalRooms??storedEnvelope()?.personalRooms,unifiedCrafting,orderReputation((economy??storedEnvelope()?.economy)?.orders??emptyOrderProgress())),
     ...(savedBoards||storedEnvelope()?.savedBoards?{savedBoards:parseSavedBoards(savedBoards??storedEnvelope()?.savedBoards,unifiedCrafting)}:{}) };
   if(localDatabase){
     if(databaseExclusive)throw new Error('A device save import or sale is being committed.');
@@ -447,7 +451,7 @@ export function saveCollectorRoom(room: TrophyRoom): void {
 }
 export function exportCompleteSave(foundry: any): string {
   return JSON.stringify({ version: SAVE_FORMAT_VERSION, economy: readEconomy(), exportedAt: new Date().toISOString(), foundry,
-    crafting: readCraftElements(), collectorRoom: readCollectorRoom(),
+    crafting: readCraftElements(), collectorRoom: readCollectorRoom(), personalRooms: readPersonalRooms(),
     boardLayout: loadBoardLayout(readCraftElements()) ?? [],
     ...(readSavedBoards()?{savedBoards:readSavedBoards()}:{}) }, null, 2);
 }
@@ -461,7 +465,8 @@ export function parseSave(json: string) {
   if (v.version === 3 && !validEconomy(v.economy)) throw new Error('Invalid wallet data');
   const savedBoards='savedBoards' in v?parseSavedBoards(v.savedBoards,crafting):null;
   if('savedBoards' in v&&!savedBoards)throw new Error('Invalid saved boards');
-  return { savedBoards, foundry, crafting, economy: v.version === 3 ? v.economy as Economy : v.version === 1 ? readEconomy() : emptyEconomy(),
+  if('personalRooms' in v&&!validPersonalRooms(v.personalRooms))throw new Error('Invalid personal rooms');
+  return { personalRooms:sanitizePersonalRooms(v.personalRooms,crafting,orderReputation(v.economy?.orders??emptyOrderProgress())), savedBoards, foundry, crafting, economy: v.version === 3 ? v.economy as Economy : v.version === 1 ? readEconomy() : emptyEconomy(),
     collectorRoom: sanitizeTrophyRoom(v.version >= 2 ? v.collectorRoom : null, crafting),
     boardLayout: savedBoards?savedBoards.boards.find(b=>b.id===savedBoards.activeId)!.tiles:v.version >= 2 && 'boardLayout' in v
       ? parseBoardLayout(v.boardLayout, crafting) : null };
@@ -470,7 +475,7 @@ export function importCompleteSave(json: string) {
   const parsed = parseSave(json);
   queuedCraftWrite = null;
   cancelCraftWriteTimer();
-  write(parsed.foundry, parsed.crafting, true, parsed.collectorRoom, parsed.boardLayout, parsed.economy,parsed.savedBoards??initialSavedBoards(parsed.boardLayout??[]));
+  write(parsed.foundry, parsed.crafting, true, parsed.collectorRoom, parsed.boardLayout, parsed.economy,parsed.savedBoards??initialSavedBoards(parsed.boardLayout??[]),true,parsed.personalRooms);
   if (parsed.boardLayout !== null) saveBoardLayout(parsed.boardLayout);
   recoveryRequired = false;
   craftMemory = mergeFoundryIntoCraft(parsed.crafting, parsed.foundry);
@@ -485,7 +490,7 @@ export async function importCompleteSaveDurably(json:string){
  await waitForLocalSave();
  const savedAt=Math.max(Date.now(),(lastSeenSavedAt??0)+1);
  const crafting=mergeFoundryIntoCraft(parsed.crafting,parsed.foundry);
- const envelope={version:SAVE_FORMAT_VERSION,savedAt,foundry:parsed.foundry,crafting,economy:parsed.economy,collectorRoom:parsed.collectorRoom,boardLayout:parsed.boardLayout??[],savedBoards:parsed.savedBoards??initialSavedBoards(parsed.boardLayout??[])};
+ const envelope={version:SAVE_FORMAT_VERSION,savedAt,foundry:parsed.foundry,crafting,economy:parsed.economy,collectorRoom:parsed.collectorRoom,personalRooms:parsed.personalRooms,boardLayout:parsed.boardLayout??[],savedBoards:parsed.savedBoards??initialSavedBoards(parsed.boardLayout??[])};
  await commitExclusive(envelope,()=>{
   queuedCraftWrite=null;cancelCraftWriteTimer();recoveryRequired=false;
   if(parsed.boardLayout!==null)saveBoardLayout(parsed.boardLayout);
@@ -572,4 +577,20 @@ export async function commitOrderAction(action:{ticket:string;name:string}|{deco
   write(foundry,crafting,false,undefined,undefined,result.economy);
  }
  return result;
+}
+
+/** Room changes announce success only after the same durable commit used by boards/orders. */
+export function readPersonalRooms():PersonalRooms {
+ try{const e=storedEnvelope();return sanitizePersonalRooms(e?.personalRooms,readCraftElements(),orderReputation(e?.economy?.orders??emptyOrderProgress()));}
+ catch{return emptyPersonalRooms();}
+}
+export async function commitPersonalRooms(rooms:PersonalRooms):Promise<void>{
+ await waitForLocalSave();
+ if(recoveryRequired||getSaveError())throw new Error('Save your progress successfully before changing your room.');
+ if(!validPersonalRooms(rooms))throw new Error('Invalid room layout.');
+ const crafting=readCraftElements(),e=storedEnvelope();
+ const checked=sanitizePersonalRooms(rooms,crafting,orderReputation(e?.economy?.orders??emptyOrderProgress()));
+ if(JSON.stringify(checked)!==JSON.stringify(rooms))throw new Error('A room piece is not in your collection or is still locked.');
+ if(localDatabase)await commitExclusive({...e,savedAt:Math.max(Date.now(),(lastSeenSavedAt??0)+1),personalRooms:checked},()=>{});
+ else write(e?.foundry??null,crafting,false,undefined,undefined,undefined,undefined,true,checked);
 }

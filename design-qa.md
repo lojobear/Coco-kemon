@@ -66,3 +66,15 @@ User feedback supersedes the original mock's large sprite scale. Craft sprites n
 Browser checks: 320/390/412 CSS widths, including a Pixel 9-like 412 × 867 viewport at density 2.625, Android WebView user agent, touch input, and label sizes 14px/20px. Fixtures include Time Machine, Potion of Invisibility, Interdimensional Jellyfish, and a long unbroken word. All names stay within their buttons without horizontal or vertical clipping; touch selection and the Combine action work. Evidence: `docs/design/pixel9-compact-labels.jpg`. These are browser simulations, not physical-device verification.
 
 final result: passed
+
+## Isometric personal rooms — November 20, 2026
+
+final result: passed
+
+Approved source: `docs/design/room-reference.png`. Browser implementation: `docs/design/room-phone.png` at 412 × 915 and `docs/design/room-desktop.png` at 1440 × 1024. The phone source and implementation were inspected together in `docs/design/room-comparison.png`, with a saved room, charcoal palette, Water on a display stand, and Fire/Earth/Wind in the display and shelves. The source is sample content; implementation uses real owned starter art. Reputation is the real fresh-account value (0), rather than the concept's sample 12.
+
+The first browser comparison found two P2 issues: global charcoal button styles painted rectangles behind placed sprites, and mobile room controls occupied an unnecessary second row. Scoped theme overrides restore transparent art and blue primary actions, and room selection/new-room now share one row. A later capture found decoration PNG padding made props float; explicit per-asset foot anchors now align props to their floor cells in both live rendering and exported images. The final captures were repeated after these fixes and show no remaining P0/P1/P2 findings.
+
+The app retains its existing header/navigation and a Profile → My room entry, so the scene starts lower than the isolated concept. Three saved rooms, naming, cancellation, deletion, shelf/display placement, and keyboard-accessible position/size controls are production additions. The charcoal palette, strong heading, blue/mint accents, isometric scene, collected sprites, favorites, and reputation sidebar follow the approved direction. Furniture in the room backdrop is fixed; displayed discoveries and the three separate decoration assets are editable. This is implemented in the app, not a completed native Figma file.
+
+Browser checks pass at 320, 412 and 1440 pixels: tap placement, desktop dragging, shelf placement, size/nickname/flip persistence, locked decorations, independent rooms, the three-room limit, delete/cancel/save, navigation, reload, PNG export, and full backup restoration. No horizontal overflow or page exceptions. Android export bridge dispatch was checked with BoopAndroid/4; a physical-device file picker has not been tested. Durable-save tests cover failed commits retaining the last saved layout, imports rejecting malformed layouts, reputation/ownership filtering, and crafting preserving rooms without consuming inventory. TypeScript, the full suite (342 passing, 2 skipped), production build, and Cloudflare runtime check pass.

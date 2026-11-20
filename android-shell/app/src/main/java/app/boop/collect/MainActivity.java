@@ -84,6 +84,8 @@ public final class MainActivity extends Activity {
     private static final int FILE_CHOOSE_CODE = 4312;
     private static final int PROFILE_EXPORT_CODE = 4313;
     private String pendingProfileReport;
+    private static final int ROOM_EXPORT_CODE = 4314;
+    private byte[] pendingRoomImage;
     private String pendingOAuthCode;
     private long lastBackMillis = 0L;
 
@@ -259,7 +261,7 @@ public final class MainActivity extends Activity {
         settings.setAllowContentAccess(false);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
         settings.setMediaPlaybackRequiresUserGesture(false);
-        settings.setUserAgentString(settings.getUserAgentString() + " BoopAndroid/3");
+        settings.setUserAgentString(settings.getUserAgentString() + " BoopAndroid/4");
         CookieManager.getInstance().setAcceptCookie(true);
         CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true);
 
@@ -375,6 +377,22 @@ public final class MainActivity extends Activity {
                     pendingProfileReport = null;
                     Toast.makeText(this, "Could not open the save-file picker", Toast.LENGTH_LONG).show();
                 }
+            } else if ("exportRoomImage".equals(type)) {
+                String url = data.optString("url", "");
+                String prefix = "data:image/png;base64,";
+                if (pendingRoomImage != null || !url.startsWith(prefix) || url.length() > 12000000) return;
+                byte[] png = android.util.Base64.decode(url.substring(prefix.length()), android.util.Base64.DEFAULT);
+                if (png.length < 8 || png[0] != (byte)137 || png[1] != 80 || png[2] != 78 || png[3] != 71) return;
+                Intent save = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+                save.addCategory(Intent.CATEGORY_OPENABLE);
+                save.setType("image/png");
+                save.putExtra(Intent.EXTRA_TITLE, "boop-room.png");
+                pendingRoomImage = png;
+                try { startActivityForResult(save, ROOM_EXPORT_CODE); }
+                catch (Exception error) {
+                    pendingRoomImage = null;
+                    Toast.makeText(this, "Could not open the image save picker", Toast.LENGTH_LONG).show();
+                }
             } else if ("oauth".equals(type)) {
                 Uri url = Uri.parse(data.optString("url", ""));
                 // Supabase project's own OAuth initiation endpoint only.
@@ -444,6 +462,20 @@ public final class MainActivity extends Activity {
 
     @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == ROOM_EXPORT_CODE) {
+            byte[] image = pendingRoomImage;
+            pendingRoomImage = null;
+            if (resultCode == RESULT_OK && data != null && data.getData() != null && image != null) {
+                try (OutputStream output = getContentResolver().openOutputStream(data.getData(), "wt")) {
+                    if (output == null) throw new IOException("No output stream");
+                    output.write(image);
+                    Toast.makeText(this, "Room image saved", Toast.LENGTH_SHORT).show();
+                } catch (Exception error) {
+                    Toast.makeText(this, "Could not save the image. Please try again.", Toast.LENGTH_LONG).show();
+                }
+            }
+            return;
+        }
         if (requestCode == PROFILE_EXPORT_CODE) {
             String report = pendingProfileReport;
             pendingProfileReport = null;
