@@ -1,0 +1,41 @@
+import {chromium} from 'playwright';
+import assert from 'node:assert/strict';
+import {mkdir} from 'node:fs/promises';
+const output=process.env.BOOP_AUDIT_OUTPUT||'/tmp/boop-orders';await mkdir(output,{recursive:true});
+const browser=await chromium.launch({...(process.env.CHROMIUM_PATH?{executablePath:process.env.CHROMIUM_PATH}:{}),headless:true,args:['--no-sandbox']});
+try{for(const width of [320,412,1440]){
+ const page=await browser.newPage({viewport:{width,height:950}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.route('**/api/element-emoji**',route=>route.abort());
+ await page.addInitScript(()=>{
+  const canvas=document.createElement('canvas');canvas.width=32;canvas.height=32;const ctx=canvas.getContext('2d');ctx.fillStyle='#5577ee';ctx.fillRect(4,4,24,24);const art=canvas.toDataURL();
+  const crafting=['Steam','Sand','Storm Wren'].map(name=>({id:name.toLowerCase().replaceAll(' ','-'),name,emoji:'✨',customSpriteUrl:art,craftCount:3,copyCounts:{normal:3,shiny:0,holo:0,celestial:0,glitch:0},discoveredAt:10}));
+  localStorage.setItem('coco_kemon_save_v2',JSON.stringify({version:3,savedAt:1,foundry:{materials:[],oddkinCollection:[],processes:[],experiments:[],habitats:[]},crafting,economy:{version:1,coins:10,sold:{}}}));
+ });
+ await page.goto(process.env.BOOP_BASE_URL||'http://127.0.0.1:3000',{waitUntil:'networkidle'});
+ const trigger=page.locator('.boop-orders-trigger');await trigger.waitFor();await page.waitForFunction(()=>document.querySelector('.boop-orders-trigger')?.textContent.includes('3 ready to deliver'));
+ await trigger.click();const dialog=page.getByRole('dialog',{name:'Boop Orders',exact:true});await dialog.waitFor();
+ assert.equal(await dialog.locator('.boop-order-card').count(),3);
+ const bounds=await dialog.boundingBox();assert.ok(bounds.x>=0&&bounds.x+bounds.width<=width+1);
+ await page.screenshot({path:`${output}/orders-entry-${width}.png`});
+ await dialog.locator('.boop-order-card').filter({hasText:'Sleepy astronaut'}).getByRole('button',{name:'Deliver copy',exact:true}).click();
+ await page.waitForFunction(()=>document.querySelector('.boop-orders-success')?.textContent.includes('Delivered Steam:'));
+ assert.equal(await dialog.locator('.boop-order-card').filter({hasText:'Sleepy astronaut'}).count(),0);
+ assert.ok(await dialog.getByRole('heading',{name:'Pond keeper',exact:true}).isVisible());
+ assert.ok(await dialog.getByRole('heading',{name:'Glassblower',exact:true}).isVisible());
+ const pond=dialog.locator('.boop-order-card').filter({hasText:'Pond keeper'});await pond.locator('summary').click();assert.match(await pond.innerText(),/Water \+ Water → Lake/);
+ await dialog.locator('.boop-order-card').filter({hasText:'Storm ranger'}).getByRole('button',{name:'Deliver copy',exact:true}).click();
+ await page.waitForFunction(()=>document.querySelector('.boop-orders-success')?.textContent.includes('Delivered Storm Wren:'));
+ assert.match(await dialog.locator('.boop-orders-balance').innerText(),/4 reputation/);
+ await dialog.getByRole('button',{name:'Starfield',exact:true}).click();await page.waitForFunction(()=>document.querySelector('.boop-orders-success')?.textContent==='Board decoration equipped.');
+ await page.screenshot({path:`${output}/orders-${width}.png`});
+ await page.keyboard.press('Escape');await dialog.waitFor({state:'hidden'});assert.equal(await page.locator('.boop-board-layout').getAttribute('data-decoration'),'stars');
+ assert.notEqual(await page.locator('.boop-board-world').evaluate(e=>getComputedStyle(e).backgroundImage),'none');
+ await page.reload({waitUntil:'networkidle'});await trigger.waitFor();assert.equal(await page.locator('.boop-board-layout').getAttribute('data-decoration'),'stars');
+ await trigger.click();await dialog.waitFor();assert.match(await dialog.locator('.boop-orders-balance').innerText(),/4 reputation/);
+ await page.evaluate(()=>window.dispatchEvent(new Event('boop-native-back')));await dialog.waitFor({state:'hidden'});
+ const state=await page.evaluate(()=>new Promise((resolve,reject)=>{const request=indexedDB.open('boop-game-progress');request.onerror=()=>reject(request.error);request.onsuccess=()=>{const db=request.result;const read=db.transaction('saves','readonly').objectStore('saves').get('current');read.onsuccess=()=>{resolve(read.result.envelope);db.close();};read.onerror=()=>reject(read.error);};}));
+ assert.equal(state.economy.orders.delivered.steam,1);assert.equal(state.economy.orders.delivered['storm wren'],1);assert.ok(state.economy.coins>10);
+ const steam=state.crafting.find(item=>item.name==='Steam');assert.equal(steam.craftCount,3);assert.equal(steam.copyCounts.normal,3);assert.ok(steam.customSpriteUrl.startsWith('data:image/png'));
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false);assert.deepEqual(errors,[]);
+ console.log(`${width}px: three orders, delivery/replacement, reputation, recipe clues, cosmetic equip, reload, native back and saved artwork passed`);await page.close();
+}}finally{await browser.close();}

@@ -1,3 +1,5 @@
+import { applyOrderDelivery, applyBoardDecoration } from './boopOrders';
+import type { Decoration } from './orderProgress';
 import { initialSavedBoards, parseSavedBoards, type SavedBoards } from './savedBoards';
 import { openLocalSaveDatabase, LocalSaveConflict, LOCAL_DATABASE_MARKER_VERSION, LOCAL_DATABASE_ENCODING, type LocalSaveDatabase } from './localSaveDatabase';
 import { encodeCompressedLocalSave, decodeCompressedLocalSave, isCompressedLocalSave, COMPRESSED_LOCAL_VERSION, COMPRESSED_LOCAL_ENCODING } from './compressedLocalSave';
@@ -554,4 +556,20 @@ export async function commitSavedBoards(boards:SavedBoards):Promise<void>{
   if(!localDatabase){saveSavedBoards(parsed);saveBoardLayout(active.tiles);return;}
   const envelope={...storedEnvelope(),savedAt:Math.max(Date.now(),(lastSeenSavedAt??0)+1),savedBoards:parsed,boardLayout:active.tiles};
   await commitExclusive(envelope,()=>{saveBoardLayout(active.tiles);});
+}
+
+/** Orders and cosmetics share wallet's durable, revision-checked commit boundary. */
+export async function commitOrderAction(action:{ticket:string;name:string}|{decoration:Decoration}){
+ await waitForLocalSave();
+ if(recoveryRequired||getSaveError())throw new Error('Save your progress successfully before changing orders.');
+ const envelope=storedEnvelope(),crafting=readCraftElements(),economy=envelope?.economy??emptyEconomy();
+ const result='ticket' in action ? applyOrderDelivery(economy,crafting,action.ticket,action.name) : {economy:applyBoardDecoration(economy,action.decoration)};
+ if(localDatabase){
+  await commitExclusive({...envelope,savedAt:Math.max(Date.now(),(lastSeenSavedAt??0)+1),crafting,economy:result.economy},()=>{});
+ }else{
+  if(getLocalSavePending())throw new Error('Save your current progress first.');
+  const foundry=envelope?envelope.foundry:JSON.parse(localStorage.getItem(LEGACY_FOUNDRY)||'null');
+  write(foundry,crafting,false,undefined,undefined,result.economy);
+ }
+ return result;
 }
