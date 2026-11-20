@@ -23,3 +23,14 @@
 .boop-order-card summary::after{content:'＋';margin-left:auto;color:var(--boop-muted);}.boop-order-card details[open]>summary::after{content:'−';}
 #boop-app[data-palette="charcoal"] .boop-orders-success{color:#8de4b9!important;}
 @media(max-width:699px){.boop-orders-heading{top:-16px;}}
+
+.boop-orders-mobile-count{display:none;}
+@media(max-width:699px){
+ .boop-toybox .craft-compact-header{flex-wrap:nowrap;gap:8px;align-items:center;}
+ .boop-toybox .craft-compact-header h1{flex:none;}
+ #boop-app .craft-compact-header .craft-boards-trigger{max-width:120px;min-width:0;flex:1;margin-left:auto;padding:8px;font-size:11px;}
+ #boop-app .boop-orders-trigger{width:auto;gap:5px;padding:8px;}
+ .boop-orders-trigger>span{display:none;}
+ .boop-orders-trigger>.boop-orders-mobile-count{display:inline;margin:0;color:#8de4b9;}
+ .boop-orders-trigger>.boop-orders-mobile-count:empty{display:none;}
+}

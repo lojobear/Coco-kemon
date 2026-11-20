@@ -26,6 +26,7 @@ try{for(const width of [320,412,1440]){
  await dialog.locator('.boop-order-card').filter({hasText:'Storm ranger'}).getByRole('button',{name:'Deliver copy',exact:true}).click();
  await page.waitForFunction(()=>document.querySelector('.boop-orders-success')?.textContent.includes('Delivered Storm Wren:'));
  assert.match(await dialog.locator('.boop-orders-balance').innerText(),/4 reputation/);
+ const rewardBounds=await dialog.locator('.boop-orders-success').boundingBox(),dialogBounds=await dialog.boundingBox();assert.ok(rewardBounds.y>=dialogBounds.y&&rewardBounds.y+rewardBounds.height<=dialogBounds.y+dialogBounds.height,'confirmed delivery reward should be visible');
  await dialog.getByRole('button',{name:'Starfield',exact:true}).click();await page.waitForFunction(()=>document.querySelector('.boop-orders-success')?.textContent==='Board decoration equipped.');
  await page.screenshot({path:`${output}/orders-${width}.png`});
  await page.keyboard.press('Escape');await dialog.waitFor({state:'hidden'});assert.equal(await page.locator('.boop-board-layout').getAttribute('data-decoration'),'stars');

@@ -35,12 +35,18 @@ export const BoopOrders=memo(function BoopOrders({state,blocked=false}:{state:Sn
  const next=DECORATIONS.find(decoration=>decoration.reputation>reputation);
  const change=async(action:Parameters<typeof commitOrderAction>[0])=>{
   if(busy)return;setBusy(true);setError('');setMessage('');
-  try{const result=await commitOrderAction(action);if('reward' in result)setMessage(`Delivered ${result.item}: +${result.reward.toLocaleString()} coins, +${result.order.reputation} reputation.${result.unlocked.length?' Unlocked '+result.unlocked.map(d=>d.name).join(', ')+'.':''} A new order is ready.`);else setMessage('Board decoration equipped.');}
+  try{
+   const result=await commitOrderAction(action);
+   if('reward' in result){
+    setMessage(`Delivered ${result.item}: +${result.reward.toLocaleString()} coins, +${result.order.reputation} reputation.${result.unlocked.length?' Unlocked '+result.unlocked.map(d=>d.name).join(', ')+'.':''} A new order is ready.`);
+    dialog.current?.scrollTo({top:0});
+   }else setMessage('Board decoration equipped.');
+  }
   catch(error){setError(error instanceof Error?error.message:'Your order could not be saved. Please retry.');}
   finally{setBusy(false);}
  };
  return <div className="boop-orders-entry">
-  <button type="button" className="boop-orders-trigger" aria-haspopup="dialog" disabled={blocked} onClick={()=>dialog.current?.showModal()}><Gift size={18}/><strong>Boop Orders</strong><span>{ready?`${ready} ready to deliver`:'3 requests waiting'}</span><span className="boop-orders-reputation"><Star size={14}/>{reputation}</span></button>
+  <button type="button" className="boop-orders-trigger" aria-label={`Boop Orders, ${ready} ready to deliver, ${reputation} reputation`} aria-haspopup="dialog" disabled={blocked} onClick={()=>dialog.current?.showModal()}><Gift size={18}/><strong>Orders</strong><span className="boop-orders-mobile-count" aria-hidden="true">{ready||''}</span><span>{ready?`${ready} ready to deliver`:'3 requests waiting'}</span><span className="boop-orders-reputation"><Star size={14}/>{reputation}</span></button>
   <dialog ref={dialog} className="boop-orders-dialog" aria-labelledby="boop-orders-title" onCancel={event=>{if(busy)event.preventDefault();}}>
    <header className="boop-orders-heading"><div><h2 id="boop-orders-title">Boop Orders</h2><p>Craft, deliver, earn. No deadlines—your customers will wait.</p></div><button type="button" disabled={busy} autoFocus aria-label="Close Boop Orders" onClick={()=>dialog.current?.close()}><X size={20}/></button></header>
    <div className="boop-orders-balance"><span>★ {reputation} reputation</span><span>{state.wallet.coins.toLocaleString()} Boop Coins</span></div>

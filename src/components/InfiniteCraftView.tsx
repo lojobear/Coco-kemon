@@ -1131,9 +1131,8 @@ export function InfiniteCraftView() {
     <CraftSprites.Provider value={customSprites}>
     <div className="boop-craft-studio toybox-studio">
       <header className="toybox-intro craft-compact-header">
-        <h1>Craft</h1><button type="button" className="craft-boards-trigger" disabled={isSynthesizing||foundryBusy} onClick={()=>setShowBoards(true)} aria-label="Manage saved boards">Boards: {boards.boards.find(b=>b.id===boards.activeId)?.name}</button><p>{activeProcedure?.id==='MIX'?'Tap two elements, then Combine.':'Tap one or two elements, then Apply.'}</p>
+        <h1>Craft</h1><button type="button" className="craft-boards-trigger" disabled={isSynthesizing||foundryBusy} onClick={()=>setShowBoards(true)} aria-label="Manage saved boards">Boards: {boards.boards.find(b=>b.id===boards.activeId)?.name}</button><BoopOrders state={orderState} blocked={isSynthesizing||foundryBusy}/><p>{activeProcedure?.id==='MIX'?'Tap two elements, then Combine.':'Tap one or two elements, then Apply.'}</p>
       </header>
-      <BoopOrders state={orderState} blocked={isSynthesizing||foundryBusy}/>
       <section className="boop-board-layout" data-decoration={orderState.wallet.orders?.decoration??'plain'} aria-label="Discover crafting board">
         <header className="boop-board-toolbar boop-board-toolbar--quiet">
           <div className="boop-board-heading sr-only"><strong>Craft</strong><small>Pick two elements, or drag one onto another.</small></div>
