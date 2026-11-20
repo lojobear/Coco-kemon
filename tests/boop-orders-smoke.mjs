@@ -1,3 +1,4 @@
+function craftEntryURL(value){const url=new URL(value);url.searchParams.set('view','craft');return url.href;}
 import {chromium} from 'playwright';
 import assert from 'node:assert/strict';
 import {mkdir} from 'node:fs/promises';
@@ -11,7 +12,7 @@ try{for(const width of [320,412,1440]){
   const crafting=['Steam','Sand','Storm Wren'].map(name=>({id:name.toLowerCase().replaceAll(' ','-'),name,emoji:'✨',customSpriteUrl:art,craftCount:3,copyCounts:{normal:3,shiny:0,holo:0,celestial:0,glitch:0},discoveredAt:10}));
   localStorage.setItem('coco_kemon_save_v2',JSON.stringify({version:3,savedAt:1,foundry:{materials:[],oddkinCollection:[],processes:[],experiments:[],habitats:[]},crafting,economy:{version:1,coins:10,sold:{}}}));
  });
- await page.goto(process.env.BOOP_BASE_URL||'http://127.0.0.1:3000',{waitUntil:'networkidle'});
+ await page.goto(craftEntryURL(process.env.BOOP_BASE_URL||'http://127.0.0.1:3000'),{waitUntil:'networkidle'});
  const trigger=page.locator('.boop-orders-trigger');await trigger.waitFor();await page.waitForFunction(()=>document.querySelector('.boop-orders-trigger')?.textContent.includes('3 ready to deliver'));
  await trigger.click();const dialog=page.getByRole('dialog',{name:'Boop Orders',exact:true});await dialog.waitFor();
  assert.equal(await dialog.locator('.boop-order-card').count(),3);

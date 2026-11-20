@@ -1,3 +1,4 @@
+function craftEntryURL(value){const url=new URL(value);url.searchParams.set('view','craft');return url.href;}
 import { chromium } from 'playwright';
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
@@ -16,7 +17,7 @@ try{
     localStorage.setItem('coco_kemon_save_v2',JSON.stringify({version:3,savedAt:1,foundry:{materials:[],oddkinCollection:[],processes:[],experiments:[],habitats:[]},crafting,economy:{version:1,coins:0,sold:{}},boardLayout}));
     localStorage.setItem('boop-craft-board-v1',JSON.stringify(boardLayout));
    },{names});
-   await page.goto(`${base}/?boop_android=1&boop_web_chrome=1`,{waitUntil:'networkidle'});
+   await page.goto(craftEntryURL(`${base}/?boop_android=1&boop_web_chrome=1`),{waitUntil:'networkidle'});
    await page.getByRole('button',{name:`Select ${names[0]} to combine`,exact:true}).waitFor();
    await page.addStyleTag({content:`.boop-toybox.boop-app .boop-tile-select > span:last-child {font-size:${fontSize}px!important}`});
    const labels=await page.locator('.boop-tile-select > span:last-child').evaluateAll(es=>es.map(e=>{const r=e.getBoundingClientRect(),b=e.closest('button').getBoundingClientRect();return{text:e.textContent,scrollWidth:e.scrollWidth,width:e.clientWidth,scrollHeight:e.scrollHeight,height:e.clientHeight,left:r.left,right:r.right,top:r.top,bottom:r.bottom,button:b.toJSON()};}));

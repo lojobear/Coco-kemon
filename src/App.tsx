@@ -29,6 +29,7 @@ const SpriteLabModal = lazy(() => loadSpriteLabModal().then(module => ({ default
 const NotebookView = lazy(() => loadNotebookView().then(module => ({ default: module.NotebookView })));
 const SeedsModal = lazy(() => loadSeedsModal().then(module => ({ default: module.SeedsModal })));
 const VoiceLabModal = lazy(() => loadVoiceLabModal().then(module => ({ default: module.VoiceLabModal })));
+const PersonalRoom = lazy(() => import('./components/PersonalRoom').then(module => ({default:module.PersonalRoom})));
 const PlayerProfile = lazy(() => import('./components/PlayerProfile').then(module => ({ default: module.PlayerProfile })));
 import { SAVE_STATUS_EVENT, getSaveError, getLocalSavePending, waitForLocalSave } from './lib/saveData';
 import { sound } from './lib/audio';
@@ -183,6 +184,8 @@ function GameContent() {
         {activeTab === 'sprite-lab' && (
           <Suspense fallback={<div className="view-loading-card">Opening Sprite Lab…</div>}><SpriteLabModal embedded /></Suspense>
         )}
+
+        {activeTab === 'rooms' && <Suspense fallback={<div className="view-loading-card">Opening your room…</div>}><PersonalRoom onDiscover={()=>setActiveTab('infinite-craft')}/></Suspense>}
 
         {activeTab === 'profile' && <Suspense fallback={<div className="view-loading-card">Opening profile…</div>}><PlayerProfile onOpenCloud={() => setShowCloud(true)}/></Suspense>}
 

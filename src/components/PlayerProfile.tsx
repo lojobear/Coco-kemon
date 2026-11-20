@@ -1,4 +1,3 @@
-import { PersonalRoom } from './PersonalRoom';
 import { WalletBalance } from './ElementValue';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useGame } from '../lib/gameStore';
@@ -16,7 +15,6 @@ export function PlayerProfile({ onOpenCloud }: { onOpenCloud: () => void }) {
   const [elements, setElements] = useState(readCraftElements);
   const [user, setUser] = useState<User | null>(null);
   const [guestName, setGuestName] = useState(() => localStorage.getItem('boop-guest-display-name') || 'Explorer');
-  const [showRoom,setShowRoom]=useState(false);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const [message, setMessage] = useState('');
@@ -103,8 +101,8 @@ export function PlayerProfile({ onOpenCloud }: { onOpenCloud: () => void }) {
   ];
   const maxActivity = Math.max(1, ...stats.activity.map(x => x.count));
   return <CraftSprites.Provider value={spriteOverrides}>
-    {showRoom ? <PersonalRoom onBack={()=>setShowRoom(false)}/> : <section className="boop-player-profile">
-      <div className="boop-profile-account"><Sparkles size={20}/><div><strong>Your personal room</strong><p>Give your discoveries a home. Arrange sprites, decorate, and save up to three rooms.</p></div><button onClick={()=>setShowRoom(true)}>My room</button></div>
+    <section className="boop-player-profile">
+      <div className="boop-profile-account"><Sparkles size={20}/><div><strong>Your personal room</strong><p>Give your discoveries a home. Arrange sprites, decorate, and save up to three rooms.</p></div><button onClick={()=>setActiveTab('rooms')}>My room</button></div>
       <div className="boop-profile-hero">
         <div className="boop-profile-avatar"><UserRound size={36}/></div>
         <div className="boop-profile-hero-text">
@@ -187,6 +185,6 @@ export function PlayerProfile({ onOpenCloud }: { onOpenCloud: () => void }) {
         <button onClick={() => { sessionStorage.setItem('boop-open-trophy-room','1'); setActiveTab('archive'); window.dispatchEvent(new Event('boop-open-trophy-room')); }}>Open room</button></div>
       <div className="boop-profile-account"><History size={20}/><div><strong>Your explorer report</strong><p>{stats.firstAt ? `First discovery: ${new Date(stats.firstAt).toLocaleDateString()}. ` : ''}Download your stats and milestones. Export a game save in Settings to back up progress.</p></div><button onClick={exportStats}>Download stats</button></div>
       <div className="boop-profile-account"><Cloud size={20}/><div><strong>{user ? 'Cloud account connected' : 'Connect your profile'}</strong><p>{user ? 'Stats reflect this device’s current collection. Use cloud saves to move progress between devices.' : 'Sign in with Google to save a profile nickname and back up discoveries.'}</p></div><button onClick={onOpenCloud}>{user?'Cloud saves':'Sign in'}</button></div>
-    </section>}
+    </section>
   </CraftSprites.Provider>;
 }

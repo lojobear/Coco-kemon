@@ -1,3 +1,4 @@
+function craftEntryURL(value){const url=new URL(value);url.searchParams.set('view','craft');return url.href;}
 import {chromium} from 'playwright';
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
@@ -7,7 +8,7 @@ const b=await chromium.launch({...(process.env.CHROMIUM_PATH ? { executablePath:
 try {
 for(const width of [320,390,412,768,1440]){
  const p=await b.newPage({viewport:{width,height:width===320?740:width===390?844:900}});const errors=[];p.on('pageerror',e=>errors.push(e.message));
- await p.goto(process.env.BOOP_BASE_URL || 'http://127.0.0.1:3000',{waitUntil:'networkidle'});await p.getByRole('button', { name: 'Select Water to combine' }).waitFor();await p.waitForTimeout(300);
+ await p.goto(craftEntryURL(process.env.BOOP_BASE_URL || 'http://127.0.0.1:3000'),{waitUntil:'networkidle'});await p.getByRole('button', { name: 'Select Water to combine' }).waitFor();await p.waitForTimeout(300);
  const bounds=await p.locator('.boop-board-item').evaluateAll(es=>es.map(e=>({name:e.textContent,left:e.getBoundingClientRect().left,right:e.getBoundingClientRect().right,bottom:e.getBoundingClientRect().bottom})));
  const viewport=await p.locator('.boop-board-viewport').boundingBox();
  assert.equal(bounds.length,4);
@@ -39,7 +40,7 @@ for(const width of [320,390,412,768,1440]){
 }
 // A real touch sequence exercises the pointer path separately from keyboard activation.
 const touch = await b.newPage({ viewport: { width: 390, height: 844 }, hasTouch: true });
-await touch.goto(process.env.BOOP_BASE_URL || 'http://127.0.0.1:3000', { waitUntil: 'networkidle' });
+await touch.goto(craftEntryURL(process.env.BOOP_BASE_URL || 'http://127.0.0.1:3000'), { waitUntil: 'networkidle' });
 await touch.getByRole('button', { name: 'Select Water to combine' }).tap();
 await touch.getByRole('button', { name: 'Select Fire to combine' }).tap();
 await touch.getByRole('button',{name:'Combine Water + Fire',exact:true}).tap();

@@ -36,6 +36,7 @@ jobs:
           node tests/saved-boards-smoke.mjs
           node tests/boop-orders-smoke.mjs
           node tests/personal-room-smoke.mjs
+          node tests/discover-decorate-smoke.mjs
           node tests/default-sprite-style-smoke.mjs
           node tests/sprite-search-smoke.mjs
           node tests/collection-order-smoke.mjs

@@ -68,7 +68,7 @@ interface GameState {
     dailyGoals: ReturnType<typeof dailyGoals>;
     hint: string | null;
   };
-  activeTab: 'infinite-craft' | 'foundry' | 'archive' | 'sprite-lab' | 'notebook' | 'seeds' | 'kitchen' | 'profile';
+  activeTab: 'infinite-craft' | 'foundry' | 'archive' | 'sprite-lab' | 'notebook' | 'seeds' | 'kitchen' | 'profile' | 'rooms';
   inspectedItem: { type: 'material' | 'oddkin'; item: Material | Oddkin } | null;
   isMuted: boolean;
 
@@ -77,7 +77,7 @@ interface GameState {
   setSlotB: (m: Material | null) => void;
   setSelectedProcess: (p: Process | null) => void;
   clearSlots: () => void;
-  setActiveTab: (tab: 'infinite-craft' | 'foundry' | 'archive' | 'sprite-lab' | 'notebook' | 'seeds' | 'kitchen' | 'profile') => void;
+  setActiveTab: (tab: 'infinite-craft' | 'foundry' | 'archive' | 'sprite-lab' | 'notebook' | 'seeds' | 'kitchen' | 'profile' | 'rooms') => void;
   setInspectedItem: (item: { type: 'material' | 'oddkin'; item: Material | Oddkin } | null) => void;
   closeDiscoveryModal: () => void;
   toggleMute: () => void;
@@ -222,7 +222,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const [synthesisError, setSynthesisError] = useState<string | null>(null);
   const [synthesisStage, setSynthesisStage] = useState<SynthesisStage>(null);
   const [recentDiscovery, setRecentDiscovery] = useState<GameState['recentDiscovery']>(null);
-  const [activeTab, setActiveTab] = useState<'infinite-craft' | 'foundry' | 'archive' | 'sprite-lab' | 'notebook' | 'seeds' | 'kitchen' | 'profile'>('infinite-craft');
+  const [activeTab, setActiveTab] = useState<'infinite-craft' | 'foundry' | 'archive' | 'sprite-lab' | 'notebook' | 'seeds' | 'kitchen' | 'profile' | 'rooms'>(()=>typeof window!=='undefined'&&new URLSearchParams(window.location.search).get('view')==='craft'?'infinite-craft':'rooms');
   const [inspectedItem, setInspectedItem] = useState<GameState['inspectedItem']>(null);
   const [isMuted, setIsMuted] = useState<boolean>(() => sound.isMuted());
 

@@ -3,7 +3,7 @@ import { LiveSpriteLogo } from './LiveSpriteLogo';
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useGame } from '../lib/gameStore';
-import { Volume2, VolumeX, Mic, Camera, BookOpen, RotateCcw, Download, Upload, Sparkles, Zap, CheckCircle2, Smartphone, Vibrate, Settings2, Cloud, NotebookPen, X, Search, UserRound } from 'lucide-react';
+import { Volume2, VolumeX, Mic, Camera, BookOpen, RotateCcw, Download, Upload, Sparkles, Zap, CheckCircle2, Smartphone, Vibrate, Settings2, Cloud, NotebookPen, X, Search, UserRound, ChefHat } from 'lucide-react';
 import { sound } from '../lib/audio';
 import { haptics } from '../lib/haptics';
 import { PWAInstallButton } from './PWAInstallButton';
@@ -75,7 +75,7 @@ export function Header({
       <div className="collection-header-inner">
         <div className="collection-brand">
           <LiveSpriteLogo/>
-          <button className="collection-brand-name" aria-label="Boop home" onClick={() => setActiveTab('infinite-craft')}><strong>Boop</strong><small>Modern Toybox</small></button>
+          <button className="collection-brand-name" aria-label="Boop home" onClick={() => setActiveTab('rooms')}><strong>Boop</strong><small>Discover & decorate</small></button>
         </div>
         <form className="boop-header-search boop-search" role="search" onSubmit={event => { event.preventDefault(); onSearchCollection(query); }}><input aria-label="Search your collection" placeholder="Search your discoveries…" value={query} onChange={event => setQuery(event.target.value)} /><button aria-label="Search collection"><Search size={18} /></button></form>
         <span className="boop-level-tag">Level {String(progression.level).padStart(2, '0')}</span>
@@ -107,6 +107,7 @@ export function Header({
             </div>
 
             <div className="settings-quick-tools">
+              <button onClick={() => { setShowSettings(false); setActiveTab('kitchen'); }}><ChefHat size={18}/>Kitchen</button>
               <button onClick={() => { setShowSettings(false); onOpenSeeds(); }}><Camera size={18} /> Photo & sketch</button>
               <button onClick={() => { setShowSettings(false); onOpenVoice(); }}><Mic size={18} /> Voice lab</button>
               <button onClick={() => { setShowSettings(false); setActiveTab('notebook'); }}><NotebookPen size={18} /> Recipe notebook</button>

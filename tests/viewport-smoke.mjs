@@ -1,3 +1,4 @@
+function craftEntryURL(value){const url=new URL(value);url.searchParams.set('view','craft');return url.href;}
 import { chromium } from 'playwright';
 import { mkdir } from 'node:fs/promises';
 import assert from 'node:assert/strict';
@@ -7,7 +8,7 @@ const browser = await chromium.launch({ headless:true, args:['--no-sandbox'] });
 try {
   for (const [label,width,height] of [['mobile',390,844],['pixel9',412,915],['tablet',768,1024],['desktop',1440,900]]) {
     const page = await browser.newPage({ viewport:{width,height}, deviceScaleFactor:1 });
-    await page.goto('http://127.0.0.1:3000/',{waitUntil:'networkidle'});
+    await page.goto(craftEntryURL('http://127.0.0.1:3000/'),{waitUntil:'networkidle'});
     await page.getByRole('button',{name:'Craft',exact:true}).click();
     await page.waitForTimeout(500);
     await page.screenshot({path:`/tmp/boop-viewport/${label}-craft.png`});

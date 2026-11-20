@@ -1,3 +1,4 @@
+function craftEntryURL(value){const url=new URL(value);url.searchParams.set('view','craft');return url.href;}
 import { chromium } from 'playwright';
 import assert from 'node:assert/strict';
 const browser=await chromium.launch({...(process.env.CHROMIUM_PATH?{executablePath:process.env.CHROMIUM_PATH}:{}),headless:true,args:['--no-sandbox']});
@@ -10,7 +11,7 @@ try{
  for(const width of [412,1440]){
   const page=await browser.newPage({viewport:{width,height:900}});const errors=[];page.on('pageerror',error=>errors.push(error.message));
   await page.addInitScript(items=>{localStorage.setItem('coco_kemon_save_v2',JSON.stringify({version:3,savedAt:1,foundry:{materials:[],oddkinCollection:[],processes:[],experiments:[],habitats:[]},crafting:items,economy:{version:1,coins:0,sold:{}}}));},items);
-  await page.goto(process.env.BOOP_BASE_URL||'http://127.0.0.1:3000',{waitUntil:'networkidle'});
+  await page.goto(craftEntryURL(process.env.BOOP_BASE_URL||'http://127.0.0.1:3000'),{waitUntil:'networkidle'});
   await page.getByRole('navigation',{name:'Main navigation'}).getByRole('button',{name:'Collection',exact:true}).click();
   const cards=page.locator('.boop-sticker-card');const names=()=>cards.evaluateAll(nodes=>nodes.map(node=>node.getAttribute('aria-label').replace('Inspect collectible ','')));
   await cards.first().waitFor();assert.deepEqual(await names(),expected.slice(0,72));

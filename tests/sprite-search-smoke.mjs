@@ -1,3 +1,4 @@
+function craftEntryURL(value){const url=new URL(value);url.searchParams.set('view','craft');return url.href;}
 import {chromium} from 'playwright';import assert from 'node:assert/strict';
 const browser=await chromium.launch({...(process.env.CHROMIUM_PATH?{executablePath:process.env.CHROMIUM_PATH}:{}),headless:true,args:['--no-sandbox']});
 const items=[...Array.from({length:120},(_,i)=>({id:`search-item-${i}`,name:`Element ${String(i).padStart(3,'0')}`,emoji:'✨',discoveredAt:1700000000000+i})),{id:'coffee',name:'Coffee',emoji:'☕',discoveredAt:1700000001000},{id:'cactus',name:'Cactus',emoji:'🌵',discoveredAt:1700000001001}];
@@ -5,7 +6,7 @@ try{for(const width of [320,412,1440]){
  const page=await browser.newPage({viewport:{width,height:915},hasTouch:width<700});const errors=[];page.on('pageerror',e=>errors.push(e.message));let artworkRequests=0;
  await page.addInitScript(items=>localStorage.setItem('coco_kemon_save_v2',JSON.stringify({version:3,savedAt:1,foundry:{materials:[],oddkinCollection:[],processes:[],experiments:[],habitats:[]},crafting:items,economy:{version:1,coins:0,sold:{}}})),items);
  await page.route('**/api/element-emoji',async route=>{artworkRequests++;await route.abort();});
- await page.goto(process.env.BOOP_BASE_URL||'http://127.0.0.1:3000',{waitUntil:'networkidle'});
+ await page.goto(craftEntryURL(process.env.BOOP_BASE_URL||'http://127.0.0.1:3000'),{waitUntil:'networkidle'});
  const nav=page.getByRole('navigation',{name:'Main navigation'});await nav.getByRole('button',{name:'Sprites',exact:true}).click();const search=page.getByRole('textbox',{name:'Search sprites',exact:true});await search.waitFor();
  for(const query of ['no-such-discovery-9831','☃ unmatched','   nowhere matches   ']){
   await search.fill(query);await page.getByRole('heading',{name:'No matching sprite',exact:true}).waitFor();
