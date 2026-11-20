@@ -43,5 +43,5 @@ jobs:
         if: always()
         with:
           name: boop-viewport-screenshots
-          path: /tmp/boop-viewport/*.png
+          path: /tmp/boop-viewport/
           if-no-files-found: ignore

@@ -1,7 +1,7 @@
 const {chromium}=await import(process.env.BOOP_PLAYWRIGHT_MODULE||'playwright');
 import assert from 'node:assert/strict';
 import {mkdir,readFile} from 'node:fs/promises';
-const output=process.env.BOOP_AUDIT_OUTPUT||'/workspace/artifacts/boop-room-implementation';await mkdir(output,{recursive:true});
+const output=process.env.BOOP_AUDIT_OUTPUT||'/tmp/boop-viewport/rooms';await mkdir(output,{recursive:true});
 const browser=await chromium.launch({...(process.env.CHROMIUM_PATH?{executablePath:process.env.CHROMIUM_PATH}:{}),headless:true,args:['--no-sandbox']});
 try{for(const width of [320,412,1440]){
  const page=await browser.newPage({viewport:{width,height:width===1440?1024:915}}),errors=[];page.setDefaultTimeout(10000);page.on('pageerror',e=>errors.push(e.message));
