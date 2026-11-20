@@ -1,10 +1,11 @@
+function craftEntryURL(value){const url=new URL(value);url.searchParams.set('view','craft');return url.href;}
 import {chromium} from 'playwright';import assert from 'node:assert/strict';import {mkdir} from 'node:fs/promises';
 const output=process.env.BOOP_AUDIT_OUTPUT||'/tmp/boop-tap-combine';await mkdir(output,{recursive:true});
 const browser=await chromium.launch({...(process.env.CHROMIUM_PATH?{executablePath:process.env.CHROMIUM_PATH}:{}),headless:true,args:['--no-sandbox']});
 try{
  for(const width of [320,412,1440]){
   const page=await browser.newPage({viewport:{width,height:width===1440?900:867},hasTouch:width<700,isMobile:width<700});const errors=[];page.on('pageerror',error=>errors.push(error.message));
-  await page.goto(process.env.BOOP_BASE_URL||'http://127.0.0.1:3000',{waitUntil:'networkidle'});await page.getByRole('button',{name:'Select Water to combine',exact:true}).waitFor();
+  await page.goto(craftEntryURL(process.env.BOOP_BASE_URL||'http://127.0.0.1:3000'),{waitUntil:'networkidle'});await page.getByRole('button',{name:'Select Water to combine',exact:true}).waitFor();
   assert.equal(await page.getByRole('button',{name:/Arena/}).count(),0);assert.equal(await page.locator('.craft-procedure-drawer').getAttribute('open'),null);
   const board=await page.locator('.boop-board-layout').boundingBox();const composer=await page.getByRole('region',{name:'Tap to combine'}).boundingBox();
   assert.ok(board.y<180,'board should be near the top');assert.ok(board.height>=270);assert.ok(board.y+board.height<=composer.y+1);assert.ok(composer.y+composer.height<(width===1440?900:867),'composer should fit without scrolling');

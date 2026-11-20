@@ -1,10 +1,11 @@
+function craftEntryURL(value){const url=new URL(value);url.searchParams.set('view','craft');return url.href;}
 import {chromium} from 'playwright';import assert from 'node:assert/strict';import {mkdir} from 'node:fs/promises';
 const output=process.env.BOOP_AUDIT_OUTPUT||'/tmp/boop-craft-filters';await mkdir(output,{recursive:true});
 const browser=await chromium.launch({...(process.env.CHROMIUM_PATH?{executablePath:process.env.CHROMIUM_PATH}:{}),headless:true,args:['--no-sandbox']});
 try{for(const width of [320,412,1440]){
  const page=await browser.newPage({viewport:{width,height:900}});const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.addInitScript(()=>localStorage.setItem('coco_kemon_save_v2',JSON.stringify({version:3,savedAt:1,foundry:{materials:[],oddkinCollection:[],processes:[],experiments:[],habitats:[]},crafting:[{id:'cat',name:'Cat',emoji:'🐈',category:'Animals',rarityTier:'rare',unlockedShiny:true,craftCount:2,discoveredAt:Date.now()}],economy:{version:1,coins:0,sold:{}}})));
- await page.goto(process.env.BOOP_BASE_URL||'http://127.0.0.1:3000',{waitUntil:'networkidle'});
+ await page.goto(craftEntryURL(process.env.BOOP_BASE_URL||'http://127.0.0.1:3000'),{waitUntil:'networkidle'});
  const trigger=page.getByRole('button',{name:'Filters & tools',exact:true});const panel=page.getByRole('dialog',{name:'Filters & tools',exact:true});
  await trigger.click();assert.ok(await panel.isVisible());
  const source=page.getByLabel('Random spawn source',{exact:true}),category=page.getByLabel('Random spawn category',{exact:true}),rarity=page.getByLabel('Random spawn rarity',{exact:true});

@@ -1,3 +1,4 @@
+import { ROOM_DISCOVERY_REQUEST, ROOM_DISPLAY_REQUEST } from '../lib/roomDiscoveryGoals';
 import { BoopOrders, useOrderSnapshot } from './BoopOrders';
 import { SavedBoardsDialog } from './SavedBoardsDialog';
 import { initialSavedBoards, type SavedBoards } from '../lib/savedBoards';
@@ -58,7 +59,7 @@ import {
   getElementMastery,
   getCollectionStats,
 } from '../lib/elementStats';
-import {
+import { Home,
   Search,
   Trash2,
   Sparkles,
@@ -196,7 +197,7 @@ export function sanitizeElements(list: InfiniteElement[]): InfiniteElement[] {
 
 export function InfiniteCraftView() {
   const orderState = useOrderSnapshot();
-  const { setActiveTab, materials: foundryMaterials, oddkinCollection: foundryOddkin,
+  const { activeTab, setActiveTab, materials: foundryMaterials, oddkinCollection: foundryOddkin,
     processes, runSynthesis, isSynthesizing: foundryBusy } = useGame();
   const [preferences] = useState(readCraftPreferences);
   const [procedureId, setProcedureId] = useState(preferences.procedureId);
@@ -206,6 +207,7 @@ export function InfiniteCraftView() {
   const totalProcedureCatalog = useMemo(()=>processCatalog(processes),[processes]);
   const procedureCatalog = useMemo(() => availableProcesses(processes), [processes]);
   const [ingredientFilter, setIngredientFilter] = useState<'all' | 'new' | 'shiny'>(preferences.ingredientFilter);
+  const [roomGoal,setRoomGoal]=useState('');
   const [lastResult, setLastResult] = useState<InfiniteElement | null>(null);
   const [elements, setElements] = useState<InfiniteElement[]>(() => {
     try {
@@ -1001,7 +1003,7 @@ export function InfiniteCraftView() {
 
   const spawnRandomBatch = (count: SpawnCount, suggestion?: InfiniteElement[], selectPair = false) => {
     if (!selectPair) setSpawnCount(count);
-    if (!spawnPool.length) {
+    if (!spawnPool.length&&!suggestion?.length) {
       setSpawnToast('Discover an element first.');
       return;
     }
@@ -1036,6 +1038,18 @@ export function InfiniteCraftView() {
     else setSpawnToast(suggestion ? `Try ${picked[0].name} + ${picked[1].name}`
       : `✦ +${picked.length} random ${picked.length===1?'element':'elements'} · 1/${spawnPool.length} per first pick`);
   };
+
+  useEffect(()=>{
+    if(activeTab!=='infinite-craft'||isSynthesizing||foundryBusy)return;
+    let raw='';try{raw=sessionStorage.getItem(ROOM_DISCOVERY_REQUEST)||'';}catch{return;}
+    if(!raw)return;
+    let goal:{first:string;second:string;result:string};try{goal=JSON.parse(raw);}catch{sessionStorage.removeItem(ROOM_DISCOVERY_REQUEST);return;}
+    const a=sharedElements.find(e=>discoveryIdentity(e.name)===discoveryIdentity(typeof goal.first==='string'?goal.first:'')),b=sharedElements.find(e=>discoveryIdentity(e.name)===discoveryIdentity(typeof goal.second==='string'?goal.second:''));
+    if(!a||!b){sessionStorage.removeItem(ROOM_DISCOVERY_REQUEST);return;}
+    if(canvasItemsRef.current.length>298){setSpawnToast('Make room for two tiles on your craft board, then try the room suggestion again.');return;}
+    const frame=requestAnimationFrame(()=>{sessionStorage.removeItem(ROOM_DISCOVERY_REQUEST);spawnRandomBatch(2,[a,b],true);setRoomGoal(typeof goal.result==='string'?goal.result.slice(0,160):'something new');});
+    return()=>cancelAnimationFrame(frame);
+  },[activeTab,foundryBusy,isSynthesizing,sharedElements]);
 
   const fuseAdvanced = (plan:FusionPlan) => {
     if(requestRef.current||isSynthesizing)return;
@@ -1131,7 +1145,7 @@ export function InfiniteCraftView() {
     <CraftSprites.Provider value={customSprites}>
     <div className="boop-craft-studio toybox-studio">
       <header className="toybox-intro craft-compact-header">
-        <h1>Craft</h1><button type="button" className="craft-boards-trigger" disabled={isSynthesizing||foundryBusy} onClick={()=>setShowBoards(true)} aria-label="Manage saved boards">Boards: {boards.boards.find(b=>b.id===boards.activeId)?.name}</button><BoopOrders state={orderState} blocked={isSynthesizing||foundryBusy}/><p>{activeProcedure?.id==='MIX'?'Tap two elements, then Combine.':'Tap one or two elements, then Apply.'}</p>
+        <h1>Craft</h1><button type="button" className="craft-boards-trigger" disabled={isSynthesizing||foundryBusy} onClick={()=>setShowBoards(true)} aria-label="Manage saved boards">Boards: {boards.boards.find(b=>b.id===boards.activeId)?.name}</button><BoopOrders state={orderState} blocked={isSynthesizing||foundryBusy}/><p>{roomGoal?`Discover ${roomGoal} for your room.`:activeProcedure?.id==='MIX'?'Combine discoveries. Bring your favorites home.':'Tap one or two elements, then Apply.'}</p>
       </header>
       <section className="boop-board-layout" data-decoration={orderState.wallet.orders?.decoration??'plain'} aria-label="Discover crafting board">
         <header className="boop-board-toolbar boop-board-toolbar--quiet">
@@ -1278,6 +1292,7 @@ export function InfiniteCraftView() {
           <CraftSprite name={lastResult.name} emoji={lastResult.emoji} isShiny={lastResult.isShiny}/>
           <div className="boop-result-info"><small>{lastResult.isNew ? '✦ NEW DISCOVERY' : 'CREATED'}</small><strong>{lastResult.name}</strong><RarityBadges item={lastResult} compact showProgress={false}/><ElementValueBadge element={lastResult} valueBook={valueBook}/></div>
           <button onClick={()=>spawnOnCanvas(lastResult.name,lastResult.emoji,Boolean(lastResult.isShiny))} aria-label="Add another copy to board" title="Add another copy"><Plus size={17}/></button>
+          <button aria-label={`Decorate with ${lastResult.name}`} title="Display in your room" onClick={()=>{try{sessionStorage.setItem(ROOM_DISPLAY_REQUEST,lastResult.name);}catch{/* Room library still contains this discovery. */}setActiveTab('rooms');}}><Home size={17}/></button>
           <button aria-label="Dismiss result" onClick={()=>setLastResult(null)}><X size={16}/></button>
         </div>}
       <section className="craft-composer" aria-label="Tap to combine">

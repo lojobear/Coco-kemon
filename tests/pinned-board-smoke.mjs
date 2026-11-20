@@ -1,8 +1,9 @@
+function craftEntryURL(value){const url=new URL(value);url.searchParams.set('view','craft');return url.href;}
 import {chromium} from 'playwright';import assert from 'node:assert/strict';
 const browser=await chromium.launch({...(process.env.CHROMIUM_PATH?{executablePath:process.env.CHROMIUM_PATH}:{}),headless:true,args:['--no-sandbox']});
 try{for(const width of [320,412,1440]){
  const page=await browser.newPage({viewport:{width,height:900}});const errors=[];page.on('pageerror',e=>errors.push(e.message));
- await page.goto(process.env.BOOP_BASE_URL||'http://127.0.0.1:3000',{waitUntil:'networkidle'});
+ await page.goto(craftEntryURL(process.env.BOOP_BASE_URL||'http://127.0.0.1:3000'),{waitUntil:'networkidle'});
  const water=page.getByRole('button',{name:'Select Water to combine',exact:true});await water.click();await page.getByRole('button',{name:'Pin Water',exact:true}).click();
  const tile=page.locator('.boop-board-item.is-pinned');const position=()=>tile.evaluate(e=>e.style.transform);const anchored=await position();
  const from=await water.boundingBox();await page.mouse.move(from.x+from.width/2,from.y+from.height/2);await page.mouse.down();await page.mouse.move(from.x+70,from.y+120,{steps:8});await page.mouse.up();assert.equal(await position(),anchored);

@@ -6,7 +6,7 @@ import { isNativeTab, NATIVE_TABS, isAndroidNativeShell, usesNativeAndroidChrome
 const file = (path: string) => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 
 test('native Android navigation includes every main Boop game screen', () => {
-  assert.deepEqual([...NATIVE_TABS], ['kitchen','infinite-craft','foundry','archive','sprite-lab','notebook','profile']);
+  assert.deepEqual([...NATIVE_TABS], ['rooms','kitchen','infinite-craft','foundry','archive','sprite-lab','notebook','profile']);
   for (const tab of NATIVE_TABS) assert.equal(isNativeTab(tab), true);
   assert.equal(isNativeTab('google-auth'), false);
   assert.equal(isNativeTab('https://evil.example'), false);
@@ -24,9 +24,9 @@ test('the Android app has a real native toolbar and bottom bar instead of a Chro
   assert.match(java, /new WebView\(this\)/);
   assert.match(java, /WebViewCompat\.addWebMessageListener/);
   assert.match(java, /Collections\.singleton\(ORIGIN\)/);
-  assert.match(java, /"kitchen".*"Kitchen"/);
+  assert.match(java, /"rooms".*"Rooms"/);
   assert.match(java, /"infinite-craft".*"Craft"/);
-  assert.match(java, /"foundry".*"Foundry"/);
+  assert.match(java, /"foundry".equals\(tab\)/);
   assert.match(java, /"archive".*"Collection"/);
   assert.match(java, /"sprite-lab".*"Sprites"/);
   assert.doesNotMatch(java, /intent\.launchUrl\(this, Uri\.parse\(BOOP_URL\)\)/);

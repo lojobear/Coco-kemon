@@ -1,3 +1,4 @@
+function craftEntryURL(value){const url=new URL(value);url.searchParams.set('view','craft');return url.href;}
 import { chromium } from 'playwright';
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
@@ -15,7 +16,7 @@ try {
     const material={...body.inputMaterialA,id:'molten-water-test',canonicalName:'MOLTEN WATER',displayName:'Molten Water',stateOfMatter:'liquid',discoveredAt:Date.now(),lineage:{parentIds:[body.inputMaterialA.id],processId:'MELT',depth:2,generation:2},discoveryExplanation:'Melt transforms Water in this test.'};
     await route.fulfill({json:{status:'new_material',material,explanation:'Melt transforms Water in this test.'}});
   });
-  await page.goto(process.env.BOOP_BASE_URL||'http://127.0.0.1:3000',{waitUntil:'networkidle'});
+  await page.goto(craftEntryURL(process.env.BOOP_BASE_URL||'http://127.0.0.1:3000'),{waitUntil:'networkidle'});
   const procedures=page.locator('.toybox-procedures');
   const openProcedures=async()=>{if(await page.locator('.craft-procedure-drawer').getAttribute('open')===null)await page.getByLabel('Open procedures',{exact:true}).click();};
   const selectProcedure=async(name)=>{await openProcedures();await procedures.getByRole('button',{name,exact:true}).click();};

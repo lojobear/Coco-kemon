@@ -1,3 +1,4 @@
+function craftEntryURL(value){const url=new URL(value);url.searchParams.set('view','craft');return url.href;}
 import {chromium} from 'playwright';
 import assert from 'node:assert/strict';
 import {mkdir,readFile} from 'node:fs/promises';
@@ -14,7 +15,7 @@ try {
    const material={...body.inputMaterialA,id:'melt-drag-test',canonicalName:'MOLTEN WATER',displayName:'Molten Water',discoveredAt:Date.now(),lineage:{parentIds:[body.inputMaterialA.id,body.inputMaterialB.id],processId:'MELT',depth:2,generation:2}};
    await route.fulfill({json:{status:'new_material',material,explanation:'Melt used on the dragged ingredients.'}});
   });
-  await page.goto(process.env.BOOP_BASE_URL||'http://127.0.0.1:3000',{waitUntil:'networkidle'});
+  await page.goto(craftEntryURL(process.env.BOOP_BASE_URL||'http://127.0.0.1:3000'),{waitUntil:'networkidle'});
   const choose=async name=>{await page.getByLabel('Open procedures',{exact:true}).click();await page.getByRole('region',{name:'Board procedures'}).getByRole('button',{name,exact:true}).click();};
   await choose('Melt');
   // Select unrelated pieces first: dragging must use its actual collision pair.
@@ -51,7 +52,7 @@ try {
  }
  const native=await browser.newPage({viewport:{width:412,height:900},userAgent:'Mozilla/5.0 BoopAndroid/3'});
  await native.addInitScript(()=>{window.BoopNative={postMessage:raw=>{window.profileExportMessage=JSON.parse(raw);}};});
- await native.goto((process.env.BOOP_BASE_URL||'http://127.0.0.1:3000')+'/?boop_android=1&boop_web_chrome=1',{waitUntil:'networkidle'});
+ await native.goto(craftEntryURL((process.env.BOOP_BASE_URL||'http://127.0.0.1:3000')+'/?boop_android=1&boop_web_chrome=1'),{waitUntil:'networkidle'});
  await native.getByRole('navigation',{name:'Main navigation'}).getByRole('button',{name:'Profile',exact:true}).click();
  await native.getByRole('button',{name:'Download stats',exact:true}).click();
  const message=await native.evaluate(()=>window.profileExportMessage);assert.equal(message.type,'exportProfileStats');assert.equal(JSON.parse(message.text).discoveries,0);

@@ -1,9 +1,10 @@
+function craftEntryURL(value){const url=new URL(value);url.searchParams.set('view','craft');return url.href;}
 import {chromium} from 'playwright';import assert from 'node:assert/strict';import {mkdir,readFile} from 'node:fs/promises';
 const output=process.env.BOOP_AUDIT_OUTPUT||'/tmp/boop-saved-boards';await mkdir(output,{recursive:true});
 const browser=await chromium.launch({...(process.env.CHROMIUM_PATH?{executablePath:process.env.CHROMIUM_PATH}:{}),headless:true,args:['--no-sandbox']});
 try{for(const width of [320,412,1440]){
  const page=await browser.newPage({viewport:{width,height:900}});const errors=[];page.on('pageerror',e=>errors.push(e.message));
- await page.goto(process.env.BOOP_BASE_URL||'http://127.0.0.1:3000',{waitUntil:'networkidle'});
+ await page.goto(craftEntryURL(process.env.BOOP_BASE_URL||'http://127.0.0.1:3000'),{waitUntil:'networkidle'});
  await page.getByRole('button',{name:'Select Water to combine',exact:true}).click();await page.getByRole('button',{name:'Pin Water',exact:true}).click();const pinTransform=await page.locator('.boop-board-item.is-pinned').evaluate(e=>e.style.transform);
  const open=()=>page.getByRole('button',{name:'Manage saved boards',exact:true}).click();const dialog=page.getByRole('dialog',{name:'Your boards',exact:true});const close=()=>page.getByRole('button',{name:'Close boards',exact:true}).click();
  await open();await page.getByLabel('Current board name',{exact:true}).fill('Elements');await page.getByRole('button',{name:'Save name',exact:true}).click();await page.getByLabel('New board name',{exact:true}).fill('Cooking');await page.getByRole('button',{name:'Create board',exact:true}).click();await page.waitForFunction(()=>document.querySelector('.craft-boards-trigger')?.textContent==='Boards: Cooking');await close();

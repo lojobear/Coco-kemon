@@ -1,12 +1,12 @@
 import { memo, startTransition, useCallback, useEffect, useState } from 'react';
 import { sound } from '../lib/audio';
 import { haptics } from '../lib/haptics';
-import { FlaskConical, LayoutGrid, Cat, ChefHat, Cloud, UserRound } from 'lucide-react';
+import { FlaskConical, LayoutGrid, Cat, Home, Cloud, UserRound } from 'lucide-react';
 
-export type BottomTab = 'foundry' | 'kitchen' | 'infinite-craft' | 'archive' | 'sprite-lab' | 'profile';
+export type BottomTab = 'foundry' | 'kitchen' | 'infinite-craft' | 'archive' | 'sprite-lab' | 'profile' | 'rooms';
 
 const TABS = [
-  { id: 'kitchen', label: 'Kitchen', icon: ChefHat },
+  { id: 'rooms', label: 'Rooms', icon: Home },
   { id: 'infinite-craft', label: 'Craft', icon: FlaskConical },
   { id: 'archive', label: 'Collection', icon: LayoutGrid },
   { id: 'sprite-lab', label: 'Sprites', icon: Cat },
@@ -41,7 +41,7 @@ function BottomNavInner({
 
   return (
     <nav className="collection-nav boop-navigation" aria-label="Main navigation">
-      <p className="boop-nav-label">YOUR STUDIO</p>
+      <p className="boop-nav-label">DISCOVER & DECORATE</p>
       <div className="boop-nav-items">
         {TABS.map(tab => {
           const current = visualTab === tab.id || (visualTab === 'foundry' && tab.id === 'infinite-craft');
