@@ -65,9 +65,8 @@ public final class MainActivity extends Activity {
     private static final int MUTED = Color.rgb(176, 183, 197);
     private static final int PALE = Color.rgb(41, 46, 55);
     private static final String[][] TABS = {
-        {"kitchen", "Kitchen", "♨"},
+        {"rooms", "Rooms", "⌂"},
         {"infinite-craft", "Craft", "⚗"},
-        {"foundry", "Foundry", "◇"},
         {"archive", "Collection", "▦"},
         {"sprite-lab", "Sprites", "✦"},
         {"profile", "Profile", "☻"}
@@ -79,7 +78,7 @@ public final class MainActivity extends Activity {
     private TextView[] tabViews;
     // The same bundled SIL OFL Reddit Sans font powers all native Android chrome.
     private Typeface redditSansTypeface = Typeface.DEFAULT;
-    private String selectedTab = "infinite-craft";
+    private String selectedTab = "rooms";
     private ValueCallback<Uri[]> fileUploadCallback;
     private static final int FILE_CHOOSE_CODE = 4312;
     private static final int PROFILE_EXPORT_CODE = 4313;
@@ -409,7 +408,7 @@ public final class MainActivity extends Activity {
 
     private boolean isAllowedTab(String tab) {
         for (String[] t : TABS) if (t[0].equals(tab)) return true;
-        return "notebook".equals(tab);
+        return "notebook".equals(tab) || "foundry".equals(tab) || "kitchen".equals(tab);
     }
 
     private void sendWebEvent(String type, String detail) {
@@ -498,13 +497,13 @@ public final class MainActivity extends Activity {
 
     @Override public void onBackPressed() {
         if (webView == null) { super.onBackPressed(); return; }
-        // Let Boop close its own open modals first; otherwise go back to Craft.
-        webView.evaluateJavascript("(function(){var m=document.querySelector('dialog[open], .fixed.inset-0.z-50');" +
+        // Let Boop close its own open modals first; otherwise go back to Rooms.
+        webView.evaluateJavascript("(function(){var m=document.querySelector('dialog[open], .fixed.inset-0.z-50, .personal-room .room-scene.is-editing');" +
             "if(m){window.dispatchEvent(new Event('boop-native-back'));return 'modal'}return 'none'})()", response -> {
             if ("\"modal\"".equals(response)) return;
-            if (!"infinite-craft".equals(selectedTab)) {
-                selectTabVisual("infinite-craft");
-                sendWebEvent("boop-native-tab", "infinite-craft");
+            if (!"rooms".equals(selectedTab)) {
+                selectTabVisual("rooms");
+                sendWebEvent("boop-native-tab", "rooms");
             } else if (SystemClock.elapsedRealtime() - lastBackMillis < 1800) {
                 finish();
             } else {
