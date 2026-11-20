@@ -27,7 +27,8 @@ export function PersonalRoom({onBack}:{onBack:()=>void}){
  useEffect(()=>{const warn=(e:BeforeUnloadEvent)=>{if(dirty){e.preventDefault();e.returnValue='';}};window.addEventListener('beforeunload',warn);return()=>window.removeEventListener('beforeunload',warn);},[dirty]);
  useEffect(()=>{
   const guard=(event:MouseEvent)=>{const target=event.target as HTMLElement;if(dirty&&target.closest('.boop-navigation button')&&!window.confirm('Discard unsaved room changes?')){event.preventDefault();event.stopImmediatePropagation();}};
-  document.addEventListener('click',guard,true);return()=>document.removeEventListener('click',guard,true);
+  const nativeGuard=(event:Event)=>{if(dirty&&!window.confirm('Discard unsaved room changes?')){event.preventDefault();event.stopImmediatePropagation();sendToAndroid({type:'tab',tab:'profile'});}};
+  document.addEventListener('click',guard,true);window.addEventListener('boop-native-tab',nativeGuard,true);return()=>{document.removeEventListener('click',guard,true);window.removeEventListener('boop-native-tab',nativeGuard,true);};
  },[dirty]);
  const updateRoom=(change:(r:typeof room)=>typeof room)=>setDraft(prev=>({...prev,rooms:prev.rooms.map(r=>r.id===prev.activeId?change(r):r)}));
  const updatePiece=(id:string,change:Partial<RoomPiece>)=>updateRoom(r=>({...r,pieces:r.pieces.map(p=>p.id===id?{...p,...change}:p)}));
@@ -38,7 +39,7 @@ export function PersonalRoom({onBack}:{onBack:()=>void}){
   finally{setBusy(false);}
  };
  const leave=()=>{if(dirty&&!window.confirm('Discard unsaved room changes?'))return;onBack();};
- useEffect(()=>{const back=()=>{if(busy)return;if(editing){if(dirty&&!window.confirm('Discard unsaved room changes?'))return;setDraft(saved);setEditing(false);setSelected('');}else onBack();};window.addEventListener('boop-native-back',back);return()=>window.removeEventListener('boop-native-back',back);},[busy,editing,dirty,saved,onBack]);
+ useEffect(()=>{const back=(event:Event)=>{const modal=document.querySelector<HTMLDialogElement>('.personal-room dialog[open]');if(modal){event.stopImmediatePropagation();if(modal.dispatchEvent(new Event('cancel',{cancelable:true})))modal.close();return;}if(busy)return;if(editing){if(dirty&&!window.confirm('Discard unsaved room changes?'))return;setDraft(saved);setEditing(false);setSelected('');}else onBack();};window.addEventListener('boop-native-back',back,true);return()=>window.removeEventListener('boop-native-back',back,true);},[busy,editing,dirty,saved,onBack]);
  const add=(kind:RoomPiece['kind'],name:string)=>{
   if(room.pieces.length>=MAX_ROOM_PIECES){setError('This room holds 20 pieces. Remove one or use another room.');return;}
   const id=uid(),occupied=new Set(room.pieces.map(p=>`${p.x},${p.y}`));let x=4,y=4;

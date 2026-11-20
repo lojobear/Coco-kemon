@@ -29,7 +29,7 @@ function OrderCard({order,state,busy,onDeliver}:{key?:string;order:BoopOrder;sta
 }
 export const BoopOrders=memo(function BoopOrders({state,blocked=false}:{state:Snapshot;blocked?:boolean}){
  const dialog=useRef<HTMLDialogElement>(null),[busy,setBusy]=useState(false),[message,setMessage]=useState(''),[error,setError]=useState('');
- useEffect(()=>{const back=()=>{if(!busy)dialog.current?.close();};window.addEventListener('boop-native-back',back);return()=>window.removeEventListener('boop-native-back',back);},[busy]);
+ useEffect(()=>{const back=(event:Event)=>{if(!dialog.current?.open)return;event.stopImmediatePropagation();if(!busy)dialog.current.close();};window.addEventListener('boop-native-back',back);return()=>window.removeEventListener('boop-native-back',back);},[busy]);
  const progress=state.wallet.orders??emptyOrderProgress(),orders=activeOrders(progress),reputation=orderReputation(progress);
  const ready=orders.filter(order=>state.collection.some(item=>orderMatches(order,item)&&availableCopies(item,state.wallet,'normal')>0)).length;
  const next=DECORATIONS.find(decoration=>decoration.reputation>reputation);
