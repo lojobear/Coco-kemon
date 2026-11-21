@@ -2,14 +2,17 @@ plugins {
     id 'com.android.application'
 }
 def bundledWeb = System.getenv('BOOP_BUNDLED_WEB') == '1'
+def liveWebChrome = System.getenv('BOOP_LIVE_WEB') == '1'
+if (bundledWeb && liveWebChrome) throw new GradleException('Choose bundled or online web mode, not both.')
 android {
     buildFeatures { buildConfig true }
     namespace 'app.boop.collect'
     compileSdk 36
     defaultConfig {
-        applicationId = bundledWeb ? 'app.boop.collect.preview' : 'app.boop.collect'
+        applicationId = liveWebChrome ? 'app.boop.collect.online' : bundledWeb ? 'app.boop.collect.preview' : 'app.boop.collect'
         buildConfigField 'boolean', 'BUNDLED_WEB', bundledWeb.toString()
-        resValue 'string', 'app_name', bundledWeb ? 'Boop Preview' : 'Boop'
+        buildConfigField 'boolean', 'LIVE_WEB_CHROME', liveWebChrome.toString()
+        resValue 'string', 'app_name', liveWebChrome ? 'Boop Online' : bundledWeb ? 'Boop Preview' : 'Boop'
         minSdk 23
         targetSdk 36
         versionCode = (System.getenv('BOOP_VERSION_CODE') ?: '2').toInteger()
