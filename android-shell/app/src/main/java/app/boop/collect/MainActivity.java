@@ -57,7 +57,7 @@ import java.util.Collections;
  */
 public final class MainActivity extends Activity {
     private static final String ORIGIN = "https://coco-kemon.logaandavid.workers.dev";
-    private static final String START_URL = ORIGIN + "/?boop_android=1" + (BuildConfig.BUNDLED_WEB ? "&boop_web_chrome=1" : "");
+    private static final String START_URL = ORIGIN + "/?boop_android=1" + ((BuildConfig.BUNDLED_WEB || BuildConfig.LIVE_WEB_CHROME) ? "&boop_web_chrome=1" : "");
     private static final String AUTH_SCHEME = "boop";
     private static final String AUTH_HOST = "oauth-callback";
     private static final int FOREST = Color.rgb(165, 186, 255);
@@ -114,7 +114,7 @@ public final class MainActivity extends Activity {
             screen.requestApplyInsets();
         }
 
-        if (!BuildConfig.BUNDLED_WEB) screen.addView(buildToolbar(), new LinearLayout.LayoutParams(-1, dp(57)));
+        if (!BuildConfig.BUNDLED_WEB && !BuildConfig.LIVE_WEB_CHROME) screen.addView(buildToolbar(), new LinearLayout.LayoutParams(-1, dp(57)));
         progressBar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
         progressBar.setMax(100);
         progressBar.setIndeterminate(true);
@@ -125,7 +125,7 @@ public final class MainActivity extends Activity {
         screen.addView(webFrame, new LinearLayout.LayoutParams(-1, 0, 1));
         createWebView();
 
-        if (!BuildConfig.BUNDLED_WEB) screen.addView(buildBottomNav(), new LinearLayout.LayoutParams(-1, dp(73)));
+        if (!BuildConfig.BUNDLED_WEB && !BuildConfig.LIVE_WEB_CHROME) screen.addView(buildBottomNav(), new LinearLayout.LayoutParams(-1, dp(73)));
         selectTabVisual(selectedTab);
         webView.loadUrl(urlForOAuthCode(pendingOAuthCode));
     }
@@ -345,7 +345,7 @@ public final class MainActivity extends Activity {
                 return true;
             }
             @Override public void onPageFinished(WebView view, String url) {
-                if (!BuildConfig.BUNDLED_WEB && isGameUrl(Uri.parse(url))) {
+                if (!BuildConfig.BUNDLED_WEB && !BuildConfig.LIVE_WEB_CHROME && isGameUrl(Uri.parse(url))) {
                     // Web renderer is online; native controls do not depend on
                     // the web site's original header or bottom navigation.
                     view.evaluateJavascript("document.documentElement.classList.add('boop-native-shell')", null);
