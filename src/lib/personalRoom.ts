@@ -1,13 +1,14 @@
 import type { InfiniteElement } from './infiniteCraftData';
 import { availableVariants, type CollectorVariant } from './collectorData';
 import { discoveryIdentity } from './unifiedCollection';
+import type { RoomDecoration } from './roomProgress';
 import { ROOM_STYLES, ROOM_REWARDS, roomDiscoveryProgress, roomRewardUnlocked, type RoomStyle } from './roomProgress';
 export { ROOM_REWARDS } from './roomProgress';
 export type { RoomDecoration } from './roomProgress';
 export type RoomSurface='floor'|'left-shelf'|'right-shelf'|'display'|'desk';
 export interface RoomPiece {surface?:RoomSurface;slot?:number;id:string;kind:'sprite'|'decoration';name:string;variant:CollectorVariant;nickname:string;x:number;y:number;size:number;flipped:boolean}
 export interface PersonalRoom {style?:RoomStyle;id:string;name:string;pieces:RoomPiece[]}
-export interface PersonalRooms {version:1;activeId:string;rooms:PersonalRoom[]}
+export interface PersonalRooms {version:1;activeId:string;rooms:PersonalRoom[];clawPrizes?:RoomDecoration[]}
 export const MAX_ROOM_PIECES=20;
 export const emptyPersonalRooms=():PersonalRooms=>({version:1,activeId:'room-1',rooms:[{id:'room-1',name:'Moonlit nook',pieces:[]}]});
 const object=(v:unknown):v is Record<string,unknown>=>!!v&&typeof v==='object'&&!Array.isArray(v);
@@ -15,6 +16,7 @@ const safeId=(v:unknown)=>typeof v==='string'&&/^[a-zA-Z0-9-]{1,80}$/.test(v);
 const label=(v:unknown,max:number)=>typeof v==='string'&&v.trim().length>0&&v.length<=max;
 export function validPersonalRooms(v:unknown):v is PersonalRooms {
  if(!object(v)||v.version!==1||!Array.isArray(v.rooms)||v.rooms.length<1||v.rooms.length>3)return false;
+ if(v.clawPrizes!==undefined&&(!Array.isArray(v.clawPrizes)||v.clawPrizes.length>ROOM_REWARDS.length||new Set(v.clawPrizes).size!==v.clawPrizes.length||!v.clawPrizes.every(id=>ROOM_REWARDS.some(reward=>reward.id===id))))return false;
  const ids=new Set<string>();
  for(const r of v.rooms){
   if(!object(r)||!safeId(r.id)||ids.has(r.id as string)||!label(r.name,40)||!Array.isArray(r.pieces)||r.pieces.length>MAX_ROOM_PIECES||(r.style!==undefined&&!ROOM_STYLES.some(s=>s.id===r.style)))return false;
@@ -39,7 +41,7 @@ export function sanitizePersonalRooms(raw:unknown,owned:readonly InfiniteElement
  const names=new Map(owned.map(e=>[discoveryIdentity(e.name),e]));
  const count=roomDiscoveryProgress(owned).count;
  return {...raw,rooms:raw.rooms.map(r=>({...r,...(r.style&&ROOM_STYLES.find(s=>s.id===r.style)!.discoveries>count?{style:'moonlit' as const}:{}),pieces:r.pieces.flatMap(p=>{
-  if(p.kind==='decoration')return ROOM_REWARDS.some(d=>d.id===p.name&&roomRewardUnlocked(d,owned,reputation))?[{...p}]:[];
+  if(p.kind==='decoration')return ROOM_REWARDS.some(d=>d.id===p.name&&roomRewardUnlocked(d,owned,reputation,raw.clawPrizes))?[{...p}]:[];
   const e=names.get(discoveryIdentity(p.name));return e?[{...p,name:e.name,variant:availableVariants(e).includes(p.variant)?p.variant:'normal' as const}]:[];
  })}))};
 }

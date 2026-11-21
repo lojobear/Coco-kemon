@@ -20,9 +20,9 @@ export function roomDiscoveryProgress(owned:readonly InfiniteElement[]){
  const discoveries=Array.from(new Map(owned.filter(e=>!isSuppliedStarter(e)&&!['water','fire','wind','earth'].includes(discoveryIdentity(e.name))).map(e=>[discoveryIdentity(e.name),e])).values());
  return {count:discoveries.length,names:new Set(discoveries.map(e=>discoveryIdentity(e.name)))};
 }
-export function roomRewardUnlocked(reward:typeof ROOM_REWARDS[number],owned:readonly InfiniteElement[],reputation:number){
+export function roomRewardUnlocked(reward:typeof ROOM_REWARDS[number],owned:readonly InfiniteElement[],reputation:number,clawPrizes:readonly RoomDecoration[]=[]){
  const p=roomDiscoveryProgress(owned);
- return p.count>=reward.discoveries||(!!reward.concept&&p.names.has(discoveryIdentity(reward.concept)))||(reward.reputation!==null&&reputation>=reward.reputation);
+ return clawPrizes.includes(reward.id)||p.count>=reward.discoveries||(!!reward.concept&&p.names.has(discoveryIdentity(reward.concept)))||(reward.reputation!==null&&reputation>=reward.reputation);
 }
 export function roomRewardHint(reward:typeof ROOM_REWARDS[number]){
  if(reward.discoveries===0)return 'Ready to place';

@@ -584,13 +584,18 @@ export function readPersonalRooms():PersonalRooms {
  try{const e=storedEnvelope();return sanitizePersonalRooms(e?.personalRooms,readCraftElements(),orderReputation(e?.economy?.orders??emptyOrderProgress()));}
  catch{return emptyPersonalRooms();}
 }
-export async function commitPersonalRooms(rooms:PersonalRooms):Promise<void>{
+export async function commitPersonalRooms(update:PersonalRooms|((current:PersonalRooms)=>PersonalRooms)):Promise<PersonalRooms>{
  await waitForLocalSave();
  if(recoveryRequired||getSaveError())throw new Error('Save your progress successfully before changing your room.');
- if(!validPersonalRooms(rooms))throw new Error('Invalid room layout.');
  const crafting=readCraftElements(),e=storedEnvelope();
- const checked=sanitizePersonalRooms(rooms,crafting,orderReputation(e?.economy?.orders??emptyOrderProgress()));
+ const reputation=orderReputation(e?.economy?.orders??emptyOrderProgress());
+ const current=sanitizePersonalRooms(e?.personalRooms,crafting,reputation);
+ const rooms=typeof update==='function'?update(current):update;
+ if(rooms===current)return current;
+ if(!validPersonalRooms(rooms))throw new Error('Invalid room layout.');
+ const checked=sanitizePersonalRooms(rooms,crafting,reputation);
  if(JSON.stringify(checked)!==JSON.stringify(rooms))throw new Error('A room piece is not in your collection or is still locked.');
  if(localDatabase)await commitExclusive({...e,savedAt:Math.max(Date.now(),(lastSeenSavedAt??0)+1),personalRooms:checked},()=>{});
  else write(e?.foundry??null,crafting,false,undefined,undefined,undefined,undefined,true,checked);
+ return checked;
 }
