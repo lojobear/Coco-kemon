@@ -1,3 +1,4 @@
+import { applyClawReward } from './clawRewards';
 import { emptyPersonalRooms, validPersonalRooms, sanitizePersonalRooms, type PersonalRooms } from './personalRoom';
 import { emptyOrderProgress, orderReputation } from './orderProgress';
 import { applyOrderDelivery, applyBoardDecoration } from './boopOrders';
@@ -598,4 +599,20 @@ export async function commitPersonalRooms(update:PersonalRooms|((current:Persona
  if(localDatabase)await commitExclusive({...e,savedAt:Math.max(Date.now(),(lastSeenSavedAt??0)+1),personalRooms:checked},()=>{});
  else write(e?.foundry??null,crafting,false,undefined,undefined,undefined,undefined,true,checked);
  return checked;
+}
+
+/** Award one capsule against the latest collection and publish it after the device commit. */
+export async function commitClawReward(roll: number): Promise<InfiniteElement> {
+  await waitForLocalSave();
+  const envelope = storedEnvelope();
+  const crafting = readCraftElements();
+  if (recoveryRequired || getSaveError()) throw new Error('Save your progress successfully before claiming a prize.');
+  const { elements, item } = applyClawReward(crafting, roll);
+  if (localDatabase) {
+    await commitExclusive({ ...envelope, savedAt: Math.max(Date.now(), (lastSeenSavedAt ?? 0) + 1), crafting: elements }, () => {});
+  } else {
+    const foundry = envelope ? envelope.foundry : JSON.parse(localStorage.getItem(LEGACY_FOUNDRY) || 'null');
+    write(foundry, elements);
+  }
+  return item;
 }

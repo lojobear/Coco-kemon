@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
 import { ArrowLeft, Check, CirclePlus, FlipHorizontal, Home, LockKeyhole, Pencil, Plus, Search, Share2, Sparkles, Star, Trash2, X, Undo2, Redo2, Grid3X3, FlaskConical, Gamepad2, Palette, Wand2 } from 'lucide-react';
 import { CraftSprite, CraftSprites } from './CraftSprite';
 import { RoomArtwork } from './RoomArtwork';
@@ -8,7 +8,7 @@ import { commitPersonalRooms, readPersonalRooms, SAVE_IMPORTED_EVENT } from '../
 import { availableVariants } from '../lib/collectorData';
 import { emptyOrderProgress, orderReputation } from '../lib/orderProgress';
 import { MAX_ROOM_PIECES, ROOM_SURFACES, pieceDepth, pieceWidth, piecePoint, type PersonalRooms, type PersonalRoom as Room, type RoomPiece, type RoomSurface } from '../lib/personalRoom';
-import { ROOM_REWARDS, ROOM_STYLES, roomDiscoveryProgress, roomRewardUnlocked, roomRewardHint, type RoomDecoration } from '../lib/roomProgress';
+import { ROOM_REWARDS, ROOM_STYLES, roomDiscoveryProgress, roomRewardUnlocked, roomRewardHint } from '../lib/roomProgress';
 import { nearestRoomPlacement, snapRoomPlacement, placementOpen, placementsFor, surfaceAllows, tidyRoomPieces, type Placement } from '../lib/roomPlacement';
 import { roomArtworkBounds } from '../lib/roomArtwork';
 import { nextRoomDiscovery, recentRoomFinds, ROOM_DISCOVERY_REQUEST, ROOM_DISPLAY_REQUEST } from '../lib/roomDiscoveryGoals';
@@ -58,11 +58,6 @@ export function PersonalRoom({onBack,onDiscover}:{onBack?:()=>void;onDiscover?:(
   try{await commitPersonalRooms(next);setSaved(next);setDraft(next);setEditing(false);setSelected('');resetHistory();setMessage('Room saved with your game progress.');requestAnimationFrame(()=>scene.current?.closest('.personal-room')?.scrollIntoView({block:'start'}));}
   catch(e){setError(e instanceof Error?e.message:'Could not save your room. Please retry.');}finally{setBusy(false);}
  };
- const saveClawPrize=useCallback(async(id:RoomDecoration)=>{
-  const next=await commitPersonalRooms(current=>current.clawPrizes?.includes(id)?current:
-   {...current,clawPrizes:[...(current.clawPrizes??[]),id]});
-  setSaved(next);setDraft(next);
- },[]);
  const leave=()=>{if(dirty&&!window.confirm('Discard unsaved room changes?'))return;onBack?.();};
  const beginEdit=(nextTab:'sprites'|'decorations'|'styles'='sprites')=>{setEditing(true);setTab(nextTab);setMessage('');};
  const add=(kind:RoomPiece['kind'],name:string)=>{
@@ -115,7 +110,7 @@ export function PersonalRoom({onBack,onDiscover}:{onBack?:()=>void;onDiscover?:(
   <header className="room-heading"><div><small>DISCOVER SOMETHING. MAKE IT YOURS.</small><h1>{room.name}</h1><p>New discoveries become the things that make your room yours.</p></div><div className="room-actions">
    {!editing?<><button type="button" disabled={busy} onClick={()=>setClawOpen(true)}><Gamepad2 size={17}/>Boop Claw</button><button className="room-primary" onClick={()=>beginEdit()}><Pencil size={17}/>Edit room</button><button onClick={()=>void share()} disabled={exporting||styleLoading||!!styleError}>{exporting?'Preparing…':<><Share2 size={17}/>Share room</>}</button></>:<><button className="room-primary" disabled={busy||styleLoading||!!styleError} onClick={()=>void persist(draft)}><Check size={17}/>{busy?'Saving…':'Save room'}</button><button disabled={busy} onClick={cancel}>Cancel</button></>}
   </div></header>
-  {clawOpen&&<RoomClaw onClose={()=>setClawOpen(false)} onPrize={saveClawPrize}/>}
+  {clawOpen&&<RoomClaw onClose={()=>setClawOpen(false)}/>}
   <div className="room-selector"><label>Room<select aria-label="Choose room" disabled={editing||busy} value={draft.activeId} onChange={e=>void persist({...draft,activeId:e.target.value})}>{draft.rooms.map(r=><option key={r.id} value={r.id}>{r.name}</option>)}</select></label><span>{draft.rooms.length} / 3 rooms</span><button aria-label="New room" disabled={draft.rooms.length>=3||editing||busy} onClick={()=>{const id=uid();change({...draft,activeId:id,rooms:[...draft.rooms,{id,name:`My room ${draft.rooms.length+1}`,pieces:[]}]});setEditing(true);setSelected('');}}><Plus size={16}/><span>New room</span></button>{!editing&&<button aria-label="Choose room style" onClick={()=>beginEdit('styles')}><Palette size={16}/><span>Styles</span></button>}</div>
   {message&&<p className="room-message" role="status">{message}</p>}{error&&<p className="room-error" role="alert">{error}</p>}{styleError&&<p className="room-error" role="alert">{styleError}<button onClick={()=>setStyleRetry(n=>n+1)}>Retry room style</button></p>}
   <div className="room-layout"><div className={`room-stage-column ${editing?'is-editing':''}`}>
@@ -147,7 +142,7 @@ export function PersonalRoom({onBack,onDiscover}:{onBack?:()=>void;onDiscover?:(
      {tab==='sprites'?<><label className="room-search"><Search size={16}/><input aria-label="Search room discoveries" placeholder="Find a discovery…" value={query} onChange={e=>setQuery(e.target.value)}/></label><div className="room-piece-library">{shown.map(e=><button key={e.id} aria-label={`Place ${e.name}`} disabled={busy||room.pieces.length>=MAX_ROOM_PIECES} onClick={()=>add('sprite',e.name)}><CraftSprite name={e.name} emoji={e.emoji} idle={false}/><span>{e.name}</span><Plus size={13}/></button>)}</div>{!shown.length&&<p>No discoveries match. Try another name.</p>}{collection.length>60&&<small>Showing up to 60 finds. Search to narrow your collection.</small>}</>:tab==='decorations'?<div className="room-piece-library">{ROOM_REWARDS.map(d=>{const unlocked=unlockedRewardIds.has(d.id);return <button key={d.id} aria-label={`Place ${d.name}${!unlocked?`, ${roomRewardHint(d)}`:''}`} disabled={busy||!unlocked||room.pieces.length>=MAX_ROOM_PIECES} onClick={()=>add('decoration',d.id)}><img src={`/room/${d.id}.png`} alt=""/><span>{d.name}</span>{!unlocked?<small><LockKeyhole size={12}/>{roomRewardHint(d)}</small>:<Plus size={13}/>}</button>;})}</div>:<div className="room-style-picker">{ROOM_STYLES.map(s=><button key={s.id} disabled={busy||discovered.count<s.discoveries} aria-pressed={style.id===s.id} aria-label={`Use ${s.name}${discovered.count<s.discoveries?`, unlocks at ${s.discoveries} discoveries`:''}`} onClick={()=>changeRoom(r=>({...r,style:s.id,name:r.name===style.name?s.name:r.name}))}><img src={s.image} alt="" loading="lazy"/><strong>{s.name}</strong><small>{discovered.count<s.discoveries?<><LockKeyhole size={12}/>{s.discoveries} discoveries</>:style.id===s.id?'Current style':s.description}</small></button>)}</div>}
     </div>
    </>:<>
-    <div className="room-panel room-goals"><Sparkles size={23}/><h2>Discover. Decorate. Repeat.</h2><div><strong>{discovered.count} discoveries</strong><small>Every collected element is yours to display.</small></div><div><strong>{unlockedDecor} / {ROOM_REWARDS.length} decorations</strong><small>Unlock decor through discoveries, Orders, or Boop Claw.</small></div><div><strong>{Math.min(3,distinctDisplayed)} / 3 favorite finds displayed</strong><small>Make a room that tells your story.</small></div><button className="room-primary" onClick={()=>beginEdit()}><Pencil size={16}/>Arrange your room</button></div>
+    <div className="room-panel room-goals"><Sparkles size={23}/><h2>Discover. Decorate. Repeat.</h2><div><strong>{discovered.count} discoveries</strong><small>Every collected element is yours to display.</small></div><div><strong>{unlockedDecor} / {ROOM_REWARDS.length} decorations</strong><small>Unlock decor through discoveries or Orders.</small></div><div><strong>{Math.min(3,distinctDisplayed)} / 3 favorite finds displayed</strong><small>Make a room that tells your story.</small></div><button className="room-primary" onClick={()=>beginEdit()}><Pencil size={16}/>Arrange your room</button></div>
     <div className="room-panel"><Palette size={23}/><h2>{nextStyle?'Your next room style':'Every room style unlocked'}</h2><strong>{nextStyle?.name||'Keep making discoveries'}</strong><p>{nextStyle?`${nextStyle.discoveries-discovered.count} more unique discoveries to unlock`:'Try a different style without moving your pieces.'}</p>{nextStyle&&<progress aria-label="Next room style" value={discovered.count} max={nextStyle.discoveries}/>}<button onClick={()=>beginEdit('styles')}>Browse room styles</button><BoopOrders state={state}/><small>Orders reputation still unlocks your original decorations.</small></div>
    </>}
   </aside></div>

@@ -1,5 +1,3 @@
-import { ROOM_REWARDS, type RoomDecoration } from './roomProgress';
-
 export const CABINET_WIDTH = 480;
 export const CABINET_HEIGHT = 320;
 export const RAIL_Y = 28;
@@ -7,12 +5,11 @@ export const CHUTE_X = 440;
 export const FLOOR_Y = 292;
 export const CLAW_STEP = 1 / 120;
 export const DIVIDER_X = 396;
-export const CLAW_PRIZES = ROOM_REWARDS.filter(prize => prize.id !== 'display-stand');
 const HOME_LENGTH = 48;
 const GRIP_OFFSET = 19;
 
 type Phase = 'aim' | 'lower' | 'grip' | 'lift' | 'return' | 'deliver' | 'done';
-type Prize = { id: RoomDecoration; x: number; y: number; vx: number; vy: number; radius: number; angle: number };
+type Prize = { x: number; y: number; vx: number; vy: number; radius: number; angle: number };
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 const approach = (value: number, target: number, distance: number) =>
   value + clamp(target - value, -distance, distance);
@@ -23,14 +20,14 @@ export function createClawMachine(random = Math.random) {
     const swap = Math.floor(random() * (index + 1));
     [slots[index], slots[swap]] = [slots[swap], slots[index]];
   }
-  const prizes: Prize[] = CLAW_PRIZES.map(({ id }, index) => ({
-    id, x: 50 + slots[index] * 68 + random() * 22, y: 204 - random() * 66,
+  const prizes: Prize[] = slots.map(slot => ({
+    x: 50 + slot * 68 + random() * 22, y: 204 - random() * 66,
     vx: random() * 44 - 22, vy: 0, radius: 21, angle: 0,
   }));
   return {
     prizes, phase: 'aim' as Phase, x: 190, target: 190, velocity: 0, length: HOME_LENGTH,
     swing: 0, swingSpeed: 0, jaw: 1, timer: 0, held: undefined as Prize | undefined,
-    released: undefined as Prize | undefined, won: undefined as RoomDecoration | undefined,
+    released: undefined as Prize | undefined, won: false,
   };
 }
 
@@ -150,7 +147,7 @@ export function stepClaw(machine: ClawMachine) {
       break;
     case 'deliver':
       if (machine.released && machine.released.y + machine.released.radius >= FLOOR_Y && !machine.released.vy) {
-        machine.won = machine.released.id;
+        machine.won = true;
         machine.phase = 'done';
       }
       break;

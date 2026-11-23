@@ -1,77 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, Gamepad2, X } from 'lucide-react';
-import {
-  aimClaw, CABINET_HEIGHT, CABINET_WIDTH, CHUTE_X, CLAW_PRIZES, CLAW_STEP, clawTip, DIVIDER_X,
-  createClawMachine, dropClaw, FLOOR_Y, RAIL_Y, stepClaw, type ClawMachine,
-} from '../lib/clawMachine';
-import type { RoomDecoration } from '../lib/roomProgress';
+import { aimClaw, CABINET_HEIGHT, CABINET_WIDTH, CLAW_STEP, createClawMachine, dropClaw, stepClaw } from '../lib/clawMachine';
+import { paintClawCabinet } from '../lib/clawArtwork';
+import type { InfiniteElement } from '../lib/infiniteCraftData';
+import { commitClawReward } from '../lib/saveData';
+import { CraftSprite } from './CraftSprite';
 import '../styles/room-claw.css';
 
-const prizeColors = ['#a8edbb', '#ffdf9c', '#b8ebdf', '#acdfff', '#f7aad3'];
-
-function paint(ctx: CanvasRenderingContext2D, machine: ClawMachine, art: HTMLImageElement[]) {
-  ctx.clearRect(0, 0, CABINET_WIDTH, CABINET_HEIGHT);
-  ctx.fillStyle = '#252442';
-  ctx.fillRect(0, 0, CABINET_WIDTH, CABINET_HEIGHT);
-  ctx.fillStyle = '#1b1a30';
-  ctx.fillRect(DIVIDER_X, 158, CABINET_WIDTH - DIVIDER_X, FLOOR_Y - 158);
-  ctx.fillRect(0, FLOOR_Y, CABINET_WIDTH, CABINET_HEIGHT - FLOOR_Y);
-  ctx.fillStyle = '#e5c5fd';
-  ctx.font = 'bold 11px system-ui';
-  ctx.textAlign = 'center';
-  ctx.fillText('PRIZE CHUTE', CHUTE_X, FLOOR_Y + 18);
-  ctx.fillStyle = '#70638f';
-  ctx.fillRect(DIVIDER_X - 2, 158, 4, FLOOR_Y - 158);
-  ctx.fillRect(0, RAIL_Y - 5, CABINET_WIDTH, 5);
-  ctx.fillRect(0, FLOOR_Y, CABINET_WIDTH, 3);
-
-  machine.prizes.forEach((prize, index) => {
-    ctx.save();
-    ctx.translate(prize.x, prize.y);
-    ctx.rotate(prize.angle);
-    ctx.beginPath();
-    ctx.arc(0, 0, prize.radius - 1, 0, Math.PI * 2);
-    ctx.fillStyle = prizeColors[index];
-    ctx.fill();
-    ctx.strokeStyle = '#fff9';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    const image = art[index];
-    if (image.complete && image.naturalWidth) ctx.drawImage(image, -15, -15, 30, 30);
-    ctx.restore();
-  });
-
-  const tip = clawTip(machine);
-  ctx.lineCap = 'round';
-  ctx.strokeStyle = '#d1c1e7';
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.moveTo(machine.x, RAIL_Y);
-  ctx.lineTo(tip.x, tip.y);
-  ctx.stroke();
-  ctx.fillStyle = '#f6b3d8';
-  ctx.fillRect(machine.x - 15, RAIL_Y - 9, 30, 12);
-  ctx.save();
-  ctx.translate(tip.x, tip.y);
-  ctx.rotate(-machine.swing);
-  ctx.strokeStyle = '#fde8aa';
-  ctx.lineWidth = 5;
-  for (const side of [-1, 1]) {
-    ctx.beginPath();
-    ctx.moveTo(side * 6, 0);
-    ctx.lineTo(side * (16 + machine.jaw * 11), 12);
-    ctx.lineTo(side * (12 + machine.jaw * 14), 26);
-    ctx.stroke();
-  }
-  ctx.fillStyle = '#f6b3d8';
-  ctx.fillRect(-10, -5, 20, 10);
-  ctx.restore();
-}
-
-export function RoomClaw({ onClose, onPrize }: {
-  onClose: () => void;
-  onPrize: (id: RoomDecoration) => Promise<void>;
-}) {
+export function RoomClaw({ onClose }: { onClose: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const controls = useRef({ left: false, right: false });
@@ -79,24 +15,26 @@ export function RoomClaw({ onClose, onPrize }: {
   const [phase, setPhase] = useState(machine.phase);
   const [save, setSave] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [error, setError] = useState('');
-  const won = phase === 'done' ? machine.won : undefined;
-  const reward = CLAW_PRIZES.find(item => item.id === won);
+  const [reward, setReward] = useState<InfiniteElement>();
+  const rewardRoll = useRef<number | undefined>(undefined);
+
+  const claimPrize = useCallback(() => {
+    rewardRoll.current ??= Math.random();
+    setSave('saving');
+    void commitClawReward(rewardRoll.current).then(item => {
+      setReward(item);
+      setSave('saved');
+    }, reason => {
+      setError(reason instanceof Error ? reason.message : 'Could not save the prize.');
+      setSave('error');
+    });
+  }, []);
 
   useEffect(() => {
     const element = dialog.current!;
     element.showModal();
     return () => element.close();
   }, []);
-
-  useEffect(() => {
-    if (won && save === 'idle') {
-      setSave('saving');
-      void onPrize(won).then(() => setSave('saved'), reason => {
-        setError(reason instanceof Error ? reason.message : 'Could not save the prize.');
-        setSave('error');
-      });
-    }
-  }, [won, save, onPrize]);
 
   useEffect(() => {
     const surface = canvas.current!;
@@ -106,11 +44,6 @@ export function RoomClaw({ onClose, onPrize }: {
     surface.width = CABINET_WIDTH * scale;
     surface.height = CABINET_HEIGHT * scale;
     ctx.scale(scale, scale);
-    const art = CLAW_PRIZES.map(({ id }) => {
-      const image = new Image();
-      image.src = `/room/${id}.png`;
-      return image;
-    });
     let frame = 0, previous = performance.now(), accumulator = 0;
     let lastPhase = machine.phase;
     const tick = (now: number) => {
@@ -122,28 +55,31 @@ export function RoomClaw({ onClose, onPrize }: {
         stepClaw(machine);
         accumulator -= CLAW_STEP;
       }
-      paint(ctx, machine, art);
+      paintClawCabinet(ctx, machine);
       if (lastPhase !== machine.phase) {
         lastPhase = machine.phase;
         setPhase(lastPhase);
+        if (lastPhase === 'done' && machine.won) claimPrize();
       }
-      if (machine.phase !== 'done' || art.some(image => !image.complete)) frame = requestAnimationFrame(tick);
+      if (machine.phase !== 'done') frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [machine]);
+  }, [machine, claimPrize]);
 
   const reset = () => {
     controls.current = { left: false, right: false };
     setMachine(createClawMachine());
     setPhase('aim');
     setSave('idle');
+    setReward(undefined);
+    rewardRoll.current = undefined;
   };
-  const pending = save === 'saving' || (!!won && save === 'idle');
+  const pending = save === 'saving';
   const status = phase === 'aim' ? 'Drag across the cabinet or use the arrows to aim.'
     : phase !== 'done' ? 'The claw is in motion…'
-    : pending ? 'Saving your prize…'
-    : save === 'saved' ? `${reward?.name} is ready to place under Edit room → Decorations.`
+    : pending ? 'Opening your mystery capsule…'
+    : save === 'saved' ? `You won ${reward?.name}! Find it in Collection or Edit room → Discoveries.`
     : save === 'error' ? error : 'The claw came back empty. Try another drop.';
 
   return (
@@ -178,7 +114,10 @@ export function RoomClaw({ onClose, onPrize }: {
           const bounds = event.currentTarget.getBoundingClientRect();
           aimClaw(machine, (event.clientX - bounds.left) * CABINET_WIDTH / bounds.width);
         }}/>
-      <p className="room-claw-status" role="status">{status}</p>
+      <div className="room-claw-status" role="status">
+        {reward && <CraftSprite name={reward.name} emoji={reward.emoji} category={reward.category} idle={false}/>}
+        <span>{status}</span>
+      </div>
       <div className="room-claw-controls">
         {(['left', 'right'] as const).map(direction => {
           const Icon = direction === 'left' ? ArrowLeft : ArrowRight;
@@ -196,7 +135,7 @@ export function RoomClaw({ onClose, onPrize }: {
         })}
         {phase === 'done'
           ? <button type="button" className="room-primary" disabled={pending}
-              onClick={save === 'error' ? () => setSave('idle') : reset}>{save === 'error' ? 'Retry save' : 'Play again'}</button>
+              onClick={save === 'error' ? claimPrize : reset}>{save === 'error' ? 'Retry save' : 'Play again'}</button>
           : <button type="button" className="room-primary" disabled={phase !== 'aim'} onClick={() => dropClaw(machine)}>Drop claw</button>}
       </div>
     </dialog>
