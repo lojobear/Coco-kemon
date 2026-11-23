@@ -76,11 +76,13 @@ export function RoomClaw({ onClose }: { onClose: () => void }) {
     rewardRoll.current = undefined;
   };
   const pending = save === 'saving';
-  const status = phase === 'aim' ? 'Drag across the cabinet or use the arrows to aim.'
+  const status = phase === 'aim' ? 'Aim with a drag or the arrows. Time your drop as a capsule crosses the guide.'
     : phase !== 'done' ? 'The claw is in motion…'
     : pending ? 'Opening your mystery capsule…'
     : save === 'saved' ? `You won ${reward?.name}! Find it in Collection or Edit room → Discoveries.`
-    : save === 'error' ? error : 'The claw came back empty. Try another drop.';
+    : save === 'error' ? error
+    : machine.slipped ? 'The capsule slipped out. Try a more centered catch.'
+    : 'The claw came back empty. Try another drop.';
 
   return (
     <dialog ref={dialog} className="room-claw" aria-labelledby="room-claw-title"

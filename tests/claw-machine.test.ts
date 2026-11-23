@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { aimClaw, CLAW_STEP, createClawMachine, dropClaw, stepClaw } from '../src/lib/clawMachine';
+import { aimClaw, BOWL_RADIUS, BOWL_X, CLAW_STEP, createClawMachine, dropClaw, stepClaw } from '../src/lib/clawMachine';
 import { applyClawReward } from '../src/lib/clawRewards';
 import { earnedCopyCounts } from '../src/lib/elementCopies';
 import { emptyPersonalRooms, sanitizePersonalRooms, validPersonalRooms, type RoomPiece } from '../src/lib/personalRoom';
@@ -9,27 +9,49 @@ const advance = (machine: ReturnType<typeof createClawMachine>, seconds: number)
   for (let step = 0; step < seconds / CLAW_STEP; step++) stepClaw(machine);
 };
 
-test('a centered grab lifts its prize and only awards it after delivery', () => {
+function aimedDrop(x: number, steps: number) {
   const machine = createClawMachine(() => .5);
-  const prize = machine.prizes[0];
-  advance(machine, 2);
-  aimClaw(machine, prize.x);
-  advance(machine, 2);
+  aimClaw(machine, x);
+  for (let step = 0; step < steps; step++) stepClaw(machine);
   dropClaw(machine);
-  advance(machine, 2);
+  return machine;
+}
+
+test('the bowl drives free capsule motion and keeps capsules in bounds', () => {
+  const machine = createClawMachine(() => .5);
+  const before = machine.prizes.map(prize => prize.x);
+  const angle = machine.bowlAngle;
+  advance(machine, 1);
+  assert.notEqual(machine.bowlAngle, angle);
+  assert.ok(machine.prizes.some((prize, index) => Math.abs(prize.x - before[index]) > 15));
+  assert.ok(machine.prizes.every(prize => Math.hypot(prize.x - BOWL_X, prize.z) <= BOWL_RADIUS - prize.radius + 1));
+});
+
+test('a timed grab lifts a capsule and only awards it after reaching the chute', () => {
+  const machine = aimedDrop(108, 230);
+  for (let step = 0; step < 300 && !machine.held; step++) stepClaw(machine);
+  assert.ok(machine.held);
   assert.equal(machine.won, false);
-  advance(machine, 5);
+  advance(machine, 7);
   assert.equal(machine.phase, 'done');
   assert.equal(machine.won, true);
 });
 
-test('a drop between prizes returns empty', () => {
-  const machine = createClawMachine(() => .5);
-  aimClaw(machine, 95);
-  advance(machine, 2);
-  dropClaw(machine);
+test('an off-center pinch can lift and then slip without awarding a prize', () => {
+  const machine = aimedDrop(101, 235);
+  for (let step = 0; step < 300 && !machine.held; step++) stepClaw(machine);
+  assert.ok(machine.held);
   advance(machine, 7);
   assert.equal(machine.phase, 'done');
+  assert.equal(machine.slipped, true);
+  assert.equal(machine.won, false);
+});
+
+test('a drop through an empty lane comes back without a prize', () => {
+  const machine = aimedDrop(BOWL_X, 240);
+  advance(machine, 7);
+  assert.equal(machine.phase, 'done');
+  assert.equal(machine.slipped, false);
   assert.equal(machine.won, false);
 });
 
