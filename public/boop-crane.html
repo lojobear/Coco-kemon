@@ -4208,6 +4208,7 @@ void main() {
   ring(claw, aqua, .234, .024, 0).rotation.x = Math.PI / 2;
   const cable = tube(scene, std(0xdec0ae, { metalness: .63 }), .024, .024, 1, 0, 0, CLAW_Z);
   box(scene, peach, .46, .14, .46, 0, 2.135, CLAW_Z);
+  const openAngle = .77, closedAngle = -.16;
   const fingers = [];
   for (let index = 0; index < 3; index++) {
     const mount = new T.Group();
@@ -4216,6 +4217,7 @@ void main() {
     const hinge = new T.Group();
     hinge.position.set(.175, -.035, 0);
     mount.add(hinge);
+    hinge.rotation.z = openAngle;
     fingers.push(hinge);
     const arm = box(hinge, peach, .118, .34, .105, .035, -.149);
     arm.rotation.z = .22;
@@ -4372,6 +4374,7 @@ void main() {
   let previousClawY = HOME;
   let phase = 'ready', phaseTime = 0, drumAngle = 0, simulationTime = 0;
   let held, holdStart;
+  let openness = 1, snapFrom = 1;
   let score = 0;
   let best = 0;
   try {
@@ -4452,6 +4455,7 @@ void main() {
       state('descending', 'Tap again when a bubble is under the claw.');
     } else {
       held = candidate();
+      snapFrom = openness;
       if (held) {
         holdStart = held.group.position.clone();
         world.removeBody(held.body);
@@ -4471,22 +4475,24 @@ void main() {
     simulationTime += STEP;
     phaseTime += STEP;
     drumAngle = (drumAngle + SPIN * STEP) % (Math.PI * 2);
-    let openness = 0;
     previousClawY = clawY;
     if (phase === 'descending') {
       clawY = Math.max(BOTTOM, clawY - STEP * 2.15);
+      openness = (clawY - BOTTOM) / (HOME - BOTTOM);
       if (clawY === BOTTOM) state('lifting', 'No grab. Try tapping before the claw reaches the bottom.');
     } else if (phase === 'snapping') {
-      openness = phaseTime < .08 ? ease(phaseTime / .08) : 1 - ease(Math.min(1, (phaseTime - .08) / .13));
-      if (phaseTime >= .21) state('lifting');
+      openness = snapFrom * (1 - ease(Math.min(1, phaseTime / .16)));
+      if (phaseTime >= .16) state('lifting');
     } else if (phase === 'lifting') {
+      openness = 0;
       clawY = Math.min(HOME, clawY + STEP * 3.4);
       if (clawY === HOME) {
         if (held) award();
         else state('ready', 'Empty return. Ready for another drop.');
+        openness = 1;
       }
     }
-    for (const finger of fingers) finger.rotation.z = -.16 + .93 * openness;
+    for (const finger of fingers) finger.rotation.z = closedAngle + (openAngle - closedAngle) * openness;
 
     // Tangential drive and five rotating force peaks mimic the drum's lifters.
     // All capsule-to-capsule and capsule-to-wall contacts are solved by Cannon.
@@ -4515,7 +4521,7 @@ void main() {
     }
     if (held) {
       motionTarget.set(0, clawY - .42, CLAW_Z);
-      if (phase === 'snapping') held.group.position.copy(holdStart).lerp(motionTarget, ease(Math.min(1, phaseTime / .20)));
+      if (phase === 'snapping') held.group.position.copy(holdStart).lerp(motionTarget, ease(Math.min(1, phaseTime / .15)));
       else held.group.position.copy(motionTarget);
     }
     for (let index = particles.length - 1; index >= 0; index--) {
