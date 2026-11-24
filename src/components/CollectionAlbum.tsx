@@ -6,13 +6,14 @@ import { discoveryIdentity } from '../lib/unifiedCollection';
 import { buildCollectionCategoryIndex, indexedCategory, collectionCategoryCounts } from '../lib/collectionCategories';
 import { mergeSharedDiscoveries } from '../lib/sharedDiscoveries';
 import { isProceduralDefault } from './ElementSprite';
-import { BookOpen, Search, Sparkles, GalleryVerticalEnd, LayoutGrid, ChevronRight, ArrowLeft, X, Lock, Plus, Trash2, Share2, Check, Star, GitBranch, Trophy, Shuffle, Upload } from 'lucide-react';
+import { BookOpen, Search, Sparkles, GalleryVerticalEnd, LayoutGrid, ChevronRight, ArrowLeft, X, Lock, Plus, Trash2, Share2, Check, Star, GitBranch, Trophy, Shuffle, Upload, GlassWater } from 'lucide-react';
 import type { InfiniteElement } from '../lib/infiniteCraftData';
 import { useGame } from '../lib/gameStore';
 import { readCraftElements, readCollectorRoom, saveCollectorRoom, SAVE_CHANGED_EVENT, SAVE_IMPORTED_EVENT } from '../lib/saveData';
 import { ALBUM_SETS, albumSetProgress, availableVariants, evolutionFor, type CollectorVariant, type FrameStyle, type TrophyRoom, type RoomTheme, SHINY_ODDS, CELESTIAL_ODDS } from '../lib/collectorData';
 import { normalizeElementStats } from '../lib/elementStats';
 import { rarityInfo, rarityChanceLabel, rarityRank, HOLO_ODDS, GLITCH_ODDS } from '../lib/rarity';
+import { SpriteCup } from './SpriteCup';
 import { RarityBadges } from './RarityBadges';
 import { CraftSprite, CraftSprites } from './CraftSprite';
 import { exportTrophyPostcard } from '../lib/trophyPostcard';
@@ -59,6 +60,7 @@ export function CollectionAlbum({
   const [elements,setElements]=useState<InfiniteElement[]>(readCraftElements);
   const [room,setRoom]=useState<TrophyRoom>(readCollectorRoom);
   const [tab,setTab]=useState<AlbumTab>('album');
+  const [cupOpen,setCupOpen]=useState(false);
   const [query,setQuery]=useState(initialSearch);
   const [filter,setFilter]=useState<AlbumFilter>('all');
   const [passportFilter,setPassportFilter]=useState<'all'|'incomplete'|'completed'>('all');
@@ -275,6 +277,8 @@ export function CollectionAlbum({
         </div>
         <div className="boop-collection-wallet"><span className="boop-collected-count">{catalog.length.toLocaleString()} collected</span><WalletBalance/></div>
       </header>
+      <button type="button" className="sprite-cup-launch" onClick={()=>setCupOpen(true)}><GlassWater size={17}/> Sprite cup</button>
+      {cupOpen&&<SpriteCup items={catalog} onClose={()=>setCupOpen(false)}/>}
       <input ref={spriteUploadRef} type="file" accept="image/png,image/webp,image/jpeg" className="hidden"
         aria-label="Choose replacement sprite image" onChange={event=>void replaceCollectionSprite(event.target.files?.[0])}/>
       {repairStatus&&<p className="boop-album-repair-status" role="status">{repairStatus}</p>}
