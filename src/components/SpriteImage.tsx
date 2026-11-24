@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { resolveSpriteSource } from '../lib/spriteAssets';
 import { isSpriteReference } from '../lib/spriteReference';
+import { canRepairSpriteMask, spriteWithoutMask } from '../lib/spriteMask';
 
 /** Resolve private files at display time; account credentials never enter image URLs. */
-export function SpriteImage({ src, onError, ...props }: React.ImgHTMLAttributes<HTMLImageElement>) {
+export function SpriteImage({ src, onError, cleanMask = true, ...props }: React.ImgHTMLAttributes<HTMLImageElement> & { cleanMask?: boolean }) {
   const [resolved, setResolved] = useState<{ source?: string; url?: string; error?: string }>();
   const [failedUrl, setFailedUrl] = useState<string>();
   const [retry, setRetry] = useState(0);
@@ -37,7 +38,19 @@ export function SpriteImage({ src, onError, ...props }: React.ImgHTMLAttributes<
       document.removeEventListener('visibilitychange', onVisible);
     };
   }, [hasFailed]);
-  const url = isSpriteReference(src) ? (resolved?.source === src ? resolved.url : undefined) : src;
+  const source = isSpriteReference(src) ? (resolved?.source === src ? resolved.url : undefined) : src;
+  const needsMaskCheck = cleanMask && canRepairSpriteMask(source);
+  const [preview, setPreview] = useState<{ source: string; url: string }>();
+  useEffect(() => {
+    if (!needsMaskCheck) return;
+    let active = true;
+    void spriteWithoutMask(source).then(url => {
+      if (active) setPreview({ source, url });
+    });
+    return () => { active = false; };
+  }, [source, needsMaskCheck]);
+  const maskPending = needsMaskCheck && preview?.source !== source;
+  const url = needsMaskCheck && preview?.source === source ? preview?.url : source;
   const unavailable = Boolean(resolved?.source === src && resolved?.error) || Boolean(url && failedUrl === url) || !src;
   if (!url || failedUrl === url) return <span role={src && unavailable ? 'group' : 'img'} aria-label={`${props.alt || 'Sprite'}: ${unavailable ? 'artwork unavailable, retry in Sprites' : 'artwork loading'}`}
     className={`boop-sprite-placeholder ${props.className || ''}`} title={unavailable ? 'Artwork unavailable. Retry in Sprites.' : 'Loading artwork'}>
@@ -47,5 +60,5 @@ export function SpriteImage({ src, onError, ...props }: React.ImgHTMLAttributes<
       aria-label={`Retry loading ${props.alt || 'sprite'} artwork`}
       onClick={event => { event.stopPropagation(); retryFailed(); }}>Retry</button>}
   </span>;
-  return <img {...props} src={url} onError={event => { setFailedUrl(url); onError?.(event); }} />;
+  return <img {...props} style={maskPending ? { ...props.style, visibility: 'hidden' } : props.style} src={url} onError={event => { setFailedUrl(url); onError?.(event); }} />;
 }

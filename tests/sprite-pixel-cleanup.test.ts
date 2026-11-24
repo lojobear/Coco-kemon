@@ -99,3 +99,43 @@ test('reject completely opaque and completely erased output',()=>{
   assert.throws(()=>assertTransparentSprite(image(12,12,[255,0,255,255]).pixels,12,12));
   assert.throws(()=>assertTransparentSprite(image(12,12,[0,0,0,0]).pixels,12,12));
 });
+
+test('keys out an entirely shaded backdrop and a diagonal shadow without erasing the subject', () => {
+  const im = image(16, 16, [172, 56, 191, 255]);
+  for (let y = 3; y < 13; y++) for (let x = 3; x < 13; x++) im.set(x, y, [28, 118, 185, 255]);
+  im.set(3, 3, [118, 45, 145, 255]);
+  im.set(4, 4, [118, 45, 145, 255]);
+  im.set(8, 8, [193, 95, 170, 255]);
+  assert.equal(removeMagentaMask(im.pixels, 16, 16), true);
+  assert.equal(im.alpha(4, 4), 0);
+  assert.equal(im.alpha(8, 8), 255);
+  assertTransparentSprite(im.pixels, 16, 16);
+});
+
+test('removes a background-colored cutout inside an object while preserving single pink details', () => {
+  const im = image(18, 18, [255, 0, 255, 255]);
+  for (let y = 3; y < 15; y++) for (let x = 3; x < 15; x++) im.set(x, y, [33, 132, 187, 255]);
+  for (let y = 6; y < 10; y++) for (let x = 6; x < 10; x++) im.set(x, y, [252, 5, 252, 255]);
+  im.set(12, 12, [255, 0, 255, 255]);
+  assert.equal(removeMagentaMask(im.pixels, 18, 18), true);
+  assert.equal(im.alpha(7, 7), 0);
+  assert.equal(im.alpha(12, 12), 255);
+});
+
+test('undoes baked-in magenta at an opaque antialiased edge', () => {
+  const im = image(14, 14, [255, 0, 255, 255]);
+  for (let y = 4; y <= 9; y++) for (let x = 4; x <= 9; x++) im.set(x, y, [40, 130, 190, 255]);
+  // 70% subject RGB plus 30% backdrop RGB.
+  im.set(3, 6, [105, 91, 210, 255]);
+  assert.equal(removeMagentaMask(im.pixels, 14, 14), true);
+  const index = (6 * 14 + 3) * 4;
+  assert.deepEqual([...im.pixels.slice(index, index + 4)], [40, 130, 190, 178]);
+});
+
+test('leaves an intentionally translucent pink sprite alone when there is no key evidence', () => {
+  const im = image(12, 12, [0, 0, 0, 0]);
+  for (let y = 3; y < 9; y++) for (let x = 3; x < 9; x++) im.set(x, y, [201, 91, 186, 180]);
+  const original = im.pixels.slice();
+  assert.equal(removeMagentaMask(im.pixels, 12, 12), false);
+  assert.deepEqual(im.pixels, original);
+});

@@ -116,63 +116,106 @@ export function tidyGeneratedSpritePixels(
   }
 }
 
-/** Remove the actual chroma key even when the model paints inconsistent corners,
- * including near-key shadows and antialiased fringe. Flood only from outside
- * or existing alpha: enclosed pink subject details are not background.
- * Returns true when visible pixels were changed. */
+const isStrongMagenta = (r: number, g: number, b: number) =>
+  r >= 215 && b >= 215 && g <= 62 && Math.abs(r - b) <= 42;
+const isShadedMagenta = (r: number, g: number, b: number) =>
+  Math.min(r, b) >= 110 && Math.min(r, b) - g >= 50 && Math.abs(r - b) <= 84;
+
+/** Key the backdrop and decontaminate its antialiased edge. Interior details
+ * survive unless a solid patch matches a confirmed backdrop almost exactly. */
 export function removeMagentaMask(rgba: Uint8ClampedArray, width: number, height: number): boolean {
   if (width < 2 || height < 2 || rgba.length !== width * height * 4) return false;
   const total = width * height;
-  const nearKey = (i: number) => {
-    const p = i * 4, r = rgba[p], g = rgba[p+1], b = rgba[p+2];
-    return r >= 155 && b >= 155 && g <= 125 && Math.min(r,b)-g >= 65 && Math.abs(r-b) <= 85;
-  };
-  const strongKey = (i: number) => {
-    const p=i*4; return rgba[p]>=220 && rgba[p+2]>=220 && rgba[p+1]<=55 && Math.abs(rgba[p]-rgba[p+2])<=35;
-  };
-  const border:number[]=[];
-  for(let x=0;x<width;x++){border.push(x,(height-1)*width+x);}
-  for(let y=1;y<height-1;y++){border.push(y*width,y*width+width-1);}
-  // Require evidence of the deliberate mask, not a pink subject on transparency.
-  const hasMask=border.some(i=>rgba[i*4+3]>=24&&strongKey(i));
-  const hasAlpha=border.some(i=>rgba[i*4+3]<24);
-  if(!hasMask&&!hasAlpha)return false;
-  const visited=new Uint8Array(total), queue:number[]=[];
-  const add=(i:number)=>{
-    if(visited[i])return;
-    visited[i]=1;
-    if(rgba[i*4+3]<24 || (hasMask?nearKey(i):strongKey(i)))queue.push(i);
-  };
-  for(const i of border)add(i);
-  let changed=false;
-  for(let cursor=0;cursor<queue.length;cursor++){
-    const i=queue[cursor],p=i*4,x=i%width,y=Math.floor(i/width);
-    if(rgba[p+3])changed=true;
-    rgba[p]=rgba[p+1]=rgba[p+2]=rgba[p+3]=0;
-    if(x>0)add(i-1);if(x+1<width)add(i+1);
-    if(y>0)add(i-width);if(y+1<height)add(i+width);
+  const alpha = (i: number) => rgba[i * 4 + 3];
+  const matches = (i: number, test: (r: number, g: number, b: number) => boolean) =>
+    test(rgba[i * 4], rgba[i * 4 + 1], rgba[i * 4 + 2]);
+  const border: number[] = [];
+  for (let x = 0; x < width; x++) border.push(x, total - width + x);
+  for (let y = 1; y < height - 1; y++) border.push(y * width, y * width + width - 1);
+  const shaded = border.filter(i => alpha(i) >= 24 && matches(i, isShadedMagenta));
+  const strong = shaded.filter(i => matches(i, isStrongMagenta));
+  const hasMask = strong.length >= Math.max(2, border.length * .04) || shaded.length >= border.length * .55;
+  if (!hasMask) {
+    if (!border.some(i => alpha(i) < 24)) return false;
+    let i = 0;
+    while (i < total && (alpha(i) < 24 || !matches(i, isStrongMagenta))) i++;
+    if (i === total) return false;
   }
-  // Remove saturated key residue along a transparent boundary, and neutralize
-  // mixed magenta spill in partially transparent edge pixels without touching
-  // opaque subject colours. Iterate only a narrow fringe, not the whole image.
-  if(hasMask||changed){
-    for(let pass=0;pass<3;pass++){
-      const edge:number[]=[];
-      for(let i=0;i<total;i++){
-        const p=i*4;if(!rgba[p+3])continue;
-        const x=i%width,y=Math.floor(i/width);
-        const adjacent=(x>0&&rgba[(i-1)*4+3]<24)||(x+1<width&&rgba[(i+1)*4+3]<24)||(y>0&&rgba[(i-width)*4+3]<24)||(y+1<height&&rgba[(i+width)*4+3]<24);
-        if(!adjacent)continue;
-        if(nearKey(i))edge.push(i);
-        else if(rgba[p+3]<245 && Math.min(rgba[p],rgba[p+2])-rgba[p+1]>35){
-          // Match red/blue spill to green in the translucent fringe.
-          const spill=Math.min(rgba[p],rgba[p+2])-rgba[p+1]-35;
-          rgba[p]-=spill;rgba[p+2]-=spill;changed=true;
-        }
+
+  // Estimate the key from the visible border, including uniformly shaded backgrounds.
+  const samples = strong.length ? strong : shaded;
+  const key = hasMask ? [0, 1, 2].map(channel =>
+    Math.round(samples.reduce((sum, i) => sum + rgba[i * 4 + channel], 0) / samples.length),
+  ) : [255, 0, 255];
+  const matchesKey = (i: number) =>
+    key.every((component, channel) => Math.abs(rgba[i * 4 + channel] - component) <= 22);
+  const neighbors = (i: number, visit: (other: number) => void, radius = 1) => {
+    const x = i % width, y = Math.floor(i / width);
+    for (let yy = Math.max(0, y - radius); yy <= Math.min(height - 1, y + radius); yy++) {
+      for (let xx = Math.max(0, x - radius); xx <= Math.min(width - 1, x + radius); xx++) {
+        const other = yy * width + xx;
+        if (other !== i) visit(other);
       }
-      if(!edge.length)break;
-      for(const i of edge){rgba.fill(0,i*4,i*4+4);changed=true;}
     }
+  };
+
+  const visited = new Uint8Array(total);
+  const queue: number[] = [];
+  const add = (i: number) => {
+    if (visited[i]) return;
+    visited[i] = 1;
+    if (alpha(i) < 24 || matches(i, hasMask ? isShadedMagenta : isStrongMagenta)) queue.push(i);
+  };
+  for (const i of border) add(i);
+  if (hasMask) {
+    // An enclosed window or handle can contain background without a path to the border.
+    for (let y = 1; y < height - 2; y++) {
+      for (let x = 1; x < width - 2; x++) {
+        const i = y * width + x;
+        if ([i, i + 1, i + width, i + width + 1].every(pixel => alpha(pixel) >= 245 && matchesKey(pixel))) add(i);
+      }
+    }
+  }
+
+  let changed = false;
+  const fringe = new Set<number>();
+  for (let cursor = 0; cursor < queue.length; cursor++) {
+    const i = queue[cursor];
+    if (alpha(i)) changed = true;
+    rgba.fill(0, i * 4, i * 4 + 4);
+    neighbors(i, other => {
+      add(other);
+      if (alpha(other) >= 24) fringe.add(other);
+    });
+  }
+  // Leave intentional translucent pink untouched when there is no key evidence.
+  if (!hasMask && !changed) return false;
+
+  const repairs: Array<{ i: number; color: number[]; opacity: number }> = [];
+  for (const i of fringe) {
+    if (alpha(i) < 24) continue;
+    const mixed = [rgba[i * 4], rgba[i * 4 + 1], rgba[i * 4 + 2]];
+    let closest = Infinity;
+    let repair: (typeof repairs)[number] | undefined;
+    neighbors(i, other => {
+      if (alpha(other) < 245 || fringe.has(other)) return;
+      const color = [rgba[other * 4], rgba[other * 4 + 1], rgba[other * 4 + 2]];
+      if (isShadedMagenta(color[0], color[1], color[2])) return;
+      const axis = key.map((component, channel) => component - color[channel]);
+      const length = axis.reduce((sum, component) => sum + component ** 2, 0);
+      if (!length) return;
+      const weight = axis.reduce((sum, component, channel) => sum + component * (mixed[channel] - color[channel]), 0) / length;
+      if (weight < .20 || weight > .96) return;
+      const error = axis.reduce((sum, component, channel) => sum + (mixed[channel] - color[channel] - weight * component) ** 2, 0);
+      if (error > 375 || error >= closest) return;
+      closest = error;
+      repair = { i, color, opacity: Math.round(alpha(i) * (hasMask && alpha(i) >= 245 ? 1 - weight : 1)) };
+    }, 2);
+    if (repair) repairs.push(repair);
+  }
+  for (const { i, color, opacity } of repairs) {
+    rgba.set([...color, opacity], i * 4);
+    changed = true;
   }
   return changed;
 }

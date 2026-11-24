@@ -1,3 +1,4 @@
+import { repairSpriteMask } from './spriteMask';
 import { DEFAULT_SPRITE_ART_STYLE, isPixelSpriteStyle, spriteStyleSize, type SpriteArtStyle } from './spriteArtStyles';
 import { spriteAssets, trackSpriteSync } from './spriteAssets';
 import { emojiKey } from './emojiGeometry';
@@ -313,15 +314,7 @@ export async function upgradeElementEmoji(name: string, variation = '', style: S
 /** Explicit, free repair of saved artwork. Keep original resolution and colours;
  * only commit after the player previews and applies the cleaned result. */
 export async function cleanSavedSpriteMask(dataUrl:string):Promise<string> {
-  if(!/^data:image\/(png|jpeg|jpg|webp);base64,/i.test(dataUrl))throw new Error('Choose saved raster artwork first.');
-  const image=new Image();image.src=dataUrl;await image.decode();
-  if(image.width<2||image.height<2||image.width>2048||image.height>2048)throw new Error('Sprite dimensions are unsupported.');
-  const canvas=document.createElement('canvas');canvas.width=image.width;canvas.height=image.height;
-  const ctx=canvas.getContext('2d');if(!ctx)throw new Error('Canvas is unavailable.');
-  ctx.drawImage(image,0,0);
-  const pixels=ctx.getImageData(0,0,canvas.width,canvas.height);
-  if(!removeMagentaMask(pixels.data,canvas.width,canvas.height))throw new Error('No removable magenta background was found.');
-  assertTransparentSprite(pixels.data,canvas.width,canvas.height);
-  ctx.putImageData(pixels,0,0);
-  return canvas.toDataURL('image/png');
+  const cleaned = await repairSpriteMask(dataUrl);
+  if (!cleaned) throw new Error('No removable magenta background was found.');
+  return cleaned;
 }
