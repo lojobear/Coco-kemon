@@ -103,6 +103,7 @@ export function RoomClaw({ onClose }: { onClose: () => void }) {
       }}>
       <header className="room-claw-heading">
         <h2 id="room-claw-title"><Gamepad2 size={23}/> Boop Claw</h2>
+        <a className="room-claw-3d-link" href="/boop-crane.html">Play 3D Claw</a>
         <button type="button" aria-label="Close claw machine" onClick={onClose} disabled={pending}><X size={21}/></button>
       </header>
       <canvas ref={canvas} width={CABINET_WIDTH} height={CABINET_HEIGHT} aria-hidden="true"

@@ -76,3 +76,14 @@
   object-fit: contain;
   image-rendering: pixelated;
 }
+
+.room-claw-3d-link {
+  margin-left: auto;
+  color: #f6b3d8;
+  font-size: .84rem;
+  text-underline-offset: .2em;
+}
+.room-claw-3d-link:focus-visible {
+  outline: 2px solid #ffdfa0;
+  outline-offset: 4px;
+}
