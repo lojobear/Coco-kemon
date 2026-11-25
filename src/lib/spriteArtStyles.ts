@@ -1,5 +1,6 @@
 /** Shared style choices for generation and explicit edits. */
 export const SPRITE_ART_STYLES = {
+  boop: { label: 'Boop Starter Pixel', description: 'Bold silhouettes, crisp 32px edges, and warm top-left light', prompt: 'Hand-authored-style 32x32 game sprite. One instantly recognizable subject with a clean silhouette, crisp dark navy or local-colour outline, and 8–16 flat colours in large, deliberate pixel clusters. Use top-left light, small stepped highlights and distinct lower-right shadows. Use the Boop starter treatment: bold shape, meaningful negative space, and one or two distinctive details that read at thumbnail size. Draw the requested subject with its own silhouette, local colours and anatomy. No white sticker border, gradients, antialiasing, texture noise, platform or external glow.' },
   classic: { label: 'Classic Boop', description: 'Compact isometric furni pixel art', prompt: '' },
   retro: { label: 'Retro 16-bit', description: 'Chunky pixels, classic RPG palette', prompt: 'Classic 16-bit RPG inventory pixel art; chunky square pixel clusters, limited 16–24 color palette, strong silhouette, stepped shadows, crisp hard edges. No gradients.' },
   hd: { label: 'HD Pixel Art', description: 'Fine pixels, richer textures', prompt: 'High-definition pixel art inventory icon; fine crisp pixel clusters, rich material texture, precise highlights, detailed readable silhouette, no smooth gradients or anti-aliasing.' },
@@ -21,7 +22,7 @@ export const SPRITE_ART_STYLES = {
   glass: { label: 'Art Glass', description: 'Translucent sculpted glass collectible', prompt: 'Miniature sculpted art-glass collectible, richly coloured glass with controlled refraction, bright specular highlights and recognizable solid silhouette, no external glow or pedestal.' },
 } as const;
 export type SpriteArtStyle = keyof typeof SPRITE_ART_STYLES;
-export const DEFAULT_SPRITE_ART_STYLE: SpriteArtStyle = 'tactics';
+export const DEFAULT_SPRITE_ART_STYLE: SpriteArtStyle = 'boop';
 export function isSpriteArtStyle(value: unknown): value is SpriteArtStyle {
   return typeof value === 'string' && Object.prototype.hasOwnProperty.call(SPRITE_ART_STYLES, value);
 }
@@ -30,6 +31,6 @@ export function readPromptArtStyle(prompt: string): SpriteArtStyle {
   const value = prompt.match(/^ART STYLE ID: ([a-z]+)$/m)?.[1];
   return isSpriteArtStyle(value) ? value : 'classic';
 }
-export const PIXEL_STYLE_SIZES: Partial<Record<SpriteArtStyle, number>> = { classic:112, retro:64, hd:192, handheld:96, arcade:160, micro:32, gameboy:48, advance:64, furni:112, dungeon:96, cozy:64, tactics:128, neon:96, dither:96, storybook:128, metal:96 };
+export const PIXEL_STYLE_SIZES: Partial<Record<SpriteArtStyle, number>> = { boop:32, classic:112, retro:64, hd:192, handheld:96, arcade:160, micro:32, gameboy:48, advance:64, furni:112, dungeon:96, cozy:64, tactics:128, neon:96, dither:96, storybook:128, metal:96 };
 export function isPixelSpriteStyle(style: SpriteArtStyle): boolean { return PIXEL_STYLE_SIZES[style] !== undefined; }
 export function spriteStyleSize(style: SpriteArtStyle):number { return PIXEL_STYLE_SIZES[style] ?? 512; }

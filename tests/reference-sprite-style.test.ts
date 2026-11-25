@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { buildSpritePrompt, SPRITE_ENGINE_VERSION } from '../server/emoji';
 import { compactSchnellImagePrompt } from '../server/gemini';
 import { BOOP_MINI_REFERENCE_PNG_BASE64, BOOP_MINI_REFERENCE_VERSION, miniSpriteReferenceBlob } from '../server/spriteReference';
-import { composeMiniSpritePixels, alphaBounds, MINI_CANVAS_SIZE, MINI_FOOTPRINT_WIDTH, MINI_FOOTPRINT_HEIGHT } from '../src/lib/miniSpriteStyle';
+import { composeMiniSpritePixels, composeStarterStylePixels, alphaBounds, MINI_CANVAS_SIZE, MINI_FOOTPRINT_WIDTH, MINI_FOOTPRINT_HEIGHT } from '../src/lib/miniSpriteStyle';
 
 test('approved pixel-art reference remains intact but is never sent as model input', async()=>{
   const bytes=readFileSync(new URL('../public/sprite-reference/bold-collectible-softserve.png',import.meta.url));
@@ -13,7 +13,7 @@ test('approved pixel-art reference remains intact but is never sent as model inp
   assert.equal(bytes.readUInt32BE(16),112);
   assert.equal(bytes.readUInt32BE(20),154);
   assert.equal((await miniSpriteReferenceBlob().arrayBuffer()).byteLength,bytes.length);
-  assert.equal(SPRITE_ENGINE_VERSION,BOOP_MINI_REFERENCE_VERSION+':tactics');
+  assert.equal(SPRITE_ENGINE_VERSION,'boop-starter-pixel-v1');
 });
 
 test('Classic Boop remains available with its compact reference prompt',()=>{
@@ -101,4 +101,26 @@ test('offline preview uses compact 112px art; generated art only is processed',(
   assert.match(other, /Hedgehog/);
   assert.doesNotMatch(full, /soft.serve|wooden tub|ice cream/i);
   assert.doesNotMatch(other, /soft.serve|wooden tub|ice cream/i);
+});
+
+
+test('starter-style output uses a 32px grid, a hard transparent margin, and at most 16 colours', () => {
+  const size = 56;
+  const pixels = new Uint8ClampedArray(size * size * 4);
+  for (let y = 4; y < 50; y++) for (let x = 6; x < 48; x++) {
+    pixels.set([x * 4, y * 4, (x * y) % 256, 255], (y * size + x) * 4);
+  }
+  const output = composeStarterStylePixels(pixels, size, size);
+  const bounds = alphaBounds(output, 32, 32);
+  assert.equal(output.length, 32 * 32 * 4);
+  assert.equal(bounds?.height, 27);
+  assert.equal(bounds?.top, 3);
+  assert.equal(bounds?.bottom, 29);
+  assert.ok(bounds!.left > 0 && bounds!.right < 31);
+  const colors = new Set<string>();
+  for(let p=0;p<output.length;p+=4){
+    assert.ok(output[p+3] === 0 || output[p+3] === 255);
+    if(output[p+3]) colors.add(output.subarray(p,p+3).join(','));
+  }
+  assert.ok(colors.size > 1 && colors.size <= 16);
 });

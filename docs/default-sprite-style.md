@@ -1,7 +1,5 @@
 # Default sprite style
 
-`DEFAULT_SPRITE_ART_STYLE` is `tactics`, the existing **Tactical Isometric** option. Automatic standard/shiny artwork requests, rerolls without an explicit style, client image normalization and Sprite Lab's initial selection use this shared default. Tactical artwork uses the existing 128px pixel pipeline and art direction.
+**Boop Starter Pixel** (`boop`) is the shared default for standard and shiny artwork, rerolls without a style choice, and Sprite Lab’s initial selection. Its art direction comes from Fire, Water, Wind, and Earth. New raster images are masked, framed on a 32px grid, and limited to 16 opaque colors.
 
-Default server artwork cache identities include the style, separating new Tactical requests from the previous Classic default. Existing owned/local/profile artwork remains readable and is not automatically regenerated. Explicit Classic Boop and all other styles remain available; legacy unmarked Classic prompts retain their existing fallback handling.
-
-Tests verify the default API prompt, shiny defaults, provider fallback art direction, cache deduplication, explicit Classic behavior and the Sprite Lab selection at 320/412/1440px without requesting image generation.
+The server uses a new cache version for generated artwork. Existing local and profile artwork keeps its current source. Tactical Isometric, Classic Boop, and the other explicit choices remain available.

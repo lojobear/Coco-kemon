@@ -26,9 +26,9 @@ const LegacyArchive = lazy(() => import('./ArchiveView').then(m=>({default:m.Arc
 type AlbumTab = 'album'|'sets'|'room'|'foundry';
 type AlbumFilter = 'all'|'shiny'|'celestial'|'holo'|'glitch'|'legendary'|'evolved';
 
-function CollectibleArt({ item, variant = 'normal' }: {item: InfiniteElement; variant?: CollectorVariant}) {
+function CollectibleArt({ item, variant = 'normal', animateStarter = false }: {item: InfiniteElement; variant?: CollectorVariant; animateStarter?: boolean}) {
   return <span className={`boop-album-art boop-album-art--${variant} boop-album-art--evolution-${evolutionFor(item).level}`}>
-    <CraftSprite name={item.name} emoji={item.emoji} category={item.category} isShiny={variant==='shiny'} idle={false}/>
+    <CraftSprite name={item.name} emoji={item.emoji} category={item.category} isShiny={variant==='shiny'} idle={false} animateStarter={animateStarter&&variant==='normal'}/>
     {variant!=='normal' && <i aria-hidden="true">{variant==='celestial'?'✶':variant==='holo'?'◈':variant==='glitch'?'⟡':'✦'}</i>}
   </span>;
 }
@@ -391,7 +391,7 @@ export function CollectionAlbum({
       <section className="boop-album-detail" role="dialog" aria-modal="true" aria-label={`${selected.name} collectible details`} onClick={e=>e.stopPropagation()}>
         <button className="boop-album-close" aria-label="Close details" onClick={()=>setSelected(null)}><X size={21}/></button>
         <div className="boop-album-detail-hero">
-          <CollectibleArt item={selected} variant={viewVariant}/>
+          <CollectibleArt item={selected} variant={viewVariant} animateStarter/>
           <div><span className="boop-album-kicker">COLLECTION STICKER</span><h2>{selected.name}</h2><p>{selected.explanation||'A curious new object for your collection.'}</p><RarityBadges item={selected}/></div>
         </div>
         <div className="boop-collection-sprite-tools">

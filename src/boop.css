@@ -2485,6 +2485,10 @@ html.boop-native-shell .boop-app .boop-cloud-dialog {
   .boop-app .boop-board-world:has(> .is-dragging) > .boop-board-item .element-emoji[data-living-motion]::before,
   .boop-app .combine-dock.is-combining .combine-inputs .element-emoji[data-living-motion]::before {content:none;}
 }
+/* Authored starter frames supply the motion without scaling their pixels. */
+.boop-app .boop-album-detail-hero .element-emoji[data-starter-motion] > img {animation:none;}
+.boop-app .boop-album-detail-hero .element-emoji[data-starter-motion]::before {content:none;}
+
 @media (prefers-reduced-motion:reduce) {
   .boop-app [data-living-motion],.boop-app [data-living-motion] > img,
   .boop-app [data-living-motion]::before {animation:none!important;}

@@ -40,8 +40,8 @@ const validImage = (v: unknown): v is GeminiImageResult => {
     x.data.length < 16_000_000 && typeof x.mimeType === 'string' &&
     /^image\/(?:png|jpe?g|webp)$/i.test(x.mimeType));
 };
-export async function findRecoveryArt(name: string, shiny: boolean) {
-  const result = await readPersistentJson<GeminiImageResult>(CACHE_NAMESPACE, serverSpriteKey(name, shiny));
+export async function findRecoveryArt(name: string, shiny: boolean, engineVersion = SPRITE_ENGINE_VERSION) {
+  const result = await readPersistentJson<GeminiImageResult>(CACHE_NAMESPACE, `${engineVersion}:${recoveryKey(name, shiny)}`);
   return validImage(result) ? result : null;
 }
 export async function registerRecoveryBatch(values: unknown) {

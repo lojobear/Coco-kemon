@@ -17,23 +17,23 @@ test('explicit styles keep subject and survive compact fallback', () => {
     }
   }
 });
-test('default generation uses Tactical Isometric and unknown styles are rejected', () => {
-  assert.equal(DEFAULT_SPRITE_ART_STYLE,'tactics');
-  assert.equal(buildSpritePrompt('Water'), buildSpritePrompt('Water', '', false, 'tactics'));
-  assert.equal(readPromptArtStyle(buildSpritePrompt('Water')),'tactics');
-  assert.equal(readPromptArtStyle(buildSpritePrompt('Water','',true)),'tactics');
-  assert.ok(compactSchnellImagePrompt(buildSpritePrompt('Water')).includes(SPRITE_ART_STYLES.tactics.prompt));
-  assert.equal(spriteStyleSize(DEFAULT_SPRITE_ART_STYLE),128);
+test('default generation uses the Boop starter style and unknown styles are rejected', () => {
+  assert.equal(DEFAULT_SPRITE_ART_STYLE,'boop');
+  assert.equal(buildSpritePrompt('Water'), buildSpritePrompt('Water', '', false, 'boop'));
+  assert.equal(readPromptArtStyle(buildSpritePrompt('Water')),'boop');
+  assert.equal(readPromptArtStyle(buildSpritePrompt('Water','',true)),'boop');
+  assert.ok(compactSchnellImagePrompt(buildSpritePrompt('Water')).includes(SPRITE_ART_STYLES.boop.prompt));
+  assert.equal(spriteStyleSize(DEFAULT_SPRITE_ART_STYLE),32);
   assert.equal(isSpriteArtStyle('glossy'), false);
   assert.equal(isSpriteArtStyle('porcelain'), true);
-  assert.equal(Object.keys(SPRITE_ART_STYLES).length,19);
+  assert.equal(Object.keys(SPRITE_ART_STYLES).length,20);
   assert.equal(isSpriteArtStyle('__proto__'), false);
   assert.equal(isSpriteArtStyle('arbitrary prompt'), false);
 });
 
-test('pixel-first menu has sixteen pixel styles and three smooth experiments',()=>{
+test('pixel-first menu has seventeen pixel styles and three smooth experiments',()=>{
  const styles=Object.keys(SPRITE_ART_STYLES) as SpriteArtStyle[];
- assert.equal(styles.filter(isPixelSpriteStyle).length,16);
+ assert.equal(styles.filter(isPixelSpriteStyle).length,17);
  assert.equal(styles.filter(s=>!isPixelSpriteStyle(s)).length,3);
  assert.equal(spriteStyleSize('micro'),32);assert.equal(spriteStyleSize('gameboy'),48);assert.equal(spriteStyleSize('hd'),192);assert.equal(spriteStyleSize('glass'),512);
 });

@@ -33,7 +33,7 @@ function distance(a:readonly number[],b:readonly number[]) {
 /** Weighted median cut, not "most common 8 RGB buckets": rare but important
  * colours (eyes, outlines, glowing accents) get their own palette regions.
  * A genuinely 8-colour hand-drawn subject retains those 8 exact colours. */
-function spritePalette(data:Uint8ClampedArray):number[][] {
+function spritePalette(data:Uint8ClampedArray, maxColors:number):number[][] {
   const histogram=new Map<number,Cluster>();
   for(let i=0;i<data.length;i+=4){
     if(data[i+3]<100)continue;
@@ -44,7 +44,7 @@ function spritePalette(data:Uint8ClampedArray):number[][] {
   }
   if(!histogram.size)return [];
   let boxes=[box([...histogram.values()])];
-  while(boxes.length<MINI_MAX_OPAQUE_COLORS){
+  while(boxes.length<maxColors){
     let selected=-1,score=0;
     for(let i=0;i<boxes.length;i++){
       const b=boxes[i],spread=Math.max(...b.max.map((v,k)=>v-b.min[k]));
@@ -70,26 +70,29 @@ function spritePalette(data:Uint8ClampedArray):number[][] {
 /** Reframe generated art to occupy the centre, preserve clear outlines and
  * reduce smooth image-model palettes to distinct handheld-style clusters.
  * No AI calls; the source raster is read only. */
-export function composeMiniSpritePixels(pixels:Uint8ClampedArray,width:number,height:number):Uint8ClampedArray{
+function composeSpritePixels(pixels:Uint8ClampedArray,width:number,height:number,profile:{
+  size:number; footprintWidth:number; footprintHeight:number; centerX:number; bottom:number; maxColors:number;
+}):Uint8ClampedArray{
+  const { size, footprintWidth, footprintHeight, centerX, bottom, maxColors } = profile;
   if(!Number.isSafeInteger(width)||!Number.isSafeInteger(height)||width<=0||height<=0||pixels.length!==width*height*4)
     throw new Error('Invalid sprite pixels');
   const bounds=alphaBounds(pixels,width,height);
   if(!bounds||bounds.width<2||bounds.height<2)throw new Error('Generated sprite has no usable silhouette');
-  const fit=Math.min(MINI_FOOTPRINT_WIDTH/bounds.width,MINI_FOOTPRINT_HEIGHT/bounds.height);
-  const w=Math.max(1,Math.min(MINI_FOOTPRINT_WIDTH,Math.round(bounds.width*fit)));
-  const h=Math.max(1,Math.min(MINI_FOOTPRINT_HEIGHT,Math.round(bounds.height*fit)));
-  const left=Math.max(0,Math.round(MINI_FOOTPRINT_CENTER_X-w/2));
-  const top=MINI_FOOTPRINT_BOTTOM-h;
-  const output=new Uint8ClampedArray(MINI_CANVAS_SIZE*MINI_CANVAS_SIZE*4);
+  const fit=Math.min(footprintWidth/bounds.width,footprintHeight/bounds.height);
+  const w=Math.max(1,Math.min(footprintWidth,Math.round(bounds.width*fit)));
+  const h=Math.max(1,Math.min(footprintHeight,Math.round(bounds.height*fit)));
+  const left=Math.max(0,Math.round(centerX-w/2));
+  const top=bottom-h;
+  const output=new Uint8ClampedArray(size*size*4);
   for(let y=0;y<h;y++)for(let x=0;x<w;x++){
     const srcX=Math.min(bounds.right,bounds.left+Math.floor((x+.5)*bounds.width/w));
     const srcY=Math.min(bounds.bottom,bounds.top+Math.floor((y+.5)*bounds.height/h));
     const a=(srcY*width+srcX)*4;
     if(pixels[a+3]<100)continue;
-    const b=((top+y)*MINI_CANVAS_SIZE+left+x)*4;
+    const b=((top+y)*size+left+x)*4;
     output[b]=pixels[a];output[b+1]=pixels[a+1];output[b+2]=pixels[a+2];output[b+3]=255;
   }
-  const palette=spritePalette(output);
+  const palette=spritePalette(output,maxColors);
   if(!palette.length)throw new Error('Generated sprite has no visible foreground');
   for(let i=0;i<output.length;i+=4) {
     if(output[i+3]===0)continue;
@@ -102,4 +105,17 @@ export function composeMiniSpritePixels(pixels:Uint8ClampedArray,width:number,he
     output[i]=chosen[0];output[i+1]=chosen[1];output[i+2]=chosen[2];
   }
   return output;
+}
+
+export function composeMiniSpritePixels(pixels: Uint8ClampedArray, width: number, height: number): Uint8ClampedArray {
+  return composeSpritePixels(pixels, width, height, {
+    size: MINI_CANVAS_SIZE, footprintWidth: MINI_FOOTPRINT_WIDTH, footprintHeight: MINI_FOOTPRINT_HEIGHT,
+    centerX: MINI_FOOTPRINT_CENTER_X, bottom: MINI_FOOTPRINT_BOTTOM, maxColors: MINI_MAX_OPAQUE_COLORS,
+  });
+}
+
+export function composeStarterStylePixels(pixels: Uint8ClampedArray, width: number, height: number): Uint8ClampedArray {
+  return composeSpritePixels(pixels, width, height, {
+    size: 32, footprintWidth: 27, footprintHeight: 27, centerX: 16, bottom: 30, maxColors: 16,
+  });
 }

@@ -5,7 +5,7 @@ import { emojiKey } from './emojiGeometry';
 import { spriteVariantKey, spriteProfileKey } from './spriteVariant';
 import { requestJson } from './api';
 import { removeEdgeConnectedBackground, tidyGeneratedSpritePixels, removeMagentaMask, assertTransparentSprite } from './spritePixelCleanup';
-import { composeMiniSpritePixels, MINI_CANVAS_SIZE } from './miniSpriteStyle';
+import { composeMiniSpritePixels, composeStarterStylePixels, MINI_CANVAS_SIZE } from './miniSpriteStyle';
 
 const ELEMENT_SPRITE_CACHE_PREFIX = 'pixelimage-v9-2p5d:';
 const LEGACY_NATIVE_IMAGE_V8_CACHE_PREFIX = 'pixelimage-v8:';
@@ -134,8 +134,13 @@ export async function normalizeGeneratedImage(imageBase64: string, mimeType: str
   tidyGeneratedSpritePixels(sampled.data, logicalSize, logicalSize);
   removeMagentaMask(sampled.data, logicalSize, logicalSize);
   assertTransparentSprite(sampled.data, logicalSize, logicalSize);
-  if (style !== 'classic') { pixelContext.putImageData(sampled, 0, 0); return pixels.toDataURL('image/png'); }
-  const composed = composeMiniSpritePixels(sampled.data, logicalSize, logicalSize);
+  if (style !== 'classic' && style !== 'boop') {
+    pixelContext.putImageData(sampled, 0, 0);
+    return pixels.toDataURL('image/png');
+  }
+  const composed = style === 'boop'
+    ? composeStarterStylePixels(sampled.data, logicalSize, logicalSize)
+    : composeMiniSpritePixels(sampled.data, logicalSize, logicalSize);
   removeMagentaMask(composed, logicalSize, logicalSize);
   assertTransparentSprite(composed, logicalSize, logicalSize);
   pixelContext.putImageData(new ImageData(composed, logicalSize, logicalSize), 0, 0);

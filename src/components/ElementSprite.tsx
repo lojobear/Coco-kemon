@@ -1,6 +1,6 @@
 import { SpriteImage } from './SpriteImage';
 import { livingSpriteMotion } from '../lib/livingSpriteMotion';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { getElementEmoji } from '../lib/elementEmoji';
 import { spriteVariantKey } from '../lib/spriteVariant';
 import { generateMaterialSprite } from '../lib/pixelRenderer';
@@ -8,9 +8,22 @@ import { generateFreshPixelArt } from '../lib/freshPixelArt';
 import { observeSpriteViewport } from '../lib/spriteViewport';
 import type { Material } from '../types';
 
+const motionQuery = '(prefers-reduced-motion: no-preference)';
+const watchMotion = (listener: () => void) => {
+  const media = window.matchMedia(motionQuery);
+  media.addEventListener('change', listener);
+  return () => media.removeEventListener('change', listener);
+};
+const motionAllowed = () => window.matchMedia(motionQuery).matches;
+
+function AnimatedStarter({ source, alt }: { source: string; alt: string }) {
+  const animate = useSyncExternalStore(watchMotion, motionAllowed, () => false);
+  return <SpriteImage src={animate ? source.replace('.png', '-motion.png') : source} alt={alt} draggable={false} decoding="async"/>;
+}
+
 /** Uploaded/rerolled art always wins. Generated defaults share one durable cache. */
-export function ElementSprite({ name, custom, fallback, className = '', alt = '', idle = true, isShiny = false, category }: {
-  name: string; custom?: string; fallback?: string; className?: string; alt?: string; idle?: boolean; isShiny?: boolean; category?: string;
+export function ElementSprite({ name, custom, fallback, className = '', alt = '', idle = true, isShiny = false, category, animateStarter = false }: {
+  name: string; custom?: string; fallback?: string; className?: string; alt?: string; idle?: boolean; isShiny?: boolean; category?: string; animateStarter?: boolean;
 }) {
   const [art, setArt] = useState<{ key: string; url: string }>();
   // The first frame is ALWAYS a new hand-drawn pixel sprite, never a generic
@@ -69,15 +82,18 @@ export function ElementSprite({ name, custom, fallback, className = '', alt = ''
     const unobserve = host.current ? observeSpriteViewport(host.current, load) : (() => { load(); return () => undefined; })();
     return () => { cancelled = true; unobserve(); };
   }, [key, custom, retry, isShiny, normalKey]);
-  const toyboxDefault = ['water', 'fire', 'wind', 'earth'].includes(name.trim().toLowerCase()) ? `/toybox/${name.trim().toLowerCase()}.png` : undefined;
+  const starter = name.trim().toLowerCase();
+  const toyboxDefault = ['water', 'fire', 'wind', 'earth'].includes(starter) ? `/toybox/starter-v2/${starter}.png` : undefined;
   const ownShiny = isShiny && art?.key === key && Boolean(art.url);
   const url = (isShiny && ownShiny ? art?.url : undefined)
     || custom
     || (art?.key === key || (isShiny && art?.key === normalKey) ? art?.url : undefined)
     || toyboxDefault
     || (temporary?.key === key ? temporary.url : undefined);
-  return <span ref={host} data-living-motion={motion} className={`element-emoji${idle ? ' sprite-idle' : ''}${isShiny ? ' boop-shiny-sprite' : ''}${ownShiny ? ' boop-shiny-authored' : ''} ${className}`} title={error ? `Sprite unavailable: ${error} Retry in Sprites.` : isShiny ? `Shiny variant of ${name}` : undefined}>
-    <SpriteImage cleanMask={Boolean(url && url !== temporary?.url)} src={url || ((fallback?.startsWith('data:') || fallback?.startsWith('/')) ? fallback : freshArt)} alt={alt || name} draggable={false} decoding="async" />
+  const useStarterFrames = animateStarter && !isShiny && toyboxDefault !== undefined && url === toyboxDefault;
+  return <span ref={host} data-living-motion={motion} data-starter-motion={useStarterFrames || undefined} className={`element-emoji${idle ? ' sprite-idle' : ''}${isShiny ? ' boop-shiny-sprite' : ''}${ownShiny ? ' boop-shiny-authored' : ''} ${className}`} title={error ? `Sprite unavailable: ${error} Retry in Sprites.` : isShiny ? `Shiny variant of ${name}` : undefined}>
+    {useStarterFrames ? <AnimatedStarter source={toyboxDefault} alt={alt || name}/> :
+      <SpriteImage cleanMask={Boolean(url && url !== temporary?.url)} src={url || ((fallback?.startsWith('data:') || fallback?.startsWith('/')) ? fallback : freshArt)} alt={alt || name} draggable={false} decoding="async"/>}
     {!url && <span className="boop-preview-cue" title={error ? 'Artwork unavailable. Retry in Sprites.' : 'Preview artwork. Check Sprites for availability.'} aria-label={error ? 'Artwork unavailable' : 'Preview artwork'}>{error ? '!' : '…'}</span>}
   </span>;
 }
