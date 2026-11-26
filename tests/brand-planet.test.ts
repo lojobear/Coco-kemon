@@ -31,11 +31,17 @@ test('Boop uses only Reddit Sans across the web, title, and PWA',()=>{
   assert.ok(!existsSync(new URL('../public/fonts/PixelifySans.ttf',import.meta.url)));
 });
 
-test('logo is the sprouting orbit planet, not the prior green creature',()=>{
+test('logo is the Secret Spark fusion mark across web and installed icons',()=>{
   const svg=file('public/icon.svg');
-  assert.match(svg,/aria-label="Boop planet logo"/);
-  assert.match(svg,/fill="#242a31"/);
-  assert.match(svg,/stroke="#ffffff"/);
+  assert.match(svg,/aria-label="Boop Secret Spark logo"/);
+  assert.match(svg,/fill="#202323"/);
+  assert.match(svg,/fill-rule="evenodd"/);
+  assert.match(svg,/M167 63 Q169 75 179 77/);
+  const wordmark=file("src/components/BoopWordmark.tsx");
+  assert.match(wordmark,/M167 63 Q169 75 179 77/);
+  assert.match(wordmark,/fillRule="evenodd"/);
+  assert.match(file("src/components/Header.tsx"),/<BoopWordmark/);
+  assert.match(file("src/components/LiveSpriteLogo.tsx"),/url:\s*\x27\/icon.svg\x27/);
   assert.doesNotMatch(svg,/#d7f879/i);
 });
 
@@ -45,7 +51,7 @@ test('Android icon, title, navigation and buttons use the bundled Reddit Sans',(
   const vector=file('android-shell/app/src/main/res/drawable/ic_boop_planet.xml');
   const workflow=file('.github/workflows/android-apk.yml');
   assert.match(main,/setImageResource\(R\.drawable\.ic_boop_planet\)/);
-  assert.match(main,/title\.setTypeface\(redditSansTypeface, Typeface\.BOLD\)/);
+  assert.match(main,/title\.setImageResource\(R\.drawable\.ic_boop_wordmark\)/);
   assert.match(main,/item\.setTypeface\(redditSansTypeface/);
   assert.match(main,/button\.setTypeface\(redditSansTypeface/);
   assert.match(main,/Typeface\.createFromAsset\(getAssets\(\), "fonts\/RedditSans\.ttf"\)/);

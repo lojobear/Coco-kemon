@@ -1,3 +1,4 @@
+import { BoopWordmark } from './BoopWordmark';
 import { LiveSpriteLogo } from './LiveSpriteLogo';
 /** Boop - top bar header */
 
@@ -80,7 +81,7 @@ export function Header({
       <div className="collection-header-inner">
         <div className="collection-brand">
           <LiveSpriteLogo/>
-          <button className="collection-brand-name" aria-label="Boop home" onClick={() => setActiveTab('rooms')}><strong>Boop</strong><small>Discover & decorate</small></button>
+          <button className="collection-brand-name" aria-label="Boop home" onClick={() => setActiveTab('rooms')}><BoopWordmark dark={siteTheme === 'dark'}/><small>Discover & decorate</small></button>
         </div>
         <form className="boop-header-search boop-search" role="search" onSubmit={event => { event.preventDefault(); onSearchCollection(query); }}><input aria-label="Search your collection" placeholder="Search your discoveries…" value={query} onChange={event => setQuery(event.target.value)} /><button aria-label="Search collection"><Search size={18} /></button></form>
         <span className="boop-level-tag">Level {String(progression.level).padStart(2, '0')}</span>

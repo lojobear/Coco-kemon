@@ -10,7 +10,7 @@ import {LIVE_LOGO_INTERVAL_MS,logoDiscoveries,nextLogoName} from '../lib/liveLog
 export function LiveSpriteLogo(){
   const [elements,setElements]=useState(readCraftElements);
   const pool=useMemo(()=>logoDiscoveries(elements),[elements]);
-  const [display,setDisplay]=useState({id:'',name:'Boop',url:'/toybox/boop-planet.png',source:''});
+  const [display,setDisplay]=useState({id:'',name:'Boop',url:'/icon.svg',source:''});
   const [previousUrl,setPreviousUrl]=useState<string|null>(null);
   const displayRef=useRef(display);displayRef.current=display;
   const revision=useRef(0);
@@ -52,7 +52,7 @@ export function LiveSpriteLogo(){
     const item=pool.find(item=>discoveryIdentity(item.name)===displayRef.current.id);
     if(!item){
       setPreviousUrl(null);
-      setDisplay({id:'',name:'Boop',url:'/toybox/boop-planet.png',source:''});
+      setDisplay({id:'',name:'Boop',url:'/icon.svg',source:''});
       advance.current();
     }else if((item.customSpriteUrl||'')!==displayRef.current.source)advance.current();
     return()=>{revision.current++;};

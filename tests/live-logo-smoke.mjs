@@ -48,6 +48,6 @@ try{for(const width of [320,412,1440]){
  const dims=await page.evaluate(()=>({w:document.documentElement.clientWidth,s:document.documentElement.scrollWidth}));assert.ok(dims.s<=dims.w+1);assert.deepEqual(errors,[]);
  console.log(`${width}px: owned sprites, 30-second rotation, touch target, tap name, hidden-tab/name pause, reduced motion and home navigation passed`);await page.close();
  }
- const empty=await browser.newPage();await empty.goto(craftEntryURL(process.env.BOOP_BASE_URL||'http://127.0.0.1:3000'),{waitUntil:'networkidle'});assert.equal(await empty.locator('.boop-live-logo-button img').getAttribute('src'),'/toybox/boop-planet.png');await empty.close();
- console.log('New collections keep the original Boop planet logo');
+ const empty=await browser.newPage();await empty.goto(craftEntryURL(process.env.BOOP_BASE_URL||'http://127.0.0.1:3000'),{waitUntil:'networkidle'});assert.equal(await empty.locator('.boop-live-logo-button img').getAttribute('src'),'/icon.svg');await empty.close();
+ console.log('New collections keep the Secret Spark fallback logo');
 }finally{await browser.close();}

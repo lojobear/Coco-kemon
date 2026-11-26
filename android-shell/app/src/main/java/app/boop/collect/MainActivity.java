@@ -147,19 +147,20 @@ public final class MainActivity extends Activity {
 
         ImageView icon = new ImageView(this);
         icon.setImageResource(R.drawable.ic_boop_planet);
-        icon.setContentDescription("Boop planet logo");
+        icon.setContentDescription("Boop fusion symbol");
         icon.setScaleType(ImageView.ScaleType.FIT_CENTER);
         toolbar.addView(icon, new LinearLayout.LayoutParams(dp(39), dp(39)));
 
-        TextView title = new TextView(this);
-        title.setText("Boop");
-        title.setTextSize(23);
-        title.setTextColor(INK);
-        title.setTypeface(redditSansTypeface, Typeface.BOLD);
-        title.setGravity(Gravity.CENTER_VERTICAL);
-        LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(0, -1, 1);
+        ImageView title = new ImageView(this);
+        title.setImageResource(R.drawable.ic_boop_wordmark);
+        title.setContentDescription("Boop");
+        title.setScaleType(ImageView.ScaleType.FIT_START);
+        LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(dp(78), dp(36));
+        titleParams.gravity = Gravity.CENTER_VERTICAL;
+        View toolbarSpacer = new View(this);
         titleParams.leftMargin = dp(10);
         toolbar.addView(title, titleParams);
+        toolbar.addView(toolbarSpacer, new LinearLayout.LayoutParams(0, 1, 1));
 
         TextView refresh = toolbarButton("↻", "Refresh Boop");
         refresh.setOnClickListener(v -> {
