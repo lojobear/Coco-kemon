@@ -6,24 +6,34 @@ import { ROOM_STYLES, ROOM_REWARDS, roomDiscoveryProgress, roomRewardUnlocked, t
 export { ROOM_REWARDS } from './roomProgress';
 export type { RoomDecoration } from './roomProgress';
 export type RoomSurface='floor'|'left-shelf'|'right-shelf'|'display'|'desk';
-export interface RoomPiece {surface?:RoomSurface;slot?:number;id:string;kind:'sprite'|'decoration';name:string;variant:CollectorVariant;nickname:string;x:number;y:number;size:number;flipped:boolean}
-export interface PersonalRoom {style?:RoomStyle;id:string;name:string;pieces:RoomPiece[]}
+export interface RoomPoint {left:number;top:number}
+export interface RoomAppearance {shell:'classic'|'studio';wall:string;floor:string;pattern:'planks'|'tiles'|'plain';lighting:'neutral'|'warm'|'cool'|'night';fixtures:boolean;shadows:boolean}
+export interface RoomPiece {free?:RoomPoint;rotation?:number;layer?:number;rendering?:'smooth'|'pixel';surface?:RoomSurface;slot?:number;id:string;kind:'sprite'|'decoration';name:string;variant:CollectorVariant;nickname:string;x:number;y:number;size:number;flipped:boolean}
+export interface PersonalRoom {appearance?:RoomAppearance;style?:RoomStyle;id:string;name:string;pieces:RoomPiece[]}
 export interface PersonalRooms {version:1;activeId:string;rooms:PersonalRoom[];clawPrizes?:RoomDecoration[]}
 export const MAX_ROOM_PIECES=20;
 export const emptyPersonalRooms=():PersonalRooms=>({version:1,activeId:'room-1',rooms:[{id:'room-1',name:'Moonlit nook',pieces:[]}]});
 const object=(v:unknown):v is Record<string,unknown>=>!!v&&typeof v==='object'&&!Array.isArray(v);
 const safeId=(v:unknown)=>typeof v==='string'&&/^[a-zA-Z0-9-]{1,80}$/.test(v);
 const label=(v:unknown,max:number)=>typeof v==='string'&&v.trim().length>0&&v.length<=max;
+const hex=(v:unknown)=>typeof v==='string'&&/^#[0-9a-f]{6}$/i.test(v);
+export function validRoomPoint(v:unknown):v is RoomPoint{return object(v)&&typeof v.left==='number'&&Number.isFinite(v.left)&&v.left>=4&&v.left<=96&&typeof v.top==='number'&&Number.isFinite(v.top)&&v.top>=15&&v.top<=94;}
+function validAppearance(v:unknown):v is RoomAppearance{return object(v)&&['classic','studio'].includes(v.shell as string)&&hex(v.wall)&&hex(v.floor)&&['planks','tiles','plain'].includes(v.pattern as string)&&['neutral','warm','cool','night'].includes(v.lighting as string)&&typeof v.fixtures==='boolean'&&typeof v.shadows==='boolean';}
 export function validPersonalRooms(v:unknown):v is PersonalRooms {
  if(!object(v)||v.version!==1||!Array.isArray(v.rooms)||v.rooms.length<1||v.rooms.length>3)return false;
  if(v.clawPrizes!==undefined&&(!Array.isArray(v.clawPrizes)||v.clawPrizes.length>ROOM_REWARDS.length||new Set(v.clawPrizes).size!==v.clawPrizes.length||!v.clawPrizes.every(id=>ROOM_REWARDS.some(reward=>reward.id===id))))return false;
  const ids=new Set<string>();
  for(const r of v.rooms){
   if(!object(r)||!safeId(r.id)||ids.has(r.id as string)||!label(r.name,40)||!Array.isArray(r.pieces)||r.pieces.length>MAX_ROOM_PIECES||(r.style!==undefined&&!ROOM_STYLES.some(s=>s.id===r.style)))return false;
+  if(r.appearance!==undefined&&!validAppearance(r.appearance))return false;
   ids.add(r.id as string);const pieces=new Set<string>();
   for(const p of r.pieces){
    if(!object(p)||!safeId(p.id)||pieces.has(p.id as string)||!['sprite','decoration'].includes(p.kind as string)||!label(p.name,160)||typeof p.nickname!=='string'||p.nickname.length>32||typeof p.flipped!=='boolean'||!['normal','shiny','celestial','holo','glitch'].includes(p.variant as string))return false;
-   if(!Number.isInteger(p.x)||Number(p.x)<0||Number(p.x)>8||!Number.isInteger(p.y)||Number(p.y)<0||Number(p.y)>8||!Number.isFinite(p.size)||Number(p.size)<0.65||Number(p.size)>1.5)return false;
+   if(!Number.isInteger(p.x)||Number(p.x)<0||Number(p.x)>8||!Number.isInteger(p.y)||Number(p.y)<0||Number(p.y)>8||!Number.isFinite(p.size)||Number(p.size)<0.35||Number(p.size)>2.5)return false;
+   if(p.free!==undefined&&!validRoomPoint(p.free))return false;
+   if(p.rotation!==undefined&&(!Number.isFinite(p.rotation)||Number(p.rotation)<-180||Number(p.rotation)>180))return false;
+   if(p.layer!==undefined&&(!Number.isInteger(p.layer)||Number(p.layer)<-3||Number(p.layer)>3))return false;
+   if(p.rendering!==undefined&&!['smooth','pixel'].includes(p.rendering as string))return false;
    if(p.surface!==undefined&&!['floor','left-shelf','right-shelf','display','desk'].includes(p.surface as string))return false;
    if(p.slot!==undefined){
     if(!Number.isInteger(p.slot)||Number(p.slot)<0||Number(p.slot)>1)return false;
@@ -60,6 +70,7 @@ export const ROOM_SURFACES:ReadonlyArray<{id:RoomSurface;name:string;points:read
  {id:'desk',name:'Desk',points:[{left:34.5,top:55}]},
 ];
 export function piecePoint(p:RoomPiece,pieces:readonly RoomPiece[]=[]){
+ if(p.free)return p.free;
  if(p.surface&&p.surface!=='floor'){
   if(p.slot===undefined&&p.surface==='left-shelf')return {left:30,top:29};
   if(p.slot===undefined&&p.surface==='right-shelf')return {left:43,top:29};
@@ -67,11 +78,12 @@ export function piecePoint(p:RoomPiece,pieces:readonly RoomPiece[]=[]){
   return ROOM_SURFACES.find(s=>s.id===p.surface)?.points[p.slot??0]??roomPoint(p.x,p.y);
  }
  const point=roomPoint(p.x,p.y);
- const stand=p.kind==='sprite'?pieces.find(s=>s.kind==='decoration'&&s.name==='display-stand'&&(!s.surface||s.surface==='floor')&&s.x===p.x&&s.y===p.y):undefined;
+ const stand=p.kind==='sprite'?pieces.find(s=>s.kind==='decoration'&&s.name==='display-stand'&&!s.free&&(!s.surface||s.surface==='floor')&&s.x===p.x&&s.y===p.y):undefined;
  return stand?{...point,top:point.top-6.5*stand.size}:point;
 }
 export function pieceWidth(p:RoomPiece){
  const width=p.kind==='sprite'?8.5:ROOM_REWARDS.find(d=>d.id===p.name)?.width??10;
+ if(p.free)return width*p.size;
  if(p.surface==='left-shelf')return Math.min(4.2,width*p.size*0.5);
  if(p.surface==='right-shelf')return Math.min(3.5,width*p.size*0.5);
  if(p.surface==='display')return Math.min(5.6,width*p.size*0.66);
@@ -80,5 +92,5 @@ export function pieceWidth(p:RoomPiece){
 }
 export function pieceDepth(p:RoomPiece){
  // The export and live room share this exact order, including stand/sprite stacks.
- return (p.surface&&p.surface!=='floor'?piecePoint(p).top:roomPoint(p.x,p.y).top)*100+(p.kind==='sprite'?1:0);
+ return 40000+(p.layer??0)*10000+(p.free?p.free.top:p.surface&&p.surface!=='floor'?piecePoint(p).top:roomPoint(p.x,p.y).top)*100+(p.kind==='sprite'?1:0);
 }
