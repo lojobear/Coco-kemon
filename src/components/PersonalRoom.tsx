@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
-import { ArrowLeft, Check, CirclePlus, FlipHorizontal, Home, LockKeyhole, Pencil, Plus, Search, Share2, Sparkles, Star, Trash2, X, Undo2, Redo2, Grid3X3, FlaskConical, Gamepad2, Palette, Wand2 } from 'lucide-react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
+import { ArrowLeft, Check, CirclePlus, FlipHorizontal, Home, LockKeyhole, Pencil, Plus, Search, Share2, Sparkles, Star, Trash2, X, Undo2, Redo2, Grid3X3, FlaskConical, Gamepad2, Palette, Wand2, Maximize, Minimize, ChevronDown } from 'lucide-react';
 import { CraftSprite, CraftSprites } from './CraftSprite';
 import { RoomArtwork } from './RoomArtwork';
 import { RoomClaw } from './RoomClaw';
@@ -23,6 +23,27 @@ export function PersonalRoom({onBack,onDiscover}:{onBack?:()=>void;onDiscover?:(
  const [saved,setSaved]=useState(readPersonalRooms),[draft,setDraft]=useState(()=>saved),[editing,setEditing]=useState(false),[selected,setSelected]=useState(''),[query,setQuery]=useState(''),[tab,setTab]=useState<'sprites'|'decorations'|'styles'>('sprites'),[busy,setBusy]=useState(false),[message,setMessage]=useState(''),[error,setError]=useState(''),[exporting,setExporting]=useState(false),[guides,setGuides]=useState(true);
  const [freeMode,setFreeMode]=useState(false),[zoom,setZoom]=useState(100);
  const [clawOpen,setClawOpen]=useState(false);
+ const [fitRoom, setFitRoom] = useState(false);
+ const roomViewport = useRef<HTMLDivElement>(null);
+ const camera = useRef<HTMLDivElement>(null);
+ const details = useRef<HTMLDivElement>(null);
+ useLayoutEffect(() => {
+  if (editing) {
+   roomViewport.current?.scrollIntoView({ block: 'start' });
+   return;
+  }
+  const viewport = camera.current;
+  if (!viewport || fitRoom) return;
+  const center = () => viewport.scrollTo(
+   (viewport.scrollWidth - viewport.clientWidth) / 2,
+   (viewport.scrollHeight - viewport.clientHeight) / 2,
+  );
+  center();
+  const resize = new ResizeObserver(center);
+  resize.observe(viewport);
+  return () => resize.disconnect();
+ }, [editing, fitRoom]);
+
  const [history,setHistory]=useState<{past:PersonalRooms[];future:PersonalRooms[]}>({past:[],future:[]});
  const [preview,setPreview]=useState<{id:string;at:Placement|null;point:RoomPoint}|null>(null);
  const scene=useRef<HTMLDivElement>(null),drag=useRef<{id:string;pointerId:number;clientX:number;clientY:number;offsetX:number;offsetY:number;moved:boolean;at:Placement|null}|null>(null);
@@ -112,27 +133,56 @@ export function PersonalRoom({onBack,onDiscover}:{onBack?:()=>void;onDiscover?:(
  const nextStyle=ROOM_STYLES.find(s=>s.discoveries>discovered.count),unlockedDecor=unlockedRewardIds.size,recipe=suggestedRecipe;
  const recent=recentFinds,featured=room.pieces.filter(p=>p.kind==='sprite'),distinctDisplayed=new Set(featured.map(p=>discoveryIdentity(p.name))).size;
  const targets=useMemo(()=>editing&&guides&&!freeMode&&piece?ROOM_SURFACES.flatMap(s=>placementsFor(piece,s.id)).filter(at=>placementOpen(piece,at,room.pieces)):[],[editing,guides,freeMode,piece,room.pieces]);
- return <CraftSprites.Provider value={spriteOverrides}><section className="personal-room" aria-label="My room">
-  <div className="room-topline">{onBack?<button onClick={leave} disabled={busy}><ArrowLeft size={18}/> Profile</button>:<span className="room-studio-label"><Home size={16}/>Your studio</span>}<span><Sparkles size={15}/>{discovered.count} discoveries <Star size={15}/>{reputation} reputation</span></div>
-  <header className="room-heading"><div><small>DISCOVER SOMETHING. MAKE IT YOURS.</small><h1>{room.name}</h1><p>New discoveries become the things that make your room yours.</p></div><div className="room-actions">
-   {!editing?<><button type="button" disabled={busy} onClick={()=>setClawOpen(true)}><Gamepad2 size={17}/>Boop Claw</button><button className="room-primary" onClick={()=>beginEdit()}><Pencil size={17}/>Edit room</button><button onClick={()=>void share()} disabled={exporting||styleLoading||!!styleError}>{exporting?'Preparing…':<><Share2 size={17}/>Share room</>}</button></>:<><button className="room-primary" disabled={busy||styleLoading||!!styleError} onClick={()=>void persist(draft)}><Check size={17}/>{busy?'Saving…':'Save room'}</button><button disabled={busy} onClick={cancel}>Cancel</button></>}
-  </div></header>
-  {clawOpen&&<RoomClaw onClose={()=>setClawOpen(false)}/>}
-  <div className="room-selector"><label>Room<select aria-label="Choose room" disabled={editing||busy} value={draft.activeId} onChange={e=>void persist({...draft,activeId:e.target.value})}>{draft.rooms.map(r=><option key={r.id} value={r.id}>{r.name}</option>)}</select></label><span>{draft.rooms.length} / 3 rooms</span><button aria-label="New room" disabled={draft.rooms.length>=3||editing||busy} onClick={()=>{const id=uid();change({...draft,activeId:id,rooms:[...draft.rooms,{id,name:`My room ${draft.rooms.length+1}`,pieces:[]}]});setEditing(true);setSelected('');setFreeMode(false);setZoom(100);}}><Plus size={16}/><span>New room</span></button>{!editing&&<button aria-label="Choose room style" onClick={()=>beginEdit('styles')}><Palette size={16}/><span>Styles</span></button>}</div>
-  {message&&<p className="room-message" role="status">{message}</p>}{error&&<p className="room-error" role="alert">{error}</p>}{styleError&&<p className="room-error" role="alert">{styleError}<button onClick={()=>setStyleRetry(n=>n+1)}>Retry room style</button></p>}
-  <div className="room-layout"><div className={`room-stage-column ${editing?'is-editing':''}`}>
-   {editing&&<div className="room-canvas-tools"><button type="button" aria-pressed={freeMode} onClick={()=>setFreeMode(v=>!v)}>{freeMode?'Free placement':'Snap placement'}</button><label>Zoom <select aria-label="Room zoom" value={zoom} onChange={e=>setZoom(Number(e.target.value))}><option value={100}>100%</option><option value={125}>125%</option><option value={150}>150%</option><option value={200}>200%</option></select></label></div>}
-   <div className={`room-viewport ${editing&&zoom>100?'is-zoomed':''}`}><div ref={scene} style={{width:editing?`${zoom}%`:'100%'}} className={`room-scene ${editing?'is-editing':''} ${preview&&!preview.at?'invalid-drop':''}`} aria-label="Isometric room" onClick={e=>{if(editing&&selected&&!busy)tapAt(e.clientX,e.clientY);}}>
+ const roomScene = (
+  <div ref={scene} style={editing ? { width: `${zoom}%` } : undefined} className={`room-scene ${editing?'is-editing':''} ${preview&&!preview.at?'invalid-drop':''}`} aria-label="Isometric room" onClick={e=>{if(editing&&selected&&!busy)tapAt(e.clientX,e.clientY);}}>
     <img className="room-backdrop" src={visibleImage} style={{filter:roomLightFilter(appearance.lighting)}} alt={appearance.shell==='studio'?'Custom isometric studio':`${style.name} isometric room`} draggable={false}/>
-    <span className="room-badge">{styleLoading?'Loading room style…':editing?(dirty?'Unsaved changes':'Editing room'):<><Check size={12}/>Room saved</>}</span>
-    {targets.map(at=>{const point=piecePoint({...piece!,free:undefined,...at},room.pieces);return <button key={`${at.surface}-${at.slot??`${at.x}-${at.y}`}`} className={`room-placement-target ${at.surface==='floor'?'floor':'surface'}`} style={{left:`${point.left}%`,top:`${point.top}%`}} aria-label={`Place selected piece on ${at.surface==='floor'?`floor ${at.x},${at.y}`:`${ROOM_SURFACES.find(s=>s.id===at.surface)?.name} ${(at.slot??0)+1}`}`} onClick={e=>{e.stopPropagation();put(selected,at);}}><CirclePlus size={at.surface==='floor'?14:22}/></button>;})}
+    {editing&&<span className="room-badge">{styleLoading?'Loading room style…':dirty?'Unsaved changes':'Editing room'}</span>}
+    {targets.map(at=>{const point=piecePoint({...piece!,free:undefined,...at},room.pieces);return <button key={`${at.surface}-${at.slot??`${at.x}-${at.y}`}`} type="button" tabIndex={-1} className={`room-placement-target ${at.surface==='floor'?'floor':'surface'}`} style={{left:`${point.left}%`,top:`${point.top}%`}} aria-label={`Place selected piece on ${at.surface==='floor'?`floor ${at.x},${at.y}`:`${ROOM_SURFACES.find(s=>s.id===at.surface)?.name} ${(at.slot??0)+1}`}`} onClick={e=>{e.stopPropagation();put(selected,at);}}><CirclePlus size={at.surface==='floor'?14:22}/></button>;})}
     {[...room.pieces].sort((a,b)=>pieceDepth(a)-pieceDepth(b)).map(p=>{const activePreview=preview?.id===p.id?preview:null,dragging=!!activePreview,displayed=activePreview?.at?{...p,free:undefined,...activePreview.at}:p,at=activePreview?.point??piecePoint(displayed,room.pieces),element=elementByName.get(discoveryIdentity(p.name));return <button key={p.id} type="button" data-piece-id={p.id} aria-label={`${editing?'Select':'View'} ${p.nickname||p.name}`} aria-pressed={selected===p.id} className={`room-piece ${p.kind} ${p.rendering==='pixel'?'pixel-rendering':''} ${appearance.shadows&&(!displayed.surface||displayed.surface==='floor')?'has-contact-shadow':''} ${selected===p.id?'is-selected':''} ${preview?.id===p.id?'is-dragging':''} variant-${p.variant}`} style={{left:`${at.left}%`,top:`${at.top}%`,width:`${pieceWidth(displayed)}%`,zIndex:dragging?90000:Math.round(pieceDepth(displayed))}} onClick={e=>{e.stopPropagation();if(!busy)setSelected(p.id);}} onKeyDown={e=>{if(!editing||selected!==p.id||!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key))return;e.preventDefault();const step=e.shiftKey?3:.5;nudge(e.key==='ArrowLeft'?-step:e.key==='ArrowRight'?step:0,e.key==='ArrowUp'?-step:e.key==='ArrowDown'?step:0);}} onPointerDown={e=>down(e,p)} onPointerMove={move} onPointerUp={finishDrag} onPointerCancel={()=>{drag.current=null;setPreview(null);}} onLostPointerCapture={()=>{drag.current=null;setPreview(null);}}>
      <span className="room-piece-art" style={{transform:`rotate(${p.rotation??0}deg) scaleX(${p.flipped?-1:1})`}}><RoomArtwork name={p.name} emoji={element?.emoji||''} kind={p.kind} variant={p.variant} animateStarter={!editing&&selected===p.id&&p.variant==='normal'}/></span>
      {selected===p.id&&!preview&&<span className="room-piece-caption">{p.nickname||element?.name||ROOM_REWARDS.find(r=>r.id===p.name)?.name}</span>}
     </button>;})}
     {preview?.at&&<span className="room-drop-marker" style={{left:`${piecePoint({...room.pieces.find(p=>p.id===preview.id)!,free:undefined,...preview.at},room.pieces).left}%`,top:`${piecePoint({...room.pieces.find(p=>p.id===preview.id)!,free:undefined,...preview.at},room.pieces).top}%`}}/>}
-   </div></div>
-   {editing?<><div className="room-edit-toolbar"><button disabled={busy||!history.past.length} onClick={undo} aria-label="Undo room change"><Undo2 size={17}/><span>Undo</span></button><button disabled={busy||!history.future.length} onClick={redo} aria-label="Redo room change"><Redo2 size={17}/></button><button disabled={busy} aria-label="Placement guides" aria-pressed={guides} onClick={()=>setGuides(v=>!v)}><Grid3X3 size={17}/><span>Placement guides</span></button><button disabled={busy||!room.pieces.length} aria-label="Tidy room" onClick={()=>{const result=tidyRoomPieces(room.pieces);changeRoom(r=>({...r,pieces:result.pieces}));setMessage(result.unplaced.length?'Some pieces still need more room. Try a smaller size or another surface.':JSON.stringify(result.pieces)===JSON.stringify(room.pieces)?'Your room is already tidy.':'Pieces arranged into free spots. Undo restores your previous layout.');}}><Wand2 size={17}/></button><button className="room-primary room-mobile-save" disabled={busy||styleLoading||!!styleError} aria-label="Save room from editor" onClick={()=>void persist(draft)}><Check size={17}/>{busy?'Saving…':'Save'}</button></div><p className="room-hint">{freeMode?'Drag freely, overlap pieces, or nudge them precisely.':'Drag to a highlighted surface; occupied spots are protected.'} Placing never uses a crafted copy.</p></>:<>
+  </div>
+ );
+ return <CraftSprites.Provider value={spriteOverrides}><section className={`personal-room ${editing ? "is-editing" : "is-viewing"}`} aria-label="My room">
+  <div ref={roomViewport} className="room-viewport" data-room-style={appearance.shell === 'studio' ? 'studio' : style.id}>
+   {!editing && (
+    <div ref={camera} className={`room-camera ${fitRoom ? "is-fit" : ""}`} role="region" aria-label="Room view"
+     aria-description={fitRoom ? undefined : 'Scroll to pan around the room.'} tabIndex={0}>
+     {roomScene}
+    </div>
+   )}
+  <div className="room-topline">{onBack?<button onClick={leave} disabled={busy}><ArrowLeft size={18}/> Profile</button>:<span className="room-studio-label"><Home size={16}/>Your studio</span>}<span><Sparkles size={15}/>{discovered.count} discoveries <Star size={15}/>{reputation} reputation</span></div>
+  <header className="room-heading"><div><h1>{room.name}</h1></div><div className="room-actions">
+   {!editing?<><button type="button" disabled={busy} onClick={()=>setClawOpen(true)}><Gamepad2 size={17}/>Boop Claw</button><button className="room-primary" onClick={()=>beginEdit()}><Pencil size={17}/>Edit room</button><button aria-label="Choose room style" onClick={()=>beginEdit('styles')}><Palette size={17}/>Styles</button><button onClick={()=>void share()} disabled={exporting||styleLoading||!!styleError}>{exporting?'Preparing…':<><Share2 size={17}/>Share room</>}</button></>:<><button className="room-primary" disabled={busy||styleLoading||!!styleError} onClick={()=>void persist(draft)}><Check size={17}/>{busy?'Saving…':'Save room'}</button><button disabled={busy} onClick={cancel}>Cancel</button></>}
+  </div></header>
+   {!editing && (
+    <div className="room-camera-tools">
+     {!fitRoom && <span className="room-pan-label" aria-hidden="true">Swipe to pan</span>}
+     <button type="button" onClick={() => setFitRoom(fit => !fit)}>
+      {fitRoom ? <Maximize size={16}/> : <Minimize size={16}/>}
+      {fitRoom ? 'Fill screen' : 'Fit room'}
+     </button>
+     <button type="button" onClick={() => {
+      details.current?.scrollIntoView({ block: 'start' });
+      details.current?.focus({ preventScroll: true });
+     }}>
+      <ChevronDown size={16}/> Details
+     </button>
+    </div>
+   )}
+   <div className="room-feedback">
+  {message&&<p className="room-message" role="status">{message}</p>}{error&&<p className="room-error" role="alert">{error}</p>}{styleError&&<p className="room-error" role="alert">{styleError}<button onClick={()=>setStyleRetry(n=>n+1)}>Retry room style</button></p>}
+   </div>
+  </div>
+  {clawOpen&&<RoomClaw onClose={()=>setClawOpen(false)}/>}
+  <div ref={details} className="room-details" tabIndex={-1} role="region" aria-label="Room details">
+  <div className="room-selector"><label>Room<select aria-label="Choose room" disabled={editing||busy} value={draft.activeId} onChange={e=>void persist({...draft,activeId:e.target.value})}>{draft.rooms.map(r=><option key={r.id} value={r.id}>{r.name}</option>)}</select></label><span>{draft.rooms.length} / 3 rooms</span><button aria-label="New room" disabled={draft.rooms.length>=3||editing||busy} onClick={()=>{const id=uid();change({...draft,activeId:id,rooms:[...draft.rooms,{id,name:`My room ${draft.rooms.length+1}`,pieces:[]}]});setEditing(true);setSelected('');}}><Plus size={16}/><span>New room</span></button></div>
+  <div className="room-layout"><div className={`room-stage-column ${editing?'is-editing':''}`}>
+   {editing&&<div className="room-canvas-tools"><button type="button" aria-pressed={freeMode} onClick={()=>setFreeMode(v=>!v)}>{freeMode?'Free placement':'Snap placement'}</button><label>Zoom <select aria-label="Room zoom" value={zoom} onChange={e=>setZoom(Number(e.target.value))}><option value={100}>100%</option><option value={125}>125%</option><option value={150}>150%</option><option value={200}>200%</option></select></label></div>}
+   {editing && <div className={`room-editor-viewport ${zoom > 100 ? 'is-zoomed' : ''}`}>{roomScene}</div>}
+   {editing?<><div className="room-edit-toolbar"><button disabled={busy||!history.past.length} onClick={undo} aria-label="Undo room change"><Undo2 size={17}/><span>Undo</span></button><button disabled={busy||!history.future.length} onClick={redo} aria-label="Redo room change"><Redo2 size={17}/></button><button disabled={busy} aria-label="Placement guides" aria-pressed={guides} onClick={()=>setGuides(v=>!v)}><Grid3X3 size={17}/><span>Placement guides</span></button><button disabled={busy||!room.pieces.length} aria-label="Tidy room" onClick={()=>{const result=tidyRoomPieces(room.pieces);changeRoom(r=>({...r,pieces:result.pieces}));setMessage(result.unplaced.length?'Some pieces still need more room. Try a smaller size or another surface.':JSON.stringify(result.pieces)===JSON.stringify(room.pieces)?'Your room is already tidy.':'Pieces arranged into free spots. Undo restores your previous layout.');}}><Wand2 size={17}/></button><button className="room-primary room-mobile-save" disabled={busy||styleLoading||!!styleError} aria-label="Save room from editor" onClick={()=>void persist(draft)}><Check size={17}/>{busy?'Saving…':'Save'}</button></div><p className="room-hint">Drag a piece, tap a guide, or use the surface and position controls to place it on the floor or wall. Placing never uses a crafted copy.</p></>:<>
     <div className="room-discovery-loop"><div><small>YOUR NEXT CHAPTER</small><strong>{nextStyle?`${Math.max(0,nextStyle.discoveries-discovered.count)} more discoveries to unlock ${nextStyle.name}`:'A world of discoveries. A room that’s yours.'}</strong><p>{recipe?`Try ${recipe.first} + ${recipe.second}. Every new find can become room decor.`:'Explore new combinations, then bring your favorite finds home.'}</p></div>{onDiscover&&<button className="room-primary" onClick={discover}><FlaskConical size={18}/>Discover something new</button>}</div>
     {!room.pieces.length&&<div className="room-empty"><Home size={22}/><div><strong>Your room is ready for you.</strong><p>Choose any discovery to start decorating.</p></div><button onClick={()=>beginEdit()}>Start decorating</button></div>}
     <section className="room-favorites"><h2>{featured.length?'Your favorite finds':'Fresh discoveries'}<small>{featured.length?`${featured.length} featured`:`${discovered.count} discovered`}</small></h2><div>{featured.length?featured.slice(0,6).map(p=><button key={p.id} onClick={()=>{beginEdit();setSelected(p.id);}}><CraftSprite name={p.name} emoji={collection.find(e=>e.name===p.name)?.emoji||''} idle={false}/><strong>{p.name}</strong><small>{p.nickname||'Featured discovery'}</small></button>):recent.map(e=><button key={e.id} onClick={()=>{beginEdit();add('sprite',e.name);}}><CraftSprite name={e.name} emoji={e.emoji} idle={false}/><strong>{e.name}</strong><small>Place in room</small></button>)}</div></section>
@@ -159,5 +209,6 @@ export function PersonalRoom({onBack,onDiscover}:{onBack?:()=>void;onDiscover?:(
     <div className="room-panel"><Palette size={23}/><h2>{nextStyle?'Your next room style':'Every room style unlocked'}</h2><strong>{nextStyle?.name||'Keep making discoveries'}</strong><p>{nextStyle?`${nextStyle.discoveries-discovered.count} more unique discoveries to unlock`:'Try a different style without moving your pieces.'}</p>{nextStyle&&<progress aria-label="Next room style" value={discovered.count} max={nextStyle.discoveries}/>}<button onClick={()=>beginEdit('styles')}>Browse room styles</button><BoopOrders state={state}/><small>Orders reputation still unlocks your original decorations.</small></div>
    </>}
   </aside></div>
+  </div>
  </section></CraftSprites.Provider>;
 }

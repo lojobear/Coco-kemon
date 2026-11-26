@@ -64,10 +64,11 @@ export function roomCell(left:number,top:number){
 
 export const ROOM_SURFACES:ReadonlyArray<{id:RoomSurface;name:string;points:readonly {left:number;top:number}[]}>=[
  {id:'floor',name:'Room floor',points:[]},
- {id:'left-shelf',name:'Left shelf',points:[{left:29,top:29.8},{left:33.5,top:27.6}]},
- {id:'right-shelf',name:'Right shelf',points:[{left:40.2,top:29.6},{left:44,top:31.4}]},
- {id:'display',name:'Glass display',points:[{left:60.5,top:45}]},
- {id:'desk',name:'Desk',points:[{left:34.5,top:55}]},
+ // Keep the saved surface IDs and placement points as wall positions.
+ {id:'left-shelf',name:'Upper left wall',points:[{left:29,top:29.8},{left:33.5,top:27.6}]},
+ {id:'right-shelf',name:'Corner wall',points:[{left:40.2,top:29.6},{left:44,top:31.4}]},
+ {id:'display',name:'Right wall',points:[{left:60.5,top:45}]},
+ {id:'desk',name:'Lower left wall',points:[{left:34.5,top:55}]},
 ];
 export function piecePoint(p:RoomPiece,pieces:readonly RoomPiece[]=[]){
  if(p.free)return p.free;

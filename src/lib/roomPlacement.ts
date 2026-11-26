@@ -10,9 +10,7 @@ export function surfaceAllows(piece:RoomPiece,surface:RoomSurface){
  return piece.kind==='sprite'||(ROOM_REWARDS.find(d=>d.id===piece.name)?.surfaces as readonly string[]|undefined)?.includes(surface)===true;
 }
 export function floorCellOpen(x:number,y:number){
- if(!Number.isInteger(x)||!Number.isInteger(y)||x<0||x>8||y<0||y>8)return false;
- const p=roomPoint(x,y);
- return p.top>=58.4&&!(p.left<39&&p.top<71)&&!(p.left>64&&p.top<80)&&!(p.left<44&&p.top>72);
+ return Number.isInteger(x)&&Number.isInteger(y)&&x>=0&&x<=8&&y>=0&&y<=8;
 }
 const footprint=(p:RoomPiece)=>p.size*(p.kind==='sprite'?3.4:ROOM_REWARDS.find(d=>d.id===p.name)?.footprint??5);
 export function placementOpen(piece:RoomPiece,at:Placement,pieces:readonly RoomPiece[]){

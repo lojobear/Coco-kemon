@@ -81,10 +81,206 @@
   }
 }
 
+/* Keep the room projection fixed so artwork, drag targets, and exports agree. */
+.boop-main--rooms {
+  container-type: size;
+}
+
+.personal-room.is-viewing {
+  flex: 0 0 auto;
+  max-width: none;
+  padding: 0;
+}
+
+.is-viewing > .room-viewport {
+  --room-stage-void: #10142e;
+  position: relative;
+  isolation: isolate;
+  height: 100cqh;
+  background: var(--room-stage-void);
+  color: #fff;
+}
+
+.is-viewing > .room-viewport[data-room-style="sunlit"] { --room-stage-void: #90300e; }
+.is-viewing > .room-viewport[data-room-style="orbital"] { --room-stage-void: #031e24; }
+
+.room-camera {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: none;
+}
+
+#boop-app .room-camera:focus-visible {
+  outline: 2px solid #a9f1ff;
+  outline-offset: -4px;
+}
+
+.room-camera .room-scene {
+  width: max(100%, 150cqh);
+  border-radius: 0;
+  background: var(--room-stage-void);
+}
+
+.room-camera.is-fit {
+  overflow: hidden;
+}
+
+.room-camera.is-fit .room-scene {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: min(100%, 150cqh);
+  transform: translate(-50%, -50%);
+}
+
+.is-viewing > .room-viewport::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(180deg, #070a19ba, transparent 27%, transparent 70%, #070a19d9);
+  pointer-events: none;
+}
+
+.is-viewing .room-heading {
+  display: contents;
+}
+
+.is-viewing .room-viewport :is(.room-topline, .room-heading > div, .room-camera-tools, .room-feedback) {
+  position: absolute;
+  z-index: 2;
+  margin: 0;
+}
+
+.is-viewing .room-topline {
+  inset: 14px 24px auto;
+  pointer-events: none;
+}
+
+.is-viewing .room-topline > button {
+  pointer-events: auto;
+}
+
+.is-viewing .room-heading > div:first-child {
+  inset: 42px 24px auto;
+  pointer-events: none;
+}
+
+#boop-app .is-viewing .room-heading h1 {
+  margin: 0;
+  color: #fff !important;
+  text-shadow: 0 2px 8px #090a16c0;
+}
+
+.is-viewing .room-heading > .room-actions {
+  left: 24px;
+  right: auto;
+  bottom: 18px;
+  gap: 8px;
+}
+
+.is-viewing .room-camera-tools {
+  display: flex;
+  gap: 8px;
+  right: 24px;
+  bottom: 18px;
+}
+
+#boop-app .personal-room.is-viewing .room-viewport button:not(.room-piece) {
+  background: #141a34ed !important;
+  border: 1px solid #b8c3de78 !important;
+  color: #fff !important;
+}
+
+#boop-app .personal-room.is-viewing .room-viewport button.room-primary {
+  background: #3456d7 !important;
+  border-color: #8da1f8 !important;
+}
+
+#boop-app .personal-room.is-viewing .room-topline > span {
+  color: #fff0c3;
+  text-shadow: 0 1px 5px #090a16;
+}
+
+#boop-app .personal-room.is-viewing .room-topline > .room-studio-label {
+  color: #d6e8ff !important;
+}
+
+.room-pan-label {
+  display: none;
+}
+
+.is-viewing .room-feedback {
+  top: 100px;
+  left: 24px;
+  right: 24px;
+  max-width: 440px;
+  pointer-events: none;
+}
+
+.is-viewing .room-feedback > * {
+  pointer-events: auto;
+}
+
+.is-viewing > .room-details {
+  max-width: 1440px;
+  margin: auto;
+  padding: 24px 32px 40px;
+}
+
+@media (max-width: 720px) {
+  .is-viewing .room-topline { inset: 10px 12px auto; }
+  .is-viewing .room-heading > div:first-child { inset: 37px 12px auto; }
+  .is-viewing .room-heading h1 { font-size: clamp(21px, 6vw, 32px); }
+  .is-viewing .room-heading > .room-actions {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    inset: auto 12px 12px;
+    gap: 5px;
+  }
+  .is-viewing .room-actions > button {
+    min-width: 0;
+    min-height: 48px;
+    padding: 5px 3px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    font-size: 10px;
+    white-space: nowrap;
+  }
+  .is-viewing .room-camera-tools {
+    bottom: 68px;
+    left: 12px;
+    right: 12px;
+    justify-content: flex-end;
+    align-items: center;
+  }
+  .room-pan-label {
+    display: inline;
+    margin-right: auto;
+    color: #edf3ff;
+    text-shadow: 0 1px 4px #090a16;
+    font-size: 11px;
+  }
+  .is-viewing .room-camera-tools button {
+    min-height: 40px;
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+  .is-viewing .room-feedback {
+    top: 76px;
+    left: 12px;
+    right: 12px;
+  }
+  .is-viewing > .room-details {
+    padding: 16px 12px 24px;
+  }
+}
 /* Room studio editor: the artwork stays anchored to its feet while dragging,
    including during global pressed-button styles. */
-.room-viewport{width:100%;overflow:auto;border-radius:24px;overscroll-behavior:contain;scrollbar-width:thin;}
-.room-viewport.is-zoomed{max-height:min(70vh,720px);border:1px solid #67736b;}
+.room-editor-viewport{width:100%;overflow:auto;border-radius:24px;overscroll-behavior:contain;scrollbar-width:thin;}
+.room-editor-viewport.is-zoomed{max-height:min(70vh,720px);border:1px solid #67736b;}
 .room-canvas-tools{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:0 0 8px;flex-wrap:wrap}
 .room-canvas-tools label{flex-direction:row;align-items:center}
 .room-canvas-tools button[aria-pressed=true]{border-color:#8de4b9!important}
@@ -104,6 +300,6 @@
 .room-nudge>div{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
 .personal-room .room-nudge button{padding:5px;min-height:44px;font-size:18px}
 .room-piece-art .room-art-frame .element-emoji{transform:none!important;overflow:visible!important}
-@media(max-width:900px){.room-viewport.is-zoomed{max-height:36vh}.room-canvas-tools button{min-height:38px;padding:6px 10px}.room-canvas-tools select{padding:7px 9px}.room-stage-column.is-editing .room-hint{max-height:unset}.room-stage-column.is-editing{padding-bottom:5px}}
+@media(max-width:900px){.room-editor-viewport.is-zoomed{max-height:36vh}.room-canvas-tools button{min-height:38px;padding:6px 10px}.room-canvas-tools select{padding:7px 9px}.room-stage-column.is-editing .room-hint{max-height:unset}.room-stage-column.is-editing{padding-bottom:5px}}
 
-.room-viewport .room-scene{max-width:none;flex-shrink:0}.room-viewport.is-zoomed .room-scene{border-radius:0}
+.room-editor-viewport .room-scene{max-width:none;flex-shrink:0}.room-editor-viewport.is-zoomed .room-scene{border-radius:0}

@@ -1,5 +1,5 @@
 import type { PersonalRoom, RoomAppearance } from './personalRoom';
-export const DEFAULT_ROOM_APPEARANCE:RoomAppearance={shell:'classic',wall:'#a8b6ae',floor:'#b9a080',pattern:'planks',lighting:'neutral',fixtures:true,shadows:true};
+export const DEFAULT_ROOM_APPEARANCE:RoomAppearance={shell:'classic',wall:'#a8b6ae',floor:'#b9a080',pattern:'planks',lighting:'neutral',fixtures:false,shadows:true};
 export function roomAppearance(room:PersonalRoom):RoomAppearance{return room.appearance??DEFAULT_ROOM_APPEARANCE;}
 export function roomLightFilter(lighting:RoomAppearance['lighting']):string{
  return lighting==='warm'?'sepia(0.28) saturate(1.14) brightness(1.05)':lighting==='cool'?'sepia(0.12) hue-rotate(15deg) saturate(0.85) brightness(1.04)':lighting==='night'?'brightness(0.65) saturate(0.82) hue-rotate(12deg)':'none';

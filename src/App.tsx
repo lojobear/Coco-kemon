@@ -172,7 +172,7 @@ function GameContent() {
       />}
 
       {/* Main Viewport Content */}
-      <main className={`boop-main flex-1 w-full min-h-0 flex flex-col ${(activeTab === 'infinite-craft') ? 'overflow-hidden' : 'overflow-y-auto'}`}>
+      <main className={`boop-main flex-1 w-full min-h-0 flex flex-col ${activeTab === 'rooms' ? 'boop-main--rooms' : ''} ${(activeTab === 'infinite-craft') ? 'overflow-hidden' : 'overflow-y-auto'}`}>
         {saveError && <div role="alert" className="boop-save-alert">{saveError} <button type="button" onClick={()=>void waitForLocalSave().catch(()=>{})}>Retry device save</button></div>}
         {!saveError&&savePending&&<div role="status" style={{fontSize:11,padding:'3px 12px',color:'#66756e'}}>Saving device progress…</div>}
         {kitchenOpened && <div hidden={activeTab !== 'kitchen'}><Suspense fallback={<div className="view-loading-card">Opening Kitchen…</div>}><KitchenView visible={activeTab === 'kitchen'} /></Suspense></div>}

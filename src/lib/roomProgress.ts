@@ -2,9 +2,9 @@ import type { InfiniteElement } from './infiniteCraftData';
 import { isSuppliedStarter } from './starterIdentity';
 import { discoveryIdentity } from './unifiedCollection';
 export const ROOM_STYLES = [
- {id:'moonlit',name:'Moonlit nook',description:'Warm lamplight, violet walls and a starry sky.',image:'/room/moonlit-room.png',discoveries:0},
- {id:'sunlit',name:'Sunlit conservatory',description:'Sage walls, golden sunlight and a garden view.',image:'/room/sunlit-room.png',discoveries:5},
- {id:'orbital',name:'Orbital observatory',description:'Deep teal, brass details and a nebula beyond the window.',image:'/room/orbital-room.png',discoveries:15},
+ {id:'moonlit',name:'Moonlit nook',description:'Indigo walls, neon trim, and plum floorboards.',image:'/room/moonlit-studio.webp',discoveries:0},
+ {id:'sunlit',name:'Sunlit conservatory',description:'Apricot and sage walls with honey-colored floorboards.',image:'/room/sunlit-studio.webp',discoveries:5},
+ {id:'orbital',name:'Orbital observatory',description:'Teal panels, metallic trim, and cool blue floor tiles.',image:'/room/orbital-studio.webp',discoveries:15},
 ] as const;
 export type RoomStyle=typeof ROOM_STYLES[number]['id'];
 export const ROOM_REWARDS = [

@@ -8,8 +8,11 @@ import { STARTER_ELEMENTS, type InfiniteElement, makePairKey } from '../src/lib/
 import { BUILT_IN_PAIR_RECIPES } from '../src/lib/builtInPairs';
 const sprite=(id:string,x=4,y=4):RoomPiece=>({id,kind:'sprite',name:'Water',nickname:'',variant:'normal',size:1,flipped:false,x,y});
 const discovery=(name:string):InfiniteElement=>({id:name.toLowerCase(),name,emoji:'x',discoveredAt:Date.now(),recipe:{first:'Water',second:'Fire'}});
-test('placement avoids fixed furniture, bounds, occupied slots and overlapping feet; allows one sprite on one stand',()=>{
- const p=sprite('one');assert.equal(floorCellOpen(0,0),false);assert.equal(floorCellOpen(4,4),true);
+test('the empty floor allows all 81 cells and placement still protects bounds and occupied spots',()=>{
+ const p=sprite('one');assert.equal(floorCellOpen(-1,0),false);assert.equal(floorCellOpen(0,0),true);assert.equal(floorCellOpen(8,8),true);
+ assert.equal(placementsFor(p,'floor').length,81);
+ assert.equal(placementOpen(p,{x:0,y:8},[]),true);
+ assert.equal(placementOpen(p,{x:8,y:0},[]),true);
  assert.equal(snapRoomPlacement(p,0,0,[]),null);assert.equal(snapRoomPlacement(p,100,100,[]),null);
  const onShelf=snapRoomPlacement(p,29,29.8,[]);assert.equal(onShelf?.surface,'left-shelf');assert.equal(onShelf?.slot,0);
  const a={...p,...onShelf},b={...sprite('two'),surface:'left-shelf' as const,slot:1};
