@@ -105,3 +105,5 @@
 .personal-room .room-nudge button{padding:5px;min-height:44px;font-size:18px}
 .room-piece-art .room-art-frame .element-emoji{transform:none!important;overflow:visible!important}
 @media(max-width:900px){.room-viewport.is-zoomed{max-height:36vh}.room-canvas-tools button{min-height:38px;padding:6px 10px}.room-canvas-tools select{padding:7px 9px}.room-stage-column.is-editing .room-hint{max-height:unset}.room-stage-column.is-editing{padding-bottom:5px}}
+
+.room-viewport .room-scene{max-width:none;flex-shrink:0}.room-viewport.is-zoomed .room-scene{border-radius:0}

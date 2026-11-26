@@ -16,7 +16,7 @@ export function roomBackdrop(room:PersonalRoom,classic:string):string{
  <path fill="#72837c" d="M28 54L34.5 50L41 54L34.5 58Z"/><path fill="#50625b" d="M28 54V61L34.5 65V58Z M34.5 58L41 54V61L34.5 65Z"/>
  <path fill="#bfd9d7" fill-opacity=".38" d="M55 45L60.5 42L66 45V53L60.5 56L55 53Z"/><path fill="#5f746f" d="M55 53L60.5 56L66 53V54L60.5 57L55 54Z"/>
  </g>`:'';
- const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+ const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="1536" height="1024" viewBox="0 0 100 100" preserveAspectRatio="none">
  <defs><linearGradient id="bg" x2="0" y2="1"><stop stop-color="#343e42"/><stop offset="1" stop-color="#171f25"/></linearGradient></defs>
  <rect width="100" height="100" fill="url(#bg)"/>
  <ellipse cx="50" cy="86" rx="37" ry="7" fill="#0a1015" opacity=".35"/>

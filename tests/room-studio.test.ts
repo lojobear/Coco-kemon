@@ -28,7 +28,7 @@ test('custom studio design is deterministic, editable and backward compatible',(
  r.appearance={...DEFAULT_ROOM_APPEARANCE,shell:'studio',wall:'#ff0000',floor:'#00ff00',pattern:'tiles',lighting:'warm',fixtures:false};
  assert.ok(validPersonalRooms(rooms));
  const svg=decodeURIComponent(roomBackdrop(r,'/classic.png').split(',')[1]);
- assert.match(svg,/#ff0000/);assert.match(svg,/#00ff00/);assert.doesNotMatch(svg,/#ede6d6/);
+ assert.match(svg,/width="1536" height="1024"/);assert.match(svg,/#ff0000/);assert.match(svg,/#00ff00/);assert.doesNotMatch(svg,/#ede6d6/);
  assert.notEqual(roomBackdrop({...r,appearance:{...r.appearance,fixtures:true}},''),roomBackdrop(r,''));
  assert.notEqual(roomLightFilter(roomAppearance(r).lighting),'none');
  assert.deepEqual(sanitizePersonalRooms(rooms,STARTER_ELEMENTS,0),rooms);
