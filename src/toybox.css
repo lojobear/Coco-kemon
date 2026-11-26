@@ -1,13 +1,13 @@
-/* Modern Toybox: warm surfaces, cobalt actions, and the player's artwork in focus. */
+/* Modern Toybox: white surfaces, cobalt actions, and the player's artwork in focus. */
 .boop-app.boop-toybox {
-  --boop-canvas:#fcf9f4; --boop-surface:#fffdf9; --boop-ink:#0b1230;
+  --boop-canvas:#fff; --boop-surface:#fff; --boop-ink:#0b1230;
   --boop-muted:#596077; --boop-line:#e6e0d7; --boop-forest:#073ee6;
   --boop-lime:#ffea9c; --boop-sage:#f6f0e7; --boop-lavender:#f0ece5;
   --basic-text:#0b1230; --basic-accent:#073ee6; --basic-focus:#073ee6;
-  background:#fcf9f4!important; color:#0b1230!important;
+  background:var(--boop-canvas)!important; color:var(--boop-ink)!important;
 }
 .boop-toybox.boop-app .collection-header {
-  background:#fcf9f4!important; border:0!important; padding:12px 18px!important;
+  background:var(--boop-canvas)!important; border:0!important; padding:12px 18px!important;
 }
 .boop-toybox.boop-app .collection-brand {gap:8px;}
 .boop-toybox.boop-app .collection-brand img {width:48px!important;height:48px!important;object-fit:contain;}
@@ -18,10 +18,10 @@
 .boop-toybox.boop-app .header-actions .boop-avatar {width:44px!important;height:44px!important;background:#f0ece5!important;color:#0b1230!important;}
 .boop-toybox.boop-app .header-actions .boop-avatar svg {width:27px;height:27px;}
 .boop-toybox.boop-app .header-actions > button:not(.boop-avatar) {width:32px!important;min-width:32px!important;background:transparent!important;color:#0b1230;}
-.boop-toybox.boop-app .boop-main {background:#fcf9f4!important;}
+.boop-toybox.boop-app .boop-main {background:var(--boop-canvas)!important;}
 .boop-toybox.boop-app .toybox-studio {
   display:flex!important;flex-direction:column;gap:14px;padding:12px 12px 10px;
-  height:100%!important;min-height:0;overflow-y:auto!important;background:#fcf9f4!important;
+  height:100%!important;min-height:0;overflow-y:auto!important;background:var(--boop-canvas)!important;
 }
 .toybox-intro {flex:none; padding:0 7px;}
 .toybox-intro h1 {position:relative;width:fit-content;font-size:clamp(34px,10.8vw,44px);line-height:1.03;letter-spacing:-1.5px;font-weight:900;margin:4px 0 10px;color:#0b1230;}
@@ -133,7 +133,7 @@
 .boop-toybox.boop-app .boop-board-roll-odds {display:none;}
 .boop-toybox.boop-app .boop-board-result .craft-emoji {width:52px;height:52px;}
 .boop-toybox.boop-app .boop-board-alert,.boop-toybox.boop-app .boop-board-toast,.boop-toybox.boop-app .boop-board-status {bottom:76px;max-width:calc(100% - 24px);font-size:14px;}
-.boop-toybox.boop-app .boop-navigation {background:#fcf9f4!important;border:0!important;padding:7px 12px max(8px,env(safe-area-inset-bottom))!important;}
+.boop-toybox.boop-app .boop-navigation {background:var(--boop-canvas)!important;border:0!important;padding:7px 12px max(8px,env(safe-area-inset-bottom))!important;}
 .boop-toybox.boop-app .boop-navigation .boop-nav-items {max-width:none;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;}
 .boop-toybox.boop-app .boop-navigation .boop-nav-items button {min-height:64px!important;padding:7px 3px!important;gap:3px!important;border-radius:22px!important;color:#0b1230!important;}
 .boop-toybox.boop-app .boop-navigation .boop-nav-items button svg {width:28px!important;height:28px!important;}
@@ -142,9 +142,9 @@
 .boop-toybox.boop-app .boop-navigation button[aria-current="page"]::after {background:#fff!important;}
 .boop-toybox.boop-app :is(button,input,select,[role="button"]):focus-visible {outline:3px solid #073ee6;outline-offset:3px;}
 /* Carry the same palette through existing screens without changing their data or tools. */
-.boop-toybox.boop-app :is(.boop-album-page,.boop-player-profile,.kitchen-page,.boop-sprite-lab,.boop-profile-hero) {background:#fcf9f4;color:#0b1230;}
+.boop-toybox.boop-app :is(.boop-album-page,.boop-player-profile,.kitchen-page,.boop-sprite-lab,.boop-profile-hero) {background:var(--boop-canvas);color:var(--boop-ink);}
 .boop-toybox.boop-app :is(.boop-album-title h1,.boop-player-profile h1,.boop-profile-panel h2,.boop-sticker-name,.boop-profile-stat-card strong,.boop-album-title p) {color:#0b1230;}
-.boop-toybox.boop-app :is(.boop-album-refine,.boop-sticker-card,.boop-profile-panel,.boop-profile-stat-card,.boop-profile-progress,.boop-cloud-dialog,.boop-settings) {background:#fffdf9!important;border-color:#e6e0d7!important;}
+.boop-toybox.boop-app :is(.boop-album-refine,.boop-sticker-card,.boop-profile-panel,.boop-profile-stat-card,.boop-profile-progress,.boop-cloud-dialog,.boop-settings) {background:var(--boop-surface)!important;border-color:var(--boop-line)!important;}
 .boop-toybox.boop-app .boop-sticker-card {border-radius:22px;}
 @media(min-width:700px) {
   .boop-toybox.boop-app .toybox-studio {max-width:1040px;margin:auto;padding:24px 32px 20px;gap:20px;}

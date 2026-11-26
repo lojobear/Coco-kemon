@@ -9,6 +9,7 @@ import { haptics } from '../lib/haptics';
 import { PWAInstallButton } from './PWAInstallButton';
 
 const HEALTH_CACHE_TTL_MS = 60 * 1000;
+export type SiteTheme = 'light' | 'dark';
 type AiHealth = { hasAiKey: boolean; hasGroqKey: boolean; primaryProvider?: string; primaryModel?: string };
 let healthCache: { promise: Promise<AiHealth | null>; fetchedAt: number } | null = null;
 
@@ -31,11 +32,15 @@ export function Header({
   onOpenSeeds,
   onOpenProfile,
   onSearchCollection,
+  siteTheme,
+  onThemeChange,
 }: {
   onOpenVoice: () => void;
   onOpenSeeds: () => void;
   onOpenProfile: () => void;
   onSearchCollection: (query: string) => void;
+  siteTheme: SiteTheme;
+  onThemeChange: (theme: SiteTheme) => void;
 }) {
   const {
     progression,
@@ -89,9 +94,9 @@ export function Header({
       {/* Settings / Save Modal dropdown */}
       <dialog ref={settingsDialog} aria-labelledby="boop-settings-title" onCancel={() => setShowSettings(false)}
         onClose={() => setShowSettings(false)} className="boop-settings-dialog">
-          <div className="boop-settings bg-[#181b20] border border-[#2e3440] rounded-2xl p-5 max-w-sm w-full shadow-2xl space-y-4 max-h-[90dvh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-2 border-b border-[#282d37]">
-              <h3 id="boop-settings-title" className="text-sm font-bold font-mono text-[#f3f4f6] flex items-center gap-2">
+          <div className="boop-settings border rounded-2xl p-5 max-w-sm w-full shadow-2xl space-y-4 max-h-[90dvh] overflow-y-auto">
+            <div className="boop-settings-divider flex items-center justify-between pb-2 border-b">
+              <h3 id="boop-settings-title" className="text-sm font-bold font-mono flex items-center gap-2">
                 <span>⚙️</span> BOOP SETTINGS & DATA
               </h3>
               <button
@@ -100,10 +105,19 @@ export function Header({
                   haptics.lightTap();
                   setShowSettings(false);
                 }}
-                aria-label="Close settings" className="text-xs text-[#9ca3af] hover:text-white px-2.5 py-1.5 rounded-lg bg-[#222630] active:scale-95"
+                aria-label="Close settings" className="boop-settings-control text-xs px-2.5 py-1.5 rounded-lg active:scale-95"
               >
                 <X size={20} />
               </button>
+            </div>
+
+            <div className="boop-settings-appearance">
+              <label htmlFor="boop-site-theme">Appearance</label>
+              <select id="boop-site-theme" className="boop-settings-control" value={siteTheme}
+                onChange={event => onThemeChange(event.target.value === 'dark' ? 'dark' : 'light')}>
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+              </select>
             </div>
 
             <div className="settings-quick-tools">
@@ -113,17 +127,17 @@ export function Header({
               <button onClick={() => { setShowSettings(false); setActiveTab('notebook'); }}><NotebookPen size={18} /> Recipe notebook</button>
               <button onClick={toggleMute}>{isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}{isMuted ? 'Turn sound on' : 'Mute sound'}</button>
             </div>
-            <div className="text-xs text-[#9ca3af] font-mono space-y-3">
+            <div className="boop-settings-details text-xs font-mono space-y-3">
               {/* In-App PWA Install Banner */}
               <PWAInstallButton variant="settings" />
 
               {/* Android & Google Pixel Haptics Control */}
-              <div className="p-3 rounded-xl bg-[#1e222b] border border-[#2f3542] flex items-center justify-between gap-2">
+              <div className="boop-settings-control p-3 rounded-xl border flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2.5">
                   <Vibrate className="w-4 h-4 text-amber-400" />
                   <div>
-                    <div className="font-bold text-white text-xs">Tactile Pixel Haptics</div>
-                    <div className="text-[10px] text-zinc-400">Vibrations on synthesis & drops</div>
+                    <div className="font-bold text-xs">Tactile Pixel Haptics</div>
+                    <div className="boop-settings-details text-[10px]">Vibrations on synthesis & drops</div>
                   </div>
                 </div>
                 <button
@@ -143,10 +157,10 @@ export function Header({
 
               {/* AI Engine Status Banner */}
               <div
-                className={`p-2.5 rounded-lg border flex items-start gap-2.5 ${
+                className={`boop-ai-status p-2.5 rounded-lg border flex items-start gap-2.5 ${
                   aiHealth.hasAiKey
-                    ? 'bg-emerald-950/30 border-emerald-500/30 text-emerald-300'
-                    : 'bg-amber-950/30 border-amber-500/30 text-amber-300'
+                    ? 'is-configured'
+                    : ''
                 }`}
               >
                 <div className="mt-0.5">
@@ -160,7 +174,7 @@ export function Header({
                   <div className="font-bold text-[12px] flex items-center gap-1.5">
                     <span>{aiHealth.hasGroqKey ? 'Groq primary AI configured' : aiHealth.hasAiKey ? 'Fallback AI configured' : 'AI not configured'}</span>
                   </div>
-                  <p className="text-[10px] leading-relaxed text-[#9ca3af]">
+                  <p className="boop-settings-details text-[10px] leading-relaxed">
                     {aiHealth.hasGroqKey
                       ? `Groq is primary for text discoveries (${aiHealth.primaryModel || 'configured model'}); Cloudflare AI and Gemini remain fallbacks.`
                       : aiHealth.hasAiKey
@@ -186,12 +200,12 @@ export function Header({
                     sound.playDiscoveryChime();
                     haptics.discovery();
                   }}
-                  className="flex items-center justify-center gap-1.5 px-3 py-2.5 min-h-[42px] rounded-xl bg-[#232833] hover:bg-[#2c3340] border border-[#383f4e] text-[#f3f4f6] text-xs font-mono font-medium transition-colors active:scale-95"
+                  className="boop-settings-control flex items-center justify-center gap-1.5 px-3 py-2.5 min-h-[42px] rounded-xl border text-xs font-mono font-medium transition-colors active:scale-95"
                 >
                   <Download className="w-3.5 h-3.5 text-amber-400" /> Export JSON
                 </button>
 
-                <label className="flex items-center justify-center gap-1.5 px-3 py-2.5 min-h-[42px] rounded-xl bg-[#232833] hover:bg-[#2c3340] border border-[#383f4e] text-[#f3f4f6] text-xs font-mono font-medium cursor-pointer transition-colors active:scale-95">
+                <label className="boop-settings-control flex items-center justify-center gap-1.5 px-3 py-2.5 min-h-[42px] rounded-xl border text-xs font-mono font-medium cursor-pointer transition-colors active:scale-95">
                   <Upload className="w-3.5 h-3.5 text-cyan-400" /> Import JSON
                   <input
                     type="file"
@@ -218,7 +232,7 @@ export function Header({
                 </label>
               </div>
 
-              <div className="pt-2 border-t border-[#282d37]">
+              <div className="boop-settings-divider pt-2 border-t">
                 <button
                   onClick={() => {
                     if (window.confirm('Reset collection to starter materials? This cannot be undone.')) {
@@ -228,7 +242,7 @@ export function Header({
                       haptics.heavyTap();
                     }
                   }}
-                  className="w-full min-h-[42px] flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-red-950/40 hover:bg-red-900/60 border border-red-800/40 text-red-300 text-xs font-mono font-medium transition-colors active:scale-95"
+                  className="boop-settings-reset w-full min-h-[42px] flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-mono font-medium transition-colors active:scale-95"
                 >
                   <RotateCcw className="w-3.5 h-3.5" /> Reset to Six Primordial Materials
                 </button>

@@ -4,6 +4,7 @@ import type { BloopActivity, BloopState } from '../lib/bloop';
 import type { InfiniteElement } from '../lib/infiniteCraftData';
 import { discoveryIdentity } from '../lib/unifiedCollection';
 import { normalizeGeneratedImage } from '../lib/elementEmoji';
+import { isSpriteArtStyle } from '../lib/spriteArtStyles';
 
 type Profile={display_name:string;avatar:string;biography:string;is_ai:boolean;state:BloopState;updated_at:string};
 type Activity={slot:number;created_at:string;detail:BloopActivity|{status:'started'}};
@@ -11,7 +12,12 @@ const API='https://coco-kemon.logaandavid.workers.dev';
 function BloopArt({item,ready}:{item:InfiniteElement;ready:boolean}){
   const [art,setArt]=useState('');
   useEffect(()=>{setArt('');if(!ready)return;const abort=new AbortController();
-    fetch(API+'/api/bloop/art?name='+encodeURIComponent(item.name),{signal:abort.signal}).then(async response=>{if(!response.ok)throw new Error('Pending');const data=await response.json();return normalizeGeneratedImage(data.imageBase64,data.mimeType,data.style==='boop'?'boop':'tactics');}).then(url=>{if(!abort.signal.aborted)setArt(url);}).catch(()=>{});
+    fetch(API + '/api/bloop/art?name=' + encodeURIComponent(item.name), { signal: abort.signal })
+      .then(async response => {
+        if (!response.ok) throw new Error('Pending');
+        const data = await response.json();
+        return normalizeGeneratedImage(data.imageBase64, data.mimeType, isSpriteArtStyle(data.style) ? data.style : 'tactics');
+      }).then(url => { if (!abort.signal.aborted) setArt(url); }).catch(() => {});
     return()=>abort.abort();
   },[item.name,ready]);
   return art?<img src={art} alt="" loading="lazy" style={{width:44,height:44,objectFit:'contain',imageRendering:'pixelated'}}/>:<span aria-hidden="true" style={{fontSize:26}}>{item.emoji}</span>;

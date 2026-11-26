@@ -25,9 +25,8 @@
 }
 
 :root {
-  /* Browser/Android system dark mode must never recolor original sprite pixels.
-     Boop supplies its own charcoal palette; sprite artwork keeps its original pixels. */
-  color-scheme: only dark;
+  /* Use Boop's chosen palette and prevent automatic darkening of sprite art. */
+  color-scheme: only light;
   /* Reddit Sans unifies the Boop title, UI, and labels across web and Android. */
   --font-sans: "Reddit Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-mono: "Reddit Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;

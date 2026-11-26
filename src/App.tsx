@@ -8,7 +8,7 @@ import { ProfileSpriteSync } from './components/ProfileSpriteSync';
 import React, { useState, useEffect, lazy, Suspense, startTransition } from 'react';
 import { GameProvider, useGame } from './lib/gameStore';
 import { CloudSaves } from './components/CloudSaves';
-import { Header } from './components/Header';
+import { Header, type SiteTheme } from './components/Header';
 import { DiscoveryModal } from './components/DiscoveryModal';
 import { BottomNav } from './components/BottomNav';
 
@@ -39,6 +39,21 @@ function GameContent() {
   const { activeTab, setActiveTab, inspectedItem, setInspectedItem } = useGame();
   const nativeShell = isAndroidNativeShell();
   const nativeChrome = usesNativeAndroidChrome();
+
+  const [siteTheme, setSiteTheme] = useState<SiteTheme>(() =>
+    document.documentElement.dataset.boopTheme === 'dark' ? 'dark' : 'light',
+  );
+  const changeSiteTheme = (theme: SiteTheme) => {
+    setSiteTheme(theme);
+    document.documentElement.dataset.boopTheme = theme;
+    document.querySelector('meta[name="color-scheme"]')?.setAttribute('content', `only ${theme}`);
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#15171b' : '#ffffff');
+    try {
+      localStorage.setItem('boop-site-theme', theme);
+    } catch {
+      // The current page can still switch themes when browser storage is disabled.
+    }
+  };
 
   const [showCloud, setShowCloud] = useState(false);
   const [collectionSearch, setCollectionSearch] = useState('');
@@ -145,13 +160,15 @@ function GameContent() {
   }, [nativeShell, activeTab]);
 
   return (
-    <div id="boop-app" data-palette="charcoal" data-theme="quark-light" className="boop-app boop-toybox h-[100dvh] max-h-[100dvh] w-full collection-app bg-white text-neutral-900 flex flex-col justify-between overflow-hidden selection:bg-neutral-900 selection:text-white">
+    <div id="boop-app" data-palette={siteTheme === 'dark' ? 'charcoal' : 'white'} data-theme="quark-light" className="boop-app boop-toybox h-[100dvh] max-h-[100dvh] w-full collection-app bg-white text-neutral-900 flex flex-col justify-between overflow-hidden selection:bg-neutral-900 selection:text-white">
       {/* Top Header */}
       {!nativeChrome && <Header
         onOpenProfile={() => setShowCloud(true)}
         onSearchCollection={query => { setCollectionSearch(query); setActiveTab('archive'); }}
         onOpenSeeds={() => setShowSeedsModal(true)}
         onOpenVoice={() => setShowVoiceModal(true)}
+        siteTheme={siteTheme}
+        onThemeChange={changeSiteTheme}
       />}
 
       {/* Main Viewport Content */}

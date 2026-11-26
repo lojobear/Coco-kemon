@@ -17,13 +17,14 @@ test('explicit styles keep subject and survive compact fallback', () => {
     }
   }
 });
-test('default generation uses the Boop starter style and unknown styles are rejected', () => {
-  assert.equal(DEFAULT_SPRITE_ART_STYLE,'boop');
-  assert.equal(buildSpritePrompt('Water'), buildSpritePrompt('Water', '', false, 'boop'));
-  assert.equal(readPromptArtStyle(buildSpritePrompt('Water')),'boop');
-  assert.equal(readPromptArtStyle(buildSpritePrompt('Water','',true)),'boop');
-  assert.ok(compactSchnellImagePrompt(buildSpritePrompt('Water')).includes(SPRITE_ART_STYLES.boop.prompt));
-  assert.equal(spriteStyleSize(DEFAULT_SPRITE_ART_STYLE),32);
+test('default generation uses Classic Boop and unknown styles are rejected', () => {
+  assert.equal(DEFAULT_SPRITE_ART_STYLE,'classic');
+  assert.equal(buildSpritePrompt('Water'), buildSpritePrompt('Water', '', false, 'classic'));
+  assert.equal(readPromptArtStyle(buildSpritePrompt('Water')),'classic');
+  assert.equal(readPromptArtStyle(buildSpritePrompt('Water','',true)),'classic');
+  assert.match(compactSchnellImagePrompt(buildSpritePrompt('Water')), /112x112/i);
+  assert.equal(spriteStyleSize(DEFAULT_SPRITE_ART_STYLE),112);
+  assert.equal(spriteStyleSize('boop'),32);
   assert.equal(isSpriteArtStyle('glossy'), false);
   assert.equal(isSpriteArtStyle('porcelain'), true);
   assert.equal(Object.keys(SPRITE_ART_STYLES).length,20);

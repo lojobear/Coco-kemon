@@ -7,9 +7,9 @@ import { BOOP_SPRITE_ART_STYLE, spriteColorDirection, spriteSubjectDirection } f
 import { DEFAULT_SPRITE_ART_STYLE, isSpriteArtStyle, styleDirection, type SpriteArtStyle } from '../src/lib/spriteArtStyles.js';
 import { BOOP_MINI_REFERENCE_VERSION } from './spriteReference.js';
 
-// New model generations use the locked pixel style. Existing local/owned art remains saved.
-export const SPRITE_ENGINE_VERSION = 'boop-starter-pixel-v1';
-export const PREVIOUS_SPRITE_ENGINE_VERSION = `${BOOP_MINI_REFERENCE_VERSION}:tactics`;
+export const SPRITE_ENGINE_VERSION = `${BOOP_MINI_REFERENCE_VERSION}:${DEFAULT_SPRITE_ART_STYLE}`;
+export const STARTER_PIXEL_SPRITE_ENGINE_VERSION = 'boop-starter-pixel-v1';
+export const TACTICAL_SPRITE_ENGINE_VERSION = `${BOOP_MINI_REFERENCE_VERSION}:tactics`;
 
 type ImageGenerator = (prompt: string) => Promise<GeminiImageResult>;
 

@@ -1,5 +1,5 @@
 # Default sprite style
 
-**Boop Starter Pixel** (`boop`) is the shared default for standard and shiny artwork, rerolls without a style choice, and Sprite Lab’s initial selection. Its art direction comes from Fire, Water, Wind, and Earth. New raster images are masked, framed on a 32px grid, and limited to 16 opaque colors.
+**Classic Boop** (`classic`) is the shared default for standard and shiny artwork, rerolls without a style choice, and Sprite Lab’s initial selection. The classic art direction uses compact isometric pixel art on a 112px canvas.
 
-The server uses a new cache version for generated artwork. Existing local and profile artwork keeps its current source. Tactical Isometric, Classic Boop, and the other explicit choices remain available.
+The server uses the Classic Boop cache version for default artwork. Saved sprites keep their current artwork. Boop Starter Pixel remains available as a 32px style alongside Tactical Isometric and the other choices.

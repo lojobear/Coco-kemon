@@ -1,7 +1,8 @@
 import type { Express } from 'express';
 import { getPersistentCacheBinding } from './cacheBinding.js';
 import { readPersistentJson, cachedWork } from './persistentCache.js';
-import { buildSpritePrompt, PREVIOUS_SPRITE_ENGINE_VERSION } from './emoji.js';
+import { buildSpritePrompt, SPRITE_ENGINE_VERSION, STARTER_PIXEL_SPRITE_ENGINE_VERSION, TACTICAL_SPRITE_ENGINE_VERSION } from './emoji.js';
+import { DEFAULT_SPRITE_ART_STYLE } from '../src/lib/spriteArtStyles.js';
 import { findRecoveryArt, serverSpriteKey } from './spriteRecovery.js';
 import { generateBloopImage, type GeminiImageResult } from './gemini.js';
 import { getBloopImageNeuronsUsed, getImageNeuronsUsed, BLOOP_DAILY_IMAGE_NEURON_LIMIT, BOOP_DAILY_IMAGE_NEURON_LIMIT, safeImageSpendingEnabled, utcBudgetDay } from './imageSpendingGuard.js';
@@ -76,10 +77,16 @@ export function registerBloopRoutes(app:Express){
     const name=typeof req.query.name==='string'?req.query.name.trim():'';
     if(!name||name.length>160)return res.status(400).json({error:'Invalid name'});
     try{
-      const current=await findRecoveryArt(name,false);
-      const art=current??await findRecoveryArt(name,false,PREVIOUS_SPRITE_ENGINE_VERSION);
-      if(!art)return res.status(404).json({error:'Artwork pending'});
-      res.set('Cache-Control','public, max-age=3600').json({imageBase64:art.data,mimeType:art.mimeType,style:current?'boop':'tactics'});
+      for (const [version, style] of [
+        [SPRITE_ENGINE_VERSION, DEFAULT_SPRITE_ART_STYLE],
+        [STARTER_PIXEL_SPRITE_ENGINE_VERSION, 'boop'],
+        [TACTICAL_SPRITE_ENGINE_VERSION, 'tactics'],
+      ]) {
+        const art = await findRecoveryArt(name, false, version);
+        if (art) return res.set('Cache-Control', 'public, max-age=3600')
+          .json({ imageBase64: art.data, mimeType: art.mimeType, style });
+      }
+      res.status(404).json({error:'Artwork pending'});
     }catch{res.status(503).json({error:'Artwork unavailable'});}
   });
 }

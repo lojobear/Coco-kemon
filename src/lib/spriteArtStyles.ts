@@ -22,7 +22,7 @@ export const SPRITE_ART_STYLES = {
   glass: { label: 'Art Glass', description: 'Translucent sculpted glass collectible', prompt: 'Miniature sculpted art-glass collectible, richly coloured glass with controlled refraction, bright specular highlights and recognizable solid silhouette, no external glow or pedestal.' },
 } as const;
 export type SpriteArtStyle = keyof typeof SPRITE_ART_STYLES;
-export const DEFAULT_SPRITE_ART_STYLE: SpriteArtStyle = 'boop';
+export const DEFAULT_SPRITE_ART_STYLE: SpriteArtStyle = 'classic';
 export function isSpriteArtStyle(value: unknown): value is SpriteArtStyle {
   return typeof value === 'string' && Object.prototype.hasOwnProperty.call(SPRITE_ART_STYLES, value);
 }

@@ -1,7 +1,7 @@
 /* Authored dark palette. Scoped overrides bridge legacy hard-coded light surfaces.
    Artwork is never inverted, recolored, or blended by the theme. */
-:root {color-scheme:only dark; background:#15171b;}
-html,body,#root {background:#15171b;color:#f0f1f5;}
+:root[data-boop-theme="dark"] {color-scheme:only dark; background:#15171b;}
+html[data-boop-theme="dark"] :is(body,#root) {background:#15171b;color:#f0f1f5;}
 #boop-app[data-palette="charcoal"] {
  --boop-canvas:#15171b;--boop-surface:#20242b;--boop-ink:#f0f1f5;
  --boop-muted:#b0b7c5;--boop-line:#414957;--boop-forest:#4668df;

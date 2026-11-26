@@ -2184,6 +2184,19 @@ html.boop-native-shell .boop-app .boop-cloud-dialog {
 .boop-settings-dialog {border:0;padding:0;background:transparent;width:calc(100% - 32px);max-width:384px;max-height:90dvh;margin:auto;color:inherit;}
 .boop-settings-dialog::backdrop {background:#0009;backdrop-filter:blur(4px);}
 .boop-settings-dialog .boop-settings {width:100%;margin:0;}
+.boop-settings {background:var(--boop-surface);color:var(--boop-ink);border-color:var(--boop-line);}
+.boop-settings-divider {border-color:var(--boop-line);}
+.boop-settings-details {color:var(--boop-muted);}
+.boop-settings-control {background:var(--basic-panel-raised);border-color:var(--boop-line);color:var(--boop-ink);}
+.boop-settings-appearance {display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:13px;font-weight:650;}
+.boop-settings-appearance select {min-width:7rem;min-height:44px;padding:8px 12px;border:1px solid var(--boop-line);border-radius:10px;}
+.boop-ai-status {background:#fff8e8;border-color:#e8cd88;color:#704a0b;}
+.boop-ai-status.is-configured {background:#edf8f0;border-color:#b9dfc4;color:#265a38;}
+.boop-settings-reset {background:#fff1f2;border-color:#ffc9cf;color:#9a263c;}
+.boop-settings-reset:hover {background:#ffe5e8;}
+#boop-app[data-palette="charcoal"] .boop-ai-status {background:#3c321f;border-color:#79603a;color:#ffda87;}
+#boop-app[data-palette="charcoal"] .boop-ai-status.is-configured {background:#223b32;border-color:#4d806a;color:#8de4b9;}
+#boop-app[data-palette="charcoal"] .boop-settings-reset {background:#3b252b!important;border-color:#8d5360!important;color:#ffb6b6!important;}
 .boop-collected-count {font-size:13px;font-weight:700;color:#526071;}
 .boop-album-refine {border:1px solid #dce1e6;border-radius:12px;background:#fff;}
 .boop-album-refine > summary {padding:12px;font-size:13px;font-weight:700;cursor:pointer;min-height:44px;}

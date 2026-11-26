@@ -7,13 +7,15 @@ const file = (name: string) => readFileSync(new URL('../' + name, import.meta.ur
 test('Boop prevents browser auto darkening before first paint and for all sprite views', () => {
   const html = file('index.html');
   const css = file('src/index.css');
+  const darkCss = file('src/charcoal.css');
   const app = file('src/App.tsx');
   const sprite = file('src/components/ElementSprite.tsx');
-  // The authored dark palette is declared before paint; images retain original pixels.
-  assert.match(html, /<meta name="color-scheme" content="only dark"\s*\/>/);
+  assert.match(html, /<meta name="color-scheme" content="only light"\s*\/>/);
   assert.ok(html.indexOf('name="color-scheme"') < html.indexOf('<script>'),
     'HTML colour-scheme must be declared before JavaScript/CSS to avoid a dark flash');
-  assert.match(css, /:root\s*\{[^}]*color-scheme:\s*only dark\s*;/);
+  assert.match(html, /localStorage\.getItem\('boop-site-theme'\)/);
+  assert.match(css, /:root\s*\{[^}]*color-scheme:\s*only light\s*;/);
+  assert.match(darkCss, /:root\[data-boop-theme="dark"\]\s*\{\s*color-scheme:only dark/);
   assert.match(app, /data-theme="quark-light"/);
   // Preserve original image pixels without adding broad image filters.
   assert.doesNotMatch(sprite, /filter:\s*invert\s*\(/);

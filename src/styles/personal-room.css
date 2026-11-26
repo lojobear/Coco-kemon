@@ -19,3 +19,64 @@
 .personal-room .room-mobile-save{display:none}.room-edit-toolbar>button[aria-label="Placement guides"]{margin-left:auto}
 @media(max-width:900px){.personal-room .room-mobile-save{display:inline-flex}.room-edit-toolbar>button:last-child{margin-left:0}.room-stage-column.is-editing .room-hint{font-size:11px;line-height:1.45}.room-stage-column.is-editing .room-hint{max-height:34px;overflow:hidden}}
 @media(max-width:540px){.room-edit-toolbar>button>span{display:none}.room-edit-toolbar>button{min-width:42px;min-height:42px}.room-edit-toolbar>button[aria-label="Placement guides"]{margin-left:auto}.room-piece-controls{scroll-margin-top:380px}}
+#boop-app[data-palette="white"] .personal-room {
+  color: var(--boop-ink);
+  --room-accent: #25644c;
+  --room-gold: #805615;
+}
+#boop-app[data-palette="white"] .personal-room :is(.room-panel, .room-empty, .room-message, .room-error, input:not([type=range]), select) {
+  background: var(--boop-surface);
+  border-color: var(--boop-line);
+}
+#boop-app[data-palette="white"] .personal-room :is(input, select) {
+  color: var(--boop-ink);
+}
+#boop-app[data-palette="white"] .personal-room :is(p, label, .room-hint, .room-selector > span, .room-panel small, .room-favorites small) {
+  color: var(--boop-muted);
+}
+#boop-app[data-palette="white"] .personal-room :is(.room-heading small, .room-discovery-loop small, .room-empty > svg, .room-message) {
+  color: var(--room-accent);
+}
+#boop-app[data-palette="white"] .room-studio-label {
+  color: var(--room-accent) !important;
+}
+#boop-app[data-palette="white"] .personal-room :is(.room-topline > span, .room-panel > svg) {
+  color: var(--room-gold);
+}
+#boop-app[data-palette="white"] .personal-room .room-error {
+  color: #9a263c;
+}
+#boop-app[data-palette="white"] .personal-room .room-discovery-loop {
+  background: #f2f8f5;
+  border-color: #d5e7dd;
+}
+#boop-app[data-palette="white"] .personal-room button:not(.room-piece, .room-placement-target) {
+  background: var(--boop-sage);
+  border-color: var(--boop-line);
+  color: var(--boop-ink);
+}
+#boop-app[data-palette="white"] .personal-room button:hover:not(:disabled, .room-piece, .room-placement-target) {
+  border-color: var(--room-accent);
+}
+#boop-app[data-palette="white"] .personal-room .room-topline > button {
+  background: transparent;
+}
+#boop-app[data-palette="white"] .personal-room button:is(.room-primary, .room-picker-tabs [aria-pressed=true]) {
+  background: #3657c6;
+  border-color: #3657c6;
+  color: white;
+}
+#boop-app[data-palette="white"] .room-style-picker button[aria-pressed=true] {
+  border-color: var(--room-accent);
+}
+#boop-app[data-palette="white"] .room-piece-caption {
+  color: #f0f1f5;
+}
+#boop-app[data-palette="white"] .personal-room :is(progress, input[type=range]) {
+  accent-color: var(--room-accent);
+}
+@media (max-width: 900px) {
+  #boop-app[data-palette="white"] .room-stage-column.is-editing {
+    background: var(--boop-canvas);
+  }
+}
